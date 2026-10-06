@@ -1,0 +1,5 @@
+node_modules
+.turbo
+apps/web/dist
+apps/web/.astro
+persistent

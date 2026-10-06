@@ -1,0 +1,16 @@
+{
+    "name": "traceway",
+    "private": true,
+    "packageManager": "bun@1.3.6",
+    "workspaces": [
+        "apps/web"
+    ],
+    "scripts": {
+        "dev": "turbo dev",
+        "build": "turbo build",
+        "check": "turbo check"
+    },
+    "devDependencies": {
+        "turbo": "^2.5.0"
+    }
+}
