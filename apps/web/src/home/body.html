@@ -1,0 +1,419 @@
+<header class="hdr" id="hdr">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Traceway, back to top">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path class="mk" d="M6 23 V12 a6 6 0 0 1 6 -6 h4 a6 6 0 0 1 6 6 v3" stroke="oklch(0.22 0.03 200)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path><circle class="mkd" cx="22" cy="22" r="3" fill="oklch(0.22 0.03 200)"></circle></svg>
+      <span>Traceway</span>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#sports">Sports</a>
+      <a href="#devices">Devices</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="hdr-r">
+      <a class="login" href="/login">Log in</a>
+      <a class="fill sm" href="/dashboard">Open the planner</a>
+    </div>
+  </div>
+</header>
+
+<section class="track" id="generate" aria-label="How a loop is generated">
+  <div class="stage" id="stage">
+    <div class="copy">
+      <div class="copy-inner">
+        <div class="hero" id="hero">
+          <p class="kicker">Routes for the bike computer</p>
+          <h1>Name the distance.<br>Get a loop worth riding.</h1>
+          <p class="lede">Drop a pin anywhere. Traceway walks every road around it, draws the loops that come back, keeps the best one and writes the course file your bike computer follows on its own.</p>
+          <div class="hero-cta">
+            <a class="fill hero-btn" href="/dashboard">Open the planner</a>
+            <span class="cue"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v12M4 10l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>Scroll to watch it work</span>
+          </div>
+        </div>
+        <div class="narr">
+          <p data-s="1">Traceway walks <em>every road</em> it can reach from your pin.</p>
+          <p data-s="2">Every way back gets a score. <em>Three</em> come out ahead.</p>
+          <p data-s="3">The one closest to your distance stays. <em>The rest fade.</em></p>
+          <p data-s="4">Arrows point the way you ride, so the line has a <em>direction</em>.</p>
+          <p data-s="5">Want to pass through Bergom? Add a <em>via</em>. The loop bends, and stays a loop.</p>
+          <p data-s="6">The course file is ready. Your computer <em>follows it alone</em>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mapbox" id="mapbox">
+      <svg class="map" id="map" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+        <defs>
+          <symbol id="net" overflow="visible">
+            <rect class="m-base" x="-2000" y="-2000" width="5200" height="5200"></rect>
+            <g class="m-f1">
+              <polygon points="480,100 576,100 584,220 480,230"></polygon>
+              <polygon points="1102,330 1128,328 1128,520 1086,516"></polygon>
+              <polygon points="652,540 730,536 742,570 655,576"></polygon>
+              <polygon points="760,648 870,640 876,708 750,708"></polygon>
+              <polygon points="-200,-100 200,-80 230,90 -220,120"></polygon>
+              <polygon points="1200,-200 1700,-200 1700,120 1140,110"></polygon>
+              <polygon points="-300,700 220,690 240,1000 -300,1000"></polygon>
+              <polygon points="1130,760 1500,740 1520,1100 1100,1100"></polygon>
+            </g>
+            <g class="m-f2">
+              <polygon points="958,324 1020,318 1028,362 966,370"></polygon>
+              <polygon points="780,400 852,390 900,430 860,480 780,482"></polygon>
+              <polygon points="480,350 580,346 598,400 620,480 480,478"></polygon>
+              <polygon points="818,136 870,130 872,170 822,200"></polygon>
+              <polygon points="330,380 560,372 570,460 320,470"></polygon>
+              <polygon points="1240,440 1480,430 1500,660 1300,680"></polygon>
+              <polygon points="300,120 600,110 620,230 310,236"></polygon>
+            </g>
+            <g class="m-wood">
+              <polygon points="970,210 1050,195 1080,240 1076,290 1010,288 966,260"></polygon>
+              <polygon points="610,210 680,180 740,200 730,260 650,270"></polygon>
+              <polygon points="810,552 896,546 918,586 876,614 812,612"></polygon>
+              <polygon points="480,656 600,648 640,680 630,708 480,708"></polygon>
+              <polygon points="970,630 1040,622 1050,670 1020,700 968,692"></polygon>
+              <polygon points="40,420 190,410 230,540 60,560"></polygon>
+              <polygon points="1180,180 1360,170 1380,280 1200,300"></polygon>
+              <polygon points="340,760 480,750 500,900 330,920"></polygon>
+            </g>
+            <g class="m-res">
+              <polygon points="732,278 826,268 848,332 786,364 718,352"></polygon>
+              <polygon points="678,470 728,472 738,514 692,522"></polygon>
+              <polygon points="686,598 752,596 768,648 720,668 684,650"></polygon>
+              <polygon points="200,300 270,296 276,340 196,344"></polygon>
+            </g>
+            <g class="m-bld">
+              <rect x="742" y="296" width="10" height="7"></rect>
+              <rect x="756" y="340" width="9" height="7"></rect>
+              <rect x="806" y="352" width="12" height="8"></rect>
+              <rect x="832" y="296" width="9" height="7"></rect>
+              <rect x="810" y="260" width="8" height="6"></rect>
+              <rect x="766" y="272" width="8" height="7"></rect>
+              <rect x="790" y="358" width="8" height="6"></rect>
+              <rect x="726" y="336" width="8" height="8"></rect>
+              <rect x="684" y="476" width="9" height="7"></rect>
+              <rect x="702" y="504" width="10" height="7"></rect>
+              <rect x="708" y="478" width="8" height="6"></rect>
+              <rect x="694" y="606" width="10" height="7"></rect>
+              <rect x="710" y="630" width="9" height="8"></rect>
+              <rect x="716" y="652" width="10" height="7"></rect>
+              <rect x="752" y="630" width="8" height="7"></rect>
+              <rect x="724" y="606" width="8" height="6"></rect>
+              <rect x="212" y="310" width="9" height="7"></rect>
+              <rect x="246" y="318" width="8" height="7"></rect>
+            </g>
+            <path class="m-water" d="M1700 560 C1500 540 1300 570 1128 550 C1090 562 1060 540 1020 552 C980 564 950 586 910 576 C875 568 840 550 800 562 C765 572 742 594 702 586 C662 578 630 562 590 574 C550 586 520 600 472 594 C400 586 300 600 200 596 C100 592 0 580 -300 590"></path>
+            <g class="m-road">
+              <path d="M592 336 L580 260 L592 192 L630 150 L690 130 L760 128 L814 124 L880 118 L1028 146 L1090 156 L1128 162 L1400 170"></path>
+              <path d="M760 128 L808 170"></path>
+              <path d="M780 322 L828 280 L880 236 L935 198 L988 166 L1028 146"></path>
+              <path d="M1094 -300 L1092 92 L1090 156 L1090 220 L1090 303 L1094 362 L1084 424 L1078 500 L1070 570 L1069 590 L1066 708 L1060 1100"></path>
+              <path d="M1020 306 L1030 366 L1036 418 L1084 424"></path>
+              <path d="M-300 640 L100 632 L290 640 L472 630 L670 624 L742 618 L810 628 L878 620 L930 596 L1000 600 L1069 590 L1400 585"></path>
+              <path d="M930 596 L954 548 L952 496 L938 448 L908 412 L868 380 L824 351 L780 322"></path>
+              <path d="M938 448 L950 380 L940 310"></path>
+              <path d="M878 620 L884 708 L900 1100"></path>
+              <path d="M767 440 L732 460 L718 492 L730 520 L756 530"></path>
+              <path d="M718 492 L652 488 L630 487 L472 482 L300 476 L130 484 L-300 480"></path>
+              <path d="M592 336 L604 410 L630 487 L650 570 L670 624"></path>
+              <path d="M761 495 L820 504 L880 520 L954 548"></path>
+              <path d="M880 236 L884 180 L880 118"></path>
+              <path d="M580 260 L472 250 L300 244 L120 250 L-300 240"></path>
+              <path d="M630 150 L626 92"></path>
+              <path d="M685 329 L694 400 L732 460"></path>
+              <path d="M300 244 L316 348 L300 476 L290 640 L282 1100"></path>
+              <path d="M0 40 L240 100 L626 92 L626 -8"></path>
+              <path d="M1500 290 L1300 420 L1400 700 L1066 708"></path>
+            </g>
+            <g class="m-major">
+              <path d="M818 92 L814 124 L808 170 L794 250 L780 322 L772 400 L767 440 L761 495 L756 530 L750 580 L742 618 L730 708 L716 1100"></path>
+              <path d="M-300 356 L0 350 L180 342 L232 345 L316 348 L330 348 L472 340 L592 336 L685 329 L780 322 L860 315 L940 310 L1020 306 L1090 303 L1128 301 L1500 290"></path>
+              <path d="M250 -300 L240 100 L232 345 L236 600 L250 1100"></path>
+            </g>
+          </symbol>
+          <path id="loop-road" pathLength="1" d="M780 322 L772 400 L767 440 L732 460 L718 492 L730 520 L756 530 L750 580 L742 618 L810 628 L878 620 L930 596 L954 548 L952 496 L938 448 L908 412 L868 380 L824 351 L780 322"></path>
+          <path id="loop-gravel" pathLength="1" d="M780 322 L685 329 L592 336 L580 260 L592 192 L630 150 L690 130 L760 128 L808 170 L794 250 L780 322"></path>
+          <path id="loop-mtb" pathLength="1" d="M780 322 L860 315 L940 310 L1020 306 L1030 366 L1036 418 L1084 424 L1094 362 L1090 303 L1090 220 L1090 156 L1028 146 L988 166 L935 198 L880 236 L828 280 L780 322"></path>
+          <path id="loop-run" pathLength="1" d="M780 322 L685 329 L694 400 L732 460 L767 440 L772 400 L780 322"></path>
+          <path id="loop-trail" pathLength="1" d="M780 322 L772 400 L767 440 L761 495 L820 504 L880 520 L954 548 L952 496 L938 448 L908 412 L868 380 L824 351 L780 322"></path>
+          <path id="loop-walk" pathLength="1" d="M780 322 L828 280 L880 236 L884 180 L880 118 L814 124 L808 170 L794 250 L780 322"></path>
+        </defs>
+        <g id="world">
+          <use href="#net"></use>
+          <g id="explored"></g>
+          <g id="frontglow"></g>
+          <g id="front"></g>
+          <circle class="ring" id="ring" cx="780" cy="322" r="20"></circle>
+          <g id="losers">
+            <path class="loser" id="l-north" pathLength="1" d="M780 322 L685 329 L592 336 L580 260 L592 192 L630 150 L690 130 L760 128 L808 170 L794 250 Z"></path>
+            <path class="loser" id="l-east" pathLength="1" d="M780 322 L860 315 L940 310 L1020 306 L1030 366 L1036 418 L1084 424 L1094 362 L1090 303 L1090 220 L1090 156 L1028 146 L988 166 L935 198 L880 236 L828 280 Z"></path>
+          </g>
+          <g id="winner">
+            <path class="winglow" id="g-A" pathLength="1" d="M780 322 L772 400 L767 440"></path>
+            <path class="winglow" id="g-old" pathLength="1" d="M767 440 L761 495 L756 530"></path>
+            <path class="winglow" id="g-via" pathLength="1" d="M767 440 L732 460 L718 492 L730 520 L756 530"></path>
+            <path class="winglow" id="g-B" pathLength="1" d="M756 530 L750 580 L742 618 L810 628 L878 620 L930 596 L954 548 L952 496 L938 448 L908 412 L868 380 L824 351 L780 322"></path>
+            <path class="win" id="w-A" pathLength="1" d="M780 322 L772 400 L767 440"></path>
+            <path class="win" id="w-old" pathLength="1" d="M767 440 L761 495 L756 530"></path>
+            <path class="win" id="w-via" pathLength="1" d="M767 440 L732 460 L718 492 L730 520 L756 530"></path>
+            <path class="win" id="w-B" pathLength="1" d="M756 530 L750 580 L742 618 L810 628 L878 620 L930 596 L954 548 L952 496 L938 448 L908 412 L868 380 L824 351 L780 322"></path>
+          </g>
+          <circle class="viadot" id="viadot" cx="718" cy="492" r="7"></circle>
+          <g id="arrows">
+            <g class="arrow" transform="translate(769.8 418) rotate(187.1)"><rect x="-9" y="-9" width="18" height="18" rx="4.5"></rect><path d="M0 -5.5 L5.5 1 L2 1 L2 5.5 L-2 5.5 L-2 1 L-5.5 1 Z"></path></g>
+            <g class="arrow" transform="translate(844 624) rotate(83.3)"><rect x="-9" y="-9" width="18" height="18" rx="4.5"></rect><path d="M0 -5.5 L5.5 1 L2 1 L2 5.5 L-2 5.5 L-2 1 L-5.5 1 Z"></path></g>
+            <g class="arrow" transform="translate(953 522) rotate(357.8)"><rect x="-9" y="-9" width="18" height="18" rx="4.5"></rect><path d="M0 -5.5 L5.5 1 L2 1 L2 5.5 L-2 5.5 L-2 1 L-5.5 1 Z"></path></g>
+            <g class="arrow" transform="translate(846 365.5) rotate(303.4)"><rect x="-9" y="-9" width="18" height="18" rx="4.5"></rect><path d="M0 -5.5 L5.5 1 L2 1 L2 5.5 L-2 5.5 L-2 1 L-5.5 1 Z"></path></g>
+          </g>
+          <g class="lbls">
+            <text class="lbl" x="764" y="292" text-anchor="end">Westerlo</text>
+            <text class="lbl" x="684" y="537">Bergom</text>
+            <text class="lbl" x="678" y="684">Herselt</text>
+          </g>
+        </g>
+      </svg>
+      <canvas class="roads" id="roads" aria-hidden="true"></canvas>
+      <div class="vig"></div>
+      <svg class="map pinlayer" id="pinlayer" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+        <g class="pin" id="pin">
+          <g class="pin-body">
+            <path d="M780 322 C774 314 768 308 768 301 A12 12 0 1 1 792 301 C792 308 786 314 780 322 Z" fill="oklch(0.97 0.012 95)"></path>
+            <circle cx="780" cy="301" r="5" fill="oklch(0.78 0.17 128)"></circle>
+          </g>
+        </g>
+      </svg>
+      <div class="device" id="device" aria-hidden="true">
+        <div class="filecard">
+          <div class="fn">morning-loop.fit</div>
+          <div class="r"><span>Distance</span><span id="fc-dist">41.6 km</span></div>
+          <div class="r"><span>Ascent</span><span>180 m</span></div>
+          <div class="r"><span>Surface</span><span>Paved</span></div>
+          <div class="r"><span>Device name</span><span>Morning loop</span></div>
+        </div>
+        <div class="unit">
+          <div class="scr">
+            <svg viewBox="672 296 320 352" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <g opacity="0.75"><use href="#net"></use></g>
+              <use href="#loop-road" id="dev-loop" style="fill:none;stroke:oklch(0.97 0.012 95);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1 1.5;stroke-dashoffset:1"></use>
+              <circle cx="780" cy="322" r="7" fill="oklch(0.78 0.17 128)" stroke="oklch(0.97 0.012 95)" stroke-width="3"></circle>
+            </svg>
+          </div>
+          <div class="bar"><span>COURSE</span><b>Morning loop</b></div>
+        </div>
+      </div>
+    </div>
+
+    <dl class="hud" id="hud">
+      <div><dt>Asked</dt><dd>40 km · paved · quiet</dd></div>
+      <div id="h-roads" class="dim"><dt>Roads reached</dt><dd id="v-roads">0 of 120</dd></div>
+      <div id="h-cand" class="dim"><dt>Candidates</dt><dd id="v-cand">—</dd></div>
+      <div id="h-loop"><dt>Loop</dt><dd id="v-loop">0.0 km</dd></div>
+      <div id="h-asc" class="dim"><dt>Ascent</dt><dd id="v-asc">—</dd></div>
+      <div id="h-course"><dt>Course</dt><dd id="v-course">Drawing…</dd></div>
+    </dl>
+
+    <ol class="rail" id="rail" aria-hidden="true">
+      <li data-a="0">Pin</li>
+      <li data-a="1">Search</li>
+      <li data-a="2">Loops</li>
+      <li data-a="3">Choose</li>
+      <li data-a="4">Direction</li>
+      <li data-a="5">Via</li>
+      <li data-a="6">Export</li>
+    </ol>
+  </div>
+</section>
+
+<section class="sec" id="how">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <p class="kicker">How it works</p>
+      <h2>Three moves. Then you ride.</h2>
+      <p class="lede">No dragging waypoints around a map. You say where, how far and what kind of riding. Traceway does the routing.</p>
+    </div>
+    <div class="steps">
+      <article class="step rv" style="--i:0">
+        <svg class="ic" viewBox="0 0 56 56" aria-hidden="true"><path pathLength="1" d="M28 48 C20 38 14 31 14 22 a14 14 0 0 1 28 0 c0 9 -6 16 -14 26 Z"></path><circle class="dot" cx="28" cy="22" r="4"></circle></svg>
+        <span class="num">01</span>
+        <h3>Drop a pin</h3>
+        <p>Your driveway, the trailhead, the hotel car park. The loop starts and ends right there, so the ride begins when you clip in.</p>
+      </article>
+      <article class="step rv" style="--i:1">
+        <svg class="ic" viewBox="0 0 56 56" aria-hidden="true"><path pathLength="1" d="M10 16 H46 M10 28 H46 M10 40 H46"></path><circle class="dot" cx="20" cy="16" r="4"></circle><circle class="dot" cx="38" cy="28" r="4"></circle><circle class="dot" cx="26" cy="40" r="4"></circle></svg>
+        <span class="num">02</span>
+        <h3>Name the distance and the sport</h3>
+        <p>40 km on the road bike. 12 km on foot. Each sport scores roads its own way, so the same pin gives a different loop.</p>
+      </article>
+      <article class="step rv" style="--i:2">
+        <svg class="ic" viewBox="0 0 56 56" aria-hidden="true"><rect pathLength="1" x="14" y="6" width="28" height="44" rx="7"></rect><path pathLength="1" d="M22 30 c3 -6 6 -8 10 -8 c4 0 5 4 2 10 c-2 4 -6 6 -10 6"></path><circle class="dot" cx="22" cy="30" r="3"></circle></svg>
+        <span class="num">03</span>
+        <h3>Send it to the bike</h3>
+        <p>Export a GPX, or a FIT course for Garmin. The head unit draws the line on its own map and turns you at every junction. No phone on the bars.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="sports">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <p class="kicker">Sports</p>
+      <h2>One pin. Six ideas of a good road.</h2>
+      <p class="lede">Surface, climb and quiet streets are weighed differently for each sport. These six loops all leave the same pin in Westerlo.</p>
+    </div>
+    <div class="grid g3 tiles">
+      <article class="tile rv" style="--i:0">
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-road"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="meta"><span>Road</span><b>Paved · quiet</b></div>
+        <h3>Road</h3>
+        <p>Quiet lanes and cycleways. Trunk roads lose.</p>
+      </article>
+      <article class="tile rv" style="--i:1">
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-gravel"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="meta"><span>Gravel</span><b>Dirt first</b></div>
+        <h3>Gravel</h3>
+        <p>Smooth dirt where the map knows it. Pavement still counts.</p>
+      </article>
+      <article class="tile rv" style="--i:2">
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-mtb"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="meta"><span>Mountain bike</span><b>Trail · hills in</b></div>
+        <h3>Mountain bike</h3>
+        <p>Trail and rough track. The hills stay in.</p>
+      </article>
+      <article class="tile rv" style="--i:0">
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-run"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="meta"><span>Run</span><b>Paths · pavements</b></div>
+        <h3>Run</h3>
+        <p>Paths and pavements. Busy roads drop out.</p>
+      </article>
+      <article class="tile rv" style="--i:1">
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-trail"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="meta"><span>Trail run</span><b>Footpaths · climb on</b></div>
+        <h3>Trail run</h3>
+        <p>Footpaths and dirt, with the climb left on.</p>
+      </article>
+      <article class="tile rv" style="--i:2">
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-walk"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="meta"><span>Walk and hike</span><b>Slower · shorter</b></div>
+        <h3>Walk and hike</h3>
+        <p>The same loop, slower, for a shorter day.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="band sec" id="devices">
+  <div class="wrap">
+    <div class="grid g2" style="gap:48px 64px;align-items:center">
+      <div class="rv">
+        <p class="kicker">On the bike</p>
+        <h2 style="margin-top:16px">Leave the phone at home.</h2>
+        <p class="body" style="margin-top:24px">Traceway writes a GPX file for almost any head unit, and a FIT course for Garmin. Import it in Connect under Training, then Courses, and sync. Over USB, drop the FIT in Garmin/NewFiles. The computer follows the line on its own map. No signal required.</p>
+        <p class="body">A Garmin reads the first 15 characters of a course name, so every file carries a short name beside the full one. You never see a course called "morning-loop-westerlo-via-be".</p>
+        <ul class="formats">
+          <li><b>FIT course</b><span>Garmin<small>Turn guidance, course points, the short name already set.</small></span></li>
+          <li><b>GPX</b><span>Wahoo, Hammerhead, Bryton, COROS<small>The same line. Any head unit that reads GPX follows it.</small></span></li>
+        </ul>
+      </div>
+      <div class="transfer rv" style="--i:1" aria-hidden="true">
+        <div class="filecard">
+          <div class="fn">morning-loop.fit</div>
+          <div class="r"><span>Distance</span><span>40.2 km</span></div>
+          <div class="r"><span>Ascent</span><span>180 m</span></div>
+          <div class="r"><span>Surface</span><span>Paved</span></div>
+          <div class="r"><span>Device name</span><span>Morning loop</span></div>
+        </div>
+        <svg class="wire" viewBox="0 0 140 60" aria-hidden="true">
+          <path id="wirepath" d="M4 30 C40 30 60 30 136 30"></path>
+          <circle r="4"><animateMotion dur="2.6s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.22 1 0.36 1"><mpath href="#wirepath"></mpath></animateMotion></circle>
+        </svg>
+        <div class="unit">
+          <div class="scr">
+            <svg viewBox="672 296 320 352" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <g opacity="0.75"><use href="#net"></use></g>
+              <use href="#loop-road" style="fill:none;stroke:oklch(0.97 0.012 95);stroke-width:5;stroke-linecap:round;stroke-linejoin:round"></use>
+              <circle cx="780" cy="322" r="7" fill="oklch(0.78 0.17 128)" stroke="oklch(0.97 0.012 95)" stroke-width="3"></circle>
+            </svg>
+          </div>
+          <div class="bar"><span>COURSE</span><b>Morning loop</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec stance">
+  <div class="wrap">
+    <h2 class="rv"><span>No feed.</span><span>No club.</span><span class="x">No public routes.</span></h2>
+    <div class="stance-grid">
+      <p class="rv" style="--i:1">Traceway is a solo planner. <b>Your pin, your loop and your Sunday morning stay yours.</b> Nobody sees where you start, nobody ranks your ride, and the only thing that leaves the planner is a course file, headed for your bike.</p>
+      <p class="rv" style="--i:2">There is nothing to scroll and nobody to keep up with. <b>You get a line that is worth riding, and the quiet to ride it.</b> The map is OpenStreetMap. The judgement about what makes a road good is ours.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <p class="kicker">Questions</p>
+      <h2>Before you drop the pin.</h2>
+    </div>
+    <div class="faq-list rv" style="--i:1">
+      <details>
+        <summary>Does the bike computer need a signal or an app?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>No. The course file is the whole ride. Load it once, over sync or USB, and the head unit follows the line on its own map, with no phone and no signal.</p>
+      </details>
+      <details>
+        <summary>FIT or GPX, which one do I pick?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>FIT for a Garmin, because it carries turn guidance and the short course name the device expects. GPX for Wahoo, Hammerhead, Bryton, COROS and almost anything else. Both files hold the same line.</p>
+      </details>
+      <details>
+        <summary>Can I make the loop pass a particular place?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>Add a via point. The loop bends through it and stays a loop: closed, on roads, never doubling back along the same stretch. The distance updates as it bends.</p>
+      </details>
+      <details>
+        <summary>Will it send me down a busy road?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>Each sport has its own idea of a good road. The road and run profiles score busy roads down hard, so they lose early. Gravel and mountain bike profiles care more about surface and climb than about traffic.</p>
+      </details>
+      <details>
+        <summary>Does it work outside Belgium?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>The map is OpenStreetMap, so the pin goes anywhere the map has roads. The loops shown on this page leave Westerlo, where Traceway is built and ridden.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="sec cta" id="planner">
+  <div class="wrap">
+    <div class="cta-inner rv">
+      <h2>Your next loop is one pin away.</h2>
+      <div class="acts">
+        <a class="fill" href="/dashboard">Open the planner</a>
+        <small>Routes for the bike computer.</small>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <a class="brand" href="#top">
+      <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M6 23 V12 a6 6 0 0 1 6 -6 h4 a6 6 0 0 1 6 6 v3" stroke="oklch(0.22 0.03 200)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="22" cy="22" r="3" fill="oklch(0.22 0.03 200)"></circle></svg>
+      <span>Traceway</span>
+    </a>
+    <div class="cols">
+      <div>
+        <h4>Page</h4>
+        <ul><li><a href="#how">How it works</a></li><li><a href="#sports">Sports</a></li><li><a href="#devices">Devices</a></li><li><a href="#faq">Questions</a></li></ul>
+      </div>
+      <div>
+        <h4>Notes from the road</h4>
+        <ul><li><a href="/notes/onto-the-computer">Onto the computer</a></li><li><a href="/notes/from-the-driveway">From the driveway</a></li></ul>
+      </div>
+      <div>
+        <h4>Account</h4>
+        <ul><li><a href="/login">Log in</a></li><li><a href="/dashboard">Open the planner</a></li></ul>
+      </div>
+    </div>
+    <div class="line"><span>Routes for the bike computer.</span><span>Map data from OpenStreetMap.</span></div>
+  </div>
+</footer>

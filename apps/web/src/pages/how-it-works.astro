@@ -1,0 +1,30 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base
+    title="How it works"
+    description="Filters, a loop, and a course file for the head unit."
+>
+    <main class="shell page">
+        <p class="kicker">How it works</p>
+        <h1>The line comes from the map, not from a guess.</h1>
+        <div class="prose">
+            <p>
+                You set a start pin, a sport, a distance, a surface, and an
+                elevation bias. Traceway asks a routing engine for several loops
+                and ranks them. Distance error, paved share, climb, cycleways,
+                trunk roads, and ferries decide the order.
+            </p>
+            <p>
+                Unknown surface stays unknown. A sentence can fill the same
+                filters later. It does not invent coordinates.
+            </p>
+            <p>
+                The planner itself lives in the app. This site is the quiet
+                explanation you can read before you open it.
+            </p>
+            <a class="button" href="/dashboard">Open the planner</a>
+        </div>
+    </main>
+</Base>

@@ -1,0 +1,47 @@
+---
+import '@fontsource/outfit/400.css';
+import '@fontsource/outfit/500.css';
+import '@fontsource/outfit/600.css';
+import '../styles/global.css';
+import Mark from '../components/Mark.astro';
+
+interface Props {
+    title: string;
+    description: string;
+}
+
+const { title, description } = Astro.props;
+const pageTitle = title === 'Traceway' ? title : `${title} · Traceway`;
+---
+
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{pageTitle}</title>
+        <meta name="description" content={description} />
+        <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
+    </head>
+    <body>
+        <header class="shell site-header">
+            <a class="brand" href="/">
+                <Mark />
+                Traceway
+            </a>
+            <nav class="nav">
+                <a href="/#generate">How it works</a>
+                <a href="/#sports">Sports</a>
+                <a href="/#devices">Devices</a>
+                <a href="/#notes">Notes</a>
+                <a href="/login">Log in</a>
+                <a class="button" href="/dashboard">Open the planner</a>
+            </nav>
+        </header>
+        <slot />
+        <footer class="shell site-footer">
+            <span>Routes for the bike computer.</span>
+            <span>Map data from OpenStreetMap.</span>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,31 @@
+---
+import '@fontsource/outfit/400.css';
+import '@fontsource/outfit/500.css';
+import '@fontsource/outfit/600.css';
+import 'lenis/dist/lenis.css';
+import '../styles/v2.css';
+
+interface Props {
+    title?: string;
+    description?: string;
+}
+
+const {
+    title = 'Traceway',
+    description = 'Drop a pin anywhere. Traceway draws the loops that come back and writes the course file your bike computer follows on its own.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
+    </head>
+    <body id="top">
+        <slot />
+    </body>
+</html>

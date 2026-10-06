@@ -1,0 +1,30 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base
+    title="Devices"
+    description="GPX and FIT courses for a Garmin and other head units."
+>
+    <main class="shell page">
+        <p class="kicker">Devices</p>
+        <h1>The computer already knows the map.</h1>
+        <div class="prose">
+            <p>
+                Export a GPX file for almost any head unit, and a FIT course for
+                Garmin. In Garmin Connect, import the file under Training, then
+                Courses, and sync. Over USB, copy the FIT into
+                <code>Garmin/NewFiles</code>.
+            </p>
+            <p>
+                Wahoo, Hammerhead, Bryton, and COROS take the same GPX. The course
+                name on a Garmin is read from the first 15 characters, so Traceway
+                keeps a short device name beside the full one.
+            </p>
+            <p>
+                Automatic publish into a Garmin account waits on their Courses API.
+                The file works before that approval.
+            </p>
+        </div>
+    </main>
+</Base>
