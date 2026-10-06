@@ -1,0 +1,43 @@
+<?php
+
+use App\Http\Controllers\Auth\DemoLoginController;
+use App\Http\Controllers\BuildRouteController;
+use App\Http\Controllers\DestroySavedRouteController;
+use App\Http\Controllers\ExportFitCourseController;
+use App\Http\Controllers\ExportSharedCourseController;
+use App\Http\Controllers\PreviewRouteController;
+use App\Http\Controllers\SavedRouteLibraryController;
+use App\Http\Controllers\ShowSharedRouteController;
+use App\Http\Controllers\SnapPointController;
+use App\Http\Controllers\StoreSavedRouteController;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+
+Route::post('login/demo/{rider}', DemoLoginController::class)
+    ->middleware('guest')
+    ->name('login.demo');
+
+Route::get('/', fn () => Inertia::render('welcome'))->name('home');
+
+Route::get('share/{savedRoute}', ShowSharedRouteController::class)
+    ->middleware('signed')
+    ->name('routes.share');
+Route::get('share/{savedRoute}/gpx', [ExportSharedCourseController::class, 'gpx'])
+    ->middleware('signed')
+    ->name('routes.share.gpx');
+Route::get('share/{savedRoute}/fit', [ExportSharedCourseController::class, 'fit'])
+    ->middleware('signed')
+    ->name('routes.share.fit');
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('dashboard', fn () => Inertia::render('dashboard'))->name('dashboard');
+    Route::get('saved', SavedRouteLibraryController::class)->name('routes.library');
+    Route::post('routes/preview', PreviewRouteController::class)->name('routes.preview');
+    Route::post('routes/build', BuildRouteController::class)->name('routes.build');
+    Route::post('routes/snap', SnapPointController::class)->name('routes.snap');
+    Route::post('routes/fit', ExportFitCourseController::class)->name('routes.fit');
+    Route::post('routes/saved', StoreSavedRouteController::class)->name('routes.saved.store');
+    Route::delete('routes/saved/{savedRoute}', DestroySavedRouteController::class)->name('routes.saved.destroy');
+});
+
+require __DIR__.'/settings.php';
