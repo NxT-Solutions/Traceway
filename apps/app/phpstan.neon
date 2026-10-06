@@ -1,0 +1,31 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/nesbot/carbon/extension.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+    - vendor/pestphp/pest/extension.neon
+
+parameters:
+    paths:
+        - app/
+        - bootstrap/app.php
+        - database/
+        - routes/
+
+    level: max
+
+    # Eloquent and PHPUnit assert through __callStatic. array_filter() without
+    # a callback is how the Laravel skeleton drops empty env values. Short
+    # ternaries show up in Fortify's username normalizer. The level stays max.
+    strictRules:
+        disallowedLooseComparison: false
+        booleansInConditions: false
+        disallowedEmpty: false
+        dynamicCallOnStaticMethod: false
+        strictArrayFilter: false
+        disallowedShortTernary: false
+
+    ignoreErrors:
+        -
+            identifier: method.childParameterType
+            path: app/Actions/Fortify/CreateNewUser.php
+            reportUnmatched: true

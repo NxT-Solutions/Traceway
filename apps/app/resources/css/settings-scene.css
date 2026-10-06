@@ -1,0 +1,128 @@
+
+/* Settings: the app's quiet page. Left nav, one form column, hairlines, one filled action per form. */
+.tw-settings{
+  color-scheme: dark;
+  --paper: oklch(0.97 0.012 95); --ink: oklch(0.22 0.03 200); --chart: oklch(0.78 0.17 128); --chart-dim: oklch(0.71 0.17 128); --chart-ink: oklch(0.2 0.04 200);
+  --bg: oklch(0.22 0.03 200); --text: oklch(0.97 0.012 95); --muted: oklch(0.72 0.02 110); --hair: oklch(0.97 0.012 95 / 0.14);
+  --panel: oklch(0.2 0.03 200); --panel-b: oklch(0.97 0.012 95 / 0.16); --field: oklch(0.25 0.03 200); --field-b: oklch(0.97 0.012 95 / 0.16);
+  --outline: oklch(0.97 0.012 95 / 0.3); --seg-on: oklch(0.3 0.03 200); --seg-on-fg: oklch(0.97 0.012 95); --hover: oklch(0.3 0.03 200); --icon-box: oklch(0.28 0.03 200);
+  --avatar-bg: oklch(0.97 0.012 95); --avatar-fg: oklch(0.22 0.03 200); --danger: oklch(0.72 0.14 25); --danger-fill: oklch(0.52 0.16 25);
+  --font: Outfit, 'Avenir Next', 'Segoe UI', system-ui, sans-serif; --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tw-settings[data-theme="light"]{
+  color-scheme: light;
+  --bg: oklch(0.97 0.012 95); --text: oklch(0.22 0.03 200); --muted: oklch(0.45 0.03 200); --hair: oklch(0.88 0.02 120);
+  --panel: oklch(0.985 0.008 95); --panel-b: oklch(0.88 0.02 120); --field: oklch(0.985 0.008 95); --field-b: oklch(0.88 0.02 120);
+  --outline: oklch(0.22 0.03 200 / 0.28); --seg-on: oklch(0.22 0.03 200); --seg-on-fg: oklch(0.97 0.012 95); --hover: oklch(0.93 0.015 100); --icon-box: oklch(0.95 0.015 100);
+  --avatar-bg: oklch(0.22 0.03 200); --avatar-fg: oklch(0.97 0.012 95); --danger: oklch(0.5 0.16 25); --danger-fill: oklch(0.5 0.16 25);
+}
+.tw-settings *{box-sizing:border-box}
+.tw-settings [hidden]{display:none !important}
+.tw-settings{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh}
+.tw-settings a{color:inherit;text-decoration:none}
+.tw-settings button,.tw-settings input{font-family:inherit;font-size:inherit;color:inherit}
+.tw-settings a:focus-visible,.tw-settings button:focus-visible,.tw-settings input:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.tw-settings .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tw-settings .hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--hair)}
+.tw-settings .hdr .wrap{height:64px;display:flex;align-items:center;gap:28px}
+.tw-settings .wrap{max-width:1216px;margin-inline:auto;padding-inline:clamp(20px,4vw,48px)}
+.tw-settings .brand{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:600;letter-spacing:-0.02em}
+.tw-settings .brand svg{display:block}
+.tw-settings .nav{display:flex;align-items:center;gap:22px;font-size:15px;font-weight:500;color:var(--muted)}
+.tw-settings .nav a{padding:11px 0}
+.tw-settings .nav a:hover,.tw-settings .nav a[aria-current]{color:var(--text)}
+.tw-settings .hdr-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tw-settings .saved-nav{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:10px;color:var(--muted);font-size:14px;font-weight:500}
+.tw-settings .saved-nav svg{display:block;flex:0 0 auto}
+.tw-settings .saved-nav:hover,.tw-settings .saved-nav[aria-current]{background:var(--hover);color:var(--text)}
+.tw-settings .acct{display:flex;align-items:center;gap:10px;height:44px;padding:0 6px 0 12px;border-radius:10px}
+.tw-settings .acct .name{font-size:14px;font-weight:500;color:var(--muted)}
+.tw-settings .avatar{width:30px;height:30px;border-radius:50%;background:var(--avatar-bg);color:var(--avatar-fg);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;letter-spacing:.02em}
+.tw-settings .fill{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 18px;border:0;border-radius:10px;background:var(--chart);color:var(--chart-ink);font-size:15px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .25s}
+.tw-settings .fill:hover{background:var(--chart-dim)}
+.tw-settings .outline{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 16px;border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);font-size:15px;font-weight:500;cursor:pointer}
+.tw-settings .outline:hover{background:var(--hover)}
+.tw-settings .outline.danger{border-color:var(--danger);color:var(--danger)}
+.tw-settings .outline.danger:hover{background:transparent;filter:brightness(1.1)}
+.tw-settings .textbtn{height:42px;padding:0 12px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-size:15px;font-weight:500;cursor:pointer}
+.tw-settings .textbtn:hover{color:var(--text)}
+.tw-settings main.wrap{padding-block:clamp(40px,5vw,64px) 96px}
+.tw-settings h1{margin:0;font-size:clamp(34px,3.4vw,44px);line-height:.98;letter-spacing:-0.04em;font-weight:600}
+.tw-settings .sub{margin:10px 0 0;color:var(--muted);font-size:17px}
+.tw-settings .layout{display:grid;grid-template-columns:220px minmax(0,600px);gap:40px 64px;margin-top:40px}
+.tw-settings .snav{display:flex;flex-direction:column;gap:2px;align-self:start;position:sticky;top:88px}
+.tw-settings .snav a,.tw-settings .snav button{display:flex;align-items:center;justify-content:space-between;height:44px;padding:0 12px;border-radius:10px;color:var(--muted);font-weight:500;background:transparent;border:0;text-align:left;cursor:pointer;width:100%}
+.tw-settings .snav a:hover,.tw-settings .snav button:hover{color:var(--text);background:var(--hover)}
+.tw-settings .snav a[aria-current]{color:var(--seg-on-fg);background:var(--seg-on)}
+.tw-settings .snav .sep{height:1px;background:var(--hair);margin:10px 12px}
+.tw-settings .snav a.out,.tw-settings .snav button.out{color:var(--muted)}
+.tw-settings .section{display:flex;flex-direction:column;gap:32px}
+.tw-settings .card{display:flex;flex-direction:column;gap:20px;padding-top:28px;border-top:1px solid var(--hair)}
+.tw-settings .card:first-of-type{padding-top:0;border-top:0}
+.tw-settings .card h2{margin:0;font-size:22px;line-height:1.1;letter-spacing:-0.02em;font-weight:600;color:var(--text)}
+.tw-settings .card header p,.tw-settings .card .desc{margin:6px 0 0;color:var(--muted);font-size:15px}
+.tw-settings .card label{font-size:14px;font-weight:500;color:var(--text)}
+.tw-settings .card input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]){
+  width:100%;height:46px;padding:0 14px;border:1px solid var(--field-b);border-radius:10px;
+  background:var(--field);color:var(--text);font-size:16px;box-shadow:none;
+}
+.tw-settings .card input:focus{border-color:var(--text);outline:none;box-shadow:0 0 0 1px var(--text)}
+.tw-settings .card button[type="submit"],
+.tw-settings .card button[data-test="update-profile-button"],
+.tw-settings .card button[data-test="update-password-button"]{
+  display:inline-flex;align-items:center;justify-content:center;height:44px;width:auto;padding:0 18px;
+  border:0;border-radius:10px;background:var(--chart);color:var(--chart-ink);font-size:15px;font-weight:600;
+  box-shadow:none;cursor:pointer;
+}
+.tw-settings .card button[data-test="delete-user-button"]{
+  display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 16px;
+  border:1px solid var(--danger);border-radius:10px;background:transparent;color:var(--danger);
+  font-size:15px;font-weight:500;box-shadow:none;
+}
+.tw-settings .card button[data-slot="button"]:not([type="submit"]):not([data-test="update-profile-button"]):not([data-test="update-password-button"]):not([data-test="delete-user-button"]){
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 16px;
+  border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);
+  font-size:15px;font-weight:500;box-shadow:none;
+}
+.tw-settings .card h2{margin:0;font-size:22px;line-height:1.1;letter-spacing:-0.02em;font-weight:600}
+.tw-settings .card .desc{margin:6px 0 0;color:var(--muted)}
+.tw-settings .field{display:flex;flex-direction:column;gap:8px}
+.tw-settings .field label{font-size:14px;font-weight:500}
+.tw-settings .inp{position:relative;display:flex;align-items:center}
+.tw-settings .inp input{width:100%;height:46px;padding:0 14px;border:1px solid var(--field-b);border-radius:10px;background:var(--field);color:var(--text);font-size:16px}
+.tw-settings .inp input::placeholder{color:var(--muted)}
+.tw-settings .inp input:focus{border-color:var(--text);outline:none;box-shadow:0 0 0 1px var(--text)}
+.tw-settings .inp .eye{position:absolute;right:6px;width:36px;height:36px;border:0;border-radius:8px;background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted)}
+.tw-settings .inp.pw input{padding-right:46px}
+.tw-settings .actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.tw-settings .hint{margin:0;font-size:13px;color:var(--muted)}
+.tw-settings .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border:1px solid var(--hair);border-radius:10px;max-width:420px;width:100%}
+.tw-settings .seg button{height:40px;min-width:0;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-size:15px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .2s,color .2s}
+.tw-settings .seg button[aria-pressed="true"]{background:var(--seg-on);color:var(--seg-on-fg)}
+.tw-settings .seg svg{display:block}
+.tw-settings .empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:36px 20px;border:1px solid var(--hair);border-radius:12px;text-align:center}
+.tw-settings .empty .ic{width:56px;height:56px;border-radius:14px;background:var(--icon-box);display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px}
+.tw-settings .empty b{font-weight:600;font-size:17px}
+.tw-settings .empty span{color:var(--muted);font-size:14px}
+.tw-settings .danger-box{display:flex;flex-direction:column;gap:14px;padding:18px 20px;border:1px solid var(--danger);border-radius:12px}
+.tw-settings .danger-box p{margin:0}
+.tw-settings .danger-box .t{font-weight:600}
+.tw-settings .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:calc(100% - 32px);padding:10px 16px;border-radius:10px;background:var(--text);color:var(--bg);font-size:14px;font-weight:500;z-index:7;text-align:center}
+.tw-settings .fill .short{display:none}
+@media (max-width: 640px){
+  .tw-settings .fill .long{display:none}
+  .tw-settings .fill .short{display:inline}
+  .tw-settings .hdr .wrap{gap:14px}
+  .tw-settings .hdr-r{gap:10px}
+}
+@media (max-width: 1023px){
+  .tw-settings .nav{display:flex;gap:14px}
+  .tw-settings .nav a.questions{display:none}
+  .tw-settings .saved-nav span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .tw-settings .acct .name{display:none}
+  .tw-settings .layout{grid-template-columns:minmax(0,1fr);gap:28px}
+  .tw-settings .snav{position:static;flex-direction:row;flex-wrap:wrap;gap:6px}
+  .tw-settings .snav .sep{display:none}
+  .tw-settings .snav a,.tw-settings .snav button{height:40px;width:auto;border:1px solid var(--hair)}
+  .tw-settings .snav a[aria-current]{border-color:transparent}
+}
