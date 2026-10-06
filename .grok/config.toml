@@ -1,0 +1,7 @@
+[mcp_servers.laravel-boost]
+command = "php"
+args = ["apps/app/artisan", "boost:mcp"]
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest"]
