@@ -1,0 +1,22 @@
+# Optional. Not started by `ddev start`.
+# ddev start --profiles=routing
+# Map files belong in persistent/graphhopper. The planner uses public Valhalla
+# until GRAPHHOPPER_URL is the one you want and ROUTER_DRIVER=graphhopper.
+services:
+    graphhopper:
+        container_name: ddev-${DDEV_SITENAME}-graphhopper
+        image: israelhikingmap/graphhopper:10.2
+        profiles:
+            - routing
+        restart: "no"
+        environment:
+            JAVA_OPTS: "-Xmx2g -Xms1g"
+        volumes:
+            - ../persistent/graphhopper:/data
+        expose:
+            - "8989"
+        labels:
+            com.ddev.site-name: ${DDEV_SITENAME}
+            com.ddev.approot: ${DDEV_APPROOT}
+        x-ddev:
+            describe-info: "Optional. Start with ddev start --profiles=routing"
