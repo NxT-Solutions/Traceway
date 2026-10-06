@@ -1,1 +1,80 @@
 # Traceway
+
+Traceway draws a sport loop on a map and exports a course file a bike computer can follow.
+
+## Local setup
+
+Install [Docker](https://docs.docker.com/get-docker/) and [DDEV](https://ddev.com/get-started/), then from this directory:
+
+```bash
+ddev start
+ddev describe
+```
+
+Open the URL `ddev describe` prints. On a free machine that is https://traceway.ddev.site.
+
+- `/` is the Astro site in `apps/web`. It hot-reloads.
+- `/login`, `/dashboard`, and `/settings` are the Laravel planner in `apps/app`.
+- Planner assets hot-reload under `/_app/`.
+
+The first start installs PHP and Node dependencies, migrates the SQLite database, and seeds the demo riders. That takes a few minutes.
+
+Local demo riders, password `password`:
+
+- road@traceway.test
+- gravel@traceway.test
+- run@traceway.test
+- hike@traceway.test
+
+The login page has a button for each rider when `APP_ENV=local`.
+
+### Everyday commands
+
+Run these from the repo root. DDEV runs them in the PHP container.
+
+```bash
+ddev artisan migrate
+ddev exec -d /var/www/html/apps/app composer ci:check
+ddev exec -d /var/www/html/apps/app vendor/bin/pest --parallel --compact
+ddev logs -s web
+```
+
+`ddev logs` shows the Astro server, the planner Vite server, the queue worker, and the scheduler.
+
+### If port 80 or 443 is already taken
+
+Add `.ddev/config.local.yaml` (this file stays on your machine):
+
+```yaml
+router_http_port: "8080"
+router_https_port: "8443"
+```
+
+Then `ddev restart`. The site URL includes the port. `ddev start` writes that URL into `apps/app/.env` as `APP_URL`.
+
+### Database
+
+The planner uses SQLite at `apps/app/database/database.sqlite`. Tests use an in-memory SQLite database.
+
+DDEV also starts Postgres 16. To use it, set these in `apps/app/.env` and run `ddev artisan migrate`:
+
+```
+DB_CONNECTION=pgsql
+DB_HOST=db
+DB_PORT=5432
+DB_DATABASE=db
+DB_USERNAME=db
+DB_PASSWORD=db
+```
+
+Queue, cache, and sessions use the same database. Redis is not required.
+
+### Optional GraphHopper
+
+Routing uses public Valhalla (`VALHALLA_URL`) unless you change `ROUTER_DRIVER`. GraphHopper is off until you ask for it:
+
+```bash
+ddev start --profiles=routing
+```
+
+Put the map files in `persistent/graphhopper`. The container is `graphhopper` on port 8989, which matches `GRAPHHOPPER_URL` in `.env.example`.
