@@ -68,6 +68,12 @@
         "lint:check": [
             "pint --parallel --test"
         ],
+        "blade:fix": [
+            "bun run blade:fix"
+        ],
+        "blade:check": [
+            "bun run blade:check"
+        ],
         "architecture": [
             "phparkitect check"
         ],

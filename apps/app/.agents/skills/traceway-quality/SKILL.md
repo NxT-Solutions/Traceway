@@ -8,7 +8,7 @@ description: The check Traceway expects before work is called done. Use when fin
 From `codebase/`:
 
 - PHP format: `vendor/bin/pint --dirty --format agent`
-- Blade: `bun run blade:fix`
+- Blade: `bun run blade:fix`. Rules are in `.bladeformatterrc.json`: 4 spaces, final newline, Tailwind class order. `composer blade:check` is the same check as the gate.
 - The runtime is PHP 8.5. PHPStan is level max on `phpVersion: 80500`, with every `phpstan-strict-rules` toggle on: `vendor/bin/phpstan analyse`
 - Rector is the refactor check: `vendor/bin/rector process --dry-run`, rules in `rector.php`. Pint owns formatting, so Rector does not fight Pint's increment style.
 - Architecture is PHPArkitect: `vendor/bin/phparkitect check`, rules in `phparkitect.php`
