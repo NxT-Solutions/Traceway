@@ -1,0 +1,1399 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Traceway",
+        "description": "One API. A call returns the signed-in person's own data, or a course opened with a signed link. There is no list of other people. A password, two-factor secret, recovery code, or remember token is never returned.",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/routes/build": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Join points along the roads",
+                "operationId": "buildRoute",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/BuildRouteRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The line through those points.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BuiltRoute"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The points are not enough, or the roads miss one.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Those points did not join along the roads.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/routes/saved/{savedRoute}": {
+            "delete": {
+                "tags": [
+                    "Library"
+                ],
+                "summary": "Delete one of the signed-in person's routes",
+                "description": "A route owned by someone else is rejected.",
+                "operationId": "deleteSavedRoute",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "The route is gone."
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The route belongs to someone else.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The route does not exist.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/routes/fit": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Download a FIT course for the signed-in person",
+                "operationId": "exportFit",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/ExportFitCourseRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "A FIT file.",
+                        "content": {
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The course is not valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/share/{savedRoute}/gpx": {
+            "get": {
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Download a shared course as GPX",
+                "operationId": "sharedGpx",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "signature",
+                        "in": "query",
+                        "description": "The signature on the share link.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A GPX file.",
+                        "content": {
+                            "application/gpx+xml": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The link is not signed."
+                    }
+                },
+                "security": []
+            }
+        },
+        "/share/{savedRoute}/fit": {
+            "get": {
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Download a shared course as FIT",
+                "operationId": "sharedFit",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "signature",
+                        "in": "query",
+                        "description": "The signature on the share link.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A FIT file.",
+                        "content": {
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The link is not signed."
+                    }
+                },
+                "security": []
+            }
+        },
+        "/.well-known/passkey-endpoints": {
+            "get": {
+                "tags": [
+                    "Passkeys"
+                ],
+                "summary": "Where a passkey is enrolled",
+                "operationId": "passkeyEndpoints",
+                "responses": {
+                    "200": {
+                        "description": "Paths on this host. They do not name a person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "enroll",
+                                        "manage"
+                                    ],
+                                    "properties": {
+                                        "enroll": {
+                                            "type": "string",
+                                            "format": "uri"
+                                        },
+                                        "manage": {
+                                            "type": "string",
+                                            "format": "uri"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/routes/preview": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Draw candidate loops",
+                "operationId": "previewRoute",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/PreviewRouteRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The loops from that pin.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RoutePreview"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The pin or the length is not valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "No loop came back.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/settings/privacy/export": {
+            "get": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Download the signed-in person's own data",
+                "description": "The file is that person only. The password, two-factor secret, recovery codes, and remember token are withheld.",
+                "operationId": "exportPersonalData",
+                "responses": {
+                    "200": {
+                        "description": "A JSON file of the signed-in account and their routes.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PersonalDataDocument"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/settings/profile": {
+            "delete": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Delete the signed-in person and their saved routes",
+                "description": "Delete the user's profile.",
+                "operationId": "deleteAccount",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/ProfileDeleteRequest"
+                },
+                "responses": {
+                    "409": {
+                        "description": "The account is gone and the browser is sent home."
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The password does not confirm the deletion.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Update the signed-in person's name and email",
+                "description": "Update the user's profile information.",
+                "operationId": "updateProfile",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/ProfileUpdateRequest"
+                },
+                "responses": {
+                    "302": {
+                        "description": "The profile was saved."
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The name or email is not valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/settings/password": {
+            "put": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Change the signed-in person's password",
+                "description": "Update the user's password.",
+                "operationId": "changePassword",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/PasswordUpdateRequest"
+                },
+                "responses": {
+                    "302": {
+                        "description": "The password was changed. The new password is not returned."
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The current password does not match, or the new password is too weak.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/share/{savedRoute}": {
+            "get": {
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Open a shared course",
+                "description": "Requires a signed URL. The page shows the course, not the owner.",
+                "operationId": "sharedCourse",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "signature",
+                        "in": "query",
+                        "description": "The signature on the share link.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The course page.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SharedRoutePage"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The link is not signed."
+                    }
+                },
+                "security": []
+            }
+        },
+        "/routes/snap": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Move a point onto the nearest road or path",
+                "operationId": "snapPoint",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/SnapPointRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The snapped point.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "latitude",
+                                        "longitude"
+                                    ],
+                                    "properties": {
+                                        "latitude": {
+                                            "type": "number"
+                                        },
+                                        "longitude": {
+                                            "type": "number"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Nothing is close enough.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/routes/saved": {
+            "post": {
+                "tags": [
+                    "Library"
+                ],
+                "summary": "Save a route for the signed-in person",
+                "operationId": "storeSavedRoute",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/StoreSavedRouteRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The saved route id and its signed share URL.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SavedRouteLink"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The route is not valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/up": {
+            "get": {
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Application health",
+                "operationId": "health",
+                "responses": {
+                    "200": {
+                        "description": "The application is up."
+                    }
+                },
+                "security": []
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "BuiltRoute": {
+                "required": [
+                    "distance_metres",
+                    "ascent_metres",
+                    "coordinates",
+                    "user_coordinates",
+                    "finish_coordinates",
+                    "user_metres",
+                    "finish_metres",
+                    "legs_metres"
+                ],
+                "properties": {
+                    "distance_metres": {
+                        "type": "integer"
+                    },
+                    "ascent_metres": {
+                        "type": "integer"
+                    },
+                    "coordinates": {
+                        "$ref": "#/components/schemas/CoordinateLine"
+                    },
+                    "user_coordinates": {
+                        "$ref": "#/components/schemas/CoordinateLine"
+                    },
+                    "finish_coordinates": {
+                        "$ref": "#/components/schemas/CoordinateLine"
+                    },
+                    "user_metres": {
+                        "type": "integer"
+                    },
+                    "finish_metres": {
+                        "type": "integer"
+                    },
+                    "legs_metres": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "RoutePreview": {
+                "required": [
+                    "distance_metres",
+                    "ascent_metres",
+                    "coordinates",
+                    "routes"
+                ],
+                "properties": {
+                    "distance_metres": {
+                        "type": "integer"
+                    },
+                    "ascent_metres": {
+                        "type": "integer"
+                    },
+                    "coordinates": {
+                        "$ref": "#/components/schemas/CoordinateLine"
+                    },
+                    "routes": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "distance_metres",
+                                "ascent_metres",
+                                "coordinates"
+                            ],
+                            "properties": {
+                                "distance_metres": {
+                                    "type": "integer"
+                                },
+                                "ascent_metres": {
+                                    "type": "integer"
+                                },
+                                "coordinates": {
+                                    "$ref": "#/components/schemas/CoordinateLine"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "Error": {
+                "description": "A call that did not succeed. A validation failure also lists one message per field.",
+                "required": [
+                    "message"
+                ],
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "The given data was invalid."
+                    },
+                    "errors": {
+                        "description": "Present when a field failed validation. The key is the field name.",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "example": "The sport field is required."
+                            }
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "PersonalDataDocument": {
+                "required": [
+                    "exported_at",
+                    "account",
+                    "saved_routes",
+                    "withheld"
+                ],
+                "properties": {
+                    "exported_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "account": {
+                        "required": [
+                            "name",
+                            "email",
+                            "two_factor_enabled"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "email": {
+                                "type": "string",
+                                "format": "email"
+                            },
+                            "email_verified_at": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "two_factor_enabled": {
+                                "type": "boolean"
+                            },
+                            "created_at": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "updated_at": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "saved_routes": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "withheld": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "password",
+                                "two_factor_secret",
+                                "two_factor_recovery_codes",
+                                "remember_token"
+                            ]
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "SharedRoute": {
+                "required": [
+                    "name",
+                    "sport",
+                    "surface",
+                    "elevation",
+                    "roads",
+                    "distance_metres",
+                    "ascent_metres",
+                    "coordinates",
+                    "gpx_url",
+                    "fit_url"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "sport": {
+                        "type": "string"
+                    },
+                    "surface": {
+                        "type": "string"
+                    },
+                    "elevation": {
+                        "type": "string"
+                    },
+                    "roads": {
+                        "type": "string"
+                    },
+                    "distance_metres": {
+                        "type": "integer"
+                    },
+                    "ascent_metres": {
+                        "type": "integer"
+                    },
+                    "coordinates": {
+                        "$ref": "#/components/schemas/CoordinateLine"
+                    },
+                    "gpx_url": {
+                        "type": "string"
+                    },
+                    "fit_url": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "SharedRoutePage": {
+                "required": [
+                    "route"
+                ],
+                "properties": {
+                    "route": {
+                        "$ref": "#/components/schemas/SharedRoute"
+                    }
+                },
+                "type": "object"
+            },
+            "CoordinateLine": {
+                "type": "array",
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    },
+                    "maxItems": 2,
+                    "minItems": 2
+                },
+                "minItems": 2
+            },
+            "SavedRouteLink": {
+                "required": [
+                    "id",
+                    "url"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "requestBodies": {
+            "BuildRouteRequest": {
+                "description": "The points to join, and how the roads should be chosen.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "sport",
+                                "surface",
+                                "elevation",
+                                "latitude",
+                                "longitude",
+                                "follow",
+                                "finish",
+                                "points"
+                            ],
+                            "properties": {
+                                "sport": {
+                                    "type": "string",
+                                    "enum": [
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                },
+                                "surface": {
+                                    "type": "string",
+                                    "enum": [
+                                        "paved",
+                                        "mixed",
+                                        "dirt"
+                                    ]
+                                },
+                                "elevation": {
+                                    "type": "string",
+                                    "enum": [
+                                        "minimize",
+                                        "neutral",
+                                        "maximize"
+                                    ]
+                                },
+                                "latitude": {
+                                    "type": "number",
+                                    "maximum": 90,
+                                    "minimum": -90
+                                },
+                                "longitude": {
+                                    "type": "number",
+                                    "maximum": 180,
+                                    "minimum": -180
+                                },
+                                "follow": {
+                                    "type": "boolean"
+                                },
+                                "finish": {
+                                    "type": "boolean"
+                                },
+                                "points": {
+                                    "type": "array",
+                                    "items": {
+                                        "required": [
+                                            "latitude",
+                                            "longitude"
+                                        ],
+                                        "properties": {
+                                            "latitude": {
+                                                "type": "number"
+                                            },
+                                            "longitude": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "maxItems": 12
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "ExportFitCourseRequest": {
+                "description": "The course to write into a FIT file.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "name",
+                                "sport",
+                                "coordinates"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "maxLength": 80
+                                },
+                                "sport": {
+                                    "type": "string",
+                                    "enum": [
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                },
+                                "coordinates": {
+                                    "$ref": "#/components/schemas/CoordinateLine"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "PreviewRouteRequest": {
+                "description": "The pin, the sport, and the length.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "sport",
+                                "surface",
+                                "elevation",
+                                "distance_metres",
+                                "latitude",
+                                "longitude"
+                            ],
+                            "properties": {
+                                "sport": {
+                                    "type": "string",
+                                    "enum": [
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                },
+                                "surface": {
+                                    "type": "string",
+                                    "enum": [
+                                        "paved",
+                                        "mixed",
+                                        "dirt"
+                                    ]
+                                },
+                                "elevation": {
+                                    "type": "string",
+                                    "enum": [
+                                        "minimize",
+                                        "neutral",
+                                        "maximize"
+                                    ]
+                                },
+                                "distance_metres": {
+                                    "type": "integer",
+                                    "maximum": 300000,
+                                    "minimum": 1000
+                                },
+                                "latitude": {
+                                    "type": "number",
+                                    "maximum": 90,
+                                    "minimum": -90
+                                },
+                                "longitude": {
+                                    "type": "number",
+                                    "maximum": 180,
+                                    "minimum": -180
+                                },
+                                "shape": {
+                                    "type": "string",
+                                    "enum": [
+                                        "loop",
+                                        "point_to_point",
+                                        "out_and_back"
+                                    ]
+                                },
+                                "roads": {
+                                    "type": "string",
+                                    "enum": [
+                                        "quiet",
+                                        "any"
+                                    ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "PasswordUpdateRequest": {
+                "description": "The current password and the replacement. Neither is returned.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "current_password",
+                                "password",
+                                "password_confirmation"
+                            ],
+                            "properties": {
+                                "current_password": {
+                                    "type": "string",
+                                    "format": "password"
+                                },
+                                "password": {
+                                    "type": "string",
+                                    "format": "password"
+                                },
+                                "password_confirmation": {
+                                    "type": "string",
+                                    "format": "password"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "ProfileDeleteRequest": {
+                "description": "Confirms the deletion. The password is not returned.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "password"
+                            ],
+                            "properties": {
+                                "password": {
+                                    "description": "Confirms the deletion. It is not stored in the response.",
+                                    "type": "string",
+                                    "format": "password"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "ProfileUpdateRequest": {
+                "description": "The name and email of the signed-in person.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "name",
+                                "email"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "maxLength": 255
+                                },
+                                "email": {
+                                    "type": "string",
+                                    "format": "email"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "SnapPointRequest": {
+                "description": "A point and the sport used to choose a road or a path.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "latitude",
+                                "longitude",
+                                "sport"
+                            ],
+                            "properties": {
+                                "latitude": {
+                                    "type": "number",
+                                    "maximum": 90,
+                                    "minimum": -90
+                                },
+                                "longitude": {
+                                    "type": "number",
+                                    "maximum": 180,
+                                    "minimum": -180
+                                },
+                                "sport": {
+                                    "type": "string",
+                                    "enum": [
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "StoreSavedRouteRequest": {
+                "description": "The route the signed-in person wants to keep.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "name",
+                                "sport",
+                                "surface",
+                                "elevation",
+                                "roads",
+                                "distance_metres",
+                                "ascent_metres",
+                                "coordinates"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "maxLength": 80
+                                },
+                                "sport": {
+                                    "type": "string",
+                                    "enum": [
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                },
+                                "surface": {
+                                    "type": "string",
+                                    "enum": [
+                                        "paved",
+                                        "mixed",
+                                        "dirt"
+                                    ]
+                                },
+                                "elevation": {
+                                    "type": "string",
+                                    "enum": [
+                                        "minimize",
+                                        "neutral",
+                                        "maximize"
+                                    ]
+                                },
+                                "roads": {
+                                    "type": "string",
+                                    "enum": [
+                                        "quiet",
+                                        "any"
+                                    ]
+                                },
+                                "distance_metres": {
+                                    "type": "integer"
+                                },
+                                "ascent_metres": {
+                                    "type": "integer"
+                                },
+                                "coordinates": {
+                                    "$ref": "#/components/schemas/CoordinateLine"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "session": {
+                "type": "apiKey",
+                "description": "The session cookie of the signed-in person. State-changing calls also send the X-XSRF-TOKEN header. A signed share link does not use this cookie.",
+                "name": "laravel_session",
+                "in": "cookie"
+            }
+        }
+    },
+    "security": [
+        {
+            "session": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "Routes",
+            "description": "Routes"
+        },
+        {
+            "name": "Library",
+            "description": "Library"
+        },
+        {
+            "name": "Share",
+            "description": "Share"
+        },
+        {
+            "name": "Passkeys",
+            "description": "Passkeys"
+        },
+        {
+            "name": "Account",
+            "description": "Account"
+        },
+        {
+            "name": "Health",
+            "description": "Health"
+        }
+    ]
+}
