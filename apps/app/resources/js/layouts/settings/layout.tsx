@@ -27,6 +27,11 @@ const sidebarNavItems: NavItem[] = [
         href: editAppearance(),
         icon: null,
     },
+    {
+        title: 'Your data',
+        href: '/settings/privacy',
+        icon: null,
+    },
 ];
 
 function initials(name: string): string {
@@ -50,7 +55,11 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
         <div className="tw-settings" data-theme={resolvedAppearance}>
             <header className="hdr">
                 <div className="wrap">
-                    <a className="brand" href="/" aria-label="Traceway home">
+                    <Link
+                        className="brand"
+                        href="/dashboard"
+                        aria-label="Traceway planner"
+                    >
                         <svg
                             width="26"
                             height="26"
@@ -73,18 +82,20 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                             />
                         </svg>
                         <span>Traceway</span>
-                    </a>
-                    <nav className="nav" aria-label="App">
-                        <Link href="/dashboard">Planner</Link>
-                        <a className="questions" href="/#faq">Questions</a>
-                    </nav>
+                    </Link>
                     <div className="hdr-r">
+                        <Link className="plan-nav" href="/dashboard">
+                            <span className="long">Plan your route</span>
+                            <span className="short">Plan</span>
+                        </Link>
                         <Link
                             className="saved-nav"
                             href="/saved"
                             aria-label="Saved routes"
                             aria-current={
-                                page.url.startsWith('/saved') ? 'page' : undefined
+                                page.url.startsWith('/saved')
+                                    ? 'page'
+                                    : undefined
                             }
                         >
                             <svg
@@ -111,10 +122,6 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                         >
                             <span className="name">{name}</span>
                             <span className="avatar">{initials(name)}</span>
-                        </Link>
-                        <Link className="fill" href="/dashboard">
-                            <span className="long">Open the planner</span>
-                            <span className="short">Planner</span>
                         </Link>
                     </div>
                 </div>

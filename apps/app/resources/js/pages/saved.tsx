@@ -2,7 +2,14 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Bike, Footprints, Mountain } from 'lucide-react';
 import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import * as maplibregl from 'maplibre-gl';
-import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    type PointerEvent as ReactPointerEvent,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { useAppearance } from '@/hooks/use-appearance';
 import {
     ensureDirectionArrows,
@@ -28,7 +35,7 @@ type SavedRoute = {
 };
 
 const sportLabel: Record<string, string> = {
-    road: 'Road ride',
+    road: 'Road',
     gravel: 'Gravel',
     mtb: 'Mountain bike',
     run: 'Run',
@@ -143,7 +150,11 @@ function RouteShape({ coordinates }: { coordinates: Coordinate[] }) {
         .join(' ');
 
     return (
-        <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="xMidYMid meet"
+            aria-hidden="true"
+        >
             <polyline
                 points={points}
                 fill="none"
@@ -171,6 +182,87 @@ function Thumb({
     );
 }
 
+type LibraryLayout = 'grid' | 'map' | 'list';
+
+const layoutKey = 'traceway.library.layout';
+
+function readLayout(): LibraryLayout {
+    if (typeof window === 'undefined') {
+        return 'grid';
+    }
+
+    try {
+        const value = window.localStorage.getItem(layoutKey);
+
+        if (value === 'grid' || value === 'map' || value === 'list') {
+            return value;
+        }
+    } catch {
+        return 'grid';
+    }
+
+    return 'grid';
+}
+
+function LayoutSwitch({
+    value,
+    onChange,
+}: {
+    value: LibraryLayout;
+    onChange: (next: LibraryLayout) => void;
+}) {
+    const options: Array<{ id: LibraryLayout; label: string }> = [
+        { id: 'grid', label: 'Grid' },
+        { id: 'map', label: 'Map' },
+        { id: 'list', label: 'List' },
+    ];
+
+    return (
+        <div
+            className="layouts"
+            role="tablist"
+            aria-label="Layout"
+            onKeyDown={(event) => {
+                if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') {
+                    return;
+                }
+
+                event.preventDefault();
+                const index = options.findIndex(
+                    (option) => option.id === value,
+                );
+                const delta = event.key === 'ArrowRight' ? 1 : -1;
+                const next =
+                    options[(index + delta + options.length) % options.length];
+
+                if (next === undefined) {
+                    return;
+                }
+
+                onChange(next.id);
+                const buttons = event.currentTarget.querySelectorAll('button');
+                buttons[
+                    (index + delta + options.length) % options.length
+                ]?.focus();
+            }}
+        >
+            {options.map((option) => (
+                <button
+                    key={option.id}
+                    type="button"
+                    role="tab"
+                    id={`layout-${option.id}`}
+                    aria-selected={value === option.id}
+                    tabIndex={value === option.id ? 0 : -1}
+                    onClick={() => onChange(option.id)}
+                >
+                    {option.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
 export default function Saved({ routes }: { routes: SavedRoute[] }) {
     const { resolvedAppearance } = useAppearance();
     const { auth } = usePage<{ auth: { user: { name: string } } }>().props;
@@ -182,6 +274,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
         .slice(0, 2)
         .toUpperCase();
     const wide = useWide();
+    const [layout, setLayout] = useState<LibraryLayout>(readLayout);
     const [query, setQuery] = useState('');
     const [sport, setSport] = useState('all');
     const [surface, setSurface] = useState('all');
@@ -206,9 +299,8 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
     const geolocateRef = useRef<maplibregl.GeolocateControl | null>(null);
     const paddingRef = useRef<
         (map: maplibregl.Map) => maplibregl.PaddingOptions
-    >(() => 80);
+    >(() => ({ top: 80, right: 80, bottom: 80, left: 80 }));
     const arrowLinesRef = useRef<Coordinate[][]>([]);
-    const sports = [...new Set(routes.map((route) => route.sport))];
     const visible = useMemo(
         () =>
             routes.filter((route) => {
@@ -227,7 +319,36 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
         [routes, query, sport, surface, hills, roads],
     );
     const openedRoute = visible.find((route) => route.id === opened) ?? null;
-    const showMap = !wide || openedRoute !== null;
+    const mapLayout = !wide || layout === 'map';
+    const showMap = mapLayout || openedRoute !== null;
+
+    function dismissIfBlank(event: { target: EventTarget | null }): void {
+        const target = event.target;
+
+        if (!(target instanceof Element)) {
+            return;
+        }
+
+        if (target.closest('button, a, input, .sheet-card, .dock-detail')) {
+            return;
+        }
+
+        setOpened(null);
+        setCopied(false);
+    }
+
+    function chooseLayout(next: LibraryLayout): void {
+        setLayout(next);
+
+        try {
+            window.localStorage.setItem(layoutKey, next);
+        } catch {
+            // The view still changes when storage is blocked.
+        }
+        setOpened(null);
+        setSheet('peek');
+        setCopied(false);
+    }
 
     useEffect(() => {
         if (opened !== null && !visible.some((route) => route.id === opened)) {
@@ -242,16 +363,18 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
         }
 
         const node = document.createElement('div');
-        node.style.cssText = 'position:fixed;left:-4000px;top:0;width:480px;height:300px';
+        node.style.cssText =
+            'position:fixed;left:0;top:0;width:384px;height:300px;visibility:hidden;pointer-events:none';
         document.body.appendChild(node);
-        const map = new maplibregl.Map({
+        const mapOptions = {
             container: node,
             style: 'https://tiles.openfreemap.org/styles/liberty',
             interactive: false,
-            attributionControl: false,
+            attributionControl: false as const,
             preserveDrawingBuffer: true,
             fadeDuration: 0,
-        });
+        };
+        const map = new maplibregl.Map(mapOptions);
         let stopped = false;
         map.on('load', () => {
             map.addSource('shot', {
@@ -270,7 +393,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                 type: 'line',
                 source: 'shot',
                 layout: { 'line-cap': 'round', 'line-join': 'round' },
-                paint: { 'line-color': '#16303a', 'line-width': 3 },
+                paint: { 'line-color': '#16303a', 'line-width': 4 },
             });
             const source = map.getSource('shot');
             if (source?.type !== 'geojson') {
@@ -280,7 +403,11 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
             const take = (index: number) => {
                 const route = routes[index];
 
-                if (stopped || route === undefined || route.coordinates.length < 2) {
+                if (
+                    stopped ||
+                    route === undefined ||
+                    route.coordinates.length < 2
+                ) {
                     if (!stopped && route !== undefined) {
                         take(index + 1);
                     } else {
@@ -294,7 +421,10 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                 (source as GeoJSONSource).setData({
                     type: 'Feature',
                     properties: {},
-                    geometry: { type: 'LineString', coordinates: route.coordinates },
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: route.coordinates,
+                    },
                 });
                 const first = route.coordinates[0];
                 if (first === undefined) {
@@ -304,17 +434,30 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                     (box, coordinate) => box.extend(coordinate),
                     new maplibregl.LngLatBounds(first, first),
                 );
-                map.fitBounds(bounds, { padding: 28, duration: 0, maxZoom: 14 });
-                map.once('idle', () => {
-                    if (stopped) {
+                map.resize();
+                map.fitBounds(bounds, {
+                    padding: 16,
+                    duration: 0,
+                    maxZoom: 15,
+                });
+                let shot = false;
+                const shoot = () => {
+                    if (shot || stopped) {
                         return;
                     }
+                    shot = true;
                     setImages((current) => ({
                         ...current,
-                        [route.id]: map.getCanvas().toDataURL('image/jpeg', 0.82),
+                        [route.id]: map
+                            .getCanvas()
+                            .toDataURL('image/jpeg', 0.82),
                     }));
                     take(index + 1);
+                };
+                map.once('moveend', () => {
+                    requestAnimationFrame(shoot);
                 });
+                window.setTimeout(shoot, 800);
             };
             take(0);
         });
@@ -387,6 +530,37 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
         };
     }, [showMap]);
 
+    const libraryPadding = useCallback(
+        (map: maplibregl.Map): maplibregl.PaddingOptions => {
+            const narrow = window.matchMedia('(max-width: 1023px)').matches;
+
+            if (!narrow) {
+                return {
+                    top: 80,
+                    right: 80,
+                    bottom: 80,
+                    left: layout === 'map' ? 544 : openedRoute ? 440 : 80,
+                };
+            }
+
+            const canvas = map.getContainer().getBoundingClientRect();
+            const sheetBox = sheetRef.current?.getBoundingClientRect();
+            const cover =
+                sheetBox === undefined
+                    ? 96
+                    : Math.max(0, canvas.bottom - sheetBox.top);
+            const room = canvas.height - cover;
+            const edge = room < 220 ? 16 : 28;
+            const bottom = Math.min(
+                Math.max(24, canvas.height - edge - 64),
+                cover + 36,
+            );
+
+            return { top: 72, right: 64, bottom, left: edge };
+        },
+        [layout, openedRoute],
+    );
+
     useEffect(() => {
         const map = mapRef.current;
 
@@ -432,7 +606,11 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                     type: 'line',
                     source: 'library',
                     layout: { 'line-cap': 'round', 'line-join': 'round' },
-                    paint: { 'line-color': '#16303a', 'line-width': 22, 'line-opacity': 0 },
+                    paint: {
+                        'line-color': '#16303a',
+                        'line-width': 22,
+                        'line-opacity': 0,
+                    },
                 });
                 map.on('click', 'library-hit', (event: MapLayerMouseEvent) => {
                     const id = event.features?.[0]?.properties?.id;
@@ -443,11 +621,25 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                         setCopied(false);
                     }
                 });
+                map.on('click', (event: MapLayerMouseEvent) => {
+                    if (map.getLayer('library-hit') === undefined) {
+                        return;
+                    }
+
+                    const hits = map.queryRenderedFeatures(event.point, {
+                        layers: ['library-hit'],
+                    });
+
+                    if (hits.length === 0) {
+                        setOpened(null);
+                        setCopied(false);
+                    }
+                });
             } else {
                 const source = map.getSource('library');
 
                 if (source?.type === 'geojson') {
-                    source.setData(data);
+                    (source as GeoJSONSource).setData(data);
                 }
             }
 
@@ -457,7 +649,9 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
             arrowLinesRef.current = arrowLines;
             ensureDirectionArrows(map, arrowLines);
 
-            const target = focus?.coordinates ?? lines.flatMap((route) => route.coordinates);
+            const target =
+                focus?.coordinates ??
+                lines.flatMap((route) => route.coordinates);
             const first = target[0];
 
             if (first === undefined) {
@@ -480,30 +674,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
         } else {
             map.once('load', draw);
         }
-    }, [showMap, visible, openedRoute, sheet]);
-
-    function libraryPadding(map: maplibregl.Map): maplibregl.PaddingOptions {
-        const narrow = window.matchMedia('(max-width: 1023px)').matches;
-
-        if (!narrow) {
-            return { top: 80, right: 80, bottom: 80, left: openedRoute ? 440 : 80 };
-        }
-
-        const canvas = map.getContainer().getBoundingClientRect();
-        const sheetBox = sheetRef.current?.getBoundingClientRect();
-        const cover =
-            sheetBox === undefined
-                ? 96
-                : Math.max(0, canvas.bottom - sheetBox.top);
-        const visible = canvas.height - cover;
-        const edge = visible < 220 ? 16 : 28;
-        const bottom = Math.min(
-            Math.max(24, canvas.height - edge - 64),
-            cover + 36,
-        );
-
-        return { top: 72, right: 64, bottom, left: edge };
-    }
+    }, [showMap, visible, openedRoute, libraryPadding]);
 
     paddingRef.current = libraryPadding;
 
@@ -516,9 +687,8 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
 
     useEffect(() => {
         const node = sheetRef.current;
-        const narrow = window.matchMedia('(max-width: 1023px)').matches;
 
-        if (node === null || !showMap || !narrow) {
+        if (node === null || !showMap || wide) {
             return;
         }
 
@@ -550,7 +720,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
         observer.observe(node);
 
         return () => observer.disconnect();
-    }, [showMap, visible, openedRoute]);
+    }, [showMap, visible, openedRoute, wide, libraryPadding]);
 
     function onSheetDown(event: ReactPointerEvent<HTMLButtonElement>): void {
         const node = sheetRef.current;
@@ -647,54 +817,141 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
         <div className="tw-planner" data-theme={resolvedAppearance}>
             <Head title="Saved routes" />
             <header className="hdr">
-                <a className="brand" href="/" aria-label="Traceway home">
-                    <svg width="26" height="26" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-                        <path d="M6 23 V12 a6 6 0 0 1 6 -6 h4 a6 6 0 0 1 6 6 v3" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                        <circle cx="22" cy="22" r="3" fill="oklch(0.78 0.17 128)" />
+                <Link
+                    className="brand"
+                    href="/dashboard"
+                    aria-label="Traceway planner"
+                >
+                    <svg
+                        width="26"
+                        height="26"
+                        viewBox="0 0 28 28"
+                        fill="none"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="M6 23 V12 a6 6 0 0 1 6 -6 h4 a6 6 0 0 1 6 6 v3"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                        <circle
+                            cx="22"
+                            cy="22"
+                            r="3"
+                            fill="oklch(0.78 0.17 128)"
+                        />
                     </svg>
                     <span>Traceway</span>
-                </a>
-                <nav className="nav" aria-label="App">
-                    <Link href="/dashboard">Planner</Link>
-                    <a className="questions" href="/#faq">Questions</a>
-                </nav>
+                </Link>
                 <div className="hdr-end">
-                    <Link className="saved-nav" href="/saved" aria-current="page" aria-label="Saved routes">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                            <path d="M4 2.5h8a1 1 0 0 1 1 1V14l-5-2.5L3 14V3.5a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+                    <Link className="plan-nav" href="/dashboard">
+                        <span className="long">Plan your route</span>
+                        <span className="short">Plan</span>
+                    </Link>
+                    <Link
+                        className="saved-nav"
+                        href="/saved"
+                        aria-current="page"
+                        aria-label="Saved routes"
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M4 2.5h8a1 1 0 0 1 1 1V14l-5-2.5L3 14V3.5a1 1 0 0 1 1-1z"
+                                stroke="currentColor"
+                                strokeWidth="1.4"
+                                strokeLinejoin="round"
+                            />
                         </svg>
                         <span>Saved routes</span>
                     </Link>
-                    <Link className="acct" href="/settings/profile" aria-label="Account and settings">
+                    <Link
+                        className="acct"
+                        href="/settings/profile"
+                        aria-label="Account and settings"
+                    >
                         <span className="name">{rider}</span>
                         <span className="avatar">{initials}</span>
                     </Link>
                 </div>
             </header>
-            {wide && openedRoute === null ? (
+            {wide && layout !== 'map' && openedRoute === null ? (
                 <div className="tw-library">
                     <div className="page">
                         <div className="top">
                             <h1>Saved routes</h1>
+                        </div>
+                        <div className="bar">
+                            <RouteFilters
+                                routes={routes}
+                                query={query}
+                                sport={sport}
+                                surface={surface}
+                                hills={hills}
+                                roads={roads}
+                                onQuery={setQuery}
+                                onSport={setSport}
+                                onSurface={setSurface}
+                                onHills={setHills}
+                                onRoads={setRoads}
+                            />
+                            <LayoutSwitch
+                                value={layout}
+                                onChange={chooseLayout}
+                            />
                             <Link className="new" href="/dashboard">
                                 New route
                             </Link>
                         </div>
-                        <RouteFilters
-                            routes={routes}
-                            query={query}
-                            sport={sport}
-                            surface={surface}
-                            hills={hills}
-                            roads={roads}
-                            onQuery={setQuery}
-                            onSport={setSport}
-                            onSurface={setSurface}
-                            onHills={setHills}
-                            onRoads={setRoads}
-                        />
                         {visible.length === 0 ? (
                             <p className="note">No saved routes match.</p>
+                        ) : layout === 'list' ? (
+                            <div className="list">
+                                {visible.map((route) => (
+                                    <button
+                                        key={route.id}
+                                        type="button"
+                                        className="sheet-card"
+                                        onClick={() => openRoute(route)}
+                                    >
+                                        <Thumb
+                                            route={route}
+                                            image={images[route.id]}
+                                        />
+                                        <span>
+                                            <span className="date">
+                                                {writtenOn(route.created_at)}
+                                            </span>
+                                            <span className="title-line">
+                                                <SportMark
+                                                    sport={route.sport}
+                                                />
+                                                <span className="title">
+                                                    {route.name}
+                                                </span>
+                                            </span>
+                                            <span className="stats">
+                                                {kilometres(
+                                                    route.distance_metres,
+                                                )}
+                                                {route.ascent_metres > 0
+                                                    ? ` · ${route.ascent_metres} m`
+                                                    : ''}
+                                            </span>
+                                            <span className="specs">
+                                                {routeSpecs(route)}
+                                            </span>
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
                         ) : (
                             <div className="grid">
                                 {visible.map((route) => (
@@ -704,20 +961,33 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                         className="card"
                                         onClick={() => openRoute(route)}
                                     >
-                                        <Thumb route={route} image={images[route.id]} />
+                                        <Thumb
+                                            route={route}
+                                            image={images[route.id]}
+                                        />
                                         <span className="body">
-                                            <span className="date">{writtenOn(route.created_at)}</span>
+                                            <span className="date">
+                                                {writtenOn(route.created_at)}
+                                            </span>
                                             <span className="title-line">
-                                                <SportMark sport={route.sport} />
-                                                <span className="title">{route.name}</span>
+                                                <SportMark
+                                                    sport={route.sport}
+                                                />
+                                                <span className="title">
+                                                    {route.name}
+                                                </span>
                                             </span>
                                             <span className="stats">
-                                                {kilometres(route.distance_metres)}
+                                                {kilometres(
+                                                    route.distance_metres,
+                                                )}
                                                 {route.ascent_metres > 0
                                                     ? ` · ${route.ascent_metres} m`
                                                     : ''}
                                             </span>
-                                            <span className="specs">{routeSpecs(route)}</span>
+                                            <span className="specs">
+                                                {routeSpecs(route)}
+                                            </span>
                                         </span>
                                     </button>
                                 ))}
@@ -726,7 +996,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                     </div>
                 </div>
             ) : (
-                <div className="tw-library mapmode">
+                <div className={`tw-library mapmode${wide ? '' : ' sheeted'}`}>
                     <div ref={mapNode} className="map" />
                     <div className="vig" />
                     <div className="mapctl">
@@ -757,7 +1027,9 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                         return;
                                     }
 
-                                    const lines = openedRoute ? [openedRoute] : visible;
+                                    const lines = openedRoute
+                                        ? [openedRoute]
+                                        : visible;
                                     const target = lines.flatMap(
                                         (route) => route.coordinates,
                                     );
@@ -768,8 +1040,12 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                     }
 
                                     const bounds = target.reduce(
-                                        (box, coordinate) => box.extend(coordinate),
-                                        new maplibregl.LngLatBounds(first, first),
+                                        (box, coordinate) =>
+                                            box.extend(coordinate),
+                                        new maplibregl.LngLatBounds(
+                                            first,
+                                            first,
+                                        ),
                                     );
                                     map.fitBounds(bounds, {
                                         padding: libraryPadding(map),
@@ -778,8 +1054,17 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                     });
                                 }}
                             >
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                    <path d="M8 2 L10 6 H6 Z M8 14 L6 10 H10 Z M2 8 L6 6 V10 Z M14 8 L10 10 V6 Z" fill="currentColor" />
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 16 16"
+                                    fill="none"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="M8 2 L10 6 H6 Z M8 14 L6 10 H10 Z M2 8 L6 6 V10 Z M14 8 L10 10 V6 Z"
+                                        fill="currentColor"
+                                    />
                                 </svg>
                             </button>
                         </div>
@@ -806,9 +1091,26 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                     void control.trigger();
                                 }}
                             >
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                    <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.6" />
-                                    <path d="M8 1.5 V4 M8 12 V14.5 M1.5 8 H4 M12 8 H14.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 16 16"
+                                    fill="none"
+                                    aria-hidden="true"
+                                >
+                                    <circle
+                                        cx="8"
+                                        cy="8"
+                                        r="3"
+                                        stroke="currentColor"
+                                        strokeWidth="1.6"
+                                    />
+                                    <path
+                                        d="M8 1.5 V4 M8 12 V14.5 M1.5 8 H4 M12 8 H14.5"
+                                        stroke="currentColor"
+                                        strokeWidth="1.6"
+                                        strokeLinecap="round"
+                                    />
                                 </svg>
                             </button>
                         </div>
@@ -817,16 +1119,128 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                         MapLibre · OpenFreeMap · © OpenMapTiles · Data from
                         OpenStreetMap
                     </p>
-                    {wide && openedRoute ? (
-                        <aside className="side">
-                            <button type="button" className="back" onClick={() => setOpened(null)}>
+                    {wide && layout === 'map' ? (
+                        <aside
+                            className="dock"
+                            aria-label="Saved routes"
+                            onClick={dismissIfBlank}
+                            onKeyDown={dismissIfBlank}
+                        >
+                            <div className="dock-bar">
+                                <LayoutSwitch
+                                    value={layout}
+                                    onChange={chooseLayout}
+                                />
+                                <Link className="new" href="/dashboard">
+                                    New route
+                                </Link>
+                            </div>
+                            <RouteFilters
+                                routes={routes}
+                                query={query}
+                                sport={sport}
+                                surface={surface}
+                                hills={hills}
+                                roads={roads}
+                                onQuery={setQuery}
+                                onSport={setSport}
+                                onSurface={setSurface}
+                                onHills={setHills}
+                                onRoads={setRoads}
+                            />
+                            <div className="dock-list">
+                                {visible.length === 0 ? (
+                                    <p className="note">
+                                        No saved routes match.
+                                    </p>
+                                ) : (
+                                    visible.map((route) => (
+                                        <button
+                                            key={route.id}
+                                            type="button"
+                                            className="sheet-card"
+                                            aria-current={
+                                                openedRoute?.id === route.id
+                                                    ? 'true'
+                                                    : undefined
+                                            }
+                                            onClick={() => openRoute(route)}
+                                        >
+                                            <Thumb
+                                                route={route}
+                                                image={images[route.id]}
+                                            />
+                                            <span>
+                                                <span className="date">
+                                                    {writtenOn(
+                                                        route.created_at,
+                                                    )}
+                                                </span>
+                                                <span className="title-line">
+                                                    <SportMark
+                                                        sport={route.sport}
+                                                    />
+                                                    <span className="title">
+                                                        {route.name}
+                                                    </span>
+                                                </span>
+                                                <span className="stats">
+                                                    {kilometres(
+                                                        route.distance_metres,
+                                                    )}
+                                                    {route.ascent_metres > 0
+                                                        ? ` · ${route.ascent_metres} m`
+                                                        : ''}
+                                                </span>
+                                                <span className="specs">
+                                                    {routeSpecs(route)}
+                                                </span>
+                                            </span>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                            {openedRoute ? (
+                                <div className="dock-detail">
+                                    <button
+                                        type="button"
+                                        className="back"
+                                        onClick={() => setOpened(null)}
+                                    >
+                                        All routes
+                                    </button>
+                                    <RouteDetail
+                                        route={openedRoute}
+                                        copied={copied}
+                                        onCopy={() => {
+                                            void navigator.clipboard
+                                                .writeText(openedRoute.url)
+                                                .then(() => setCopied(true));
+                                        }}
+                                    />
+                                </div>
+                            ) : null}
+                        </aside>
+                    ) : wide && openedRoute ? (
+                        <aside
+                            className="side"
+                            onClick={dismissIfBlank}
+                            onKeyDown={dismissIfBlank}
+                        >
+                            <button
+                                type="button"
+                                className="back"
+                                onClick={() => setOpened(null)}
+                            >
                                 All routes
                             </button>
                             <RouteDetail
                                 route={openedRoute}
                                 copied={copied}
                                 onCopy={() => {
-                                    void navigator.clipboard.writeText(openedRoute.url).then(() => setCopied(true));
+                                    void navigator.clipboard
+                                        .writeText(openedRoute.url)
+                                        .then(() => setCopied(true));
                                 }}
                             />
                         </aside>
@@ -868,7 +1282,8 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                         <span className="peek-names">
                                             {visible
                                                 .map((route) => route.name)
-                                                .join(' · ') || 'Nothing saved yet'}
+                                                .join(' · ') ||
+                                                'Nothing saved yet'}
                                         </span>
                                     </>
                                 ) : null}
@@ -880,8 +1295,20 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                         className="back"
                                         onClick={() => setSheet('list')}
                                     >
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                            <path d="M10 3 L5 8 L10 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                d="M10 3 L5 8 L10 13"
+                                                stroke="currentColor"
+                                                strokeWidth="1.6"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            />
                                         </svg>
                                         All routes
                                     </button>
@@ -889,49 +1316,62 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                         route={openedRoute}
                                         copied={copied}
                                         onCopy={() => {
-                                            void navigator.clipboard.writeText(openedRoute.url).then(() => setCopied(true));
+                                            void navigator.clipboard
+                                                .writeText(openedRoute.url)
+                                                .then(() => setCopied(true));
                                         }}
                                     />
                                 </div>
                             ) : sheet === 'list' || draggingSheet ? (
                                 <div className="scroll">
-                                            <RouteFilters
-                                                routes={routes}
-                                                query={query}
-                                                sport={sport}
-                                                surface={surface}
-                                                hills={hills}
-                                                roads={roads}
-                                                onQuery={setQuery}
-                                                onSport={setSport}
-                                                onSurface={setSurface}
-                                                onHills={setHills}
-                                                onRoads={setRoads}
+                                    <RouteFilters
+                                        routes={routes}
+                                        query={query}
+                                        sport={sport}
+                                        surface={surface}
+                                        hills={hills}
+                                        roads={roads}
+                                        onQuery={setQuery}
+                                        onSport={setSport}
+                                        onSurface={setSurface}
+                                        onHills={setHills}
+                                        onRoads={setRoads}
+                                    />
+                                    {visible.map((route) => (
+                                        <button
+                                            key={route.id}
+                                            type="button"
+                                            className="sheet-card"
+                                            onClick={() => openRoute(route)}
+                                        >
+                                            <Thumb
+                                                route={route}
+                                                image={images[route.id]}
                                             />
-                                            {visible.map((route) => (
-                                                <button
-                                                    key={route.id}
-                                                    type="button"
-                                                    className="sheet-card"
-                                                    onClick={() => openRoute(route)}
-                                                >
-                                                    <Thumb route={route} image={images[route.id]} />
-                                                    <span>
-                                                        <span className="title-line">
-                                                            <SportMark sport={route.sport} />
-                                                            <span className="title">{route.name}</span>
-                                                        </span>
-                                                        <span className="stats">
-                                                            {kilometres(route.distance_metres)}
-                                                            {route.ascent_metres > 0
-                                                                ? ` · ${route.ascent_metres} m`
-                                                                : ''}
-                                                        </span>
-                                                        <span className="specs">{routeSpecs(route)}</span>
+                                            <span>
+                                                <span className="title-line">
+                                                    <SportMark
+                                                        sport={route.sport}
+                                                    />
+                                                    <span className="title">
+                                                        {route.name}
                                                     </span>
-                                                </button>
-                                            ))}
-                                        </div>
+                                                </span>
+                                                <span className="stats">
+                                                    {kilometres(
+                                                        route.distance_metres,
+                                                    )}
+                                                    {route.ascent_metres > 0
+                                                        ? ` · ${route.ascent_metres} m`
+                                                        : ''}
+                                                </span>
+                                                <span className="specs">
+                                                    {routeSpecs(route)}
+                                                </span>
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
                             ) : null}
                         </section>
                     )}
@@ -1052,7 +1492,33 @@ function RouteDetail({
 }) {
     return (
         <>
-            <h2>{route.name}</h2>
+            <div className="detail-head">
+                <h2>{route.name}</h2>
+                <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={`Delete ${route.name}`}
+                    onClick={() => {
+                        router.delete(`/routes/saved/${route.id}`);
+                    }}
+                >
+                    <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 18 18"
+                        fill="none"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="M3.5 5h11M7 5V3.5h4V5M5 5l.7 9.2a1 1 0 0 0 1 .8h4.6a1 1 0 0 0 1-.8L13 5"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                </button>
+            </div>
             <p className="note">{routeSpecs(route)}</p>
             <div className="figures">
                 <p>
@@ -1064,22 +1530,11 @@ function RouteDetail({
                     <b>{route.ascent_metres} m</b>
                 </p>
             </div>
-            <div className="actions">
-                <button type="button" className="outline" onClick={onCopy}>
+            <div className="quiet">
+                <button type="button" onClick={onCopy}>
                     {copied ? 'Copied' : 'Copy link'}
                 </button>
-                <a className="outline" href={route.url}>
-                    Open
-                </a>
-                <button
-                    type="button"
-                    className="outline"
-                    onClick={() => {
-                        router.delete(`/routes/saved/${route.id}`);
-                    }}
-                >
-                    Delete
-                </button>
+                <a href={route.url}>Open</a>
             </div>
         </>
     );

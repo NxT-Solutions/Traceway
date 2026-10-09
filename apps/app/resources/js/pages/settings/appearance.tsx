@@ -1,9 +1,11 @@
 import { Head } from '@inertiajs/react';
 import Heading from '@/components/heading';
-import type { Appearance } from '@/hooks/use-appearance';
-import { useAppearance } from '@/hooks/use-appearance';
+import {
+    type Appearance as AppearanceMode,
+    useAppearance,
+} from '@/hooks/use-appearance';
 
-const options: { value: Appearance; label: string }[] = [
+const options: { value: AppearanceMode; label: string }[] = [
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
     { value: 'system', label: 'System' },

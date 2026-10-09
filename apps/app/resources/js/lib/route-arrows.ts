@@ -175,9 +175,7 @@ export function directionArrowsForLines(
 ): ArrowCollection {
     return {
         type: 'FeatureCollection',
-        features: lines.flatMap(
-            (line) => directionArrows(line, zoom).features,
-        ),
+        features: lines.flatMap((line) => directionArrows(line, zoom).features),
     };
 }
 

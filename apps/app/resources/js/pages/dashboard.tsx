@@ -6,15 +6,14 @@ import * as maplibregl from 'maplibre-gl';
 import { setWorkerUrl } from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import {
-    type PointerEvent as ReactPointerEvent,
     type ReactNode,
+    type PointerEvent as ReactPointerEvent,
     useEffect,
     useLayoutEffect,
     useMemo,
     useRef,
     useState,
 } from 'react';
-import { Button } from '@/components/ui/button';
 import {
     Sheet,
     SheetContent,
@@ -123,7 +122,7 @@ type SportOption = {
     value: string;
     label: string;
     copy: string;
-    group: 'Foot' | 'Cycle';
+    group: 'Foot' | 'Bike';
 };
 
 const sports: SportOption[] = [
@@ -153,21 +152,21 @@ const sports: SportOption[] = [
     },
     {
         value: 'road',
-        label: 'Ride',
+        label: 'Road',
         copy: 'Quiet lanes and cycleways. Trunk roads lose.',
-        group: 'Cycle',
+        group: 'Bike',
     },
     {
         value: 'mtb',
         label: 'Mountain bike',
         copy: 'Trail and rough track. The hills stay in.',
-        group: 'Cycle',
+        group: 'Bike',
     },
     {
         value: 'gravel',
-        label: 'Gravel ride',
+        label: 'Gravel',
         copy: 'Smooth dirt where the map knows it. Pavement still counts.',
-        group: 'Cycle',
+        group: 'Bike',
     },
 ];
 
@@ -497,16 +496,16 @@ function addRouteLayers(map: maplibregl.Map, coordinates: Coordinate[]): void {
     }
 }
 
-// A new value on every hot reload, so the map is rebuilt instead of keeping old arrows.
-const plannerBoot = Date.now();
-
 const emptyLine = {
     type: 'Feature' as const,
     geometry: { type: 'LineString' as const, coordinates: [] as Coordinate[] },
     properties: {},
 };
 
-async function labelPlace(longitude: number, latitude: number): Promise<string> {
+async function labelPlace(
+    longitude: number,
+    latitude: number,
+): Promise<string> {
     try {
         const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=14`,
@@ -616,7 +615,10 @@ function closestOnSegment(
     const t =
         length === 0
             ? 0
-            : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / length));
+            : Math.max(
+                  0,
+                  Math.min(1, ((px - ax) * dx + (py - ay) * dy) / length),
+              );
     const x = ax + t * dx;
     const y = ay + t * dy;
 
@@ -899,10 +901,7 @@ function drawerProps(
         }) {
             const node = panel.current;
 
-            if (
-                !node ||
-                !window.matchMedia('(max-width: 1023px)').matches
-            ) {
+            if (!node || !window.matchMedia('(max-width: 1023px)').matches) {
                 return;
             }
 
@@ -942,10 +941,7 @@ function drawerProps(
             }
 
             const { peek, full } = limits(node);
-            const next = Math.min(
-                full,
-                Math.max(peek, current.height - delta),
-            );
+            const next = Math.min(full, Math.max(peek, current.height - delta));
             node.classList.add('dragging');
             node.style.height = `${next}px`;
         },
@@ -1152,10 +1148,7 @@ function LengthEditor({
     );
 }
 
-function describe(
-    shapeValue: string,
-    viaLabel: string | null,
-): string {
+function describe(shapeValue: string, viaLabel: string | null): string {
     const through = viaLabel === null ? '' : `Through ${viaLabel}. `;
     const way =
         shapeValue === 'out_and_back'
@@ -1167,9 +1160,6 @@ function describe(
 
 const choiceSheet =
     'tw-pop top-auto block h-fit max-h-[70vh] gap-3 overflow-y-auto bg-transparent p-0 pb-1 text-foreground shadow-none';
-
-const quietControl =
-    'h-8 min-h-8 shrink-0 rounded-[10px] tabular-nums shadow-none hover:border-foreground/30 hover:bg-muted hover:text-foreground';
 
 const sheetHeading = 'gap-0 p-0';
 
@@ -1200,6 +1190,9 @@ export default function Dashboard() {
     const { resolvedAppearance } = useAppearance();
     const mapNode = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
+    const framePaddingRef = useRef<() => number | maplibregl.PaddingOptions>(
+        () => 80,
+    );
     const fitRouteRef = useRef<(duration: number) => void>(() => {});
     const markerRef = useRef<maplibregl.Marker | null>(null);
     const viaMarkerRef = useRef<maplibregl.Marker | null>(null);
@@ -1264,11 +1257,13 @@ export default function Dashboard() {
     } | null>(null);
 
     useEffect(() => {
-        if (sheet === null || !window.matchMedia('(max-width: 1023px)').matches) {
+        if (
+            sheet === null ||
+            !window.matchMedia('(max-width: 1023px)').matches
+        ) {
             return;
         }
 
-        let sheetNode: HTMLElement | null = null;
         let frame = 0;
         let detach = () => {};
 
@@ -1281,7 +1276,6 @@ export default function Dashboard() {
                 return;
             }
 
-            sheetNode = found;
             let drag: {
                 y: number;
                 lastY: number;
@@ -1431,6 +1425,14 @@ export default function Dashboard() {
         .slice(0, 2)
         .toUpperCase();
     const preview = routes[routeIndex] ?? routes[0] ?? null;
+    const peekLabel = [
+        panelOpen ? 'open' : 'closed',
+        preview
+            ? (preview.distance_metres / 1000).toFixed(1)
+            : String(distanceKm),
+        routes.length > 0 ? `${routeIndex + 1}/${routes.length}` : shape,
+        surface,
+    ].join(' ');
 
     previewRef.current = preview;
 
@@ -1440,6 +1442,8 @@ export default function Dashboard() {
         if (!node) {
             return;
         }
+
+        node.dataset.summary = peekLabel;
 
         const fit = () => {
             if (!window.matchMedia('(max-width: 1023px)').matches) {
@@ -1466,13 +1470,13 @@ export default function Dashboard() {
         window.addEventListener('resize', fit);
 
         return () => window.removeEventListener('resize', fit);
-    }, [panelOpen, preview, shape, surface]);
+    }, [peekLabel]);
     routesRef.current = routes;
     routeIndexRef.current = routeIndex;
     placingViaRef.current = placingVia;
 
     const sportLabel =
-        sports.find((item) => item.value === sport)?.label ?? 'Ride';
+        sports.find((item) => item.value === sport)?.label ?? 'Road';
     const shapeLabel =
         shapes.find((item) => item.value === shape)?.label ?? 'Loop';
     const surfaceLabel =
@@ -1493,23 +1497,24 @@ export default function Dashboard() {
         [sportQuery],
     );
 
-    // plannerBoot is a new timestamp every time this file hot-reloads, so the
-    // map is thrown away and rebuilt. Otherwise the old arrows stay on screen.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: rebuild the map on hot reload
+    const mapStartRef = useRef({ longitude, latitude, mapStyle });
+    mapStartRef.current = { longitude, latitude, mapStyle };
+
     useEffect(() => {
         const node = mapNode.current;
+        const start = mapStartRef.current;
 
         if (node === null || mapRef.current !== null) {
             return;
         }
 
         const startingStyle =
-            mapStyles.find((item) => item.id === mapStyle)?.url ??
+            mapStyles.find((item) => item.id === start.mapStyle)?.url ??
             'https://tiles.openfreemap.org/styles/liberty';
         const map = new maplibregl.Map({
             container: node,
             style: startingStyle,
-            center: [longitude, latitude],
+            center: [start.longitude, start.latitude],
             zoom: 11,
             attributionControl: false,
         });
@@ -1539,7 +1544,7 @@ export default function Dashboard() {
                 map.easeTo({
                     center: [event.coords.longitude, event.coords.latitude],
                     zoom: Math.max(map.getZoom(), 15),
-                    padding: framePadding(),
+                    padding: framePaddingRef.current(),
                     duration: reduced ? 0 : 180,
                 });
             },
@@ -1679,7 +1684,7 @@ export default function Dashboard() {
 
         mapRef.current = map;
         markerRef.current = new maplibregl.Marker({ color: '#16303a' })
-            .setLngLat([longitude, latitude])
+            .setLngLat([start.longitude, start.latitude])
             .addTo(map);
 
         // MapLibre sets position:relative on its root, which drops the
@@ -1724,7 +1729,7 @@ export default function Dashboard() {
             viaMarkerRef.current = null;
             snapMarkerRef.current = null;
         };
-    }, [plannerBoot]);
+    }, [saved]);
 
     useEffect(() => {
         markerRef.current?.setLngLat([longitude, latitude]);
@@ -1739,21 +1744,20 @@ export default function Dashboard() {
     useLayoutEffect(() => {
         const before = pointShiftRef.current;
         const list = pointsListRef.current;
+        const ids = new Set(buildPoints.map((point) => point.id));
         pointShiftRef.current = null;
 
         if (before === null || list === null) {
             return;
         }
 
-        const nodes = [
-            ...list.querySelectorAll<HTMLElement>('[data-point]'),
-        ];
+        const nodes = [...list.querySelectorAll<HTMLElement>('[data-point]')];
         const shifts: Array<{ node: HTMLElement; dy: number }> = [];
 
         for (const node of nodes) {
             const id = node.dataset.point;
 
-            if (id === undefined) {
+            if (id === undefined || !ids.has(id)) {
                 continue;
             }
 
@@ -1969,13 +1973,10 @@ export default function Dashboard() {
         );
     }
 
-    function framePadding(): maplibregl.PaddingOptions {
+    function framePadding(): number | maplibregl.PaddingOptions {
         const map = mapRef.current;
 
-        if (
-            map === null ||
-            !window.matchMedia('(max-width: 1023px)').matches
-        ) {
+        if (map === null || !window.matchMedia('(max-width: 1023px)').matches) {
             return 80;
         }
 
@@ -2012,6 +2013,8 @@ export default function Dashboard() {
             left: edge,
         };
     }
+
+    framePaddingRef.current = framePadding;
 
     function showPoint(lng: number, lat: number): void {
         const map = mapRef.current;
@@ -2469,8 +2472,7 @@ export default function Dashboard() {
 
     function placeBuildPoint(lng: number, lat: number): void {
         const map = mapRef.current;
-        const point =
-            map === null ? null : snapToRoad(map, lng, lat);
+        const point = map === null ? null : snapToRoad(map, lng, lat);
 
         if (point === null) {
             setMessage('No road or path is close enough to put a point there.');
@@ -2532,13 +2534,13 @@ export default function Dashboard() {
             from >= buildPoints.length ||
             to >= buildPoints.length
         ) {
-            list
-                ?.querySelectorAll<HTMLElement>('[data-point]')
-                .forEach((node) => {
+            list?.querySelectorAll<HTMLElement>('[data-point]').forEach(
+                (node) => {
                     node.style.transform = '';
                     node.style.transition = '';
                     node.classList.remove('lift');
-                });
+                },
+            );
 
             return;
         }
@@ -2576,9 +2578,7 @@ export default function Dashboard() {
         });
     }
 
-    function startPointDrag(
-        event: ReactPointerEvent<HTMLButtonElement>,
-    ): void {
+    function startPointDrag(event: ReactPointerEvent<HTMLButtonElement>): void {
         if (event.button !== 0 || buildPoints.length < 2) {
             return;
         }
@@ -2605,9 +2605,11 @@ export default function Dashboard() {
 
         const tops = rows.map((item) => item.getBoundingClientRect().top);
         const height = row.getBoundingClientRect().height;
+        const above = tops[0];
+        const below = tops[1];
         const pitch =
-            tops.length > 1
-                ? tops[1] - tops[0]
+            above !== undefined && below !== undefined
+                ? below - above
                 : height + 8;
         let slot = origin;
         row.classList.add('lift');
@@ -2621,10 +2623,7 @@ export default function Dashboard() {
             row.style.transform = `translateY(${clamped}px)`;
             const nextSlot = Math.max(
                 0,
-                Math.min(
-                    rows.length - 1,
-                    Math.round(origin + clamped / pitch),
-                ),
+                Math.min(rows.length - 1, Math.round(origin + clamped / pitch)),
             );
 
             if (nextSlot === slot) {
@@ -2731,7 +2730,12 @@ export default function Dashboard() {
             <Head title="Planner" />
             <div className="tw-planner" data-theme={resolvedAppearance}>
                 <header className="hdr">
-                    <a className="brand" href="/" aria-label="Traceway home">
+                    <Link
+                        className="brand"
+                        href="/dashboard"
+                        aria-current="page"
+                        aria-label="Traceway"
+                    >
                         <svg
                             width="26"
                             height="26"
@@ -2754,14 +2758,16 @@ export default function Dashboard() {
                             />
                         </svg>
                         <span>Traceway</span>
-                    </a>
-                    <nav className="nav" aria-label="App">
-                        <Link href="/dashboard" aria-current="page">
-                            Planner
-                        </Link>
-                        <a className="questions" href="/#faq">Questions</a>
-                    </nav>
+                    </Link>
                     <div className="hdr-end">
+                        <Link
+                            className="plan-nav"
+                            href="/dashboard"
+                            aria-current="page"
+                        >
+                            <span className="long">Plan your route</span>
+                            <span className="short">Plan</span>
+                        </Link>
                         <Link
                             className="saved-nav"
                             href="/saved"
@@ -2783,24 +2789,23 @@ export default function Dashboard() {
                             </svg>
                             <span>Saved routes</span>
                         </Link>
-                    <Link
-                        className="acct"
-                        href="/settings/profile"
-                        aria-label="Account and settings"
-                    >
-                        <span className="name">{rider}</span>
-                        <span className="avatar">{riderInitials}</span>
-                    </Link>
+                        <Link
+                            className="acct"
+                            href="/settings/profile"
+                            aria-label="Account and settings"
+                        >
+                            <span className="name">{rider}</span>
+                            <span className="avatar">{riderInitials}</span>
+                        </Link>
                     </div>
                 </header>
                 <main className="app">
                     <div
-                        className={mode === 'build' ? 'mapwrap build' : 'mapwrap'}
+                        className={
+                            mode === 'build' ? 'mapwrap build' : 'mapwrap'
+                        }
                     >
-                        <div
-                            ref={mapNode}
-                            className="h-full w-full"
-                        />
+                        <div ref={mapNode} className="h-full w-full" />
                         <div className="vig" />
                         <div className="mapctl">
                             <div className="ctl">
@@ -2829,8 +2834,17 @@ export default function Dashboard() {
                                         }
                                     }}
                                 >
-                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                        <path d="M8 2 L10 6 H6 Z M8 14 L6 10 H10 Z M2 8 L6 6 V10 Z M14 8 L10 10 V6 Z" fill="currentColor" />
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 16 16"
+                                        fill="none"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            d="M8 2 L10 6 H6 Z M8 14 L6 10 H10 Z M2 8 L6 6 V10 Z M14 8 L10 10 V6 Z"
+                                            fill="currentColor"
+                                        />
                                     </svg>
                                 </button>
                             </div>
@@ -2840,16 +2854,34 @@ export default function Dashboard() {
                                     aria-label="Find my location"
                                     onClick={locateMe}
                                 >
-                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                        <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.6" />
-                                        <path d="M8 1.5 V4 M8 12 V14.5 M1.5 8 H4 M12 8 H14.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 16 16"
+                                        fill="none"
+                                        aria-hidden="true"
+                                    >
+                                        <circle
+                                            cx="8"
+                                            cy="8"
+                                            r="3"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                        />
+                                        <path
+                                            d="M8 1.5 V4 M8 12 V14.5 M1.5 8 H4 M12 8 H14.5"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                            strokeLinecap="round"
+                                        />
                                     </svg>
                                 </button>
                             </div>
                         </div>
                         {mode === 'build' ? (
                             <p className="maphint">
-                                <b>+</b> The ring sits on the nearest road or path
+                                <b>+</b> The ring sits on the nearest road or
+                                path
                             </p>
                         ) : null}
                         <p className="attr">
@@ -2907,7 +2939,10 @@ export default function Dashboard() {
                                 </span>
                                 {renaming ? (
                                     <>
-                                        <label className="vh" htmlFor="route-name">
+                                        <label
+                                            className="vh"
+                                            htmlFor="route-name"
+                                        >
                                             Route name
                                         </label>
                                         <input
@@ -2925,7 +2960,9 @@ export default function Dashboard() {
                                                 const trimmed = name.trim();
 
                                                 if (trimmed === '') {
-                                                    setName(nameBeforeEdit.current);
+                                                    setName(
+                                                        nameBeforeEdit.current,
+                                                    );
                                                 } else if (trimmed !== name) {
                                                     setName(trimmed);
                                                 }
@@ -2934,7 +2971,9 @@ export default function Dashboard() {
                                             }}
                                             onKeyDown={(event) => {
                                                 if (event.key === 'Escape') {
-                                                    setName(nameBeforeEdit.current);
+                                                    setName(
+                                                        nameBeforeEdit.current,
+                                                    );
                                                     setRenaming(false);
 
                                                     return;
@@ -2953,7 +2992,9 @@ export default function Dashboard() {
                                     type="button"
                                     className="ghostbtn"
                                     aria-label={
-                                        renaming ? 'Done renaming' : 'Rename route'
+                                        renaming
+                                            ? 'Done renaming'
+                                            : 'Rename route'
                                     }
                                     onMouseDown={(event) => {
                                         if (renaming) {
@@ -3012,260 +3053,370 @@ export default function Dashboard() {
                         </div>
                         <div className="pbody">
                             {mode === 'generate' ? (
-                            <section aria-label="Ask">
-                                <p className="sec-label">Ask</p>
-                                <button
-                                    type="button"
-                                    className="row"
-                                    onClick={() => setSheet('shape')}
-                                >
-                                    <span className="k">Shape</span>
-                                    <span className="v">
-                                        {shapeLabel}
-                                        <Chevron />
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="row"
-                                    onClick={() => setSheet('length')}
-                                >
-                                    <span className="k">Length</span>
-                                    <span className="v">
-                                        {distanceKm} km
-                                        <Chevron />
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="row"
-                                    onClick={() => setSheet('sport')}
-                                >
-                                    <span className="k">Sport</span>
-                                    <span className="v">
-                                        {sportLabel}
-                                        <Chevron />
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="row"
-                                    onClick={() => setSheet('surface')}
-                                >
-                                    <span className="k">Surface</span>
-                                    <span className="v">
-                                        {surfaceLabel}
-                                        <Chevron />
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="row"
-                                    onClick={() => setSheet('elevation')}
-                                >
-                                    <span className="k">Hills</span>
-                                    <span className="v">
-                                        {elevationLabel}
-                                        <Chevron />
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="row"
-                                    onClick={() => setSheet('roads')}
-                                >
-                                    <span className="k">Roads</span>
-                                    <span className="v">
-                                        {roadsLabel}
-                                        <Chevron />
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="row"
-                                    onClick={() => {
-                                        if (via !== null) {
-                                            setVia(null);
-                                            setViaName(null);
-                                            setPlacingVia(false);
-                                            void generate({ via: null });
-                                            return;
-                                        }
-                                        setPlacingVia(true);
-                                        setMessage(
-                                            'Tap the map where the loop should pass.',
-                                        );
-                                    }}
-                                >
-                                    <span className="k">Via</span>
-                                    <span className="v">
-                                        {via === null ? (
-                                            placingVia ? (
-                                                'Tap the map'
-                                            ) : (
-                                                'None'
-                                            )
-                                        ) : (
-                                            <>
-                                                <span className="dot" />
-                                                {viaName ?? 'Set'}
-                                            </>
-                                        )}
-                                        <Chevron />
-                                    </span>
-                                </button>
-                            </section>
-                            ) : (
-                            <section aria-label="Points">
-                                <div className="flex items-baseline justify-between gap-3">
-                                    <p className="sec-label">Points</p>
-                                    <p className="small">
-                                        Tap a road on the map to add one
-                                    </p>
-                                </div>
-                                <div className="pts" ref={pointsListRef}>
-                                    <div className="pt">
-                                        <span className="mark start" aria-hidden="true">
-                                            <span />
+                                <section aria-label="Ask">
+                                    <p className="sec-label">Ask</p>
+                                    <button
+                                        type="button"
+                                        className="row"
+                                        onClick={() => setSheet('shape')}
+                                    >
+                                        <span className="k">Shape</span>
+                                        <span className="v">
+                                            {shapeLabel}
+                                            <Chevron />
                                         </span>
-                                        <button
-                                            type="button"
-                                            className="field"
-                                            onClick={() =>
-                                                showPoint(longitude, latitude)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="row"
+                                        onClick={() => setSheet('length')}
+                                    >
+                                        <span className="k">Length</span>
+                                        <span className="v">
+                                            {distanceKm} km
+                                            <Chevron />
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="row"
+                                        onClick={() => setSheet('sport')}
+                                    >
+                                        <span className="k">Sport</span>
+                                        <span className="v">
+                                            {sportLabel}
+                                            <Chevron />
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="row"
+                                        onClick={() => setSheet('surface')}
+                                    >
+                                        <span className="k">Surface</span>
+                                        <span className="v">
+                                            {surfaceLabel}
+                                            <Chevron />
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="row"
+                                        onClick={() => setSheet('elevation')}
+                                    >
+                                        <span className="k">Hills</span>
+                                        <span className="v">
+                                            {elevationLabel}
+                                            <Chevron />
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="row"
+                                        onClick={() => setSheet('roads')}
+                                    >
+                                        <span className="k">Roads</span>
+                                        <span className="v">
+                                            {roadsLabel}
+                                            <Chevron />
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="row"
+                                        onClick={() => {
+                                            if (via !== null) {
+                                                setVia(null);
+                                                setViaName(null);
+                                                setPlacingVia(false);
+                                                void generate({ via: null });
+                                                return;
                                             }
-                                        >
-                                            <span>Your pin</span>
-                                            <small>Start</small>
-                                            <span className="vh">
-                                                Show on the map
-                                            </span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="ghostbtn"
-                                            aria-label="Use my location as the start"
-                                            onClick={locateMe}
-                                        >
-                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                                <circle cx="8" cy="8" r="4" stroke="currentColor" strokeWidth="1.6" />
-                                                <path d="M8 1 V3.5 M8 12.5 V15 M1 8 H3.5 M12.5 8 H15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                                            </svg>
-                                        </button>
+                                            setPlacingVia(true);
+                                            setMessage(
+                                                'Tap the map where the loop should pass.',
+                                            );
+                                        }}
+                                    >
+                                        <span className="k">Via</span>
+                                        <span className="v">
+                                            {via === null ? (
+                                                placingVia ? (
+                                                    'Tap the map'
+                                                ) : (
+                                                    'None'
+                                                )
+                                            ) : (
+                                                <>
+                                                    <span className="dot" />
+                                                    {viaName ?? 'Set'}
+                                                </>
+                                            )}
+                                            <Chevron />
+                                        </span>
+                                    </button>
+                                </section>
+                            ) : (
+                                <section aria-label="Points">
+                                    <div className="flex items-baseline justify-between gap-3">
+                                        <p className="sec-label">Points</p>
+                                        <p className="small">
+                                            Tap a road on the map to add one
+                                        </p>
                                     </div>
-                                    {buildPoints.map((point, index) => (
-                                        <div
-                                            className="pt"
-                                            data-point={point.id}
-                                            key={point.id}
-                                        >
-                                            <span className="mark" aria-hidden="true">
-                                                {index + 1}
+                                    <div className="pts" ref={pointsListRef}>
+                                        <div className="pt">
+                                            <span
+                                                className="mark start"
+                                                aria-hidden="true"
+                                            >
+                                                <span />
                                             </span>
                                             <button
                                                 type="button"
                                                 className="field"
                                                 onClick={() =>
                                                     showPoint(
-                                                        point.longitude,
-                                                        point.latitude,
+                                                        longitude,
+                                                        latitude,
                                                     )
                                                 }
                                             >
-                                                <span>{point.name}</span>
-                                                <small>
-                                                    {typeof legMetres[index] === 'number'
-                                                        ? `${(legMetres[index] / 1000).toFixed(1)} km`
-                                                        : `${(metresBetween(
-                                                              index === 0
-                                                                  ? [longitude, latitude]
-                                                                  : [
-                                                                        buildPoints[index - 1]?.longitude ?? longitude,
-                                                                        buildPoints[index - 1]?.latitude ?? latitude,
-                                                                    ],
-                                                              [point.longitude, point.latitude],
-                                                          ) / 1000).toFixed(1)} km`}
-                                                </small>
+                                                <span>Your pin</span>
+                                                <small>Start</small>
                                                 <span className="vh">
                                                     Show on the map
                                                 </span>
                                             </button>
                                             <button
                                                 type="button"
-                                                className="grip"
-                                                aria-label={`Move point ${index + 1}. Drag, or use the arrow keys.`}
-                                                onPointerDown={(event) =>
-                                                    startPointDrag(event)
-                                                }
-                                                onKeyDown={(event) => {
-                                                    if (
-                                                        event.key !== 'ArrowUp' &&
-                                                        event.key !== 'ArrowDown'
-                                                    ) {
-                                                        return;
-                                                    }
-
-                                                    event.preventDefault();
-                                                    reorderPoints(
-                                                        index,
-                                                        event.key === 'ArrowUp'
-                                                            ? index - 1
-                                                            : index + 1,
-                                                    );
-                                                }}
-                                            >
-                                                <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
-                                                    <circle cx="4.5" cy="2.5" r="1.3" />
-                                                    <circle cx="9.5" cy="2.5" r="1.3" />
-                                                    <circle cx="4.5" cy="7" r="1.3" />
-                                                    <circle cx="9.5" cy="7" r="1.3" />
-                                                    <circle cx="4.5" cy="11.5" r="1.3" />
-                                                    <circle cx="9.5" cy="11.5" r="1.3" />
-                                                </svg>
-                                            </button>
-                                            <button
-                                                type="button"
                                                 className="ghostbtn"
-                                                aria-label={`Remove point ${index + 1}`}
-                                                onClick={() =>
-                                                    setBuildPoints((current) =>
-                                                        current.filter((_, item) => item !== index),
-                                                    )
-                                                }
+                                                aria-label="Use my location as the start"
+                                                onClick={locateMe}
                                             >
-                                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                                    <path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                    aria-hidden="true"
+                                                >
+                                                    <circle
+                                                        cx="8"
+                                                        cy="8"
+                                                        r="4"
+                                                        stroke="currentColor"
+                                                        strokeWidth="1.6"
+                                                    />
+                                                    <path
+                                                        d="M8 1 V3.5 M8 12.5 V15 M1 8 H3.5 M12.5 8 H15"
+                                                        stroke="currentColor"
+                                                        strokeWidth="1.6"
+                                                        strokeLinecap="round"
+                                                    />
                                                 </svg>
                                             </button>
                                         </div>
-                                    ))}
-                                    <div className="pt endrow">
-                                        <span className="mark end" aria-hidden="true" />
+                                        {buildPoints.map((point, index) => (
+                                            <div
+                                                className="pt"
+                                                data-point={point.id}
+                                                key={point.id}
+                                            >
+                                                <span
+                                                    className="mark"
+                                                    aria-hidden="true"
+                                                >
+                                                    {index + 1}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className="field"
+                                                    onClick={() =>
+                                                        showPoint(
+                                                            point.longitude,
+                                                            point.latitude,
+                                                        )
+                                                    }
+                                                >
+                                                    <span>{point.name}</span>
+                                                    <small>
+                                                        {typeof legMetres[
+                                                            index
+                                                        ] === 'number'
+                                                            ? `${(legMetres[index] / 1000).toFixed(1)} km`
+                                                            : `${(
+                                                                  metresBetween(
+                                                                      index ===
+                                                                          0
+                                                                          ? [
+                                                                                longitude,
+                                                                                latitude,
+                                                                            ]
+                                                                          : [
+                                                                                buildPoints[
+                                                                                    index -
+                                                                                        1
+                                                                                ]
+                                                                                    ?.longitude ??
+                                                                                    longitude,
+                                                                                buildPoints[
+                                                                                    index -
+                                                                                        1
+                                                                                ]
+                                                                                    ?.latitude ??
+                                                                                    latitude,
+                                                                            ],
+                                                                      [
+                                                                          point.longitude,
+                                                                          point.latitude,
+                                                                      ],
+                                                                  ) / 1000
+                                                              ).toFixed(1)} km`}
+                                                    </small>
+                                                    <span className="vh">
+                                                        Show on the map
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="grip"
+                                                    aria-label={`Move point ${index + 1}. Drag, or use the arrow keys.`}
+                                                    onPointerDown={(event) =>
+                                                        startPointDrag(event)
+                                                    }
+                                                    onKeyDown={(event) => {
+                                                        if (
+                                                            event.key !==
+                                                                'ArrowUp' &&
+                                                            event.key !==
+                                                                'ArrowDown'
+                                                        ) {
+                                                            return;
+                                                        }
+
+                                                        event.preventDefault();
+                                                        reorderPoints(
+                                                            index,
+                                                            event.key ===
+                                                                'ArrowUp'
+                                                                ? index - 1
+                                                                : index + 1,
+                                                        );
+                                                    }}
+                                                >
+                                                    <svg
+                                                        width="14"
+                                                        height="14"
+                                                        viewBox="0 0 14 14"
+                                                        fill="currentColor"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <circle
+                                                            cx="4.5"
+                                                            cy="2.5"
+                                                            r="1.3"
+                                                        />
+                                                        <circle
+                                                            cx="9.5"
+                                                            cy="2.5"
+                                                            r="1.3"
+                                                        />
+                                                        <circle
+                                                            cx="4.5"
+                                                            cy="7"
+                                                            r="1.3"
+                                                        />
+                                                        <circle
+                                                            cx="9.5"
+                                                            cy="7"
+                                                            r="1.3"
+                                                        />
+                                                        <circle
+                                                            cx="4.5"
+                                                            cy="11.5"
+                                                            r="1.3"
+                                                        />
+                                                        <circle
+                                                            cx="9.5"
+                                                            cy="11.5"
+                                                            r="1.3"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="ghostbtn"
+                                                    aria-label={`Remove point ${index + 1}`}
+                                                    onClick={() =>
+                                                        setBuildPoints(
+                                                            (current) =>
+                                                                current.filter(
+                                                                    (_, item) =>
+                                                                        item !==
+                                                                        index,
+                                                                ),
+                                                        )
+                                                    }
+                                                >
+                                                    <svg
+                                                        width="14"
+                                                        height="14"
+                                                        viewBox="0 0 16 16"
+                                                        fill="none"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <path
+                                                            d="M4 4 L12 12 M12 4 L4 12"
+                                                            stroke="currentColor"
+                                                            strokeWidth="1.6"
+                                                            strokeLinecap="round"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <div className="pt endrow">
+                                            <span
+                                                className="mark end"
+                                                aria-hidden="true"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="field dash"
+                                                onClick={() =>
+                                                    setFinishLoop(
+                                                        (current) => !current,
+                                                    )
+                                                }
+                                            >
+                                                <span>
+                                                    {finishLoop
+                                                        ? 'End · back at the start'
+                                                        : 'End · at your last point'}
+                                                </span>
+                                                <small>Change</small>
+                                            </button>
+                                        </div>
                                         <button
                                             type="button"
-                                            className="field dash"
-                                            onClick={() => setFinishLoop((current) => !current)}
+                                            className="addrow"
+                                            onClick={() =>
+                                                setMessage(
+                                                    'Tap a road on the map. The point snaps onto the route.',
+                                                )
+                                            }
                                         >
-                                            <span>
-                                                {finishLoop
-                                                    ? 'End · back at the start'
-                                                    : 'End · at your last point'}
+                                            <span
+                                                className="mark add"
+                                                aria-hidden="true"
+                                            >
+                                                +
                                             </span>
-                                            <small>Change</small>
+                                            <span>Add a point</span>
                                         </button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        className="addrow"
-                                        onClick={() =>
-                                            setMessage('Tap a road on the map. The point snaps onto the route.')
-                                        }
-                                    >
-                                        <span className="mark add" aria-hidden="true">+</span>
-                                        <span>Add a point</span>
-                                    </button>
-                                </div>
-                            </section>
+                                </section>
                             )}
                             {mode === 'build' ? (
                                 <section aria-label="Route">
@@ -3328,9 +3479,14 @@ export default function Dashboard() {
                                 </section>
                             ) : null}
                             {mode === 'build' ? (
-                                <section className="opts" aria-label="Build options">
+                                <section
+                                    className="opts"
+                                    aria-label="Build options"
+                                >
                                     <div className="opt">
-                                        <label htmlFor="opt-follow">Follow roads between points</label>
+                                        <label htmlFor="opt-follow">
+                                            Follow roads between points
+                                        </label>
                                         <button
                                             type="button"
                                             className="sw"
@@ -3338,11 +3494,17 @@ export default function Dashboard() {
                                             role="switch"
                                             aria-checked={followRoads}
                                             aria-label="Follow roads between points"
-                                            onClick={() => setFollowRoads((current) => !current)}
+                                            onClick={() =>
+                                                setFollowRoads(
+                                                    (current) => !current,
+                                                )
+                                            }
                                         />
                                     </div>
                                     <div className="opt">
-                                        <label htmlFor="opt-finish">Let Traceway finish the loop</label>
+                                        <label htmlFor="opt-finish">
+                                            Let Traceway finish the loop
+                                        </label>
                                         <button
                                             type="button"
                                             className="sw"
@@ -3350,11 +3512,22 @@ export default function Dashboard() {
                                             role="switch"
                                             aria-checked={finishLoop}
                                             aria-label="Let Traceway finish the loop"
-                                            onClick={() => setFinishLoop((current) => !current)}
+                                            onClick={() =>
+                                                setFinishLoop(
+                                                    (current) => !current,
+                                                )
+                                            }
                                         />
                                     </div>
-                                    <p className="small" style={{ marginTop: 8 }}>
-                                        Your points are kept. Traceway routes between them along roads, then closes the loop from the last point with the same rules as Ask, without doubling back.
+                                    <p
+                                        className="small"
+                                        style={{ marginTop: 8 }}
+                                    >
+                                        Your points are kept. Traceway routes
+                                        between them along roads, then closes
+                                        the loop from the last point with the
+                                        same rules as Ask, without doubling
+                                        back.
                                     </p>
                                 </section>
                             ) : null}
@@ -3363,7 +3536,9 @@ export default function Dashboard() {
                                 className="fill"
                                 disabled={busy}
                                 onClick={() =>
-                                    void (mode === 'build' ? drawBuild() : generate())
+                                    void (mode === 'build'
+                                        ? drawBuild()
+                                        : generate())
                                 }
                             >
                                 {busy
@@ -3385,7 +3560,9 @@ export default function Dashboard() {
                                             <button
                                                 type="button"
                                                 aria-label="Previous loop"
-                                                disabled={busy || routes.length < 2}
+                                                disabled={
+                                                    busy || routes.length < 2
+                                                }
                                                 onClick={showAnother}
                                             >
                                                 ‹
@@ -3411,7 +3588,9 @@ export default function Dashboard() {
                                             <button
                                                 type="button"
                                                 aria-label="Next loop"
-                                                disabled={busy || routes.length < 2}
+                                                disabled={
+                                                    busy || routes.length < 2
+                                                }
                                                 onClick={showAnother}
                                             >
                                                 ›
@@ -3436,14 +3615,22 @@ export default function Dashboard() {
                                         <span>
                                             <i />
                                             Your points,{' '}
-                                            {((preview.user_metres ?? preview.distance_metres) / 1000).toFixed(1)}{' '}
+                                            {(
+                                                (preview.user_metres ??
+                                                    preview.distance_metres) /
+                                                1000
+                                            ).toFixed(1)}{' '}
                                             km
                                         </span>
                                         {finishLoop ? (
                                             <span>
                                                 <i className="dotted" />
                                                 Traceway’s part,{' '}
-                                                {((preview.finish_metres ?? 0) / 1000).toFixed(1)} km
+                                                {(
+                                                    (preview.finish_metres ??
+                                                        0) / 1000
+                                                ).toFixed(1)}{' '}
+                                                km
                                             </span>
                                         ) : null}
                                     </div>
@@ -3490,8 +3677,18 @@ export default function Dashboard() {
                                 <p className="small">
                                     FIT for Garmin. GPX for Wahoo, Hammerhead,
                                     Bryton and COROS. Device name{' '}
-                                    <b>{(name.trim() || 'Traceway').slice(0, 15)}</b>,{' '}
-                                    {Math.min(15, (name.trim() || 'Traceway').length)} of 15 characters.
+                                    <b>
+                                        {(name.trim() || 'Traceway').slice(
+                                            0,
+                                            15,
+                                        )}
+                                    </b>
+                                    ,{' '}
+                                    {Math.min(
+                                        15,
+                                        (name.trim() || 'Traceway').length,
+                                    )}{' '}
+                                    of 15 characters.
                                 </p>
                             </section>
                         </div>
@@ -3530,9 +3727,9 @@ export default function Dashboard() {
                         onSelect={chooseSport}
                     />
                     <OptionGroup
-                        title="Cycle"
+                        title="Bike"
                         options={visibleSports.filter(
-                            (item) => item.group === 'Cycle',
+                            (item) => item.group === 'Bike',
                         )}
                         selected={sport}
                         onSelect={chooseSport}
@@ -3591,7 +3788,9 @@ export default function Dashboard() {
 
                                     if (mode === 'build') {
                                         if (buildPoints.length > 0) {
-                                            void drawBuild({ roads: option.value });
+                                            void drawBuild({
+                                                roads: option.value,
+                                            });
                                         }
 
                                         return;
@@ -3714,42 +3913,6 @@ export default function Dashboard() {
     );
 }
 
-function FilterChip({
-    label,
-    onClick,
-    onClear,
-}: {
-    label: string;
-    onClick: () => void;
-    onClear?: () => void;
-}) {
-    return (
-        <span className="inline-flex shrink-0 items-center gap-2">
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onClick}
-                className={quietControl}
-            >
-                {label}
-            </Button>
-            {onClear === undefined ? null : (
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={onClear}
-                    aria-label={`Remove ${label}`}
-                    className={cn(quietControl, 'px-3')}
-                >
-                    ×
-                </Button>
-            )}
-        </span>
-    );
-}
-
 function ChoiceList({
     label,
     children,
@@ -3803,6 +3966,7 @@ function OptionGroup({
                                     height="12"
                                     viewBox="0 0 16 16"
                                     fill="none"
+                                    aria-hidden="true"
                                 >
                                     <path
                                         d="M3 8.5 L6.5 12 L13 4.5"
@@ -3845,7 +4009,13 @@ function RadioRow({
                 <small>{copy}</small>
             </span>
             <span className="check" aria-hidden="true">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    aria-hidden="true"
+                >
                     <path
                         d="M3 8.5 L6.5 12 L13 4.5"
                         stroke="oklch(0.2 0.04 200)"

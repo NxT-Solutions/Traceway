@@ -38,8 +38,9 @@
 .tw-login .nav a{padding:11px 0}
 .tw-login .nav a:hover,.tw-login .nav a[aria-current]{color:var(--ink)}
 .tw-login .hdr-r{margin-left:auto;display:flex;align-items:center;gap:22px}
-.tw-login .fill{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 18px;border:0;border-radius:10px;background:var(--chart);color:var(--chart-ink);font-size:15px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .25s var(--ease)}
+.tw-login .fill{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 18px;border:0;border-radius:10px;background:var(--chart);color:var(--chart-ink);font-size:15px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background-color 180ms var(--ease),opacity 80ms var(--ease)}
 .tw-login .fill:hover{background:var(--chart-dim)}
+.tw-login .fill:active{transition-duration:80ms;opacity:.72}
 .tw-login .fill.big{height:48px;width:100%;font-size:16px}
 .tw-login .outline{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:48px;width:100%;padding:0 18px;border:1px solid oklch(0.22 0.03 200 / 0.3);border-radius:10px;background:transparent;color:var(--ink);font-size:16px;font-weight:500;cursor:pointer}
 .tw-login .outline:hover{background:var(--card)}
@@ -54,7 +55,7 @@
 .tw-login .divider::before,.tw-login .divider::after{content:"";flex:1 1 auto;height:1px;background:var(--hair)}
 .tw-login .field{display:flex;flex-direction:column;gap:8px}
 .tw-login .field .lab{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:14px;font-weight:500}
-.tw-login .field .lab a{color:var(--muted);font-weight:400;font-size:14px;margin-left:auto}
+.tw-login .field .lab a{display:inline-flex;align-items:center;min-height:24px;color:var(--muted);font-weight:400;font-size:14px;margin-left:auto}
 .tw-login .field .lab a:hover{color:var(--ink)}
 .tw-login .field input:not([type="checkbox"]){
   width:100%;
@@ -126,7 +127,7 @@
 .tw-login .scene .cap b{font-size:clamp(26px,2.4vw,34px);line-height:1.08;letter-spacing:-0.03em;font-weight:600;text-wrap:balance;color:var(--paper-on-ink)}
 .tw-login .scene .cap b em{font-style:normal;color:var(--chart)}
 .tw-login .scene .cap span{color:var(--muted-on-ink);font-size:15px}
-.tw-login .scene .vig{position:absolute;inset:0;background:linear-gradient(180deg, oklch(0.22 0.03 200 / 0) 55%, oklch(0.22 0.03 200 / 0.85) 100%);pointer-events:none}
+.tw-login .scene .vig{position:absolute;inset:0;background:linear-gradient(180deg, oklch(0.22 0.03 200 / 0) 46%, oklch(0.22 0.03 200 / 0.72) 68%, oklch(0.22 0.03 200) 84%);pointer-events:none}
 .tw-login .fill .short{display:none}
 .tw-login .err{margin:0;font-size:13px;color:oklch(0.5 0.16 25)}
 @media (max-width: 640px){
@@ -140,6 +141,9 @@
   .tw-login main{grid-template-columns:minmax(0,1fr)}
   .tw-login .scene{display:none}
   .tw-login .formcol{padding-top:40px}
+}
+@media (prefers-reduced-motion: reduce){
+  .tw-login button,.tw-login a{transition:none}
 }
 @media (max-width: 480px){
   .tw-login .riders{grid-template-columns:1fr}
