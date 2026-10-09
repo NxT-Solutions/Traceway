@@ -10,21 +10,21 @@ namespace App\Domain\Routing;
  */
 final class CandidateScorer
 {
-    public function score(ScoreInput $input): float
+    public function score(ScoreInput $scoreInput): float
     {
-        $target = max(1, $input->targetDistanceMetres);
-        $distanceError = abs($input->distanceMetres - $input->targetDistanceMetres) / $target;
+        $target = max(1, $scoreInput->targetDistanceMetres);
+        $distanceError = abs($scoreInput->distanceMetres - $scoreInput->targetDistanceMetres) / $target;
         $distanceScore = max(0.0, 1 - $distanceError);
 
-        $surfaceScore = match ($input->surface) {
-            Surface::Paved => $input->pavedRatio,
-            Surface::Dirt => max(0.0, 1 - $input->pavedRatio - $input->unknownSurfaceRatio),
+        $surfaceScore = match ($scoreInput->surface) {
+            Surface::Paved => $scoreInput->pavedRatio,
+            Surface::Dirt => max(0.0, 1 - $scoreInput->pavedRatio - $scoreInput->unknownSurfaceRatio),
             Surface::Mixed => 1.0,
         };
 
-        $kilometres = max(0.1, $input->distanceMetres / 1000);
-        $ascentPerKilometre = $input->ascentMetres / $kilometres;
-        $elevationScore = match ($input->elevation) {
+        $kilometres = max(0.1, $scoreInput->distanceMetres / 1000);
+        $ascentPerKilometre = $scoreInput->ascentMetres / $kilometres;
+        $elevationScore = match ($scoreInput->elevation) {
             ElevationBias::Minimize => max(0.0, 1 - ($ascentPerKilometre / 40)),
             ElevationBias::Neutral => 1.0,
             ElevationBias::Maximize => min(1.0, $ascentPerKilometre / 40),
@@ -33,14 +33,14 @@ final class CandidateScorer
         $score = ($distanceScore * 40)
             + ($surfaceScore * 25)
             + ($elevationScore * 20)
-            + (max(0.0, min(1.0, $input->cyclewayRatio)) * 10)
-            - ($input->unknownSurfaceRatio * 10);
+            + (max(0.0, min(1.0, $scoreInput->cyclewayRatio)) * 10)
+            - ($scoreInput->unknownSurfaceRatio * 10);
 
-        if ($input->usesTrunk) {
+        if ($scoreInput->usesTrunk) {
             $score -= 25;
         }
 
-        if ($input->usesFerry) {
+        if ($scoreInput->usesFerry) {
             $score -= 25;
         }
 

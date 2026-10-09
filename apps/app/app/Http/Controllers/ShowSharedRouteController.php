@@ -4,27 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Models\SavedRoute;
+use App\Queries\Routes\SharedRouteQuery;
+use App\Routes\RouteId;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ShowSharedRouteController extends Controller
 {
-    public function __invoke(SavedRoute $savedRoute): Response
+    public function __invoke(string $savedRoute, SharedRouteQuery $sharedRouteQuery): Response
     {
         return Inertia::render('share', [
-            'route' => [
-                'name' => $savedRoute->name,
-                'sport' => $savedRoute->sport,
-                'surface' => $savedRoute->surface,
-                'elevation' => $savedRoute->elevation,
-                'roads' => $savedRoute->roads,
-                'distance_metres' => $savedRoute->distance_metres,
-                'ascent_metres' => $savedRoute->ascent_metres,
-                'coordinates' => $savedRoute->coordinates,
-                'gpx_url' => $savedRoute->gpxUrl(),
-                'fit_url' => $savedRoute->fitUrl(),
-            ],
+            'route' => $sharedRouteQuery->find(new RouteId($savedRoute))->toArray(),
         ]);
     }
 }

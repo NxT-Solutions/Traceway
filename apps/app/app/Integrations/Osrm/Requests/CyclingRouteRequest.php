@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Integrations\Osrm\Requests;
 
+use Override;
 use Saloon\Enums\Method;
 use Saloon\Http\Request;
 
 final class CyclingRouteRequest extends Request
 {
+    #[Override]
     protected Method $method = Method::GET;
 
     /**

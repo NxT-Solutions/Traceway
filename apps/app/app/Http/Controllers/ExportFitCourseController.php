@@ -10,12 +10,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ExportFitCourseController extends Controller
 {
-    public function __invoke(ExportFitCourseRequest $request): Response
+    public function __invoke(ExportFitCourseRequest $exportFitCourseRequest): Response
     {
         $bytes = FitCourse::encode(
-            $request->courseName(),
-            $request->sport(),
-            $request->coordinates(),
+            $exportFitCourseRequest->courseName(),
+            $exportFitCourseRequest->sport(),
+            $exportFitCourseRequest->coordinates(),
         );
 
         return response($bytes, 200, [

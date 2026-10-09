@@ -75,11 +75,11 @@ final class RouteCleanliness
     {
         $stack = [];
 
-        foreach ($coordinates as $next) {
+        foreach ($coordinates as $coordinate) {
             if ($stack !== []) {
-                $tip = $stack[array_key_last($stack)];
+                $tip = array_last($stack);
 
-                if (self::metres($tip, $next) < 8.0) {
+                if (self::metres($tip, $coordinate) < 8.0) {
                     continue;
                 }
             }
@@ -89,17 +89,17 @@ final class RouteCleanliness
                 $tip = $stack[$last];
                 $previous = $stack[$last - 1];
 
-                $turn = abs(self::bearing($previous, $tip) - self::bearing($tip, $next));
+                $turn = abs(self::bearing($previous, $tip) - self::bearing($tip, $coordinate));
                 $turn = min($turn, 360.0 - $turn);
 
-                if ($turn < 150.0 || self::distanceToSegment($next, $previous, $tip) > 40.0) {
+                if ($turn < 150.0 || self::distanceToSegment($coordinate, $previous, $tip) > 40.0) {
                     break;
                 }
 
                 array_pop($stack);
             }
 
-            $cut = self::cutThinReturn($stack, $next);
+            $cut = self::cutThinReturn($stack, $coordinate);
 
             if ($cut !== $stack) {
                 $stack = $cut;
@@ -108,15 +108,15 @@ final class RouteCleanliness
             }
 
             if ($stack === []) {
-                $stack[] = $next;
+                $stack[] = $coordinate;
 
                 continue;
             }
 
-            $tip = $stack[array_key_last($stack)];
+            $tip = array_last($stack);
 
-            if (self::metres($tip, $next) >= 8.0) {
-                $stack[] = $next;
+            if (self::metres($tip, $coordinate) >= 8.0) {
+                $stack[] = $coordinate;
             }
         }
 
@@ -157,7 +157,7 @@ final class RouteCleanliness
             return false;
         }
 
-        foreach ($waypoints as $point) {
+        foreach ($waypoints as $waypoint) {
             $near = false;
 
             for ($index = 1, $count = count($line); $index < $count; $index++) {
@@ -168,7 +168,7 @@ final class RouteCleanliness
                     continue;
                 }
 
-                if (self::distanceToSegment($point, $from, $to) <= $tolerance) {
+                if (self::distanceToSegment($waypoint, $from, $to) <= $tolerance) {
                     $near = true;
 
                     break;
@@ -305,7 +305,7 @@ final class RouteCleanliness
 
         $kept = array_slice($stack, 0, $revisit + 1);
         $join = self::closestPointOnSegment($next, $origin, $rejoin);
-        $keptTip = $kept[array_key_last($kept)] ?? null;
+        $keptTip = array_last($kept) ?? null;
 
         if ($keptTip !== null && self::metres($keptTip, $join) >= 8.0) {
             $kept[] = $join;
@@ -325,8 +325,8 @@ final class RouteCleanliness
     private static function closeToStart(array $original, array $stack): array
     {
         $start = $original[0] ?? null;
-        $originalEnd = $original[array_key_last($original)] ?? null;
-        $trimmedEnd = $stack[array_key_last($stack)] ?? null;
+        $originalEnd = array_last($original) ?? null;
+        $trimmedEnd = array_last($stack) ?? null;
 
         if ($start === null || $originalEnd === null || $trimmedEnd === null) {
             return $stack;
@@ -353,7 +353,7 @@ final class RouteCleanliness
         }
 
         foreach (array_slice($original, $resume + 1) as $point) {
-            $tip = $stack[array_key_last($stack)] ?? null;
+            $tip = array_last($stack) ?? null;
 
             if ($tip !== null && self::metres($tip, $point) >= 8.0) {
                 $stack[] = $point;
@@ -435,9 +435,7 @@ final class RouteCleanliness
     {
         usort(
             $routes,
-            static function (GeneratedRoute $left, GeneratedRoute $right) use ($targetMetres): int {
-                return self::score($left, $targetMetres) <=> self::score($right, $targetMetres);
-            },
+            static fn (GeneratedRoute $left, GeneratedRoute $right): int => self::score($left, $targetMetres) <=> self::score($right, $targetMetres),
         );
 
         return $routes;
@@ -453,25 +451,18 @@ final class RouteCleanliness
     {
         $kept = [];
 
-        foreach (self::ranked($routes, $targetMetres) as $route) {
-            if ($kept !== [] && self::reverseShare($route->coordinates) > 0.12) {
+        foreach (self::ranked($routes, $targetMetres) as $generatedRoute) {
+            if ($kept !== [] && self::reverseShare($generatedRoute->coordinates) > 0.12) {
                 continue;
             }
 
-            $duplicate = false;
-
-            foreach ($kept as $existing) {
-                if (self::alike($existing, $route)) {
-                    $duplicate = true;
-                    break;
-                }
-            }
+            $duplicate = array_any($kept, fn (GeneratedRoute $existing): bool => self::alike($existing, $generatedRoute));
 
             if ($duplicate) {
                 continue;
             }
 
-            $kept[] = $route;
+            $kept[] = $generatedRoute;
 
             if (count($kept) === $limit) {
                 break;
@@ -481,10 +472,10 @@ final class RouteCleanliness
         return $kept;
     }
 
-    public static function score(GeneratedRoute $route, int $targetMetres): float
+    public static function score(GeneratedRoute $generatedRoute, int $targetMetres): float
     {
-        $error = abs($route->distanceMetres - $targetMetres) / max(1, $targetMetres);
-        $overlap = self::reverseShare($route->coordinates);
+        $error = abs($generatedRoute->distanceMetres - $targetMetres) / max(1, $targetMetres);
+        $overlap = self::reverseShare($generatedRoute->coordinates);
 
         // A same-street double still loses. Among clean lines, the closest length wins.
         if ($overlap > 0.12) {

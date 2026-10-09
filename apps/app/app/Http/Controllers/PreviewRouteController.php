@@ -12,12 +12,12 @@ use Throwable;
 
 class PreviewRouteController extends Controller
 {
-    public function __invoke(PreviewRouteRequest $request, RoutingEngine $engine): JsonResponse
+    public function __invoke(PreviewRouteRequest $previewRouteRequest, RoutingEngine $routingEngine): JsonResponse
     {
         try {
-            $routes = $engine->candidates($request->toQuery());
-        } catch (Throwable $exception) {
-            report($exception);
+            $routes = $routingEngine->candidates($previewRouteRequest->toQuery());
+        } catch (Throwable $throwable) {
+            report($throwable);
 
             return response()->json([
                 'message' => 'No loop came back from that pin. Try another spot or a different distance.',
@@ -33,10 +33,10 @@ class PreviewRouteController extends Controller
         }
 
         $lines = array_map(
-            fn (GeneratedRoute $route): array => [
-                'distance_metres' => $route->distanceMetres,
-                'ascent_metres' => $route->ascentMetres,
-                'coordinates' => $route->coordinates,
+            fn (GeneratedRoute $generatedRoute): array => [
+                'distance_metres' => $generatedRoute->distanceMetres,
+                'ascent_metres' => $generatedRoute->ascentMetres,
+                'coordinates' => $generatedRoute->coordinates,
             ],
             $routes,
         );

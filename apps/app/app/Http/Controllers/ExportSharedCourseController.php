@@ -6,40 +6,42 @@ namespace App\Http\Controllers;
 
 use App\Domain\Courses\FitCourse;
 use App\Domain\Courses\GpxCourse;
-use App\Domain\Routing\Sport;
-use App\Models\SavedRoute;
+use App\Queries\Routes\SharedCourseQuery;
+use App\Routes\RouteId;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class ExportSharedCourseController extends Controller
 {
-    public function gpx(SavedRoute $savedRoute): Response
+    public function gpx(string $savedRoute, SharedCourseQuery $sharedCourseQuery): Response
     {
-        $name = $this->name($savedRoute);
+        $sharedCourse = $sharedCourseQuery->find(new RouteId($savedRoute));
+        $name = $this->name($sharedCourse->name);
 
-        return response(GpxCourse::encode($name, $savedRoute->coordinates), 200, [
+        return response(GpxCourse::encode($name, $sharedCourse->coordinates), 200, [
             'Content-Type' => 'application/gpx+xml',
             'Content-Disposition' => 'attachment; filename="'.$this->file($name, 'gpx').'"',
         ]);
     }
 
-    public function fit(SavedRoute $savedRoute): Response
+    public function fit(string $savedRoute, SharedCourseQuery $sharedCourseQuery): Response
     {
-        $name = $this->name($savedRoute);
+        $sharedCourse = $sharedCourseQuery->find(new RouteId($savedRoute));
+        $name = $this->name($sharedCourse->name);
 
         return response(FitCourse::encode(
             $name,
-            Sport::from($savedRoute->sport),
-            $savedRoute->coordinates,
+            $sharedCourse->sport,
+            $sharedCourse->coordinates,
         ), 200, [
             'Content-Type' => 'application/octet-stream',
             'Content-Disposition' => 'attachment; filename="'.$this->file($name, 'fit').'"',
         ]);
     }
 
-    private function name(SavedRoute $savedRoute): string
+    private function name(string $name): string
     {
-        $name = trim($savedRoute->name);
+        $name = trim($name);
 
         return $name === '' ? 'Traceway' : $name;
     }

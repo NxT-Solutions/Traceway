@@ -16,9 +16,9 @@ final class Polyline
         $previousLat = 0;
         $previousLon = 0;
 
-        foreach ($coordinates as $point) {
-            $lat = (int) round($point[1] * $factor);
-            $lon = (int) round($point[0] * $factor);
+        foreach ($coordinates as $coordinate) {
+            $lat = (int) round($coordinate[1] * $factor);
+            $lon = (int) round($coordinate[0] * $factor);
             $encoded .= self::chunk($lat - $previousLat);
             $encoded .= self::chunk($lon - $previousLon);
             $previousLat = $lat;
@@ -55,11 +55,16 @@ final class Polyline
         $chunk = '';
 
         while ($value >= 0x20) {
-            $chunk .= chr((0x20 | ($value & 0x1F)) + 63);
+            $chunk .= self::byte((0x20 | ($value & 0x1F)) + 63);
             $value >>= 5;
         }
 
-        return $chunk.chr($value + 63);
+        return $chunk.self::byte($value + 63);
+    }
+
+    private static function byte(int $value): string
+    {
+        return chr($value & 0xFF);
     }
 
     private static function read(string $encoded, int &$index): int

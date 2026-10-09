@@ -14,56 +14,56 @@ final class ValhallaCosting
      * @param  list<array{0: float, 1: float}>  $waypoints
      * @return array<string, mixed>
      */
-    public static function payload(RouteQuery $query, array $waypoints, ?int $departHeading = null, bool $mustVisit = false, ?int $viaRadius = null): array
+    public static function payload(RouteQuery $routeQuery, array $waypoints, ?int $departHeading = null, bool $mustVisit = false, ?int $viaRadius = null): array
     {
-        $useHills = match ($query->elevation) {
+        $useHills = match ($routeQuery->elevation) {
             ElevationBias::Minimize => 0.0,
             ElevationBias::Neutral => 0.5,
             ElevationBias::Maximize => 1.0,
         };
-        $avoidBadSurfaces = match ($query->surface) {
+        $avoidBadSurfaces = match ($routeQuery->surface) {
             Surface::Paved => 1.0,
             Surface::Mixed => 0.35,
             Surface::Dirt => 0.0,
         };
 
-        $onFoot = match ($query->sport) {
+        $onFoot = match ($routeQuery->sport) {
             Sport::Run, Sport::TrailRun, Sport::Walk, Sport::Hike => true,
             Sport::Road, Sport::Gravel, Sport::Mtb => false,
         };
 
         if ($onFoot) {
             return [
-                'locations' => self::locations($waypoints, $query->shape, $departHeading, $mustVisit, $viaRadius),
+                'locations' => self::locations($waypoints, $routeQuery->shape, $departHeading, $mustVisit, $viaRadius),
                 'costing' => 'pedestrian',
                 'costing_options' => [
                     'pedestrian' => [
-                        'walking_speed' => $query->sport === Sport::Walk ? 5.0 : 6.0,
+                        'walking_speed' => $routeQuery->sport === Sport::Walk ? 5.0 : 6.0,
                         'use_hills' => $useHills,
-                        'sidewalk_factor' => $query->surface === Surface::Dirt ? 0.1 : 1.0,
-                        'use_living_streets' => $query->surface === Surface::Paved ? 0.6 : 0.2,
+                        'sidewalk_factor' => $routeQuery->surface === Surface::Dirt ? 0.1 : 1.0,
+                        'use_living_streets' => $routeQuery->surface === Surface::Paved ? 0.6 : 0.2,
                     ],
                 ],
             ];
         }
 
-        $bicycleType = match ($query->sport) {
+        $bicycleType = match ($routeQuery->sport) {
             Sport::Mtb => 'Mountain',
             Sport::Gravel => 'Cross',
             default => 'Road',
         };
-        $useRoads = match ($query->surface) {
+        $useRoads = match ($routeQuery->surface) {
             Surface::Paved => 0.85,
             Surface::Mixed => 0.45,
             Surface::Dirt => 0.1,
         };
 
-        if ($query->preferQuiet) {
+        if ($routeQuery->preferQuiet) {
             $useRoads = min($useRoads, 0.2);
         }
 
         return [
-            'locations' => self::locations($waypoints, $query->shape, $departHeading, $mustVisit, $viaRadius),
+            'locations' => self::locations($waypoints, $routeQuery->shape, $departHeading, $mustVisit, $viaRadius),
             'costing' => 'bicycle',
             'costing_options' => [
                 'bicycle' => [

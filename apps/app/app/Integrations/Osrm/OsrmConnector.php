@@ -6,10 +6,16 @@ namespace App\Integrations\Osrm;
 
 use Saloon\Http\Connector;
 use Saloon\Traits\Plugins\AcceptsJson;
+use Saloon\Traits\Plugins\HasTimeout;
 
 final class OsrmConnector extends Connector
 {
     use AcceptsJson;
+    use HasTimeout;
+
+    protected int $connectTimeout = 2;
+
+    protected int $requestTimeout = 12;
 
     public function __construct(private readonly string $baseUrl) {}
 

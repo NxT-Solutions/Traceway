@@ -65,7 +65,7 @@ final class LoopClosure
             $closing = RouteCleanliness::withoutSpurs($route->coordinates);
             $anchors = [];
             $start = $route->coordinates[0] ?? null;
-            $end = $route->coordinates[array_key_last($route->coordinates)] ?? null;
+            $end = array_last($route->coordinates) ?? null;
 
             if ($start !== null) {
                 $anchors[] = $start;
@@ -109,7 +109,7 @@ final class LoopClosure
      */
     private static function arrivalBearing(array $ridden, array $from): float
     {
-        $end = $ridden[array_key_last($ridden)] ?? $from;
+        $end = array_last($ridden) ?? $from;
         $anchor = $end;
         $travelled = 0.0;
 
@@ -168,6 +168,10 @@ final class LoopClosure
         return (int) round($metres);
     }
 
+    /**
+     * @param  array{0: float, 1: float}  $from
+     * @param  array{0: float, 1: float}  $to
+     */
     private static function bearing(array $from, array $to): float
     {
         $lat1 = deg2rad($from[1]);

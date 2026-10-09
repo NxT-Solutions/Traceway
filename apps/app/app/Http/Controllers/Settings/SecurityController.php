@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
+use App\Account\RiderId;
+use App\Commands\ChangePasswordCommand;
+use App\Contracts\Bus\DispatchesCommands;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
@@ -17,13 +22,11 @@ class SecurityController extends Controller
     /**
      * Show the user's security settings page.
      */
-    public function edit(TwoFactorAuthenticationRequest $request): Response
+    public function edit(TwoFactorAuthenticationRequest $twoFactorAuthenticationRequest): Response
     {
-        $user = $request->user();
+        $user = $twoFactorAuthenticationRequest->user();
 
-        if (! $user instanceof User) {
-            abort(403);
-        }
+        abort_unless($user instanceof User, 403);
 
         $props = [
             'canManageTwoFactor' => Features::canManageTwoFactorAuthentication(),
@@ -31,10 +34,10 @@ class SecurityController extends Controller
             'passkeys' => Features::canManagePasskeys()
                 ? $user
                     ->passkeys()
-                    ->select(['id', 'name', 'credential', 'created_at', 'last_used_at'])
+                    ->getQuery()
                     ->latest()
-                    ->get()
-                    ->map(fn ($passkey) => [
+                    ->get(['id', 'name', 'credential', 'created_at', 'last_used_at'])
+                    ->map(fn ($passkey): array => [
                         'id' => $passkey->id,
                         'name' => $passkey->name,
                         'authenticator' => $passkey->authenticator,
@@ -48,7 +51,7 @@ class SecurityController extends Controller
         ];
 
         if (Features::canManageTwoFactorAuthentication()) {
-            $request->ensureStateIsValid();
+            $twoFactorAuthenticationRequest->ensureStateIsValid();
 
             $props['twoFactorEnabled'] = $user->hasEnabledTwoFactorAuthentication();
             $props['requiresConfirmation'] = Features::optionEnabled(Features::twoFactorAuthentication(), 'confirm');
@@ -60,17 +63,16 @@ class SecurityController extends Controller
     /**
      * Update the user's password.
      */
-    public function update(PasswordUpdateRequest $request): RedirectResponse
+    public function update(PasswordUpdateRequest $passwordUpdateRequest, DispatchesCommands $dispatchesCommands): RedirectResponse
     {
-        $user = $request->user();
+        $user = $passwordUpdateRequest->user();
 
-        if (! $user instanceof User) {
-            abort(403);
-        }
+        abort_unless($user instanceof User, 403);
 
-        $user->update([
-            'password' => $request->password,
-        ]);
+        $dispatchesCommands->dispatch(new ChangePasswordCommand(
+            riderId: new RiderId($user->id),
+            password: $passwordUpdateRequest->string('password')->toString(),
+        ));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);
 

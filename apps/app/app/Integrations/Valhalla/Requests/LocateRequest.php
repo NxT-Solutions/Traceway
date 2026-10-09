@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Integrations\Valhalla\Requests;
 
+use Override;
 use Saloon\Contracts\Body\HasBody;
 use Saloon\Enums\Method;
 use Saloon\Http\Request;
@@ -15,6 +16,7 @@ final class LocateRequest extends Request implements HasBody
     use HasJsonBody;
     use HasTimeout;
 
+    #[Override]
     protected Method $method = Method::POST;
 
     protected int $connectTimeout = 2;

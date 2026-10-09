@@ -7,12 +7,14 @@ namespace Database\Factories;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Override;
 
 /**
  * @extends Factory<SavedRoute>
  */
 class SavedRouteFactory extends Factory
 {
+    #[Override]
     protected $model = SavedRoute::class;
 
     /**

@@ -7,7 +7,7 @@ namespace App\Domain\Courses;
 use InvalidArgumentException;
 
 /**
- * A GPX track a bike computer can follow.
+ * A GPX track a watch or GPS can follow.
  */
 final class GpxCourse
 {

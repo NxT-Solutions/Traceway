@@ -35,9 +35,7 @@ class ExportFitCourseRequest extends FormRequest
     {
         $name = $this->validated('name');
 
-        if (! is_string($name)) {
-            throw new InvalidArgumentException('A course name is required.');
-        }
+        throw_unless(is_string($name), InvalidArgumentException::class, 'A course name is required.');
 
         return $name;
     }
@@ -46,9 +44,7 @@ class ExportFitCourseRequest extends FormRequest
     {
         $sport = $this->validated('sport');
 
-        if (! is_string($sport)) {
-            throw new InvalidArgumentException('A sport is required.');
-        }
+        throw_unless(is_string($sport), InvalidArgumentException::class, 'A sport is required.');
 
         return Sport::from($sport);
     }
@@ -62,8 +58,8 @@ class ExportFitCourseRequest extends FormRequest
         $coordinates = $this->validated('coordinates');
         $points = [];
 
-        foreach ($coordinates as $point) {
-            $points[] = [(float) $point[0], (float) $point[1]];
+        foreach ($coordinates as $coordinate) {
+            $points[] = [(float) $coordinate[0], (float) $coordinate[1]];
         }
 
         return $points;

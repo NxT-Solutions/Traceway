@@ -8,7 +8,7 @@ use App\Domain\Routing\Sport;
 use InvalidArgumentException;
 
 /**
- * A Garmin course file. The head unit follows the positions on its own map.
+ * A Garmin course file. The watch or bike computer follows the positions on its own map.
  */
 final class FitCourse
 {
@@ -23,14 +23,14 @@ final class FitCourse
             throw new InvalidArgumentException('A course needs at least two points.');
         }
 
-        $label = new DeviceName(mb_substr(trim($name) === '' ? 'Traceway' : trim($name), 0, 15));
+        $deviceName = new DeviceName(mb_substr(trim($name) === '' ? 'Traceway' : trim($name), 0, 15));
         $points = self::thin($coordinates);
         $started = time() - self::EPOCH;
         $distance = self::distanceCentimetres($points);
         $seconds = max(1, (int) round(($distance / 100) / 5.5));
 
         $data = self::fileId($started)
-            .self::courseMessage($label->value, self::sportCode($sport))
+            .self::courseMessage($deviceName->value, self::sportCode($sport))
             .self::lapMessage($points, $started, $seconds, $distance)
             .self::eventMessage($started, 0)
             .self::records($points, $started, $seconds, $distance)
@@ -66,7 +66,7 @@ final class FitCourse
 
         $last = $coordinates[$count - 1] ?? null;
 
-        if ($last !== null && ($thinned === [] || $thinned[array_key_last($thinned)] !== $last)) {
+        if ($last !== null && ($thinned === [] || array_last($thinned) !== $last)) {
             $thinned[] = $last;
         }
 
@@ -101,7 +101,7 @@ final class FitCourse
             [4, 16, 7],
             [5, 1, 0],
         ]);
-        $data = chr(1).pack('a16', $name).chr($sport);
+        $data = chr(1).pack('a16', $name).self::byte($sport);
 
         return $definition.$data;
     }
@@ -124,7 +124,7 @@ final class FitCourse
             [9, 4, 134],
         ]);
         $first = $points[0] ?? [0.0, 0.0];
-        $last = $points[array_key_last($points)] ?? $first;
+        $last = array_last($points) ?? $first;
         $elapsed = $seconds * 1000;
         $data = chr(2)
             .pack('v', 0)
@@ -149,7 +149,7 @@ final class FitCourse
             [1, 1, 0],
         ]);
 
-        return $definition.chr(3).pack('V', $timestamp).chr(0).chr($eventType);
+        return $definition.chr(3).pack('V', $timestamp).chr(0).self::byte($eventType);
     }
 
     /**
@@ -198,13 +198,18 @@ final class FitCourse
      */
     private static function definition(int $local, int $global, array $fields): string
     {
-        $bytes = chr(0x40 | $local).chr(0).chr(0).pack('v', $global).chr(count($fields));
+        $bytes = self::byte(0x40 | $local).chr(0).chr(0).pack('v', $global).self::byte(count($fields));
 
         foreach ($fields as $field) {
-            $bytes .= chr($field[0]).chr($field[1]).chr($field[2]);
+            $bytes .= self::byte($field[0]).self::byte($field[1]).self::byte($field[2]);
         }
 
         return $bytes;
+    }
+
+    private static function byte(int $value): string
+    {
+        return chr($value & 0xFF);
     }
 
     private static function semicircle(float $degrees): string

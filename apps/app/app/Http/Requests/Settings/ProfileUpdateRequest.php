@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Settings;
 
 use App\Concerns\ProfileValidationRules;
@@ -20,9 +22,7 @@ class ProfileUpdateRequest extends FormRequest
     {
         $user = $this->user();
 
-        if (! $user instanceof User) {
-            abort(403);
-        }
+        abort_unless($user instanceof User, 403);
 
         return $this->profileRules($user->id);
     }

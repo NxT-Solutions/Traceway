@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\BuildRouteController;
 use App\Http\Controllers\DestroySavedRouteController;
@@ -29,7 +31,7 @@ Route::get('share/{savedRoute}/fit', [ExportSharedCourseController::class, 'fit'
     ->middleware('signed')
     ->name('routes.share.fit');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('dashboard', fn () => Inertia::render('dashboard'))->name('dashboard');
     Route::get('saved', SavedRouteLibraryController::class)->name('routes.library');
     Route::post('routes/preview', PreviewRouteController::class)->name('routes.preview');

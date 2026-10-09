@@ -9,24 +9,24 @@ return [
 
     'riders' => [
         'road' => [
-            'name' => 'Road rider',
+            'name' => 'Road',
             'email' => 'road@traceway.test',
-            'description' => 'Paved loops. The usual ride.',
+            'description' => 'Paved loops on quiet roads.',
         ],
         'gravel' => [
-            'name' => 'Gravel rider',
+            'name' => 'Gravel',
             'email' => 'gravel@traceway.test',
             'description' => 'Mixed roads and dirt.',
         ],
         'run' => [
-            'name' => 'Runner',
+            'name' => 'Run',
             'email' => 'run@traceway.test',
-            'description' => 'Footpaths and pavements.',
+            'description' => 'Paths and pavements.',
         ],
         'hike' => [
-            'name' => 'Hiker',
+            'name' => 'Hike',
             'email' => 'hike@traceway.test',
-            'description' => 'Trails and hills.',
+            'description' => 'Trails and a shorter day.',
         ],
     ],
 ];

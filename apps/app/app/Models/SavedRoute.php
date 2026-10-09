@@ -44,7 +44,9 @@ use Illuminate\Support\Facades\URL;
 class SavedRoute extends Model
 {
     /** @use HasFactory<SavedRouteFactory> */
-    use HasFactory, HasUuids;
+    use HasFactory;
+
+    use HasUuids;
 
     /**
      * @return BelongsTo<User, $this>

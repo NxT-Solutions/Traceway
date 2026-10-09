@@ -10,20 +10,20 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('saved_routes', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('name');
-            $table->string('sport');
-            $table->string('surface');
-            $table->string('elevation');
-            $table->string('roads');
-            $table->unsignedInteger('distance_metres');
-            $table->unsignedInteger('ascent_metres')->default(0);
-            $table->json('coordinates');
-            $table->json('user_coordinates')->nullable();
-            $table->json('finish_coordinates')->nullable();
-            $table->timestamps();
+        Schema::create('saved_routes', function (Blueprint $blueprint): void {
+            $blueprint->uuid('id')->primary();
+            $blueprint->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $blueprint->string('name');
+            $blueprint->string('sport');
+            $blueprint->string('surface');
+            $blueprint->string('elevation');
+            $blueprint->string('roads');
+            $blueprint->unsignedInteger('distance_metres');
+            $blueprint->unsignedInteger('ascent_metres')->default(0);
+            $blueprint->json('coordinates');
+            $blueprint->json('user_coordinates')->nullable();
+            $blueprint->json('finish_coordinates')->nullable();
+            $blueprint->timestamps();
         });
     }
 

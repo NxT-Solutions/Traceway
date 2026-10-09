@@ -9,44 +9,44 @@ use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
 use RuntimeException;
 
-final class GraphHopperRoutingEngine implements RoutingEngine
+final readonly class GraphHopperRoutingEngine implements RoutingEngine
 {
-    public function __construct(private readonly GraphHopperConnector $connector) {}
+    public function __construct(private GraphHopperConnector $graphHopperConnector) {}
 
-    public function route(RouteQuery $query): GeneratedRoute
+    public function route(RouteQuery $routeQuery): GeneratedRoute
     {
         throw new RuntimeException(sprintf(
             'Route generation for %s starts once a GraphHopper graph is imported.',
-            $query->sport->value,
+            $routeQuery->sport->value,
         ));
     }
 
-    public function candidates(RouteQuery $query): array
+    public function candidates(RouteQuery $routeQuery): array
     {
         throw new RuntimeException(sprintf(
             'Route generation for %s starts once a GraphHopper graph is imported.',
-            $query->sport->value,
+            $routeQuery->sport->value,
         ));
     }
 
-    public function trace(RouteQuery $query, array $waypoints): GeneratedRoute
+    public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
     {
         throw new RuntimeException(sprintf(
             'Route generation for %s starts once a GraphHopper graph is imported.',
-            $query->sport->value,
+            $routeQuery->sport->value,
         ));
     }
 
-    public function closeLoop(RouteQuery $query, array $ridden, array $from, array $to): GeneratedRoute
+    public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
     {
         throw new RuntimeException(sprintf(
             'Route generation for %s starts once a GraphHopper graph is imported.',
-            $query->sport->value,
+            $routeQuery->sport->value,
         ));
     }
 
     public function connector(): GraphHopperConnector
     {
-        return $this->connector;
+        return $this->graphHopperConnector;
     }
 }

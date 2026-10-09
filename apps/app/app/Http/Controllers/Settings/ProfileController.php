@@ -1,7 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Settings;
 
+use App\Account\Email;
+use App\Account\RiderId;
+use App\Account\RiderName;
+use App\Commands\DeleteAccountCommand;
+use App\Commands\UpdateProfileCommand;
+use App\Contracts\Bus\DispatchesCommands;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
@@ -30,21 +38,17 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(ProfileUpdateRequest $profileUpdateRequest, DispatchesCommands $dispatchesCommands): RedirectResponse
     {
-        $user = $request->user();
+        $user = $profileUpdateRequest->user();
 
-        if (! $user instanceof User) {
-            abort(403);
-        }
+        abort_unless($user instanceof User, 403);
 
-        $user->fill($request->validated());
-
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
-        }
-
-        $user->save();
+        $dispatchesCommands->dispatch(new UpdateProfileCommand(
+            riderId: new RiderId($user->id),
+            name: new RiderName($profileUpdateRequest->string('name')->toString()),
+            email: new Email($profileUpdateRequest->string('email')->toString()),
+        ));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
 
@@ -54,20 +58,18 @@ class ProfileController extends Controller
     /**
      * Delete the user's profile.
      */
-    public function destroy(ProfileDeleteRequest $request): SymfonyResponse
+    public function destroy(ProfileDeleteRequest $profileDeleteRequest, DispatchesCommands $dispatchesCommands): SymfonyResponse
     {
-        $user = $request->user();
+        $user = $profileDeleteRequest->user();
 
-        if (! $user instanceof User) {
-            abort(403);
-        }
+        abort_unless($user instanceof User, 403);
+
+        $dispatchesCommands->dispatch(new DeleteAccountCommand(new RiderId($user->id)));
 
         Auth::logout();
 
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $profileDeleteRequest->session()->invalidate();
+        $profileDeleteRequest->session()->regenerateToken();
 
         return Inertia::location(url('/'));
     }
