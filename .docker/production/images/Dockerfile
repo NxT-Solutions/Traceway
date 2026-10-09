@@ -41,6 +41,7 @@ COPY apps/app/ /var/www/html/
 
 RUN APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
     cp .env.production .env \
+    && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && touch /tmp/traceway-build.sqlite \
     && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
     && bun install \
