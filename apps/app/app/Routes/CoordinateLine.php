@@ -5,7 +5,15 @@ declare(strict_types=1);
 namespace App\Routes;
 
 use InvalidArgumentException;
+use OpenApi\Attributes\Items;
+use OpenApi\Attributes\Schema;
 
+#[Schema(
+    schema: 'CoordinateLine',
+    type: 'array',
+    items: new Items(type: 'array', items: new Items(type: 'number'), maxItems: 2, minItems: 2),
+    minItems: 2,
+)]
 final readonly class CoordinateLine
 {
     /**

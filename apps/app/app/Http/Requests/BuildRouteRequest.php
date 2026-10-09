@@ -11,7 +11,36 @@ use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes\Items;
+use OpenApi\Attributes\JsonContent;
+use OpenApi\Attributes\Property;
+use OpenApi\Attributes\RequestBody;
 
+#[RequestBody(
+    request: 'BuildRouteRequest',
+    description: 'The points to join, and how the roads should be chosen.',
+    required: true,
+    content: new JsonContent(
+        required: ['sport', 'surface', 'elevation', 'latitude', 'longitude', 'follow', 'finish', 'points'],
+        properties: [
+            new Property(property: 'sport', type: 'string', enum: ['road', 'gravel', 'mtb', 'run', 'trail_run', 'walk', 'hike']),
+            new Property(property: 'surface', type: 'string', enum: ['paved', 'mixed', 'dirt']),
+            new Property(property: 'elevation', type: 'string', enum: ['minimize', 'neutral', 'maximize']),
+            new Property(property: 'latitude', type: 'number', maximum: 90, minimum: -90),
+            new Property(property: 'longitude', type: 'number', maximum: 180, minimum: -180),
+            new Property(property: 'follow', type: 'boolean'),
+            new Property(property: 'finish', type: 'boolean'),
+            new Property(property: 'points', type: 'array', items: new Items(
+                required: ['latitude', 'longitude'],
+                properties: [
+                    new Property(property: 'latitude', type: 'number'),
+                    new Property(property: 'longitude', type: 'number'),
+                ],
+            ), maxItems: 12),
+        ],
+        type: 'object',
+    ),
+)]
 class BuildRouteRequest extends FormRequest
 {
     public function authorize(): bool

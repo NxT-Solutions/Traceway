@@ -20,7 +20,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use OpenApi\Attributes\Delete;
+use OpenApi\Attributes\JsonContent;
+use OpenApi\Attributes\Patch;
+use OpenApi\Attributes\RequestBody;
+use OpenApi\Attributes\Response as OpenApiResponse;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class ProfileController extends Controller
 {
@@ -38,6 +43,29 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
+    #[Patch(
+        path: '/settings/profile',
+        operationId: 'updateProfile',
+        summary: "Update the signed-in person's name and email",
+        security: [['session' => []]],
+        tags: ['Account'],
+    )]
+    #[RequestBody(
+        ref: '#/components/requestBodies/ProfileUpdateRequest',
+        description: 'The name and email of the signed-in person.',
+        required: true,
+    )]
+    #[OpenApiResponse(response: HttpResponse::HTTP_FOUND, description: 'The profile was saved.')]
+    #[OpenApiResponse(
+        response: HttpResponse::HTTP_UNAUTHORIZED,
+        description: 'No signed-in person.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
+    )]
+    #[OpenApiResponse(
+        response: HttpResponse::HTTP_UNPROCESSABLE_ENTITY,
+        description: 'The name or email is not valid.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
+    )]
     public function update(ProfileUpdateRequest $profileUpdateRequest, DispatchesCommands $dispatchesCommands): RedirectResponse
     {
         $user = $profileUpdateRequest->user();
@@ -58,7 +86,30 @@ class ProfileController extends Controller
     /**
      * Delete the user's profile.
      */
-    public function destroy(ProfileDeleteRequest $profileDeleteRequest, DispatchesCommands $dispatchesCommands): SymfonyResponse
+    #[Delete(
+        path: '/settings/profile',
+        operationId: 'deleteAccount',
+        summary: 'Delete the signed-in person and their saved routes',
+        security: [['session' => []]],
+        tags: ['Account'],
+    )]
+    #[RequestBody(
+        ref: '#/components/requestBodies/ProfileDeleteRequest',
+        description: 'Confirms the deletion. The password is not returned.',
+        required: true,
+    )]
+    #[OpenApiResponse(response: HttpResponse::HTTP_CONFLICT, description: 'The account is gone and the browser is sent home.')]
+    #[OpenApiResponse(
+        response: HttpResponse::HTTP_UNAUTHORIZED,
+        description: 'No signed-in person.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
+    )]
+    #[OpenApiResponse(
+        response: HttpResponse::HTTP_UNPROCESSABLE_ENTITY,
+        description: 'The password does not confirm the deletion.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
+    )]
+    public function destroy(ProfileDeleteRequest $profileDeleteRequest, DispatchesCommands $dispatchesCommands): HttpResponse
     {
         $user = $profileDeleteRequest->user();
 

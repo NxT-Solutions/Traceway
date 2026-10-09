@@ -8,7 +8,24 @@ use App\Domain\Routing\Sport;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
+use OpenApi\Attributes\JsonContent;
+use OpenApi\Attributes\Property;
+use OpenApi\Attributes\RequestBody;
 
+#[RequestBody(
+    request: 'ExportFitCourseRequest',
+    description: 'The course to write into a FIT file.',
+    required: true,
+    content: new JsonContent(
+        required: ['name', 'sport', 'coordinates'],
+        properties: [
+            new Property(property: 'name', type: 'string', maxLength: 80),
+            new Property(property: 'sport', type: 'string', enum: ['road', 'gravel', 'mtb', 'run', 'trail_run', 'walk', 'hike']),
+            new Property(property: 'coordinates', ref: '#/components/schemas/CoordinateLine'),
+        ],
+        type: 'object',
+    ),
+)]
 class ExportFitCourseRequest extends FormRequest
 {
     public function authorize(): bool

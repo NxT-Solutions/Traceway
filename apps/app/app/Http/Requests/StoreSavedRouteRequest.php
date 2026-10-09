@@ -9,7 +9,29 @@ use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes\JsonContent;
+use OpenApi\Attributes\Property;
+use OpenApi\Attributes\RequestBody;
 
+#[RequestBody(
+    request: 'StoreSavedRouteRequest',
+    description: 'The route the signed-in person wants to keep.',
+    required: true,
+    content: new JsonContent(
+        required: ['name', 'sport', 'surface', 'elevation', 'roads', 'distance_metres', 'ascent_metres', 'coordinates'],
+        properties: [
+            new Property(property: 'name', type: 'string', maxLength: 80),
+            new Property(property: 'sport', type: 'string', enum: ['road', 'gravel', 'mtb', 'run', 'trail_run', 'walk', 'hike']),
+            new Property(property: 'surface', type: 'string', enum: ['paved', 'mixed', 'dirt']),
+            new Property(property: 'elevation', type: 'string', enum: ['minimize', 'neutral', 'maximize']),
+            new Property(property: 'roads', type: 'string', enum: ['quiet', 'any']),
+            new Property(property: 'distance_metres', type: 'integer'),
+            new Property(property: 'ascent_metres', type: 'integer'),
+            new Property(property: 'coordinates', ref: '#/components/schemas/CoordinateLine'),
+        ],
+        type: 'object',
+    ),
+)]
 class StoreSavedRouteRequest extends FormRequest
 {
     public function authorize(): bool

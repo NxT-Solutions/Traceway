@@ -6,7 +6,35 @@ namespace App\Queries\Account;
 
 use App\Account\Email;
 use App\Account\RiderName;
+use OpenApi\Attributes\Items;
+use OpenApi\Attributes\Property;
+use OpenApi\Attributes\Schema;
 
+#[Schema(
+    schema: 'PersonalDataDocument',
+    required: ['exported_at', 'account', 'saved_routes', 'withheld'],
+    properties: [
+        new Property(property: 'exported_at', type: 'string', format: 'date-time'),
+        new Property(
+            property: 'account',
+            required: ['name', 'email', 'two_factor_enabled'],
+            properties: [
+                new Property(property: 'name', type: 'string'),
+                new Property(property: 'email', type: 'string', format: 'email'),
+                new Property(property: 'email_verified_at', type: 'string', nullable: true),
+                new Property(property: 'two_factor_enabled', type: 'boolean'),
+                new Property(property: 'created_at', type: 'string', nullable: true),
+                new Property(property: 'updated_at', type: 'string', nullable: true),
+            ],
+        ),
+        new Property(property: 'saved_routes', type: 'array', items: new Items(type: 'object')),
+        new Property(
+            property: 'withheld',
+            type: 'array',
+            items: new Items(type: 'string', enum: ['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token']),
+        ),
+    ],
+)]
 final readonly class PersonalDataDocument
 {
     /**

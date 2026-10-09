@@ -7,7 +7,22 @@ namespace App\Http\Requests\Settings;
 use App\Concerns\PasswordValidationRules;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use OpenApi\Attributes\JsonContent;
+use OpenApi\Attributes\Property;
+use OpenApi\Attributes\RequestBody;
 
+#[RequestBody(
+    request: 'ProfileDeleteRequest',
+    description: 'Confirms the deletion. The password is not returned.',
+    required: true,
+    content: new JsonContent(
+        required: ['password'],
+        properties: [
+            new Property(property: 'password', description: 'Confirms the deletion. It is not stored in the response.', type: 'string', format: 'password'),
+        ],
+        type: 'object',
+    ),
+)]
 class ProfileDeleteRequest extends FormRequest
 {
     use PasswordValidationRules;

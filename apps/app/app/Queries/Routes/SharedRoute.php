@@ -4,6 +4,25 @@ declare(strict_types=1);
 
 namespace App\Queries\Routes;
 
+use OpenApi\Attributes\Property;
+use OpenApi\Attributes\Schema;
+
+#[Schema(
+    schema: 'SharedRoute',
+    required: ['name', 'sport', 'surface', 'elevation', 'roads', 'distance_metres', 'ascent_metres', 'coordinates', 'gpx_url', 'fit_url'],
+    properties: [
+        new Property(property: 'name', type: 'string'),
+        new Property(property: 'sport', type: 'string'),
+        new Property(property: 'surface', type: 'string'),
+        new Property(property: 'elevation', type: 'string'),
+        new Property(property: 'roads', type: 'string'),
+        new Property(property: 'distance_metres', type: 'integer'),
+        new Property(property: 'ascent_metres', type: 'integer'),
+        new Property(property: 'coordinates', ref: '#/components/schemas/CoordinateLine'),
+        new Property(property: 'gpx_url', type: 'string'),
+        new Property(property: 'fit_url', type: 'string'),
+    ],
+)]
 final readonly class SharedRoute
 {
     /**

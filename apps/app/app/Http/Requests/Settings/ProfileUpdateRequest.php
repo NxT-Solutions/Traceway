@@ -8,7 +8,23 @@ use App\Concerns\ProfileValidationRules;
 use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use OpenApi\Attributes\JsonContent;
+use OpenApi\Attributes\Property;
+use OpenApi\Attributes\RequestBody;
 
+#[RequestBody(
+    request: 'ProfileUpdateRequest',
+    description: 'The name and email of the signed-in person.',
+    required: true,
+    content: new JsonContent(
+        required: ['name', 'email'],
+        properties: [
+            new Property(property: 'name', type: 'string', maxLength: 255),
+            new Property(property: 'email', type: 'string', format: 'email'),
+        ],
+        type: 'object',
+    ),
+)]
 class ProfileUpdateRequest extends FormRequest
 {
     use ProfileValidationRules;

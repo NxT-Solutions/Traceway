@@ -11,7 +11,29 @@ use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes\JsonContent;
+use OpenApi\Attributes\Property;
+use OpenApi\Attributes\RequestBody;
 
+#[RequestBody(
+    request: 'PreviewRouteRequest',
+    description: 'The pin, the sport, and the length.',
+    required: true,
+    content: new JsonContent(
+        required: ['sport', 'surface', 'elevation', 'distance_metres', 'latitude', 'longitude'],
+        properties: [
+            new Property(property: 'sport', type: 'string', enum: ['road', 'gravel', 'mtb', 'run', 'trail_run', 'walk', 'hike']),
+            new Property(property: 'surface', type: 'string', enum: ['paved', 'mixed', 'dirt']),
+            new Property(property: 'elevation', type: 'string', enum: ['minimize', 'neutral', 'maximize']),
+            new Property(property: 'distance_metres', type: 'integer', maximum: 300000, minimum: 1000),
+            new Property(property: 'latitude', type: 'number', maximum: 90, minimum: -90),
+            new Property(property: 'longitude', type: 'number', maximum: 180, minimum: -180),
+            new Property(property: 'shape', type: 'string', enum: ['loop', 'point_to_point', 'out_and_back']),
+            new Property(property: 'roads', type: 'string', enum: ['quiet', 'any']),
+        ],
+        type: 'object',
+    ),
+)]
 class PreviewRouteRequest extends FormRequest
 {
     public function authorize(): bool
