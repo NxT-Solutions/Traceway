@@ -49,14 +49,15 @@ export default function Welcome() {
                 <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center gap-10 px-6 py-16">
                     <div className="max-w-xl space-y-4">
                         <p className="text-sm font-medium text-primary">
-                            Routes for the bike computer
+                            Loops for every sport
                         </p>
                         <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
-                            Plan the ride. Send it to the bike.
+                            Name the distance. Get a loop worth taking.
                         </h1>
                         <p className="text-lg text-muted-foreground">
-                            A paved 40 km from your driveway, then a course file
-                            your head unit can follow with no phone.{' '}
+                            A 40 km road loop or a 12 km walk from the same pin,
+                            then a course file your watch or GPS can follow with
+                            no phone.{' '}
                             <a
                                 href="/how-it-works"
                                 className="font-medium text-foreground underline underline-offset-4"

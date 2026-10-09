@@ -24,8 +24,8 @@ type SharedRoute = {
 };
 
 const sportLabel: Record<string, string> = {
-    road: 'Road ride',
-    gravel: 'Gravel ride',
+    road: 'Road',
+    gravel: 'Gravel',
     mtb: 'Mountain bike',
     run: 'Run',
     trail_run: 'Trail run',
@@ -56,14 +56,19 @@ export default function Share({ route }: { route: SharedRoute }) {
             style: 'https://tiles.openfreemap.org/styles/liberty',
             center: first,
             zoom: 12,
-            attributionControl: true,
         });
-        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+        map.addControl(
+            new maplibregl.NavigationControl({ showCompass: false }),
+            'bottom-right',
+        );
         map.on('load', () => {
             const solid = {
                 type: 'Feature' as const,
                 properties: {},
-                geometry: { type: 'LineString' as const, coordinates: route.coordinates },
+                geometry: {
+                    type: 'LineString' as const,
+                    coordinates: route.coordinates,
+                },
             };
             map.addSource('route', { type: 'geojson', data: solid });
             map.addLayer({
@@ -115,7 +120,9 @@ export default function Share({ route }: { route: SharedRoute }) {
                 <h1>{route.name}</h1>
                 <p className="facts">
                     <b>{kilometres} km</b>
-                    {route.ascent_metres > 0 ? ` · ${route.ascent_metres} m` : ''}
+                    {route.ascent_metres > 0
+                        ? ` · ${route.ascent_metres} m`
+                        : ''}
                     {` · ${sportLabel[route.sport] ?? route.sport}`}
                     {` · ${surfaceLabel[route.surface] ?? route.surface}`}
                     {route.roads === 'quiet' ? ' · Quiet roads' : ''}
@@ -126,7 +133,9 @@ export default function Share({ route }: { route: SharedRoute }) {
                     <button
                         type="button"
                         onClick={() => {
-                            void navigator.clipboard.writeText(window.location.href);
+                            void navigator.clipboard.writeText(
+                                window.location.href,
+                            );
                         }}
                     >
                         Copy link

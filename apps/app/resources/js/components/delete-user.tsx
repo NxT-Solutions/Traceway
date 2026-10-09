@@ -29,7 +29,7 @@ export default function DeleteUser() {
             <div className="danger-box">
                 <p className="t">This cannot be undone.</p>
                 <p className="hint">
-                    Your course files already on your bike computer stay there.
+                    Course files already on your watch or GPS stay there.
                     Everything in Traceway goes.
                 </p>
 

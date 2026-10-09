@@ -135,7 +135,7 @@ export default function Login({
                         ))}
                     </div>
                     <p>
-                        The form password for each rider is <b>password</b>.
+                        The password for each example is <b>password</b>.
                     </p>
                 </div>
             )}
@@ -151,5 +151,5 @@ export default function Login({
 
 Login.layout = {
     title: 'Log in to your account',
-    description: 'Use a local rider, or sign in with your email.',
+    description: 'Try a sport, or sign in with your email.',
 };

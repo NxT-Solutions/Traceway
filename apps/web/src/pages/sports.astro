@@ -2,19 +2,19 @@
 import Base from '../layouts/Base.astro';
 
 const sports = [
+    ['Run', 'Paths and pavements. Busy roads lose.'],
+    ['Trail run', 'Dirt and footpaths, with the climb left in.'],
+    ['Walk and hike', 'A shorter day, at a walking pace, on paths and trails.'],
     ['Road', 'Paved roads and cycleways. Quiet streets over trunk roads.'],
     ['Gravel', 'Smooth unpaved where the map knows it. Pavement is still allowed.'],
     ['Mountain bike', 'Trails and rougher track. Hills are part of the point.'],
-    ['Run', 'Paths and pavements. Busy roads lose.'],
-    ['Trail run', 'Dirt and footpaths, with the climb left in.'],
-    ['Walk and hike', 'The same idea, slower, with a shorter default day.'],
 ];
 ---
 
-<Base title="Sports" description="Each sport is a named routing profile.">
+<Base title="Sports" description="Foot and bike, each with its own idea of a good line.">
     <main class="shell page">
         <p class="kicker">Sports</p>
-        <h1>One profile per sport.</h1>
+        <h1>Foot and bike. One profile each.</h1>
         <div class="card">
             <ul class="rows">
                 {
