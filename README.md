@@ -1,6 +1,6 @@
 # Traceway
 
-Traceway draws a sport loop on a map and exports a course file a bike computer can follow.
+Traceway draws a loop for any sport on a map and exports a course file a watch, a GPS, or a bike computer can follow.
 
 ## Local setup
 
@@ -17,7 +17,7 @@ Open the URL `ddev describe` prints. On a free machine that is https://traceway.
 - `/login`, `/dashboard`, and `/settings` are the Laravel planner in `apps/app`.
 - Planner assets hot-reload under `/_app/`.
 
-The first start installs PHP and Node dependencies, migrates the SQLite database, and seeds the demo riders. That takes a few minutes.
+The first start installs PHP and Node dependencies, migrates the database, and seeds the demo sports. That takes a few minutes.
 
 Local demo riders, password `password`:
 

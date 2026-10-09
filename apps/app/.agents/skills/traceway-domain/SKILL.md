@@ -10,5 +10,5 @@ The Laravel app lives in `apps/app`. The Astro content site lives in `apps/web`.
 - `app/Domain` holds enums, value objects, and ports. It does not import Saloon, Eloquent, or `Illuminate\Http`.
 - `app/Integrations` is the only place that talks to another system. HTTP integrations are Saloon connectors. Generate them with `php artisan saloon:connector` and `php artisan saloon:request`.
 - `app/Http` stays thin.
-- `tests/Arch/BoundariesTest.php` fails the build if those boundaries move.
+- `phparkitect.php` fails `composer ci:check` when a class reaches across a layer. `tests/Arch/BoundariesTest.php` checks the same domain line inside Pest.
 - Run `vendor/bin/pest --parallel --compact` from `codebase/` after a domain change.

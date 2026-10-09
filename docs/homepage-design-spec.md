@@ -61,8 +61,8 @@ This is the product. It occupies the first screen and about four screens of scro
 
 Left side, top to bottom:
 
-- Kicker: Routes for the bike computer
-- Headline: Plan the ride. Send it to the bike.
+- Kicker: Loops for every sport
+- Headline: Name the distance. Get a loop worth taking.
 - One sentence that changes with scroll (copy below)
 - Open the planner
 - A quiet readout, not a dashboard:
@@ -78,7 +78,7 @@ Right side: one map frame. Not a diagram of blobs.
 
 Draw a simplified but credible map of the country south of Westerlo. Pale fields, a blue stream, a few real roads with weight (a yellow through-road, thin local roads). Label Westerlo, Bergom, and Herselt in small muted type, the way a map does. No isometric buildings. No illustrated cyclist. No 3D.
 
-The route is a closed loop that could be ridden:
+The route is a closed loop that could be walked or ridden:
 
 - It starts and ends on the same pin, on a road in Westerlo.
 - It follows roads. It does not cut a field.
@@ -108,9 +108,9 @@ If the system asks for reduced motion, show the last frame immediately and do no
 
 ### 2. Sports — `#sports`
 
-Headline: One profile for each sport.
+Headline: One pin. Six sports.
 
-Lede: The same pin. A different idea of a good road. Surface, climb, and quiet streets change with the sport you pick.
+Lede: Surface, climb, and quiet streets weigh differently for each sport. A road loop, a gravel loop, a mountain-bike loop, a run, a trail run, and a walk can all leave the same pin.
 
 Six tiles, ink background, paper type:
 
@@ -129,11 +129,11 @@ No icons of shoes or bikes unless they are as simple as the mark. The name is th
 
 One dark ink band.
 
-Kicker, in chartreuse: On the bike
+Kicker, in chartreuse: On the device
 
 Headline: Leave the phone at home.
 
-Body: Traceway writes a GPX file for almost any head unit, and a FIT course for Garmin. Import it in Connect under Training, then Courses, and sync. Over USB, drop the FIT in Garmin/NewFiles. The computer follows the line on its own map. No signal required. Wahoo, Hammerhead, Bryton, and COROS take the same GPX. A Garmin reads the first 15 characters of the name, so the file keeps a short name beside the full one.
+Body: Traceway writes a GPX file for a watch, a bike computer, or any GPS that reads one, and a FIT course for Garmin. Import it in Connect under Training, then Courses, and sync. Over USB, drop the FIT in Garmin/NewFiles. The device follows the line on its own map. No signal required. COROS, Suunto, Wahoo, and Hammerhead take the same GPX. A Garmin reads the first 15 characters of the name, so the file keeps a short name beside the full one.
 
 Beside the copy, a file card, not a fake phone:
 
@@ -151,10 +151,10 @@ Lede: Short pieces on planning a line and getting it onto the computer.
 
 Two rows, each a link:
 
-- Onto the computer — The course file is what rides with you. The phone stays home.
+- Onto the computer — The course file goes with you. The phone stays home.
 - From the driveway — A loop starts at the pin you already know, and comes back there.
 
-Footer, one line: Routes for the bike computer. Map data from OpenStreetMap.
+Footer, one line: Loops for every sport. Map data from OpenStreetMap.
 
 ## Layout by device
 

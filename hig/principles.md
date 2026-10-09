@@ -9,7 +9,7 @@ a course file. The voice is calm and precise.
 ## Purpose
 
 The useful act is the loop, then the file. A screen that does not help
-someone draw a route or take that course to a bike computer does not
+someone draw a route or take that course to a watch or GPS does not
 earn its chrome.
 
 Keep the planner on sport, length, hills, surface, a via, and loop or

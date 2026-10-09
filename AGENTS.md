@@ -8,14 +8,14 @@ This is a Turborepo.
 
 ## Product
 
-Traceway plans sport routes and exports them as course files for a bike computer. The browser map is the planner. The head unit navigates the file on its own basemap.
+Traceway plans routes for any sport and exports them as course files for a watch, a GPS, or a bike computer. The browser map is the planner. The device navigates the file on its own basemap. Foot and bike are equal: run, trail run, walk, hike, road, gravel, and mountain bike.
 
 - `app/Domain` does not import Saloon, Eloquent, or HTTP.
 - Outbound HTTP uses Saloon connectors in `app/Integrations`.
 - Route geometry comes from the routing engine. An LLM does not emit coordinates.
 - A device name is 1 to 15 characters.
 - Do not use Strava orange, their wordmark, the chevron mark, or the words beacon, kudos, segment, or suffer.
-- Biome formats JavaScript. Pint formats PHP. Blade formatter formats Blade. PHPStan runs at level max.
+- Biome formats JavaScript. Pint formats PHP. Blade formatter formats Blade. PHPStan runs at level max with strict rules on. PHPArkitect checks `apps/app/phparkitect.php`. Rector checks `apps/app/rector.php`.
 
 ## Checks
 

@@ -13,4 +13,4 @@ Colors live only in the shadcn tokens in `resources/css/app.css`.
 - The marker is chartreuse. It colors the primary button, the focus ring, and the route line.
 - Do not use Strava orange (`#FC4C02`), their wordmark, the chevron mark, or the words beacon, kudos, segment, or suffer.
 - The mark is one folded path. Type is Outfit. Distance, ascent, and time use `tabular-nums`.
-- Copy stays short and physical. "Plan the ride. Send it to the bike."
+- Copy stays short and physical. Foot and bike are equal sports. "Name the distance. Get a loop worth taking."

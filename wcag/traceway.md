@@ -72,6 +72,29 @@ Home, Log in, Planner, and Settings are fully reachable by keyboard
 not depend on pointer-only hits. Escape leaves a layer that covers
 the page.
 
+## Checks
+
+`apps/app/tests/Unit/Quality/WcagTest.php` measures the token pairs
+above from the stylesheets. Text must stay at 4.5:1 and the focus ring
+at 3:1. It also requires a replacement ring wherever `outline: none`
+is set, a `prefers-reduced-motion` rule in each scene, and no font CDN.
+
+`apps/app/tests/Browser/wcag.mjs` runs axe-core against the public
+pages and the signed-in planner, library, and settings, on a desktop
+width and a phone width. The map canvas is excluded. axe-core 4.13
+misreads `oklch()`, so that run does not judge contrast. The stylesheet
+test does.
+
+`apps/app/tests/Feature/Privacy/GdprTest.php` checks the product rules
+for access, export, and deletion. The download and its email omit the
+password, the two-factor secret, recovery codes, and the remember
+token. One account cannot download another. Deleting an account
+removes that account and its routes. A shared course does not carry
+the owner's email. The welcome message does not carry the password.
+
+A passing run is evidence for these checks. It is not a conformance
+claim, and it is not a legal opinion.
+
 ## What this file will not say
 
 It will not say the site conforms to WCAG 2.2 A, AA, or AAA. It will
