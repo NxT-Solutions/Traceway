@@ -4,4 +4,4 @@ cd /var/www/html/apps/app
 until [ -f vendor/autoload.php ]; do
     sleep 2
 done
-exec php artisan queue:work --queue=default --tries=3 --timeout=90
+exec php artisan queue:work --queue=default --tries=3 --timeout=60

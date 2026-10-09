@@ -9,20 +9,21 @@ parameters:
         - app/
         - bootstrap/app.php
         - database/
+        - phparkitect.php
+        - rector.php
         - routes/
 
     level: max
 
-    # Eloquent and PHPUnit assert through __callStatic. array_filter() without
-    # a callback is how the Laravel skeleton drops empty env values. Short
-    # ternaries show up in Fortify's username normalizer. The level stays max.
+    phpVersion: 80500
+
     strictRules:
-        disallowedLooseComparison: false
-        booleansInConditions: false
-        disallowedEmpty: false
-        dynamicCallOnStaticMethod: false
-        strictArrayFilter: false
-        disallowedShortTernary: false
+        disallowedLooseComparison: true
+        booleansInConditions: true
+        disallowedEmpty: true
+        dynamicCallOnStaticMethod: true
+        strictArrayFilter: true
+        disallowedShortTernary: true
 
     ignoreErrors:
         -

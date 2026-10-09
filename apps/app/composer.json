@@ -9,17 +9,19 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.5",
         "inertiajs/inertia-laravel": "^3.0",
         "laravel/chisel": "^0.1.0",
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
+        "resend/resend-php": "^1.16",
         "saloonphp/laravel-plugin": "^4.0",
         "saloonphp/saloon": "^4.0"
     },
     "require-dev": {
+        "driftingly/rector-laravel": "^2.6",
         "fakerphp/faker": "^1.24",
         "larastan/larastan": "^3.9",
         "laravel/boost": "^2.0",
@@ -31,7 +33,9 @@
         "nunomaduro/collision": "^8.9.3",
         "pestphp/pest": "^5.3",
         "pestphp/pest-plugin-laravel": "^5.0",
-        "phpstan/phpstan-strict-rules": "^2.0"
+        "phparkitect/phparkitect": "^1.3",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "rector/rector": "^2.6"
     },
     "autoload": {
         "psr-4": {
@@ -64,9 +68,20 @@
         "lint:check": [
             "pint --parallel --test"
         ],
+        "architecture": [
+            "phparkitect check"
+        ],
+        "rector": [
+            "rector process"
+        ],
+        "rector:check": [
+            "rector process --dry-run --no-progress-bar"
+        ],
         "ci:check": [
             "Composer\\Config::disableProcessTimeout",
+            "@rector:check",
             "@lint:check",
+            "@architecture",
             "bun run blade:check",
             "@types:check",
             "bun run check",
@@ -78,7 +93,16 @@
         ],
         "test": [
             "@php artisan config:clear --ansi",
-            "vendor/bin/pest --parallel --compact"
+            "php -d pcov.enabled=0 vendor/bin/pest --parallel --compact"
+        ],
+        "test:smoke": [
+            "php -d pcov.enabled=0 vendor/bin/pest --parallel --compact --group=smoke"
+        ],
+        "test:mutate": [
+            "bash tests/with-coverage.sh vendor/bin/pest --mutate --parallel --covered-only --min=80 --ignore-min-score-on-zero-mutations --group=mutation tests/Unit"
+        ],
+        "test:perf": [
+            "k6 run --insecure-skip-tls-verify tests/Performance/smoke.js"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
