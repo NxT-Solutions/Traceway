@@ -7,6 +7,9 @@ use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\ScoreInput;
 use App\Domain\Routing\Surface;
 
+/**
+ * @param  array<string, mixed>  $overrides
+ */
 function scoreInput(array $overrides = []): ScoreInput
 {
     return new ScoreInput(
@@ -23,7 +26,7 @@ function scoreInput(array $overrides = []): ScoreInput
     );
 }
 
-it('ranks an exact paved match above a short gravel detour', function () {
+it('ranks an exact paved match above a short gravel detour', function (): void {
     $scorer = new CandidateScorer;
 
     $exact = $scorer->score(scoreInput());
@@ -36,7 +39,7 @@ it('ranks an exact paved match above a short gravel detour', function () {
     expect($exact)->toBeGreaterThan($shortDirt);
 });
 
-it('penalises a trunk road and a ferry', function () {
+it('penalises a trunk road and a ferry', function (): void {
     $scorer = new CandidateScorer;
     $clean = $scorer->score(scoreInput());
 
@@ -44,7 +47,7 @@ it('penalises a trunk road and a ferry', function () {
         ->and($scorer->score(scoreInput(['usesFerry' => true])))->toBe($clean - 25.0);
 });
 
-it('prefers less climb when the rider asked for flat', function () {
+it('prefers less climb when the rider asked for flat', function (): void {
     $scorer = new CandidateScorer;
 
     $flat = $scorer->score(scoreInput([
@@ -59,7 +62,7 @@ it('prefers less climb when the rider asked for flat', function () {
     expect($flat)->toBeGreaterThan($hilly);
 });
 
-it('rewards unknown surface less than a known paved line', function () {
+it('rewards unknown surface less than a known paved line', function (): void {
     $scorer = new CandidateScorer;
 
     $known = $scorer->score(scoreInput());

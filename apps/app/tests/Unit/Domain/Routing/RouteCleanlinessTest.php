@@ -10,7 +10,7 @@ use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 
-it('keeps a selected point when cleaning would cut the road to it', function () {
+it('keeps a selected point when cleaning would cut the road to it', function (): void {
     $line = [
         [4.860, 51.090],
         [4.862, 51.090],
@@ -25,7 +25,7 @@ it('keeps a selected point when cleaning would cut the road to it', function () 
         ->and(RouteCleanliness::keepingVisits($trimmed, $line, [$point]))->toBe($line);
 });
 
-it('keeps a cleaned line that still passes the selected points', function () {
+it('keeps a cleaned line that still passes the selected points', function (): void {
     $line = [
         [4.860, 51.090],
         [4.862, 51.090],
@@ -36,7 +36,7 @@ it('keeps a cleaned line that still passes the selected points', function () {
     expect(RouteCleanliness::keepingVisits($trimmed, $line, [[4.862, 51.090]]))->toBe($trimmed);
 });
 
-it('cuts a same-street turnaround out of the line', function () {
+it('cuts a same-street turnaround out of the line', function (): void {
     $line = [
         [4.860, 51.090],
         [4.862, 51.090],
@@ -49,10 +49,10 @@ it('cuts a same-street turnaround out of the line', function () {
 
     expect($trimmed)->not->toContain([4.8635, 51.090])
         ->and($trimmed[0])->toBe([4.860, 51.090])
-        ->and($trimmed[array_key_last($trimmed)])->toBe([4.862, 51.0885]);
+        ->and(array_last($trimmed))->toBe([4.862, 51.0885]);
 });
 
-it('drops the finish when it rides back along the opening road', function () {
+it('drops the finish when it rides back along the opening road', function (): void {
     $line = [
         [4.860, 51.090],
         [4.862, 51.090],
@@ -67,10 +67,10 @@ it('drops the finish when it rides back along the opening road', function () {
 
     expect($trimmed)->toHaveCount(6)
         ->and($trimmed[0])->toBe([4.860, 51.090])
-        ->and($trimmed[array_key_last($trimmed)])->toBe([4.862, 51.090]);
+        ->and(array_last($trimmed))->toBe([4.862, 51.090]);
 });
 
-it('cuts a down-and-up of the same street', function () {
+it('cuts a down-and-up of the same street', function (): void {
     $line = [
         [4.850, 51.100],
         [4.854, 51.100],
@@ -93,10 +93,10 @@ it('cuts a down-and-up of the same street', function () {
 
     expect($trimmed)->not->toContain([4.862, 51.094])
         ->and($trimmed[0])->toBe([4.850, 51.100])
-        ->and($trimmed[array_key_last($trimmed)])->toBe([4.878, 51.100]);
+        ->and(array_last($trimmed))->toBe([4.878, 51.100]);
 });
 
-it('finishes on the pin when the cut would stop the line up the road', function () {
+it('finishes on the pin when the cut would stop the line up the road', function (): void {
     $line = [
         [4.860, 51.090],
         [4.864, 51.090],
@@ -111,13 +111,13 @@ it('finishes on the pin when the cut would stop the line up the road', function 
     ];
 
     $trimmed = RouteCleanliness::withoutSpurs($line);
-    $end = $trimmed[array_key_last($trimmed)];
+    $end = array_last($trimmed);
 
     expect($end[0])->toEqualWithDelta(4.860, 0.0004)
         ->and($end[1])->toEqualWithDelta(51.090, 0.0004);
 });
 
-it('cuts a hooked return that rides back beside the same street', function () {
+it('cuts a hooked return that rides back beside the same street', function (): void {
     $line = [
         [4.850, 51.100],
         [4.854, 51.100],
@@ -146,11 +146,11 @@ it('cuts a hooked return that rides back beside the same street', function () {
     expect($trimmed)->not->toContain([4.866, 51.0928])
         ->and($trimmed)->not->toContain([4.8672, 51.0929])
         ->and($trimmed[0])->toBe([4.850, 51.100])
-        ->and($trimmed[array_key_last($trimmed)])->toBe([4.886, 51.100])
+        ->and(array_last($trimmed))->toBe([4.886, 51.100])
         ->and(RouteCleanliness::reverseShare($trimmed))->toBeLessThan(0.05);
 });
 
-it('leaves a circuit that does not turn back on itself', function () {
+it('leaves a circuit that does not turn back on itself', function (): void {
     $circuit = [
         [0.0, 0.0],
         [0.002, 0.0],
@@ -162,7 +162,7 @@ it('leaves a circuit that does not turn back on itself', function () {
     expect(RouteCleanliness::withoutSpurs($circuit))->toBe($circuit);
 });
 
-it('scores a there-and-back higher than a circuit', function () {
+it('scores a there-and-back higher than a circuit', function (): void {
     $outAndBack = [
         [0.0, 0.0],
         [0.0, 0.002],
@@ -182,7 +182,7 @@ it('scores a there-and-back higher than a circuit', function () {
         ->and(RouteCleanliness::reverseShare($circuit))->toBe(0.0);
 });
 
-it('keeps the circuit and drops the line that reverses', function () {
+it('keeps the circuit and drops the line that reverses', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
@@ -210,7 +210,7 @@ it('keeps the circuit and drops the line that reverses', function () {
     expect(RouteCleanliness::cleanest([$reversed, $circuit], 10_000)?->coordinates)->toBe($circuit->coordinates);
 });
 
-it('counts a return on the other side of the same road', function () {
+it('counts a return on the other side of the same road', function (): void {
     $offset = 0.00012;
     $line = [
         [4.0, 51.0],
@@ -224,7 +224,7 @@ it('counts a return on the other side of the same road', function () {
     expect(RouteCleanliness::reverseShare($line))->toBeGreaterThan(0.35);
 });
 
-it('prefers a clean loop over a doubled line of the right length', function () {
+it('prefers a clean loop over a doubled line of the right length', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
@@ -253,7 +253,7 @@ it('prefers a clean loop over a doubled line of the right length', function () {
     expect(RouteCleanliness::cleanest([$doubled, $circuit], 10_000)?->distanceMetres)->toBe(11_000);
 });
 
-it('picks the clean loop closest to the asked distance', function () {
+it('picks the clean loop closest to the asked distance', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
@@ -276,7 +276,7 @@ it('picks the clean loop closest to the asked distance', function () {
     expect(RouteCleanliness::cleanest([$short, $close], 20_000)?->distanceMetres)->toBe(19_400);
 });
 
-it('offers another forward loop instead of a same-road turn-back', function () {
+it('offers another forward loop instead of a same-road turn-back', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
@@ -315,7 +315,7 @@ it('offers another forward loop instead of a same-road turn-back', function () {
         ->and($offered[1]->distanceMetres)->toBe(12_600);
 });
 
-it('rejects a clean loop that is twice the requested length', function () {
+it('rejects a clean loop that is twice the requested length', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,

@@ -11,7 +11,7 @@ use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 
-it('sends the ride home off the road it arrived on', function () {
+it('sends the ride home off the road it arrived on', function (): void {
     $ridden = [
         [4.0, 51.0],
         [4.0, 51.01],
@@ -38,7 +38,7 @@ it('sends the ride home off the road it arrived on', function () {
     }
 });
 
-it('keeps the closing line that does not ride back over the way out', function () {
+it('keeps the closing line that does not ride back over the way out', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::PointToPoint,
@@ -72,7 +72,7 @@ it('keeps the closing line that does not ride back over the way out', function (
         ->and(RouteCleanliness::reverseShare($combined))->toBeLessThan(0.12);
 });
 
-it('keeps the ride home that brings the whole route near the requested length', function () {
+it('keeps the ride home that brings the whole route near the requested length', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::PointToPoint,
@@ -104,7 +104,7 @@ it('keeps the ride home that brings the whole route near the requested length', 
     expect($chosen?->coordinates[1])->toBe([4.12, 51.08]);
 });
 
-it('prefers the return closest to the requested length when one is too long', function () {
+it('prefers the return closest to the requested length when one is too long', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::PointToPoint,

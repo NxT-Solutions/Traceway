@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
-it('turns a cycling response into a generated loop', function () {
+it('turns a cycling response into a generated loop', function (): void {
     $connector = new OsrmConnector('https://router.test');
     $connector->withMockClient(new MockClient([
         CyclingRouteRequest::class => MockResponse::make([
@@ -31,7 +31,7 @@ it('turns a cycling response into a generated loop', function () {
         ], 200),
     ]));
 
-    $route = (new OsrmRoutingEngine($connector))->route(new RouteQuery(
+    $route = new OsrmRoutingEngine($connector)->route(new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
         distanceMetres: 12_000,
@@ -45,7 +45,7 @@ it('turns a cycling response into a generated loop', function () {
         ->and($route->coordinates)->toHaveCount(3);
 });
 
-it('asks for a foot route when the sport is on foot', function () {
+it('asks for a foot route when the sport is on foot', function (): void {
     $mock = new MockClient([
         CyclingRouteRequest::class => MockResponse::make([
             'code' => 'Ok',
@@ -62,7 +62,7 @@ it('asks for a foot route when the sport is on foot', function () {
     $connector = new OsrmConnector('https://router.test');
     $connector->withMockClient($mock);
 
-    (new OsrmRoutingEngine($connector))->route(new RouteQuery(
+    new OsrmRoutingEngine($connector)->route(new RouteQuery(
         sport: Sport::Hike,
         shape: Shape::Loop,
         distanceMetres: 8_000,
@@ -72,7 +72,5 @@ it('asks for a foot route when the sport is on foot', function () {
         startLongitude: 3.72,
     ));
 
-    $mock->assertSent(function (CyclingRouteRequest $request): bool {
-        return str_contains($request->resolveEndpoint(), '/route/v1/foot/');
-    });
+    $mock->assertSent(fn (CyclingRouteRequest $cyclingRouteRequest): bool => str_contains($cyclingRouteRequest->resolveEndpoint(), '/route/v1/foot/'));
 });

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Domain\Courses\FitCourse;
 use App\Domain\Routing\Sport;
 
-it('writes a course file a head unit can open', function () {
+it('writes a course file a head unit can open', function (): void {
     $bytes = FitCourse::encode('Dawn ride', Sport::Road, [
         [3.72, 51.05],
         [3.74, 51.06],
@@ -26,8 +26,8 @@ it('writes a course file a head unit can open', function () {
         ->and($fileCrc[1])->toBe(fitCrc(substr($bytes, 0, -2)));
 });
 
-it('refuses a course with a single point', function () {
-    expect(fn () => FitCourse::encode('Dawn ride', Sport::Road, [[3.72, 51.05]]))
+it('refuses a course with a single point', function (): void {
+    expect(fn (): string => FitCourse::encode('Dawn ride', Sport::Road, [[3.72, 51.05]]))
         ->toThrow(InvalidArgumentException::class);
 });
 

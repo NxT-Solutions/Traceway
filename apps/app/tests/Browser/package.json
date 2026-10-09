@@ -1,0 +1,13 @@
+{
+    "name": "traceway-browser",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "node planner.mjs && node wcag.mjs",
+        "wcag": "node wcag.mjs"
+    },
+    "devDependencies": {
+        "@axe-core/playwright": "4.13.0",
+        "playwright-core": "1.55.0"
+    }
+}

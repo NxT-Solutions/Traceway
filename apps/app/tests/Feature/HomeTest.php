@@ -8,33 +8,33 @@ use App\Integrations\Osrm\OsrmRoutingEngine;
 use App\Integrations\Valhalla\ValhallaRoutingEngine;
 use Inertia\Testing\AssertableInertia as Assert;
 
-it('welcomes a rider with the traceway home', function () {
+it('welcomes a rider with the traceway home', function (): void {
     $this->get(route('home'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $assert): Assert => $assert
             ->component('welcome')
             ->where('name', 'Traceway')
             ->has('auth.user')
         );
 });
 
-it('resolves route generation to the filter-aware router by default', function () {
+it('resolves route generation to the filter-aware router by default', function (): void {
     config(['services.router' => 'valhalla']);
 
-    expect(app(RoutingEngine::class))->toBeInstanceOf(ValhallaRoutingEngine::class);
+    expect(resolve(RoutingEngine::class))->toBeInstanceOf(ValhallaRoutingEngine::class);
 });
 
-it('resolves route generation to osrm when that driver is selected', function () {
+it('resolves route generation to osrm when that driver is selected', function (): void {
     config(['services.router' => 'osrm']);
 
-    expect(app(RoutingEngine::class))->toBeInstanceOf(OsrmRoutingEngine::class);
+    expect(resolve(RoutingEngine::class))->toBeInstanceOf(OsrmRoutingEngine::class);
 });
 
-it('resolves route generation to graphhopper when that driver is selected', function () {
+it('resolves route generation to graphhopper when that driver is selected', function (): void {
     config(['services.router' => 'graphhopper', 'services.graphhopper.url' => 'http://graphhopper:8989']);
 
-    $engine = app(RoutingEngine::class);
+    $routingEngine = resolve(RoutingEngine::class);
 
-    expect($engine)->toBeInstanceOf(GraphHopperRoutingEngine::class)
-        ->and($engine->connector()->resolveBaseUrl())->toBe('http://graphhopper:8989');
+    expect($routingEngine)->toBeInstanceOf(GraphHopperRoutingEngine::class)
+        ->and($routingEngine->connector()->resolveBaseUrl())->toBe('http://graphhopper:8989');
 });

@@ -7,6 +7,7 @@ arch('domain does not reach http, eloquent, or integrations')
     ->not->toUse([
         'Saloon',
         'App\Integrations',
+        'App\Models',
         'Illuminate\Http',
         'Illuminate\Database\Eloquent',
     ]);

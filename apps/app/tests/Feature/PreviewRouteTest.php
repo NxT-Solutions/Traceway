@@ -13,27 +13,30 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-it('previews a loop for a signed in rider', function () {
+it('previews a loop for a signed in rider', function (): void {
     $this->app->instance(RoutingEngine::class, new class implements RoutingEngine
     {
-        public function route(RouteQuery $query): GeneratedRoute
+        public function route(RouteQuery $routeQuery): GeneratedRoute
         {
-            return $this->candidates($query)[0];
+            return $this->candidates($routeQuery)[0];
         }
 
-        public function candidates(RouteQuery $query): array
+        /**
+         * @return GeneratedRoute[]
+         */
+        public function candidates(RouteQuery $routeQuery): array
         {
-            return [new GeneratedRoute($query, [[3.72, 51.05], [3.8, 51.1]], 18_000, 90)];
+            return [new GeneratedRoute($routeQuery, [[3.72, 51.05], [3.8, 51.1]], 18_000, 90)];
         }
 
-        public function trace(RouteQuery $query, array $waypoints): GeneratedRoute
+        public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
         {
-            return new GeneratedRoute($query, $waypoints, 12_000, 40);
+            return new GeneratedRoute($routeQuery, $waypoints, 12_000, 40);
         }
 
-        public function closeLoop(RouteQuery $query, array $ridden, array $from, array $to): GeneratedRoute
+        public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
         {
-            return new GeneratedRoute($query, [$from, $to], 4_000, 10);
+            return new GeneratedRoute($routeQuery, [$from, $to], 4_000, 10);
         }
     });
 
@@ -51,27 +54,30 @@ it('previews a loop for a signed in rider', function () {
         ->assertJsonCount(1, 'routes');
 });
 
-it('builds a line through the rider points', function () {
+it('builds a line through the rider points', function (): void {
     $this->app->instance(RoutingEngine::class, new class implements RoutingEngine
     {
-        public function route(RouteQuery $query): GeneratedRoute
+        public function route(RouteQuery $routeQuery): GeneratedRoute
         {
-            return $this->trace($query, [[3.72, 51.05]]);
+            return $this->trace($routeQuery, [[3.72, 51.05]]);
         }
 
-        public function candidates(RouteQuery $query): array
+        /**
+         * @return GeneratedRoute[]
+         */
+        public function candidates(RouteQuery $routeQuery): array
         {
-            return [$this->route($query)];
+            return [$this->route($routeQuery)];
         }
 
-        public function trace(RouteQuery $query, array $waypoints): GeneratedRoute
+        public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
         {
-            return new GeneratedRoute($query, $waypoints, 12_000, 40);
+            return new GeneratedRoute($routeQuery, $waypoints, 12_000, 40);
         }
 
-        public function closeLoop(RouteQuery $query, array $ridden, array $from, array $to): GeneratedRoute
+        public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
         {
-            return new GeneratedRoute($query, [$from, [3.8, 51.02], $to], 6_000, 20);
+            return new GeneratedRoute($routeQuery, [$from, [3.8, 51.02], $to], 6_000, 20);
         }
     });
 
@@ -94,35 +100,38 @@ it('builds a line through the rider points', function () {
         ->assertJsonStructure(['coordinates', 'finish_coordinates', 'legs_metres', 'user_metres']);
 });
 
-it('builds with the sport, surface, hills, roads, and length the rider chose', function () {
+it('builds with the sport, surface, hills, roads, and length the rider chose', function (): void {
     $seen = (object) ['trace' => null, 'close' => null];
 
-    $this->app->instance(RoutingEngine::class, new class($seen) implements RoutingEngine
+    $this->app->instance(RoutingEngine::class, new readonly class($seen) implements RoutingEngine
     {
         public function __construct(private object $seen) {}
 
-        public function route(RouteQuery $query): GeneratedRoute
+        public function route(RouteQuery $routeQuery): GeneratedRoute
         {
-            return $this->trace($query, [[4.9, 51.1]]);
+            return $this->trace($routeQuery, [[4.9, 51.1]]);
         }
 
-        public function candidates(RouteQuery $query): array
+        /**
+         * @return GeneratedRoute[]
+         */
+        public function candidates(RouteQuery $routeQuery): array
         {
-            return [$this->route($query)];
+            return [$this->route($routeQuery)];
         }
 
-        public function trace(RouteQuery $query, array $waypoints): GeneratedRoute
+        public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
         {
-            $this->seen->trace = $query;
+            $this->seen->trace = $routeQuery;
 
-            return new GeneratedRoute($query, $waypoints, 6_000, 40);
+            return new GeneratedRoute($routeQuery, $waypoints, 6_000, 40);
         }
 
-        public function closeLoop(RouteQuery $query, array $ridden, array $from, array $to): GeneratedRoute
+        public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
         {
-            $this->seen->close = $query;
+            $this->seen->close = $routeQuery;
 
-            return new GeneratedRoute($query, [$from, [4.95, 51.12], $to], 14_000, 80);
+            return new GeneratedRoute($routeQuery, [$from, [4.95, 51.12], $to], 14_000, 80);
         }
     });
 
@@ -157,7 +166,7 @@ it('builds with the sport, surface, hills, roads, and length the rider chose', f
         ->and($seen->close->distanceMetres)->toBe(20_000);
 });
 
-it('asks a guest to log in before previewing a loop', function () {
+it('asks a guest to log in before previewing a loop', function (): void {
     $this->postJson(route('routes.preview'), [])
         ->assertUnauthorized();
 });

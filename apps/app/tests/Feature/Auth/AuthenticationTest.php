@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
@@ -8,31 +10,31 @@ use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
 use Tests\TestCase;
 
-class AuthenticationTest extends TestCase
+final class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_login_screen_can_be_rendered()
+    public function test_login_screen_can_be_rendered(): void
     {
-        $response = $this->get(route('login'));
+        $testResponse = $this->get(route('login'));
 
-        $response->assertOk();
+        $testResponse->assertOk();
     }
 
-    public function test_users_can_authenticate_using_the_login_screen()
+    public function test_users_can_authenticate_using_the_login_screen(): void
     {
         $user = User::factory()->create();
 
-        $response = $this->post(route('login.store'), [
+        $testResponse = $this->post(route('login.store'), [
             'email' => $user->email,
             'password' => 'password',
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $testResponse->assertRedirect(route('dashboard', absolute: false));
     }
 
-    public function test_users_with_two_factor_enabled_are_redirected_to_two_factor_challenge()
+    public function test_users_with_two_factor_enabled_are_redirected_to_two_factor_challenge(): void
     {
         $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
 
@@ -43,17 +45,17 @@ class AuthenticationTest extends TestCase
 
         $user = User::factory()->withTwoFactor()->create();
 
-        $response = $this->post(route('login'), [
+        $testResponse = $this->post(route('login'), [
             'email' => $user->email,
             'password' => 'password',
         ]);
 
-        $response->assertRedirect(route('two-factor.login'));
-        $response->assertSessionHas('login.id', $user->id);
+        $testResponse->assertRedirect(route('two-factor.login'));
+        $testResponse->assertSessionHas('login.id', $user->id);
         $this->assertGuest();
     }
 
-    public function test_users_can_not_authenticate_with_invalid_password()
+    public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();
 
@@ -65,43 +67,43 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_users_can_logout()
+    public function test_users_can_logout(): void
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->post(route('logout'));
+        $testResponse = $this->actingAs($user)->post(route('logout'));
 
-        $response->assertRedirect(route('home'));
+        $testResponse->assertRedirect(route('home'));
 
         $this->assertGuest();
     }
 
-    public function test_inertia_logout_leaves_the_app_for_the_content_site()
+    public function test_inertia_logout_leaves_the_app_for_the_content_site(): void
     {
         $user = User::factory()->create();
 
-        $response = $this
+        $testResponse = $this
             ->actingAs($user)
             ->withHeader('X-Inertia', 'true')
             ->post(route('logout'));
 
-        $response->assertStatus(409);
-        $response->assertHeader('X-Inertia-Location', url('/'));
+        $testResponse->assertConflict();
+        $testResponse->assertHeader('X-Inertia-Location', url('/'));
 
         $this->assertGuest();
     }
 
-    public function test_users_are_rate_limited()
+    public function test_users_are_rate_limited(): void
     {
         $user = User::factory()->create();
 
         RateLimiter::increment(md5('login'.implode('|', [$user->email, '127.0.0.1'])), amount: 5);
 
-        $response = $this->post(route('login.store'), [
+        $testResponse = $this->post(route('login.store'), [
             'email' => $user->email,
             'password' => 'wrong-password',
         ]);
 
-        $response->assertTooManyRequests();
+        $testResponse->assertTooManyRequests();
     }
 }

@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
-it('draws a loop from a valhalla trip', function () {
+it('draws a loop from a valhalla trip', function (): void {
     $shape = Polyline::encode([
         [3.72, 51.05],
         [3.8, 51.08],
@@ -35,7 +35,7 @@ it('draws a loop from a valhalla trip', function () {
     $connector = new ValhallaConnector('https://valhalla.test');
     $connector->withMockClient($mock);
 
-    $route = (new ValhallaRoutingEngine($connector))->route(new RouteQuery(
+    $route = new ValhallaRoutingEngine($connector)->route(new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
         distanceMetres: 20_000,

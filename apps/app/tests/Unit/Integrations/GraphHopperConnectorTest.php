@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
-it('posts a route request to the configured graphhopper', function () {
+it('posts a route request to the configured graphhopper', function (): void {
     $mock = new MockClient([
         CalculateRouteRequest::class => MockResponse::make(['paths' => []], 200),
     ]);
@@ -27,11 +27,9 @@ it('posts a route request to the configured graphhopper', function () {
         ->and($response->status())->toBe(200)
         ->and($response->json('paths'))->toBe([]);
 
-    $mock->assertSent(function (CalculateRouteRequest $request): bool {
-        return $request->resolveEndpoint() === '/route'
-            && $request->body()->all() === [
-                'profile' => 'bike',
-                'points' => [[3.72, 51.05]],
-            ];
-    });
+    $mock->assertSent(fn (CalculateRouteRequest $calculateRouteRequest): bool => $calculateRouteRequest->resolveEndpoint() === '/route'
+        && $calculateRouteRequest->body()->all() === [
+            'profile' => 'bike',
+            'points' => [[3.72, 51.05]],
+        ]);
 });

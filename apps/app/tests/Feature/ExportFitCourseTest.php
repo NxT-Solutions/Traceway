@@ -7,7 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-it('downloads a fit course for a signed in rider', function () {
+it('downloads a fit course for a signed in rider', function (): void {
     $response = $this->actingAs(User::factory()->create())
         ->post(route('routes.fit'), [
             'name' => 'Morning loop',
@@ -28,7 +28,7 @@ it('downloads a fit course for a signed in rider', function () {
         ->and(substr($body, 8, 4))->toBe('.FIT');
 });
 
-it('asks a guest to log in before downloading a course', function () {
+it('asks a guest to log in before downloading a course', function (): void {
     $this->postJson(route('routes.fit'), [])
         ->assertUnauthorized();
 });

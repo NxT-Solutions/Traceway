@@ -11,20 +11,21 @@ use Saloon\Http\Faking\MockResponse;
 
 uses(RefreshDatabase::class);
 
-function snapConnector(MockResponse $response): MockClient
+function snapConnector(MockResponse $mockResponse): MockClient
 {
     $mock = new MockClient([
-        LocateRequest::class => $response,
+        LocateRequest::class => $mockResponse,
     ]);
     $connector = new ValhallaConnector('https://valhalla.test');
     $connector->withMockClient($mock);
+
     app()->instance(ValhallaConnector::class, $connector);
 
     return $mock;
 }
 
-it('snaps a ride point onto the nearest road', function () {
-    $mock = snapConnector(MockResponse::make([
+it('snaps a ride point onto the nearest road', function (): void {
+    $mockClient = snapConnector(MockResponse::make([
         [
             'edges' => [[
                 'correlated_lat' => 51.0512,
@@ -43,7 +44,7 @@ it('snaps a ride point onto the nearest road', function () {
         ->assertJsonPath('latitude', 51.0512)
         ->assertJsonPath('longitude', 3.7214);
 
-    $body = $mock->getLastPendingRequest()?->body()?->all();
+    $body = $mockClient->getLastPendingRequest()?->body()?->all();
 
     expect($body)->toMatchArray([
         'verbose' => true,
@@ -56,8 +57,8 @@ it('snaps a ride point onto the nearest road', function () {
     ]);
 });
 
-it('snaps a hike onto a path a person can walk', function () {
-    $mock = snapConnector(MockResponse::make([
+it('snaps a hike onto a path a person can walk', function (): void {
+    $mockClient = snapConnector(MockResponse::make([
         [
             'edges' => [[
                 'correlated_lat' => 51.02,
@@ -74,10 +75,10 @@ it('snaps a hike onto a path a person can walk', function () {
         ])
         ->assertOk();
 
-    expect($mock->getLastPendingRequest()?->body()?->all()['costing'] ?? null)->toBe('pedestrian');
+    expect($mockClient->getLastPendingRequest()?->body()?->all()['costing'] ?? null)->toBe('pedestrian');
 });
 
-it('refuses a point that is not on a road or path', function () {
+it('refuses a point that is not on a road or path', function (): void {
     snapConnector(MockResponse::make([
         ['edges' => []],
     ]));
@@ -92,7 +93,7 @@ it('refuses a point that is not on a road or path', function () {
         ->assertJsonPath('message', 'No road or path is close enough to put a point there.');
 });
 
-it('rejects a snap without a place', function () {
+it('rejects a snap without a place', function (): void {
     $this->actingAs(User::factory()->create())
         ->postJson(route('routes.snap'), [
             'longitude' => 3.72,
@@ -102,7 +103,7 @@ it('rejects a snap without a place', function () {
         ->assertJsonValidationErrors(['latitude']);
 });
 
-it('asks a guest to log in before snapping a point', function () {
+it('asks a guest to log in before snapping a point', function (): void {
     $this->postJson(route('routes.snap'), [])
         ->assertUnauthorized();
 });

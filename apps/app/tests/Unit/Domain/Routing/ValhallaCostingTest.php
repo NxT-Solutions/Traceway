@@ -9,7 +9,7 @@ use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 use App\Domain\Routing\ValhallaCosting;
 
-it('sends a paved flat road ride onto roads and away from rough surface', function () {
+it('sends a paved flat road ride onto roads and away from rough surface', function (): void {
     $payload = ValhallaCosting::payload(new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
@@ -27,7 +27,7 @@ it('sends a paved flat road ride onto roads and away from rough surface', functi
         ->and($payload['costing_options']['bicycle']['use_roads'])->toBe(0.85);
 });
 
-it('keeps a quiet ride off the busy roads', function () {
+it('keeps a quiet ride off the busy roads', function (): void {
     $payload = ValhallaCosting::payload(new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
@@ -42,7 +42,7 @@ it('keeps a quiet ride off the busy roads', function () {
     expect($payload['costing_options']['bicycle']['use_roads'])->toBe(0.2);
 });
 
-it('sends a hilly dirt mountain bike off the paved roads', function () {
+it('sends a hilly dirt mountain bike off the paved roads', function (): void {
     $payload = ValhallaCosting::payload(new RouteQuery(
         sport: Sport::Mtb,
         shape: Shape::Loop,
@@ -59,7 +59,7 @@ it('sends a hilly dirt mountain bike off the paved roads', function () {
         ->and($payload['costing_options']['bicycle']['use_roads'])->toBe(0.1);
 });
 
-it('rides a built point along its own street', function () {
+it('rides a built point along its own street', function (): void {
     $payload = ValhallaCosting::payload(new RouteQuery(
         sport: Sport::Road,
         shape: Shape::PointToPoint,
@@ -72,7 +72,7 @@ it('rides a built point along its own street', function () {
         [3.72, 51.05],
         [3.74, 51.06],
         [3.75, 51.04],
-    ], null, true);
+    ], mustVisit: true);
 
     expect($payload['locations'][0]['radius'])->toBe(40)
         ->and($payload['locations'][1]['type'])->toBe('through')
@@ -81,7 +81,7 @@ it('rides a built point along its own street', function () {
         ->and($payload['locations'][2]['radius'])->toBe(15);
 });
 
-it('asks a loop to cross the start instead of turning around', function () {
+it('asks a loop to cross the start instead of turning around', function (): void {
     $payload = ValhallaCosting::payload(new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
@@ -103,7 +103,7 @@ it('asks a loop to cross the start instead of turning around', function () {
         ->and($payload['locations'][0]['heading_tolerance'])->toBe(120);
 });
 
-it('sends a dirt build onto unpaved roads', function () {
+it('sends a dirt build onto unpaved roads', function (): void {
     $payload = ValhallaCosting::payload(new RouteQuery(
         sport: Sport::Gravel,
         shape: Shape::PointToPoint,
@@ -116,7 +116,7 @@ it('sends a dirt build onto unpaved roads', function () {
     ), [
         [3.72, 51.05],
         [3.74, 51.06],
-    ], null, true);
+    ], mustVisit: true);
 
     expect($payload['costing'])->toBe('bicycle')
         ->and($payload['costing_options']['bicycle']['bicycle_type'])->toBe('Cross')
@@ -124,7 +124,7 @@ it('sends a dirt build onto unpaved roads', function () {
         ->and($payload['costing_options']['bicycle']['use_roads'])->toBe(0.1);
 });
 
-it('holds a ride-home bend to the area it was aimed at', function () {
+it('holds a ride-home bend to the area it was aimed at', function (): void {
     $payload = ValhallaCosting::payload(new RouteQuery(
         sport: Sport::Road,
         shape: Shape::PointToPoint,
@@ -138,7 +138,7 @@ it('holds a ride-home bend to the area it was aimed at', function () {
         [3.75, 51.06],
         [3.80, 51.08],
         [3.72, 51.05],
-    ], 90, false, 900);
+    ], 90, mustVisit: false, viaRadius: 900);
 
     expect($payload['costing_options']['bicycle']['use_hills'])->toBe(0.0)
         ->and($payload['costing_options']['bicycle']['avoid_bad_surfaces'])->toBe(1.0)
@@ -147,7 +147,7 @@ it('holds a ride-home bend to the area it was aimed at', function () {
         ->and($payload['locations'][1]['radius'])->toBe(900);
 });
 
-it('sends a hike on foot', function () {
+it('sends a hike on foot', function (): void {
     $payload = ValhallaCosting::payload(new RouteQuery(
         sport: Sport::Hike,
         shape: Shape::Loop,

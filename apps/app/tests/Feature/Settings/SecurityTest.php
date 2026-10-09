@@ -1,19 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature\Settings;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 use Tests\TestCase;
 
-class SecurityTest extends TestCase
+final class SecurityTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_security_page_is_displayed()
+    public function test_security_page_is_displayed(): void
     {
         $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
 
@@ -28,18 +31,18 @@ class SecurityTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->withSession(['auth.password_confirmed_at' => time()])
+            ->withSession(['auth.password_confirmed_at' => Date::now()->getTimestamp()])
             ->get(route('security.edit'))
-            ->assertInertia(fn (Assert $page) => $page
+            ->assertInertia(fn (Assert $assert): Assert => $assert
                 ->component('settings/security')
-                ->where('canManagePasskeys', true)
+                ->where('canManagePasskeys', expected: true)
                 ->where('passkeys', [])
-                ->where('canManageTwoFactor', true)
-                ->where('twoFactorEnabled', false),
+                ->where('canManageTwoFactor', expected: true)
+                ->where('twoFactorEnabled', expected: false),
             );
     }
 
-    public function test_security_page_requires_password_confirmation_when_enabled()
+    public function test_security_page_requires_password_confirmation_when_enabled(): void
     {
         $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
 
@@ -50,13 +53,13 @@ class SecurityTest extends TestCase
             'confirmPassword' => true,
         ]);
 
-        $response = $this->actingAs($user)
+        $testResponse = $this->actingAs($user)
             ->get(route('security.edit'));
 
-        $response->assertRedirect(route('password.confirm'));
+        $testResponse->assertRedirect(route('password.confirm'));
     }
 
-    public function test_security_page_renders_without_two_factor_when_feature_is_disabled()
+    public function test_security_page_renders_without_two_factor_when_feature_is_disabled(): void
     {
         $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
 
@@ -65,24 +68,24 @@ class SecurityTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->withSession(['auth.password_confirmed_at' => time()])
+            ->withSession(['auth.password_confirmed_at' => Date::now()->getTimestamp()])
             ->get(route('security.edit'))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
+            ->assertInertia(fn (Assert $assert): Assert => $assert
                 ->component('settings/security')
-                ->where('canManagePasskeys', false)
+                ->where('canManagePasskeys', expected: false)
                 ->where('passkeys', [])
-                ->where('canManageTwoFactor', false)
+                ->where('canManageTwoFactor', expected: false)
                 ->missing('twoFactorEnabled')
                 ->missing('requiresConfirmation'),
             );
     }
 
-    public function test_password_can_be_updated()
+    public function test_password_can_be_updated(): void
     {
         $user = User::factory()->create();
 
-        $response = $this
+        $testResponse = $this
             ->actingAs($user)
             ->from(route('security.edit'))
             ->put(route('user-password.update'), [
@@ -91,18 +94,18 @@ class SecurityTest extends TestCase
                 'password_confirmation' => 'new-password',
             ]);
 
-        $response
+        $testResponse
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('security.edit'));
 
         $this->assertTrue(Hash::check('new-password', $user->refresh()->password));
     }
 
-    public function test_correct_password_must_be_provided_to_update_password()
+    public function test_correct_password_must_be_provided_to_update_password(): void
     {
         $user = User::factory()->create();
 
-        $response = $this
+        $testResponse = $this
             ->actingAs($user)
             ->from(route('security.edit'))
             ->put(route('user-password.update'), [
@@ -111,7 +114,7 @@ class SecurityTest extends TestCase
                 'password_confirmation' => 'new-password',
             ]);
 
-        $response
+        $testResponse
             ->assertSessionHasErrors('current_password')
             ->assertRedirect(route('security.edit'));
     }

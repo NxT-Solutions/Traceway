@@ -39,7 +39,7 @@ function savedRoutePayload(): array
     ];
 }
 
-it('saves a route on the rider profile and gives it a public link', function () {
+it('saves a route on the rider profile and gives it a public link', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)
@@ -56,7 +56,7 @@ it('saves a route on the rider profile and gives it a public link', function () 
     $this->actingAs($user)
         ->get(route('routes.library'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $assert): Assert => $assert
             ->component('saved')
             ->where('routes.0.name', 'Morning loop')
             ->where('routes.0.url', URL::signedRoute('routes.share', $route))
@@ -65,12 +65,12 @@ it('saves a route on the rider profile and gives it a public link', function () 
     $this->actingAs(User::factory()->create())
         ->get(route('routes.library'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $assert): Assert => $assert
             ->component('saved')
             ->has('routes', 0));
 });
 
-it('shows a saved route to anyone with the link', function () {
+it('shows a saved route to anyone with the link', function (): void {
     $route = SavedRoute::factory()->create();
 
     $this->get(route('routes.share', $route))
@@ -78,7 +78,7 @@ it('shows a saved route to anyone with the link', function () {
 
     $this->get(URL::signedRoute('routes.share', $route))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn (Assert $assert): Assert => $assert
             ->component('share')
             ->where('route.name', 'Morning loop')
             ->where('route.distance_metres', 20_000)
@@ -88,7 +88,7 @@ it('shows a saved route to anyone with the link', function () {
             ->missing('route.user_coordinates'));
 });
 
-it('gives a signed link a gpx and a fit file', function () {
+it('gives a signed link a gpx and a fit file', function (): void {
     $route = SavedRoute::factory()->create(['name' => 'Morning loop']);
 
     $this->get(route('routes.share.gpx', $route))->assertForbidden();
@@ -105,7 +105,7 @@ it('gives a signed link a gpx and a fit file', function () {
         ->and(strlen($fit->getContent() ?: ''))->toBeGreaterThan(20);
 });
 
-it('lets the owner remove a saved route', function () {
+it('lets the owner remove a saved route', function (): void {
     $route = SavedRoute::factory()->create();
 
     $this->actingAs($route->user)
@@ -115,7 +115,7 @@ it('lets the owner remove a saved route', function () {
     expect(SavedRoute::query()->find($route->id))->toBeNull();
 });
 
-it('does not let another rider remove a saved route', function () {
+it('does not let another rider remove a saved route', function (): void {
     $route = SavedRoute::factory()->create();
 
     $this->actingAs(User::factory()->create())
@@ -125,11 +125,11 @@ it('does not let another rider remove a saved route', function () {
     expect(SavedRoute::query()->find($route->id))->not->toBeNull();
 });
 
-it('asks a guest to log in before opening saved routes', function () {
+it('asks a guest to log in before opening saved routes', function (): void {
     $this->get(route('routes.library'))->assertRedirect();
 });
 
-it('asks a guest to log in before saving a route', function () {
+it('asks a guest to log in before saving a route', function (): void {
     $this->postJson(route('routes.saved.store'), savedRoutePayload())
         ->assertUnauthorized();
 });

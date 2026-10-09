@@ -7,11 +7,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-it('hides demo login outside the local environment', function () {
+it('hides demo login outside the local environment', function (): void {
     $this->post(route('login.demo', 'road'))->assertNotFound();
 });
 
-it('signs in a seeded local rider', function () {
+it('signs in a seeded local rider', function (): void {
     config(['demo.enabled' => true]);
 
     User::factory()->create([

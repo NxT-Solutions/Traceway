@@ -1,0 +1,68 @@
+import AxeBuilder from '@axe-core/playwright';
+import { chromium } from 'playwright-core';
+
+const base = process.env.BASE_URL || 'https://traceway.ddev.site:8443';
+const executable = process.env.CHROMIUM_PATH || [
+    process.env.HOME,
+    'Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+].join('/');
+
+const publicPages = ['/', '/sports', '/devices', '/how-it-works', '/notes/onto-the-computer', '/notes/from-the-driveway', '/login', '/register', '/forgot-password'];
+const signedInPages = ['/dashboard', '/saved', '/settings/profile', '/settings/privacy', '/settings/appearance'];
+
+const browser = await chromium.launch({ executablePath: executable, headless: true });
+const failures = [];
+
+async function scan(page, path) {
+    const response = await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+
+    if (!response || response.status() >= 400) {
+        failures.push(`${path} returned ${response ? response.status() : 'no response'}`);
+        return;
+    }
+
+    // axe-core 4.13 turns oklch() into the wrong sRGB color, so its
+    // contrast numbers are not the ratios in WcagTest.php.
+    const result = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+        .disableRules(['color-contrast'])
+        .exclude('.maplibregl-canvas')
+        .exclude('.maplibregl-map')
+        .analyze();
+
+    for (const violation of result.violations) {
+        const nodes = violation.nodes.map((node) => node.target.join(' ')).slice(0, 3).join('; ');
+        failures.push(`${path} [${page.viewportSize().width}px] ${violation.id}: ${violation.help} (${nodes})`);
+    }
+}
+
+try {
+    const desktopContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 800 } });
+    const phoneContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
+    const desktop = await desktopContext.newPage();
+    const phone = await phoneContext.newPage();
+
+    for (const path of publicPages) {
+        await scan(desktop, path);
+        await scan(phone, path);
+    }
+
+    await desktop.goto(`${base}/login`, { waitUntil: 'domcontentloaded' });
+    await desktop.getByRole('button', { name: /^Road\b/ }).click();
+    await desktop.waitForURL(/\/dashboard/, { timeout: 20000 });
+
+    for (const path of signedInPages) {
+        await scan(desktop, path);
+    }
+
+    await scan(desktop, '/settings/security');
+
+    if (failures.length > 0) {
+        console.error(failures.join('\n'));
+        process.exit(1);
+    }
+
+    console.log('wcag axe passed');
+} finally {
+    await browser.close();
+}
