@@ -43,7 +43,7 @@ RUN APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
     cp .env.production .env \
     && touch /tmp/traceway-build.sqlite \
     && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
-    && bun install --frozen-lockfile \
+    && bun install \
     && bun run build \
     && rm -f .env public/hot
 
