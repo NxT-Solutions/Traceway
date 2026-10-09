@@ -1,0 +1,152 @@
+---
+name: Production Deploy
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build And Publish Production Image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@v6
+
+      - name: Derive Image Name
+        id: image
+        run: |
+          set -euo pipefail
+          name="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/traceway"
+          if [ "${GITHUB_EVENT_NAME}" = "release" ]; then
+            tag="${GITHUB_REF_NAME}"
+          else
+            tag="sha-${GITHUB_SHA::7}"
+          fi
+          echo "image=${name}:${tag}" >> "$GITHUB_OUTPUT"
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare Runtime Environment File
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          runtime_env="/tmp/traceway.runtime.env"
+          cp apps/app/.env.production "$runtime_env"
+
+          upsert_env() {
+            local key="$1"
+            local value="$2"
+            local file="$3"
+            local escaped_value
+
+            escaped_value="$(printf '%s' "$value" | sed -e 's/[\/&]/\\&/g')"
+
+            if grep -q "^${key}=" "$file"; then
+              sed -i "s|^${key}=.*|${key}=${escaped_value}|" "$file"
+            else
+              printf '%s=%s\n' "$key" "$value" >> "$file"
+            fi
+          }
+
+          if [ -z "${APP_KEY:-}" ]; then
+            echo "APP_KEY secret is required" >&2
+            exit 1
+          fi
+
+          upsert_env "APP_KEY" "$APP_KEY" "$runtime_env"
+          upsert_env "RESEND_API_KEY" "${RESEND_API_KEY:-}" "$runtime_env"
+          chmod 0600 "$runtime_env"
+
+      - name: Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log In To GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build And Push Docker Image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./.docker/production/images/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.image.outputs.image }}
+            ${{ steps.image.outputs.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          secret-files: |
+            runtime_env=/tmp/traceway.runtime.env
+
+  deploy:
+    name: Deploy To Production
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: production
+      url: https://traceway.online
+
+    steps:
+      - name: Validate Deploy Configuration
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+          PRODUCTION_SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${PRODUCTION_HOST:-}" || { echo "PRODUCTION_HOST secret is required"; exit 1; }
+          test -n "${PRODUCTION_USER:-}" || { echo "PRODUCTION_USER secret is required"; exit 1; }
+          test -n "${PRODUCTION_SSH_KEY:-}" || { echo "PRODUCTION_SSH_KEY secret is required"; exit 1; }
+
+      - name: Deploy Production On VPS
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          TRACEWAY_IMAGE: ${{ needs.build.outputs.image }}
+          OPS_REPO_DIR: ${{ vars.OPS_REPO_DIR }}
+          OPS_REPO_REF: ${{ vars.OPS_REPO_REF }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          envs: GHCR_PAT,GHCR_USERNAME,TRACEWAY_IMAGE,OPS_REPO_DIR,OPS_REPO_REF
+          script: |
+            set -euo pipefail
+
+            cd "${OPS_REPO_DIR}"
+            git fetch origin
+            git checkout "${OPS_REPO_REF:-main}"
+            git pull --ff-only origin "${OPS_REPO_REF:-main}"
+
+            if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_PAT:-}" ]; then
+              echo "${GHCR_PAT}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
+            fi
+
+            export TRACEWAY_IMAGE
+            cd traceway
+            ./deploy.sh
