@@ -73,6 +73,7 @@ RUN rm -f public/hot
 RUN --mount=type=secret,id=runtime_env,target=/run/secrets/runtime_env \
     install -m 0644 /run/secrets/runtime_env /var/www/html/.env.production \
     && cp /var/www/html/.env.production /var/www/html/.env \
+    && chown www-data:www-data /var/www/html/.env /var/www/html/.env.production \
     && chmod 0640 /var/www/html/.env /var/www/html/.env.production
 
 COPY .docker/production/images/configs/nginx/nginx.conf /etc/nginx/nginx.conf

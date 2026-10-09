@@ -16,6 +16,8 @@ run_as_app() {
 
 if [ -f .env.production ] && [ "$(id -u)" -eq 0 ]; then
   cp .env.production .env
+  chown "${app_user}:${app_group}" .env .env.production
+  chmod 0640 .env .env.production
 fi
 
 mkdir -p \
