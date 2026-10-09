@@ -1,3 +1,4 @@
 RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends php8.5-pcov \
-    && rm -rf /var/lib/apt/lists/*
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends php8.5-pcov unzip curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash -s bun-v1.3.6
