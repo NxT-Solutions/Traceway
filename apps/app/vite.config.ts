@@ -13,7 +13,7 @@ const devOrigin = (
 ).replace(/\/$/, '');
 const devPublic = new URL(devOrigin);
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
     plugins: lazyPlugins(() => [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
@@ -34,7 +34,10 @@ export default defineConfig({
             formVariants: true,
         }),
     ]),
-    base: '/_app/',
+    // Only the DDEV dev server sits behind nginx's /_app/ proxy path.
+    // A production build is served from Laravel's own /build/ directory,
+    // so baking /_app/ into it breaks every dynamically-imported chunk.
+    base: command === 'serve' ? '/_app/' : undefined,
     optimizeDeps: {
         exclude: ['maplibre-gl'],
     },
@@ -103,4 +106,4 @@ export default defineConfig({
             stylesheet: 'resources/css/app.css',
         },
     },
-});
+}));
