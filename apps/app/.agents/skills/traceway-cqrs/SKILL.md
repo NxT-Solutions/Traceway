@@ -22,9 +22,11 @@ A password rides on the in-memory command only. Do not log it, and do not put it
 
 ## Read path
 
-Queries live in `App\Queries` and use `DB::table`. Return arrays or a readonly DTO. Decode JSON columns with `JsonColumn`. Build a signed URL from the route id with `SignedRouteLink`.
+Queries live in `App\Queries` and use `DB::table`. A screen returns one readonly page object and calls `toArray()`. The controller does not map rows. Decode JSON columns with `JsonColumn`. Build a signed URL from the route id with `SignedRouteLink`. A JSON body for a drawn line is an `App\Http\Responses` object, not an array written in the controller.
 
 Do not load a `SavedRoute` model to render the library, a share page, a GPX file, or a data export. Do not select `password`, `two_factor_secret`, `two_factor_recovery_codes`, or `remember_token` for a screen.
+
+OpenAPI attributes sit on the controller action and on the request or response that decides the payload. `App\OpenApi\Spec` only names the document and the session cookie. Scalar draws the one document at `/docs`. A call returns the signed-in person's own data, or a course opened with a signed link.
 
 ## What stays put
 

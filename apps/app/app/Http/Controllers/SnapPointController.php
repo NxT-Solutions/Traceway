@@ -5,31 +5,59 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Routing\Sport;
+use App\Http\Requests\SnapPointRequest;
 use App\Integrations\Valhalla\Requests\LocateRequest;
 use App\Integrations\Valhalla\ValhallaConnector;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
+use OpenApi\Attributes\JsonContent;
+use OpenApi\Attributes\Post;
+use OpenApi\Attributes\Property;
+use OpenApi\Attributes\RequestBody;
+use OpenApi\Attributes\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Throwable;
 
 class SnapPointController extends Controller
 {
-    public function __invoke(Request $request, ValhallaConnector $valhallaConnector): JsonResponse
+    #[Post(
+        path: '/routes/snap',
+        operationId: 'snapPoint',
+        summary: 'Move a point onto the nearest road or path',
+        security: [['session' => []]],
+        tags: ['Routes'],
+    )]
+    #[RequestBody(
+        ref: '#/components/requestBodies/SnapPointRequest',
+        description: 'A point and the sport used to choose a road or a path.',
+        required: true,
+    )]
+    #[Response(
+        response: HttpResponse::HTTP_OK,
+        description: 'The snapped point.',
+        content: new JsonContent(
+            required: ['latitude', 'longitude'],
+            properties: [
+                new Property(property: 'latitude', type: 'number'),
+                new Property(property: 'longitude', type: 'number'),
+            ],
+            type: 'object',
+        ),
+    )]
+    #[Response(
+        response: HttpResponse::HTTP_UNAUTHORIZED,
+        description: 'No signed-in person.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
+    )]
+    #[Response(
+        response: HttpResponse::HTTP_UNPROCESSABLE_ENTITY,
+        description: 'Nothing is close enough.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
+    )]
+    public function __invoke(SnapPointRequest $snapPointRequest, ValhallaConnector $valhallaConnector): JsonResponse
     {
-        $validated = Validator::make($request->all(), [
-            'latitude' => ['required', 'numeric', 'between:-90,90'],
-            'longitude' => ['required', 'numeric', 'between:-180,180'],
-            'sport' => ['required', Rule::enum(Sport::class)],
-        ])->validate();
-
-        $sportValue = $validated['sport'] ?? null;
-        $latitude = $validated['latitude'] ?? null;
-        $longitude = $validated['longitude'] ?? null;
-
-        abort_if(! is_string($sportValue) || ! is_numeric($latitude) || ! is_numeric($longitude), 422);
-
-        $sport = Sport::from($sportValue);
+        $sport = $snapPointRequest->sport();
+        $latitude = $snapPointRequest->float('latitude');
+        $longitude = $snapPointRequest->float('longitude');
         $onFoot = match ($sport) {
             Sport::Run, Sport::TrailRun, Sport::Walk, Sport::Hike => true,
             Sport::Road, Sport::Gravel, Sport::Mtb => false,
@@ -37,8 +65,8 @@ class SnapPointController extends Controller
 
         try {
             $response = $valhallaConnector->send(new LocateRequest(
-                latitude: (float) $latitude,
-                longitude: (float) $longitude,
+                latitude: $latitude,
+                longitude: $longitude,
                 costing: $onFoot ? 'pedestrian' : 'bicycle',
             ));
         } catch (Throwable) {

@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\DB;
 
 final class LibraryQuery
 {
+    public function page(int $riderId): LibraryPage
+    {
+        return new LibraryPage($this->forRider($riderId));
+    }
+
     /**
      * @return list<LibraryRoute>
      */

@@ -8,11 +8,49 @@ use App\Domain\Routing\GeneratedRoute;
 use App\Domain\Routing\RouteCleanliness;
 use App\Domain\Routing\RoutingEngine;
 use App\Http\Requests\BuildRouteRequest;
+use App\Http\Responses\BuiltRoute;
 use Illuminate\Http\JsonResponse;
+use OpenApi\Attributes\JsonContent;
+use OpenApi\Attributes\Post;
+use OpenApi\Attributes\RequestBody;
+use OpenApi\Attributes\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Throwable;
 
 class BuildRouteController extends Controller
 {
+    #[Post(
+        path: '/routes/build',
+        operationId: 'buildRoute',
+        summary: 'Join points along the roads',
+        security: [['session' => []]],
+        tags: ['Routes'],
+    )]
+    #[RequestBody(
+        ref: '#/components/requestBodies/BuildRouteRequest',
+        description: 'The points to join, and how the roads should be chosen.',
+        required: true,
+    )]
+    #[Response(
+        response: HttpResponse::HTTP_OK,
+        description: 'The line through those points.',
+        content: new JsonContent(ref: '#/components/schemas/BuiltRoute'),
+    )]
+    #[Response(
+        response: HttpResponse::HTTP_UNAUTHORIZED,
+        description: 'No signed-in person.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
+    )]
+    #[Response(
+        response: HttpResponse::HTTP_UNPROCESSABLE_ENTITY,
+        description: 'The points are not enough, or the roads miss one.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
+    )]
+    #[Response(
+        response: HttpResponse::HTTP_BAD_GATEWAY,
+        description: 'Those points did not join along the roads.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
+    )]
     public function __invoke(BuildRouteRequest $buildRouteRequest, RoutingEngine $routingEngine): JsonResponse
     {
         $waypoints = $buildRouteRequest->waypoints();
@@ -31,7 +69,7 @@ class BuildRouteController extends Controller
             $closing = $finish && $last !== $start ? [$last, $start] : [];
             $line = $closing === [] ? $waypoints : array_merge($waypoints, [$start]);
 
-            return response()->json($this->payload($line, $waypoints, $finish ? $closing : null, $waypoints));
+            return response()->json(BuiltRoute::from($line, $waypoints, $finish ? $closing : null, $waypoints)->toArray());
         }
 
         $ridden = $waypoints;
@@ -65,104 +103,6 @@ class BuildRouteController extends Controller
         $tail = $closing instanceof GeneratedRoute ? $closing->coordinates : [];
         $line = $tail === [] ? $user : array_merge($user, array_slice($tail, 1));
 
-        return response()->json($this->payload($line, $user, $finish ? $tail : null, $waypoints, $through->ascentMetres));
-    }
-
-    /**
-     * @param  list<array{0: float, 1: float}>  $line
-     * @param  list<array{0: float, 1: float}>  $user
-     * @param  list<array{0: float, 1: float}>|null  $finish
-     * @param  list<array{0: float, 1: float}>  $waypoints
-     * @return array<string, mixed>
-     */
-    private function payload(array $line, array $user, ?array $finish, array $waypoints, int $ascent = 0): array
-    {
-        $userMetres = $this->lengthMetres($user);
-        $finishMetres = $finish === null ? 0 : $this->lengthMetres($finish);
-
-        return [
-            'distance_metres' => $userMetres + $finishMetres,
-            'ascent_metres' => $ascent,
-            'coordinates' => $line,
-            'user_coordinates' => $user,
-            'finish_coordinates' => $finish ?? [],
-            'user_metres' => $userMetres,
-            'finish_metres' => $finishMetres,
-            'legs_metres' => $this->legs($user, $waypoints),
-        ];
-    }
-
-    /**
-     * Distance along the drawn line from each point to the next.
-     *
-     * @param  list<array{0: float, 1: float}>  $line
-     * @param  list<array{0: float, 1: float}>  $waypoints
-     * @return list<int>
-     */
-    private function legs(array $line, array $waypoints): array
-    {
-        $indexes = [];
-
-        foreach ($waypoints as $waypoint) {
-            $best = 0;
-            $bestDistance = INF;
-
-            foreach ($line as $index => $vertex) {
-                $distance = $this->metres($waypoint, $vertex);
-
-                if ($distance < $bestDistance) {
-                    $bestDistance = $distance;
-                    $best = $index;
-                }
-            }
-
-            $indexes[] = $best;
-        }
-
-        $legs = [];
-
-        for ($index = 1, $count = count($indexes); $index < $count; $index++) {
-            $from = min($indexes[$index - 1], $indexes[$index]);
-            $to = max($indexes[$index - 1], $indexes[$index]);
-            $legs[] = $this->lengthMetres(array_slice($line, $from, $to - $from + 1));
-        }
-
-        return $legs;
-    }
-
-    /**
-     * @param  list<array{0: float, 1: float}>  $coordinates
-     */
-    private function lengthMetres(array $coordinates): int
-    {
-        $metres = 0.0;
-
-        for ($index = 1, $count = count($coordinates); $index < $count; $index++) {
-            $from = $coordinates[$index - 1] ?? null;
-            $to = $coordinates[$index] ?? null;
-
-            if ($from === null || $to === null) {
-                continue;
-            }
-
-            $metres += $this->metres($from, $to);
-        }
-
-        return (int) round($metres);
-    }
-
-    /**
-     * @param  array{0: float, 1: float}  $from
-     * @param  array{0: float, 1: float}  $to
-     */
-    private function metres(array $from, array $to): float
-    {
-        $lat1 = deg2rad($from[1]);
-        $lat2 = deg2rad($to[1]);
-        $dLat = $lat2 - $lat1;
-        $dLon = deg2rad($to[0] - $from[0]);
-        $a = sin($dLat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($dLon / 2) ** 2;
-
-        return 2 * 6_371_000 * asin(min(1.0, sqrt($a)));
+        return response()->json(BuiltRoute::from($line, $user, $finish ? $tail : null, $waypoints, $through->ascentMetres)->toArray());
     }
 }

@@ -6,7 +6,6 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Queries\Routes\LibraryQuery;
-use App\Queries\Routes\LibraryRoute;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,11 +18,6 @@ class SavedRouteLibraryController extends Controller
 
         abort_unless($user instanceof User, 403);
 
-        return Inertia::render('saved', [
-            'routes' => array_map(
-                fn (LibraryRoute $libraryRoute): array => $libraryRoute->toArray(),
-                $libraryQuery->forRider($user->id),
-            ),
-        ]);
+        return Inertia::render('saved', $libraryQuery->page($user->id)->toArray());
     }
 }

@@ -8,6 +8,11 @@ use App\Routes\RouteId;
 
 final class SharedRouteQuery
 {
+    public function page(RouteId $routeId): SharedRoutePage
+    {
+        return new SharedRoutePage($this->find($routeId));
+    }
+
     public function find(RouteId $routeId): SharedRoute
     {
         $rowReader = SavedRouteRow::find($routeId->value);

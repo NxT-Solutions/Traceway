@@ -82,6 +82,11 @@ final readonly class RowReader
         return JsonColumn::optionalLine($this->value($key));
     }
 
+    public function mixed(string $key): mixed
+    {
+        return $this->value($key);
+    }
+
     private function value(string $key): mixed
     {
         $values = get_object_vars($this->row);
