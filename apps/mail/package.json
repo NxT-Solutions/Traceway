@@ -1,0 +1,11 @@
+{
+    "name": "traceway-mail",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "maizzle build production"
+    },
+    "dependencies": {
+        "@maizzle/framework": "^5.5.0"
+    }
+}
