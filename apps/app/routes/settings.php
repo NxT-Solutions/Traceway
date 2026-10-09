@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\PasskeyEndpointsController;
 use App\Http\Controllers\Settings\PrivacyController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
@@ -33,7 +34,4 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('settings/appearance', fn () => Inertia::render('settings/appearance'))->name('appearance.edit');
 });
 
-Route::get('.well-known/passkey-endpoints', fn () => response()->json([
-    'enroll' => route('security.edit'),
-    'manage' => route('security.edit'),
-]))->name('well-known.passkeys');
+Route::get('.well-known/passkey-endpoints', PasskeyEndpointsController::class)->name('well-known.passkeys');

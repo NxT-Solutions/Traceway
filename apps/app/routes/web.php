@@ -31,6 +31,9 @@ Route::get('share/{savedRoute}/fit', [ExportSharedCourseController::class, 'fit'
     ->middleware('signed')
     ->name('routes.share.fit');
 
+Route::redirect('docs/public', '/docs');
+Route::redirect('docs/account', '/docs');
+
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('dashboard', fn () => Inertia::render('dashboard'))->name('dashboard');
     Route::get('saved', SavedRouteLibraryController::class)->name('routes.library');
