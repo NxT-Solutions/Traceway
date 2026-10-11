@@ -3,14 +3,17 @@ import '@fontsource/outfit/400.css';
 import '@fontsource/outfit/500.css';
 import '@fontsource/outfit/600.css';
 import '../styles/global.css';
-import Mark from '../components/Mark.astro';
+import '../styles/page.css';
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteHeader from '../components/SiteHeader.astro';
 
 interface Props {
     title: string;
     description: string;
+    current?: 'how' | 'sports' | 'devices' | 'faq' | 'notes';
 }
 
-const { title, description } = Astro.props;
+const { title, description, current } = Astro.props;
 const pageTitle = title === 'Traceway' ? title : `${title} · Traceway`;
 ---
 
@@ -18,30 +21,18 @@ const pageTitle = title === 'Traceway' ? title : `${title} · Traceway`;
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+        <meta name="theme-color" content="#f6f3ea" />
         <title>{pageTitle}</title>
         <meta name="description" content={description} />
         <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
     </head>
-    <body>
-        <header class="shell site-header">
-            <a class="brand" href="/">
-                <Mark />
-                Traceway
-            </a>
-            <nav class="nav">
-                <a href="/#generate">How it works</a>
-                <a href="/#sports">Sports</a>
-                <a href="/#devices">Devices</a>
-                <a href="/#notes">Notes</a>
-                <a href="/login">Log in</a>
-                <a class="button" href="/dashboard">Open the planner</a>
-            </nav>
-        </header>
+    <body id="top">
+        <SiteHeader current={current} />
         <slot />
-        <footer class="shell site-footer">
-            <span>Loops for every sport.</span>
-            <span>Map data from OpenStreetMap.</span>
-        </footer>
+        <SiteFooter />
     </body>
 </html>

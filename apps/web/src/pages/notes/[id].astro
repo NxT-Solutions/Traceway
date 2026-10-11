@@ -15,14 +15,23 @@ const { note } = Astro.props;
 const { Content } = await render(note);
 ---
 
-<Base title={note.data.title} description={note.data.description}>
-    <main class="shell page">
+<Base
+    title={note.data.title}
+    description={note.data.description}
+    current="notes"
+>
+    <main class="wrap page">
         <p class="kicker">
             {note.data.published.toLocaleDateString('en', { dateStyle: 'medium' })}
         </p>
         <h1>{note.data.title}</h1>
+        <p class="lede">{note.data.description}</p>
         <div class="prose">
             <Content />
+        </div>
+        <div class="page-cta">
+            <a class="fill" href="/dashboard">Open the planner</a>
+            <a class="back" href="/notes">All notes</a>
         </div>
     </main>
 </Base>

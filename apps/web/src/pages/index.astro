@@ -1,10 +1,14 @@
 ---
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteHeader from '../components/SiteHeader.astro';
 import body from '../home/body.html?raw';
 import V2 from '../layouts/V2.astro';
 ---
 
 <V2>
+    <SiteHeader home />
     <Fragment set:html={body} />
+    <SiteFooter home />
 </V2>
 
 <script>

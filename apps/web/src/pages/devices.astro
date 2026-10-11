@@ -4,9 +4,10 @@ import Base from '../layouts/Base.astro';
 
 <Base
     title="Devices"
+    current="devices"
     description="GPX and FIT courses for a watch, a GPS, or a bike computer."
 >
-    <main class="shell page">
+    <main class="wrap page">
         <p class="kicker">Devices</p>
         <h1>The device already knows the map.</h1>
         <div class="prose">
@@ -25,6 +26,10 @@ import Base from '../layouts/Base.astro';
                 Automatic publish into a Garmin account waits on their Courses API.
                 The file works before that approval.
             </p>
+        </div>
+        <div class="page-cta">
+            <a class="fill" href="/dashboard">Open the planner</a>
+            <small>Loops for every sport.</small>
         </div>
     </main>
 </Base>

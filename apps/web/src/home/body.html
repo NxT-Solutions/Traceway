@@ -1,22 +1,3 @@
-<header class="hdr" id="hdr">
-  <div class="wrap">
-    <a class="brand" href="#top" aria-label="Traceway, back to top">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path class="mk" d="M6 23 V12 a6 6 0 0 1 6 -6 h4 a6 6 0 0 1 6 6 v3" stroke="oklch(0.22 0.03 200)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path><circle class="mkd" cx="22" cy="22" r="3" fill="oklch(0.22 0.03 200)"></circle></svg>
-      <span>Traceway</span>
-    </a>
-    <nav class="nav" aria-label="Sections">
-      <a href="#how">How it works</a>
-      <a href="#sports">Sports</a>
-      <a href="#devices">Devices</a>
-      <a href="#faq">FAQ</a>
-    </nav>
-    <div class="hdr-r">
-      <a class="login" href="/login">Log in</a>
-      <a class="fill sm" href="/dashboard">Open the planner</a>
-    </div>
-  </div>
-</header>
-
 <section class="track" id="generate" aria-label="How a loop is generated">
   <div class="stage" id="stage">
     <div class="copy">
@@ -181,6 +162,17 @@
           </g>
         </g>
       </svg>
+      <div class="mapdim" id="mapdim" aria-hidden="true"></div>
+      <ol class="rail" id="rail" aria-hidden="true">
+        <li data-a="0">Pin</li>
+        <li data-a="1">Search</li>
+        <li data-a="2">Loops</li>
+        <li data-a="3">Choose</li>
+        <li data-a="4">Direction</li>
+        <li data-a="5">Via</li>
+        <li data-a="6">Export</li>
+      </ol>
+      <p class="act" id="act" aria-hidden="true"><span id="act-n">01</span> <span id="act-t">Pin</span></p>
       <div class="device" id="device" aria-hidden="true">
         <div class="filecard">
           <div class="fn">morning-loop.fit</div>
@@ -211,15 +203,6 @@
       <div id="h-course"><dt>Course</dt><dd id="v-course">Drawing…</dd></div>
     </dl>
 
-    <ol class="rail" id="rail" aria-hidden="true">
-      <li data-a="0">Pin</li>
-      <li data-a="1">Search</li>
-      <li data-a="2">Loops</li>
-      <li data-a="3">Choose</li>
-      <li data-a="4">Direction</li>
-      <li data-a="5">Via</li>
-      <li data-a="6">Export</li>
-    </ol>
   </div>
 </section>
 
@@ -393,27 +376,3 @@
     </div>
   </div>
 </section>
-
-<footer>
-  <div class="wrap foot">
-    <a class="brand" href="#top">
-      <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M6 23 V12 a6 6 0 0 1 6 -6 h4 a6 6 0 0 1 6 6 v3" stroke="oklch(0.22 0.03 200)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="22" cy="22" r="3" fill="oklch(0.22 0.03 200)"></circle></svg>
-      <span>Traceway</span>
-    </a>
-    <div class="cols">
-      <div>
-        <h4>Page</h4>
-        <ul><li><a href="#how">How it works</a></li><li><a href="#sports">Sports</a></li><li><a href="#devices">Devices</a></li><li><a href="#faq">Questions</a></li></ul>
-      </div>
-      <div>
-        <h4>Notes from the road</h4>
-        <ul><li><a href="/notes/onto-the-computer">Onto the computer</a></li><li><a href="/notes/from-the-driveway">From the driveway</a></li></ul>
-      </div>
-      <div>
-        <h4>Account</h4>
-        <ul><li><a href="/login">Log in</a></li><li><a href="/dashboard">Open the planner</a></li></ul>
-      </div>
-    </div>
-    <div class="line"><span>Loops for every sport.</span><span>Map data from OpenStreetMap.</span></div>
-  </div>
-</footer>

@@ -1,0 +1,48 @@
+---
+import Mark from './Mark.astro';
+
+interface Props {
+    home?: boolean;
+}
+
+const { home = false } = Astro.props;
+const at = (hash: string): string => (home ? hash : `/${hash}`);
+---
+
+<footer class="site-foot">
+    <div class="wrap foot">
+        <a class="brand" href={home ? '#top' : '/'}>
+            <Mark size={22} />
+            <span>Traceway</span>
+        </a>
+        <div class="cols">
+            <div>
+                <h4>Page</h4>
+                <ul>
+                    <li><a href={at('#how')}>How it works</a></li>
+                    <li><a href={at('#sports')}>Sports</a></li>
+                    <li><a href={at('#devices')}>Devices</a></li>
+                    <li><a href={at('#faq')}>Questions</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Notes from the road</h4>
+                <ul>
+                    <li><a href="/notes/onto-the-computer">Onto the computer</a></li>
+                    <li><a href="/notes/from-the-driveway">From the driveway</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Account</h4>
+                <ul>
+                    <li><a href="/login">Log in</a></li>
+                    <li><a href="/dashboard">Open the planner</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="line">
+            <span>Loops for every sport.</span>
+            <span>Map data from OpenStreetMap.</span>
+        </div>
+    </div>
+</footer>
