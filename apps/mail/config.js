@@ -8,4 +8,16 @@ export default {
             from: 'emails',
         },
     },
+    components: {
+        folders: ['layouts', 'components'],
+    },
+    css: {
+        inline: {
+            removeInlinedSelectors: false,
+            preferUnitlessValues: false,
+        },
+        shorthand: true,
+        safe: true,
+    },
+    prettify: true,
 };

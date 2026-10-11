@@ -44,8 +44,10 @@ class AccountMessage extends Mailable implements ShouldQueue
     {
         return new Content(
             view: 'mail.frame',
+            text: 'mail.text',
             with: [
                 'html' => TracewayMail::html($this->template, $this->values),
+                'text' => TracewayMail::text($this->template, $this->values),
             ],
         );
     }
