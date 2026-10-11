@@ -43,7 +43,7 @@ export default function DeleteUser() {
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
-                        <DialogTitle>
+                        <DialogTitle className="pr-8">
                             Are you sure you want to delete your account?
                         </DialogTitle>
                         <DialogDescription>

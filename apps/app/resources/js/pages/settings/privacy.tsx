@@ -106,10 +106,7 @@ export default function Privacy({
                     here. A copy of the file is also sent to {account.email}.
                 </p>
 
-                <a
-                    className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[var(--chart)] px-4 text-sm font-semibold text-[var(--chart-ink)]"
-                    href="/settings/privacy/export"
-                >
+                <a className="fill" href="/settings/privacy/export">
                     Download your data
                 </a>
             </div>
