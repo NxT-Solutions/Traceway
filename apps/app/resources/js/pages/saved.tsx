@@ -11,6 +11,7 @@ import {
     useState,
 } from 'react';
 import { useAppearance } from '@/hooks/use-appearance';
+import { themedMapStyle } from '@/lib/maplibre';
 import {
     ensureDirectionArrows,
     resizeDirectionArrows,
@@ -158,7 +159,7 @@ function RouteShape({ coordinates }: { coordinates: Coordinate[] }) {
             <polyline
                 points={points}
                 fill="none"
-                stroke="#16303a"
+                stroke="currentColor"
                 strokeWidth="3"
                 strokeLinejoin="round"
                 strokeLinecap="round"
@@ -294,6 +295,9 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
     } | null>(null);
     const [copied, setCopied] = useState(false);
     const [images, setImages] = useState<Record<string, string>>({});
+    const redrawLibrary = useRef<() => void>(() => {});
+    const appearanceRef = useRef(resolvedAppearance);
+    const libraryEventsBound = useRef(false);
     const mapNode = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const geolocateRef = useRef<maplibregl.GeolocateControl | null>(null);
@@ -368,7 +372,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
         document.body.appendChild(node);
         const mapOptions = {
             container: node,
-            style: 'https://tiles.openfreemap.org/styles/liberty',
+            style: themedMapStyle(resolvedAppearance),
             interactive: false,
             attributionControl: false as const,
             preserveDrawingBuffer: true,
@@ -454,10 +458,12 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                     }));
                     take(index + 1);
                 };
-                map.once('moveend', () => {
+                // "idle" waits for the tiles to load and paint. A shot taken
+                // before that is a blank canvas that hides the outline below.
+                map.once('idle', () => {
                     requestAnimationFrame(shoot);
                 });
-                window.setTimeout(shoot, 800);
+                window.setTimeout(shoot, 6000);
             };
             take(0);
         });
@@ -467,7 +473,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
             map.remove();
             node.remove();
         };
-    }, [routes]);
+    }, [routes, resolvedAppearance]);
 
     useEffect(() => {
         if (!showMap) {
@@ -482,7 +488,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
 
         const map = new maplibregl.Map({
             container: node,
-            style: 'https://tiles.openfreemap.org/styles/liberty',
+            style: themedMapStyle(appearanceRef.current),
             center: [4.4, 50.8],
             zoom: 7,
             attributionControl: false,
@@ -521,14 +527,25 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
         const resizeArrows = () => resizeDirectionArrows(map);
         map.on('zoomend', refreshArrows);
         map.on('resize', resizeArrows);
+        map.on('style.load', () => redrawLibrary.current());
         window.addEventListener('resize', resizeArrows);
 
         return () => {
             window.removeEventListener('resize', resizeArrows);
             map.remove();
             mapRef.current = null;
+            libraryEventsBound.current = false;
         };
     }, [showMap]);
+
+    useEffect(() => {
+        if (appearanceRef.current === resolvedAppearance) {
+            return;
+        }
+
+        appearanceRef.current = resolvedAppearance;
+        mapRef.current?.setStyle(themedMapStyle(resolvedAppearance));
+    }, [resolvedAppearance]);
 
     const libraryPadding = useCallback(
         (map: maplibregl.Map): maplibregl.PaddingOptions => {
@@ -612,6 +629,10 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                         'line-opacity': 0,
                     },
                 });
+            }
+
+            if (!libraryEventsBound.current) {
+                libraryEventsBound.current = true;
                 map.on('click', 'library-hit', (event: MapLayerMouseEvent) => {
                     const id = event.features?.[0]?.properties?.id;
 
@@ -635,12 +656,12 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                         setCopied(false);
                     }
                 });
-            } else {
-                const source = map.getSource('library');
+            }
 
-                if (source?.type === 'geojson') {
-                    (source as GeoJSONSource).setData(data);
-                }
+            const source = map.getSource('library');
+
+            if (source?.type === 'geojson') {
+                (source as GeoJSONSource).setData(data);
             }
 
             const arrowLines = data.features.map(
@@ -668,6 +689,8 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                 duration: 180,
             });
         };
+
+        redrawLibrary.current = draw;
 
         if (map.isStyleLoaded()) {
             draw();
@@ -1525,10 +1548,12 @@ function RouteDetail({
                     <span>Distance</span>
                     <b>{kilometres(route.distance_metres)}</b>
                 </p>
-                <p>
-                    <span>Climb</span>
-                    <b>{route.ascent_metres} m</b>
-                </p>
+                {route.ascent_metres > 0 ? (
+                    <p>
+                        <span>Climb</span>
+                        <b>{route.ascent_metres} m</b>
+                    </p>
+                ) : null}
             </div>
             <div className="quiet">
                 <button type="button" onClick={onCopy}>
