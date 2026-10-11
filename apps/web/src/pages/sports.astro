@@ -11,21 +11,29 @@ const sports = [
 ];
 ---
 
-<Base title="Sports" description="Foot and bike, each with its own idea of a good line.">
-    <main class="shell page">
+<Base
+    title="Sports"
+    description="Foot and bike, each with its own idea of a good line."
+    current="sports"
+>
+    <main class="wrap page">
         <p class="kicker">Sports</p>
         <h1>Foot and bike. One profile each.</h1>
-        <div class="card">
-            <ul class="rows">
-                {
-                    sports.map(([name, copy]) => (
-                        <li>
+        <ul class="rows">
+            {
+                sports.map(([name, copy]) => (
+                    <li>
+                        <div class="row">
                             <h2>{name}</h2>
                             <p>{copy}</p>
-                        </li>
-                    ))
-                }
-            </ul>
+                        </div>
+                    </li>
+                ))
+            }
+        </ul>
+        <div class="page-cta">
+            <a class="fill" href="/dashboard">Open the planner</a>
+            <small>Loops for every sport.</small>
         </div>
     </main>
 </Base>

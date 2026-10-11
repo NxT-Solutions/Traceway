@@ -4,9 +4,10 @@ import Base from '../layouts/Base.astro';
 
 <Base
     title="How it works"
+    current="how"
     description="A sport, a loop, and a course file for your watch or GPS."
 >
-    <main class="shell page">
+    <main class="wrap page">
         <p class="kicker">How it works</p>
         <h1>The line comes from the map, not from a guess.</h1>
         <div class="prose">
@@ -25,7 +26,10 @@ import Base from '../layouts/Base.astro';
                 The planner itself lives in the app. This site is the quiet
                 explanation you can read before you open it.
             </p>
-            <a class="button" href="/dashboard">Open the planner</a>
+        </div>
+        <div class="page-cta">
+            <a class="fill" href="/dashboard">Open the planner</a>
+            <small>Loops for every sport.</small>
         </div>
     </main>
 </Base>

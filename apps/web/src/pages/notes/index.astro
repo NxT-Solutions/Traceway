@@ -2,28 +2,34 @@
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 
+const arrow =
+    '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 4l6 6-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+
 const notes = (await getCollection('notes')).sort(
     (a, b) => b.data.published.valueOf() - a.data.published.valueOf(),
 );
 ---
 
-<Base title="Notes" description="Short notes on planning a route and sending it to a device.">
-    <main class="shell page">
+<Base
+    title="Notes"
+    description="Short notes on planning a route and sending it to a device."
+    current="notes"
+>
+    <main class="wrap page">
         <p class="kicker">Notes</p>
         <h1>From the table to the bar.</h1>
-        <div class="card">
-            <ul class="rows">
-                {
-                    notes.map((note) => (
-                        <li>
-                            <a href={`/notes/${note.id}`}>
-                                <h2>{note.data.title}</h2>
-                                <p>{note.data.description}</p>
-                            </a>
-                        </li>
-                    ))
-                }
-            </ul>
-        </div>
+        <ul class="rows">
+            {
+                notes.map((note) => (
+                    <li>
+                        <a href={`/notes/${note.id}`}>
+                            <h2>{note.data.title}</h2>
+                            <p>{note.data.description}</p>
+                            <Fragment set:html={arrow} />
+                        </a>
+                    </li>
+                ))
+            }
+        </ul>
     </main>
 </Base>

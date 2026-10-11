@@ -37,6 +37,8 @@ import Lenis from 'lenis';
   var vRoads = $('v-roads'), vCand = $('v-cand'), vLoop = $('v-loop'), vAsc = $('v-asc'), vCourse = $('v-course');
   var hRoads = $('h-roads'), hCand = $('h-cand'), hLoop = $('h-loop'), hAsc = $('h-asc'), hCourse = $('h-course');
   var rail = Array.prototype.slice.call(d.querySelectorAll('#rail li'));
+  var mapdim = $('mapdim'), actN = $('act-n'), actT = $('act-t'), lastAct = -1;
+  var heroBtn = d.querySelector('.hero-btn');
 
   var LA = 118.7, LO = 90.7, LB = 642.8, LT = LA + LO + LB; /* winner piece lengths */
   var fA = LA / LT, fO = LO / LT;
@@ -45,6 +47,8 @@ import Lenis from 'lenis';
   var setOp = function(el, v){ if (el) el.style.opacity = v; };
   var lastRoads = '', lastLoop = '', lastCand = '', lastAsc = '', lastCourse = '';
   var narrow = window.innerWidth < 1024;
+  var lastWidth = window.innerWidth;
+  var lastSideways = null;
   var view = [0, 0, 1200, 800];
 
   function syncCanvas(){
@@ -137,10 +141,38 @@ import Lenis from 'lenis';
   var SW = [[0.085,0.345],[0.345,0.56],[0.56,0.655],[0.655,0.735],[0.735,0.845],[0.845,1.01]];
   var ACTS = [0, 0.085, 0.345, 0.56, 0.655, 0.735, 0.845];
 
+  /* Desktop shows the whole sheet beside the copy. On a phone or tablet the
+     map fills the stage; the part where the story happens, the pin, the three
+     loops and the via, is framed in the clear window between the sentence on
+     top and the readout below, as large as that window allows. */
+  var FOCUS = { cx: 838, cy: 376, w: 620, h: 580 };
+  var copyInner = d.querySelector('.copy-inner'), copyBox = d.querySelector('.copy'), hud = $('hud');
+  var sideways = window.matchMedia('(max-width: 1023px) and (max-height: 520px) and (orientation: landscape)');
+  lastSideways = sideways.matches;
   function fitMap(){
     var r = mapbox.getBoundingClientRect();
-    var portrait = r.width / Math.max(1, r.height) < 1.08;
-    var box = portrait ? '470 90 660 640' : '0 0 1200 800';
+    var box = '0 0 1200 800';
+    if (narrow && r.width > 0 && r.height > 0){
+      var left = 0, top;
+      var bottom = r.bottom - hud.getBoundingClientRect().top;
+      if (sideways.matches){
+        left = copyBox.getBoundingClientRect().right - r.left;
+        top = 44;
+      } else {
+        top = copyInner.getBoundingClientRect().bottom - r.top + 22;
+      }
+      var ww = r.width - left;
+      var wh = Math.max(120, r.height - top - bottom - 20);
+      var s = Math.min(ww / FOCUS.w, wh / FOCUS.h);
+      var x0 = FOCUS.cx - (left + ww / 2) / s;
+      var y0 = FOCUS.cy - (top + 6 + wh / 2) / s;
+      box = [x0, y0, r.width / s, r.height / s].map(function(v){ return Math.round(v * 10) / 10; }).join(' ');
+      stage.style.setProperty('--clear-left', Math.round(left) + 'px');
+      stage.style.setProperty('--clear-top', Math.round(top) + 'px');
+      stage.style.setProperty('--clear-bottom', Math.round(bottom) + 'px');
+      stage.style.setProperty('--hero-h', Math.round(hero.getBoundingClientRect().bottom - stage.getBoundingClientRect().top) + 'px');
+    }
+    if (map.getAttribute('viewBox') === box) return;
     map.setAttribute('viewBox', box);
     var pinlayer = d.getElementById('pinlayer');
     if (pinlayer) pinlayer.setAttribute('viewBox', box);
@@ -148,11 +180,13 @@ import Lenis from 'lenis';
 
   var lastP = -1;
   function render(p){
+    lastP = p;
     /* hero */
     var h = ph(p, 0.025, 0.085);
     hero.style.opacity = 1 - h;
     hero.style.transform = 'translateY(' + (-18 * h) + 'px)';
     hero.style.visibility = h >= 1 ? 'hidden' : 'visible';
+    stage.style.setProperty('--hero', String(1 - h));
 
     var rp = ph(p, 0.05, 0.2);
     var wv = easeOut(ph(p, 0.085, 0.345));
@@ -232,7 +266,8 @@ import Lenis from 'lenis';
     /* device */
     var dv = ph(p, 0.845, 0.905);
     device.style.opacity = dv;
-    device.style.transform = (narrow ? 'scale(.82) ' : '') + 'translateY(' + (24 * (1 - dv)) + 'px)';
+    device.style.transform = (narrow ? 'translateX(-50%) ' : '') + 'translateY(' + (24 * (1 - dv)) + 'px)';
+    if (narrow) mapdim.style.opacity = 0.62 * dv;
     setOff(devLoop, 1 - ph(p, 0.88, 0.97));
     var done = p >= 0.955;
     var courseLabel = done ? 'morning-loop.fit' : 'Drawing…';
@@ -252,6 +287,24 @@ import Lenis from 'lenis';
     var act = 0;
     for (var r = 0; r < ACTS.length; r++) if (p >= ACTS[r]) act = r;
     for (var r2 = 0; r2 < rail.length; r2++) rail[r2].className = r2 === act ? 'on' : (r2 < act ? 'done' : '');
+    if (act !== lastAct && rail[act]){
+      lastAct = act;
+      actN.textContent = (act < 9 ? '0' : '') + (act + 1);
+      actT.textContent = rail[act].textContent;
+    }
+    syncHeaderCta();
+  }
+
+  /* The hero carries the filled button. The header's copy stays out of the
+     way until the hero has faded or scrolled off, so there is one at a time. */
+  function syncHeaderCta(){
+    if (!heroBtn) return;
+    var shown = hero.style.visibility !== 'hidden' && (hero.style.opacity === '' || +hero.style.opacity > 0.35);
+    if (shown){
+      var b = heroBtn.getBoundingClientRect();
+      shown = b.bottom > hdr.getBoundingClientRect().bottom && b.top < window.innerHeight;
+    }
+    hdr.classList.toggle('cta-away', shown);
   }
 
   function headerTheme(){
@@ -269,30 +322,52 @@ import Lenis from 'lenis';
     return clamp((hh - r.top) / range, 0, 1);
   }
 
+  /* A phone fires resize when its toolbar shows or hides. Only a change of
+     width means a new layout; refreshing on height alone makes the pinned
+     scene jump under the reader's thumb. */
   function onResize(){
-    narrow = window.innerWidth < 1024;
     fitMap();
-    if (!reduce) ScrollTrigger.refresh();
+    if (window.innerWidth !== lastWidth || sideways.matches !== lastSideways){
+      lastSideways = sideways.matches;
+      lastWidth = window.innerWidth;
+      narrow = window.innerWidth < 1024;
+      fitMap();
+      if (!reduce) ScrollTrigger.refresh();
+    }
+    if (reduce) renderStill(); else render(lastP < 0 ? 0 : lastP);
   }
 
   gsap.registerPlugin(ScrollTrigger);
   fitMap();
-  if (reduce){
+  /* Reduced motion: the finished scene, still, with the hero on top. */
+  function renderStill(){
     render(1);
     hero.style.opacity = 1; hero.style.transform = 'none'; hero.style.visibility = 'visible';
+    stage.style.setProperty('--hero', '1');
     narr.forEach(function(n){ n.style.opacity = 0; });
     headerTheme();
+    syncHeaderCta();
+  }
+
+  if (reduce){
+    renderStill();
   } else {
-    var lenis = new Lenis({
-      lerp: 0.075,
-      smoothWheel: true,
-      wheelMultiplier: 0.85,
-      syncTouch: false,
-      anchors: true,
-      autoRaf: false,
-    });
-    lenis.on('scroll', ScrollTrigger.update);
-    gsap.ticker.add(function(time){ lenis.raf(time * 1000); });
+    /* Smooth wheel scrolling for a mouse or trackpad. A finger keeps the
+       browser's own scrolling and momentum, which Lenis would only fight. */
+    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches){
+      var lenis = new Lenis({
+        lerp: 0.075,
+        smoothWheel: true,
+        wheelMultiplier: 0.85,
+        syncTouch: false,
+        anchors: { offset: -hdr.offsetHeight },
+        autoRaf: false,
+      });
+      lenis.on('scroll', ScrollTrigger.update);
+      gsap.ticker.add(function(time){ lenis.raf(time * 1000); });
+    } else {
+      root.classList.add('native-scroll');
+    }
     gsap.ticker.lagSmoothing(0);
     ScrollTrigger.create({
       trigger: track,
@@ -308,6 +383,8 @@ import Lenis from 'lenis';
     render(0);
   }
   window.addEventListener('resize', onResize);
+  window.addEventListener('scroll', function(){ if (reduce){ headerTheme(); syncHeaderCta(); } }, { passive: true });
+  syncHeaderCta();
 
   /* ---------- reveals ---------- */
   var rv = Array.prototype.slice.call(d.querySelectorAll('.rv'));
