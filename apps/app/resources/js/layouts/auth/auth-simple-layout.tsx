@@ -30,8 +30,6 @@ export default function AuthSimpleLayout({
     title = '',
     description = '',
 }: AuthLayoutProps) {
-    const loggingIn = title.startsWith('Log in');
-
     return (
         <div className="tw-login">
             <header className="hdr">
@@ -47,18 +45,6 @@ export default function AuthSimpleLayout({
                         <a href="/#faq">FAQ</a>
                     </nav>
                     <div className="hdr-r">
-                        <Link
-                            href="/login"
-                            aria-current={loggingIn ? 'page' : undefined}
-                            style={{
-                                fontSize: 15,
-                                fontWeight: 500,
-                                padding: '11px 0',
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            Log in
-                        </Link>
                         <Link className="fill" href={dashboard()}>
                             <span className="long">Open the planner</span>
                             <span className="short">Planner</span>

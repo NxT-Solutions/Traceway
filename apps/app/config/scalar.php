@@ -20,8 +20,8 @@ return [
         'documentDownloadType' => 'json',
         'hideTestRequestButton' => false,
         'hideSearch' => false,
-        'darkMode' => false,
-        'forceDarkModeState' => 'light',
+        // No darkMode or forceDarkModeState: the reference follows the device
+        // until the reader flips the toggle, like the planner does.
         'hideDarkModeToggle' => false,
         'withDefaultFonts' => true,
         'telemetry' => false,
