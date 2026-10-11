@@ -41,6 +41,18 @@ ddev logs -s web
 
 `ddev logs` shows the Astro server, the planner Vite server, the queue worker, and the scheduler.
 
+### Account mail
+
+The mail sources live in `apps/mail`: one layout in `layouts/main.html`, the button in `components/`, and one file per message in `emails/`. The build inlines the styles so Outlook keeps them and writes the HTML Laravel sends to `apps/app/resources/views/mail/compiled`. Rebuild and commit that output after you change a source:
+
+```bash
+cd apps/mail
+npm ci
+npm run build
+```
+
+Local mail goes to Mailpit. `ddev mailpit` opens it.
+
 ### If port 80 or 443 is already taken
 
 Add `.ddev/config.local.yaml` (this file stays on your machine):

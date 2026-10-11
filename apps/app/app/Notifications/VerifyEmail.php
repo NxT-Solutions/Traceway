@@ -27,15 +27,18 @@ class VerifyEmail extends FortifyVerifyEmail implements ShouldQueueAfterCommit
     {
         throw_unless($notifiable instanceof User, RuntimeException::class, 'An email confirmation is sent to a rider.');
 
+        $values = [
+            'name' => $notifiable->name,
+            'email' => $notifiable->email,
+            'url' => $this->verificationUrl($notifiable),
+            'home' => url('/'),
+        ];
+
         return (new MailMessage)
             ->subject('Confirm your Traceway email')
-            ->view('mail.frame', [
-                'html' => TracewayMail::html('verify-email', [
-                    'name' => $notifiable->name,
-                    'email' => $notifiable->email,
-                    'url' => $this->verificationUrl($notifiable),
-                    'home' => url('/'),
-                ]),
+            ->view(['mail.frame', 'mail.text'], [
+                'html' => TracewayMail::html('verify-email', $values),
+                'text' => TracewayMail::text('verify-email', $values),
             ]);
     }
 }
