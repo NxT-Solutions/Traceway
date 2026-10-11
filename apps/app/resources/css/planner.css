@@ -270,7 +270,7 @@
 .tw-library .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .tw-library .card{display:flex;flex-direction:column;width:100%;padding:0;border:1px solid var(--hair);border-radius:12px;background:var(--panel);color:inherit;text-align:left;overflow:hidden;cursor:pointer}
 .tw-library .card:hover{border-color:var(--outline)}
-.tw-library .thumb{position:relative;aspect-ratio:16/10;background:var(--field)}
+.tw-library .thumb{position:relative;aspect-ratio:16/10;background:var(--field);color:var(--text)}
 .tw-library .thumb svg,.tw-library .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .tw-library .card .body{padding:12px 14px 14px}
 .tw-library .card .date{font-size:13px;color:var(--muted)}
@@ -458,6 +458,9 @@
 
 body:has(.tw-planner){overflow:hidden}
 body:has(.tw-planner[data-theme="dark"]){background:oklch(0.22 0.03 200)}
+/* The ink start pin disappears on the dark basemap. In dark it turns paper with an ink centre. */
+.tw-planner[data-theme="dark"] .tw-start-pin g[fill="#16303a"]{fill:oklch(0.97 0.012 95)}
+.tw-planner[data-theme="dark"] .tw-start-pin circle[fill="#FFFFFF"]{fill:oklch(0.22 0.03 200)}
 body:has(.tw-planner[data-theme="light"]){background:oklch(0.97 0.012 95)}
 body:has(.tw-planner) [data-slot="sheet-overlay"]{background:transparent}
 body:has(.tw-planner) [data-slot="sheet-content"]{

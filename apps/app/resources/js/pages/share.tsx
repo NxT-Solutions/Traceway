@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import * as maplibregl from 'maplibre-gl';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { streetsMapStyle } from '@/lib/maplibre';
 import {
     ensureDirectionArrows,
     resizeDirectionArrows,
@@ -41,6 +42,7 @@ const surfaceLabel: Record<string, string> = {
 
 export default function Share({ route }: { route: SharedRoute }) {
     const mapNode = useRef<HTMLDivElement>(null);
+    const [copied, setCopied] = useState(false);
     const kilometres = (route.distance_metres / 1000).toFixed(1);
 
     useEffect(() => {
@@ -53,9 +55,10 @@ export default function Share({ route }: { route: SharedRoute }) {
 
         const map = new maplibregl.Map({
             container: node,
-            style: 'https://tiles.openfreemap.org/styles/liberty',
+            style: streetsMapStyle,
             center: first,
             zoom: 12,
+            attributionControl: { compact: true },
         });
         map.addControl(
             new maplibregl.NavigationControl({ showCompass: false }),
@@ -133,12 +136,12 @@ export default function Share({ route }: { route: SharedRoute }) {
                     <button
                         type="button"
                         onClick={() => {
-                            void navigator.clipboard.writeText(
-                                window.location.href,
-                            );
+                            void navigator.clipboard
+                                .writeText(window.location.href)
+                                .then(() => setCopied(true));
                         }}
                     >
-                        Copy link
+                        {copied ? 'Copied' : 'Copy link'}
                     </button>
                 </div>
             </aside>

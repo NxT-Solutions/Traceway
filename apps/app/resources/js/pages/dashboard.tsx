@@ -3,8 +3,6 @@ import '../../css/planner.css';
 import { Bike, Footprints, Mountain } from 'lucide-react';
 import type { GeoJSONSource, MapMouseEvent } from 'maplibre-gl';
 import * as maplibregl from 'maplibre-gl';
-import { setWorkerUrl } from 'maplibre-gl';
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import {
     type ReactNode,
     type PointerEvent as ReactPointerEvent,
@@ -20,7 +18,13 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { useAppearance } from '@/hooks/use-appearance';
+import { type ResolvedAppearance, useAppearance } from '@/hooks/use-appearance';
+import {
+    darkMapStyle,
+    lightMapStyle,
+    streetsMapStyle,
+    themedMapStyle,
+} from '@/lib/maplibre';
 import {
     arrowIconSize,
     directionArrows,
@@ -29,8 +33,6 @@ import {
 } from '@/lib/route-arrows';
 import { cn } from '@/lib/utils';
 import 'maplibre-gl/dist/maplibre-gl.css';
-
-setWorkerUrl(maplibreWorkerUrl);
 
 type Coordinate = [number, number];
 type SheetName =
@@ -208,24 +210,37 @@ const surfaces = [
 
 const mapStyles = [
     {
+        id: 'auto',
+        label: 'Match appearance',
+        copy: 'Streets in light, the dark map in dark.',
+        url: null,
+    },
+    {
         id: 'streets',
         label: 'Streets',
         copy: 'Roads, paths, and place names.',
-        url: 'https://tiles.openfreemap.org/styles/liberty',
+        url: streetsMapStyle,
     },
     {
         id: 'light',
         label: 'Light',
         copy: 'A quieter map so the route stays easy to see.',
-        url: 'https://tiles.openfreemap.org/styles/positron',
+        url: lightMapStyle,
     },
     {
         id: 'dark',
         label: 'Dark',
         copy: 'For low light and evening planning.',
-        url: 'https://tiles.openfreemap.org/styles/dark',
+        url: darkMapStyle,
     },
 ] as const;
+
+function mapStyleUrl(id: string, appearance: ResolvedAppearance): string {
+    return (
+        mapStyles.find((item) => item.id === id)?.url ??
+        themedMapStyle(appearance)
+    );
+}
 
 const shapes = [
     {
@@ -791,6 +806,11 @@ type SavedPlanner = {
     shape: string;
     roads?: string;
     mapStyle: string;
+    /**
+     * Set once the map style can follow the appearance. Older saves stored
+     * "streets" as the default, so they start on "auto" instead.
+     */
+    mapStyleVersion?: 2;
     name: string;
     via: Coordinate | null;
     routes: Preview[];
@@ -1190,6 +1210,7 @@ export default function Dashboard() {
     const { resolvedAppearance } = useAppearance();
     const mapNode = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
+    const appliedStyleRef = useRef<string | null>(null);
     const framePaddingRef = useRef<() => number | maplibregl.PaddingOptions>(
         () => 80,
     );
@@ -1241,7 +1262,9 @@ export default function Dashboard() {
     const nameBeforeEdit = useRef('Morning loop');
     const geolocateRef = useRef<maplibregl.GeolocateControl | null>(null);
     const locateRef = useRef<() => void>(() => {});
-    const [mapStyle, setMapStyle] = useState(saved?.mapStyle ?? 'streets');
+    const [mapStyle, setMapStyle] = useState(
+        saved?.mapStyleVersion === 2 ? saved.mapStyle : 'auto',
+    );
     const [name, setName] = useState(saved?.name ?? 'Morning loop');
     const [renaming, setRenaming] = useState(false);
     const [sheet, setSheet] = useState<SheetName>(null);
@@ -1497,8 +1520,13 @@ export default function Dashboard() {
         [sportQuery],
     );
 
-    const mapStartRef = useRef({ longitude, latitude, mapStyle });
-    mapStartRef.current = { longitude, latitude, mapStyle };
+    const mapStartRef = useRef({
+        longitude,
+        latitude,
+        mapStyle,
+        resolvedAppearance,
+    });
+    mapStartRef.current = { longitude, latitude, mapStyle, resolvedAppearance };
 
     useEffect(() => {
         const node = mapNode.current;
@@ -1508,9 +1536,11 @@ export default function Dashboard() {
             return;
         }
 
-        const startingStyle =
-            mapStyles.find((item) => item.id === start.mapStyle)?.url ??
-            'https://tiles.openfreemap.org/styles/liberty';
+        const startingStyle = mapStyleUrl(
+            start.mapStyle,
+            start.resolvedAppearance,
+        );
+        appliedStyleRef.current = startingStyle;
         const map = new maplibregl.Map({
             container: node,
             style: startingStyle,
@@ -1683,7 +1713,10 @@ export default function Dashboard() {
         });
 
         mapRef.current = map;
-        markerRef.current = new maplibregl.Marker({ color: '#16303a' })
+        markerRef.current = new maplibregl.Marker({
+            color: '#16303a',
+            className: 'tw-start-pin',
+        })
             .setLngLat([start.longitude, start.latitude])
             .addTo(map);
 
@@ -1851,6 +1884,7 @@ export default function Dashboard() {
             shape,
             roads,
             mapStyle,
+            mapStyleVersion: 2,
             name,
             via,
             routes,
@@ -2712,17 +2746,26 @@ export default function Dashboard() {
         void generate({ shape: value });
     }
 
-    function chooseMap(id: string): void {
-        const next = mapStyles.find((item) => item.id === id);
+    useEffect(() => {
+        const map = mapRef.current;
+        const next = mapStyleUrl(mapStyle, resolvedAppearance);
 
-        if (next === undefined || mapRef.current === null) {
+        if (map === null || appliedStyleRef.current === next) {
+            return;
+        }
+
+        appliedStyleRef.current = next;
+        map.setStyle(next);
+    }, [mapStyle, resolvedAppearance]);
+
+    function chooseMap(id: string): void {
+        if (!mapStyles.some((item) => item.id === id)) {
             return;
         }
 
         dirty.current = true;
         setMapStyle(id);
         setSheet(null);
-        mapRef.current.setStyle(next.url);
     }
 
     return (
