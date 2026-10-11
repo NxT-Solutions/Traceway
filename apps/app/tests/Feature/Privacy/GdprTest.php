@@ -124,6 +124,13 @@ it('does not put the new password in the welcome message', function (): void {
         'password_confirmation' => 'a-secret-password',
     ])->assertSessionHasNoErrors();
 
+    $user = User::query()->where('email', 'new-person@traceway.test')->firstOrFail();
+
+    $this->get(URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), [
+        'id' => $user->id,
+        'hash' => sha1($user->email),
+    ]))->assertRedirect();
+
     Mail::assertQueued(AccountMessage::class, function (AccountMessage $accountMessage): bool {
         $encoded = json_encode($accountMessage->values);
 

@@ -13,6 +13,8 @@ use App\Commands\ExportPersonalDataCommand;
 use App\Commands\OpenAccountCommand;
 use App\Commands\SaveRouteCommand;
 use App\Commands\UpdateProfileCommand;
+use App\Commands\WelcomeRiderCommand;
+use App\Contracts\Account\EmailConfirmation;
 use App\Contracts\Account\UserRepository;
 use App\Contracts\Auth\CurrentRider;
 use App\Contracts\Bus\DispatchesCommands;
@@ -26,6 +28,7 @@ use App\Handlers\ExportPersonalDataHandler;
 use App\Handlers\OpenAccountHandler;
 use App\Handlers\SaveRouteHandler;
 use App\Handlers\UpdateProfileHandler;
+use App\Handlers\WelcomeRiderHandler;
 use App\Integrations\GraphHopper\GraphHopperConnector;
 use App\Integrations\GraphHopper\GraphHopperRoutingEngine;
 use App\Integrations\Osrm\OsrmConnector;
@@ -34,6 +37,7 @@ use App\Integrations\Valhalla\ValhallaConnector;
 use App\Integrations\Valhalla\ValhallaRoutingEngine;
 use App\Mail\TracewayAccountMailer;
 use App\Models\PreventLazyLoading;
+use App\Notifications\RiderEmailConfirmation;
 use App\Repositories\EloquentSavedRouteRepository;
 use App\Repositories\EloquentUserRepository;
 use Carbon\CarbonImmutable;
@@ -51,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $commandBus = new CommandBus($this->app, [
             OpenAccountCommand::class => OpenAccountHandler::class,
+            WelcomeRiderCommand::class => WelcomeRiderHandler::class,
             UpdateProfileCommand::class => UpdateProfileHandler::class,
             ChangePasswordCommand::class => ChangePasswordHandler::class,
             DeleteAccountCommand::class => DeleteAccountHandler::class,
@@ -65,6 +70,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SavedRouteRepository::class, EloquentSavedRouteRepository::class);
         $this->app->bind(CurrentRider::class, SessionRider::class);
         $this->app->bind(AccountMailer::class, TracewayAccountMailer::class);
+        $this->app->bind(EmailConfirmation::class, RiderEmailConfirmation::class);
 
         $this->app->bind(function (): RoutingEngine {
             $driver = config('services.router');

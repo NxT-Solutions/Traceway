@@ -13,6 +13,11 @@ interface AccountMailer
 
     public function passwordChanged(RiderName $riderName, Email $email): void;
 
+    /**
+     * Tells the previous address that the sign-in email changed.
+     */
+    public function emailChanged(RiderName $riderName, Email $previous, Email $current): void;
+
     public function accountDeleted(RiderName $riderName, Email $email): void;
 
     /**

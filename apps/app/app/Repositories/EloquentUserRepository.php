@@ -47,6 +47,18 @@ final readonly class EloquentUserRepository implements UserRepository
         });
     }
 
+    public function markWelcomed(RiderId $riderId): ?Rider
+    {
+        $user = $this->model($riderId);
+
+        $marked = User::query()
+            ->whereKey($user->id)
+            ->where('welcomed_at', '=', value: null)
+            ->update(['welcomed_at' => now()]);
+
+        return $marked === 1 ? $this->rider($user) : null;
+    }
+
     public function changePassword(RiderId $riderId, #[SensitiveParameter] string $password): Rider
     {
         $user = $this->model($riderId);

@@ -5,8 +5,11 @@ declare(strict_types=1);
 use App\Mail\AccountMessage;
 use App\Models\SavedRoute;
 use App\Models\User;
+use App\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 
 uses(RefreshDatabase::class);
 
@@ -64,8 +67,9 @@ test('deleting an account sends a confirmation to that address', function (): vo
     Mail::assertQueued(AccountMessage::class, fn (AccountMessage $accountMessage): bool => $accountMessage->hasTo($user->email) && $accountMessage->template === 'account-deleted');
 });
 
-test('a new account receives a welcome message', function (): void {
+test('a new account gets the confirmation link and no welcome yet', function (): void {
     Mail::fake();
+    Notification::fake();
 
     $this->post(route('register.store'), [
         'name' => 'New rider',
@@ -74,5 +78,40 @@ test('a new account receives a welcome message', function (): void {
         'password_confirmation' => 'password',
     ])->assertSessionHasNoErrors();
 
+    $user = User::query()->where('email', 'new@traceway.test')->firstOrFail();
+
+    Notification::assertSentTo($user, VerifyEmail::class);
+    Mail::assertNotQueued(AccountMessage::class);
+});
+
+test('a rider is welcomed once the email is confirmed', function (): void {
+    Mail::fake();
+
+    $user = User::factory()->unverified()->create(['email' => 'new@traceway.test']);
+
+    $this->actingAs($user)
+        ->get(URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), [
+            'id' => $user->id,
+            'hash' => sha1($user->email),
+        ]))
+        ->assertRedirect();
+
     Mail::assertQueued(AccountMessage::class, fn (AccountMessage $accountMessage): bool => $accountMessage->hasTo('new@traceway.test') && $accountMessage->template === 'welcome');
+    Mail::assertQueuedCount(1);
+});
+
+test('confirming a changed email does not send the welcome again', function (): void {
+    Mail::fake();
+
+    $user = User::factory()->unverified()->create(['welcomed_at' => now()->subDay()]);
+
+    $this->actingAs($user)
+        ->get(URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), [
+            'id' => $user->id,
+            'hash' => sha1($user->email),
+        ]))
+        ->assertRedirect();
+
+    expect($user->refresh()->hasVerifiedEmail())->toBeTrue();
+    Mail::assertNotQueued(AccountMessage::class);
 });
