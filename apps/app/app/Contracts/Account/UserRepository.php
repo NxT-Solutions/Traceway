@@ -18,6 +18,11 @@ interface UserRepository
 
     public function updateProfile(RiderId $riderId, RiderName $riderName, Email $email, bool $clearEmailVerification): void;
 
+    /**
+     * Marks the rider as welcomed. Returns null when the rider was welcomed before.
+     */
+    public function markWelcomed(RiderId $riderId): ?Rider;
+
     public function changePassword(RiderId $riderId, #[SensitiveParameter] string $password): Rider;
 
     public function delete(RiderId $riderId): Rider;

@@ -18,7 +18,22 @@ final readonly class TracewayAccountMailer implements AccountMailer
 
     public function passwordChanged(RiderName $riderName, Email $email): void
     {
-        $this->send($email, 'password-changed', 'Your Traceway password changed', $riderName, url('/login'));
+        $this->send($email, 'password-changed', 'Your Traceway password changed', $riderName, route('password.request'));
+    }
+
+    public function emailChanged(RiderName $riderName, Email $previous, Email $current): void
+    {
+        $this->deliver($previous, new AccountMessage(
+            template: 'email-changed',
+            subjectLine: 'Your Traceway email changed',
+            values: [
+                'name' => $riderName->value,
+                'email' => $previous->value,
+                'new_email' => $current->value,
+                'url' => route('password.request'),
+                'home' => url('/'),
+            ],
+        ));
     }
 
     public function accountDeleted(RiderName $riderName, Email $email): void
