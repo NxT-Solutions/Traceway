@@ -6,6 +6,7 @@ namespace App\Repositories;
 
 use App\Account\DeviceLabel;
 use App\Account\DeviceLinkId;
+use App\Account\DeviceProvider;
 use App\Account\PairingCode;
 use App\Account\PairingState;
 use App\Account\RiderId;
@@ -15,9 +16,9 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class EloquentDeviceLinkRepository implements DeviceLinkRepository
 {
-    public function open(PairingCode $pairingCode, string $secretHash, int $seconds): bool
+    public function open(DeviceProvider $deviceProvider, PairingCode $pairingCode, string $secretHash, int $seconds): bool
     {
-        return DB::transaction(function () use ($pairingCode, $secretHash, $seconds): bool {
+        return DB::transaction(function () use ($deviceProvider, $pairingCode, $secretHash, $seconds): bool {
             DB::table('device_links')
                 ->whereNull('token_hash')
                 ->where('pairing_expires_at', '<', now())
@@ -28,6 +29,7 @@ final readonly class EloquentDeviceLinkRepository implements DeviceLinkRepositor
             }
 
             DeviceLink::query()->create([
+                'provider' => $deviceProvider->value,
                 'pairing_code' => $pairingCode->value,
                 'pairing_secret_hash' => $secretHash,
                 'pairing_expires_at' => now()->addSeconds($seconds),

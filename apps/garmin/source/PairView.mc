@@ -27,7 +27,7 @@ class PairView extends WatchUi.View {
 
     function open() {
         show("Getting a code");
-        Api.post("/api/device/pairings", {}, method(:onPairing));
+        Api.post("/api/device/pairings", { "provider" => "garmin" }, method(:onPairing));
     }
 
     function onPairing(code, data) {

@@ -4,4 +4,11 @@ declare(strict_types=1);
 
 namespace App\Commands;
 
-final readonly class StartDevicePairingCommand {}
+use App\Account\DeviceProvider;
+
+final readonly class StartDevicePairingCommand
+{
+    public function __construct(
+        public DeviceProvider $provider,
+    ) {}
+}

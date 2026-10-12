@@ -6,6 +6,7 @@ namespace App\Contracts\Account;
 
 use App\Account\DeviceLabel;
 use App\Account\DeviceLinkId;
+use App\Account\DeviceProvider;
 use App\Account\PairingCode;
 use App\Account\PairingState;
 use App\Account\RiderId;
@@ -18,7 +19,7 @@ interface DeviceLinkRepository
     /**
      * Opens a pairing that waits for a rider. False when the code is already waiting.
      */
-    public function open(PairingCode $pairingCode, string $secretHash, int $seconds): bool;
+    public function open(DeviceProvider $deviceProvider, PairingCode $pairingCode, string $secretHash, int $seconds): bool;
 
     /**
      * Gives a waiting pairing to the rider. False when the code is unknown, used, or ran out.

@@ -6,6 +6,7 @@ namespace App\Handlers;
 
 use App\Account\DevicePairing;
 use App\Account\PairingCode;
+use App\Commands\StartDevicePairingCommand;
 use App\Contracts\Account\DeviceLinkRepository;
 use Illuminate\Support\Str;
 
@@ -15,13 +16,13 @@ final readonly class StartDevicePairingHandler
         private DeviceLinkRepository $deviceLinkRepository,
     ) {}
 
-    public function handle(): DevicePairing
+    public function handle(StartDevicePairingCommand $startDevicePairingCommand): DevicePairing
     {
         for ($attempt = 0; $attempt < 5; $attempt++) {
             $pairingCode = PairingCode::random();
             $secret = Str::random(48);
 
-            if ($this->deviceLinkRepository->open($pairingCode, hash('sha256', $secret), DevicePairing::SECONDS)) {
+            if ($this->deviceLinkRepository->open($startDevicePairingCommand->provider, $pairingCode, hash('sha256', $secret), DevicePairing::SECONDS)) {
                 return new DevicePairing($pairingCode, $secret);
             }
         }

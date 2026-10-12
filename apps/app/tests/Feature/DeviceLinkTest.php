@@ -90,6 +90,7 @@ it('lists only the routes of the rider who linked the device, with device names'
         ->getJson(route('device.routes'))
         ->assertOk()
         ->assertJsonCount(1, 'routes')
+        ->assertJsonPath('routes.0.title', 'A very long morning loop')
         ->assertJsonPath('routes.0.name', 'A very long mor')
         ->assertJsonPath('routes.0.sport', 'road')
         ->assertJsonPath('routes.0.legs', []);
@@ -103,7 +104,7 @@ it('downloads a FIT course for an own route and hides other routes', function ()
     $token = linkDevice($user);
 
     $body = $this->withToken($token)
-        ->get(route('device.routes.fit', ['savedRoute' => $own->id]))
+        ->get(route('device.routes.course', ['savedRoute' => $own->id, 'format' => 'fit']))
         ->assertOk()
         ->assertHeader('Content-Type', 'application/octet-stream')
         ->getContent();
@@ -112,7 +113,7 @@ it('downloads a FIT course for an own route and hides other routes', function ()
         ->and((string) $body)->toContain('Morning loop');
 
     $this->withToken($token)
-        ->getJson(route('device.routes.fit', ['savedRoute' => $foreign->id]))
+        ->getJson(route('device.routes.course', ['savedRoute' => $foreign->id, 'format' => 'fit']))
         ->assertNotFound();
 });
 
@@ -133,15 +134,41 @@ it('downloads each land leg of a multisport plan and no swim', function (): void
         ->assertJsonPath('routes.0.legs', [['n' => 2, 'name' => 'Brick 2 Road', 'sport' => 'road']]);
 
     $body = $this->withToken($token)
-        ->get(route('device.routes.fit.leg', ['savedRoute' => $route->id, 'leg' => 2]))
+        ->get(route('device.routes.course.leg', ['savedRoute' => $route->id, 'format' => 'fit', 'leg' => 2]))
         ->assertOk()
         ->getContent();
 
     expect((string) $body)->toContain('Brick 2 Road');
 
     $this->withToken($token)
-        ->getJson(route('device.routes.fit.leg', ['savedRoute' => $route->id, 'leg' => 1]))
+        ->getJson(route('device.routes.course.leg', ['savedRoute' => $route->id, 'format' => 'fit', 'leg' => 1]))
         ->assertNotFound();
+});
+
+it('downloads the same course as GPX for a device that reads GPX', function (): void {
+    $user = User::factory()->create();
+    $route = SavedRoute::factory()->for($user)->create(['name' => 'Morning loop']);
+
+    $token = linkDevice($user);
+
+    $this->withToken($token)
+        ->get(route('device.routes.course', ['savedRoute' => $route->id, 'format' => 'gpx']))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'application/gpx+xml')
+        ->assertSee('<gpx', false)
+        ->assertSee('Morning loop', false);
+
+    $this->withToken($token)
+        ->get('/api/device/routes/'.$route->id.'/tcx')
+        ->assertNotFound();
+});
+
+it('records which provider opened the pairing and refuses an unknown one', function (): void {
+    $this->postJson(route('device.pairings.start'), ['provider' => 'garmin'])->assertCreated();
+
+    expect(DB::table('device_links')->value('provider'))->toBe('garmin');
+
+    $this->postJson(route('device.pairings.start'), ['provider' => 'nokia'])->assertUnprocessable();
 });
 
 it('turns a device away without a token, with a wrong one, or after it was removed', function (): void {
@@ -180,7 +207,8 @@ it('shows linked devices on the settings page', function (): void {
         ->assertInertia(fn (Assert $assert): Assert => $assert
             ->component('settings/devices')
             ->has('devices', 1)
-            ->where('devices.0.label', 'Fenix 8'));
+            ->where('devices.0.label', 'Fenix 8')
+            ->where('devices.0.provider', 'Garmin'));
 });
 
 it('limits how often one address opens a pairing', function (): void {
