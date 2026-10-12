@@ -48,7 +48,7 @@ RUN APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
     && bun run build \
     && rm -f .env public/hot
 
-FROM node:22-alpine AS web-build
+FROM node:26-alpine AS web-build
 
 WORKDIR /src
 
