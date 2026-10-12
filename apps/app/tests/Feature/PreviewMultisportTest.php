@@ -82,7 +82,7 @@ it('chains a duathlon from finish to finish', function (): void {
             'longitude' => 3.72,
             'legs' => [
                 ['sport' => 'run', 'surface' => 'paved', 'elevation' => 'neutral', 'distance_metres' => 5_000, 'finish_latitude' => 51.06, 'finish_longitude' => 3.75],
-                ['sport' => 'road', 'surface' => 'paved', 'elevation' => 'neutral', 'distance_metres' => 30_000, 'finish_latitude' => 51.2, 'finish_longitude' => 3.9],
+                ['sport' => 'road', 'surface' => 'paved', 'elevation' => 'neutral', 'distance_metres' => 30_000, 'finish_latitude' => 51.2, 'finish_longitude' => 3.9, 'stretch' => false],
             ],
         ])
         ->assertOk()

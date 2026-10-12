@@ -53,9 +53,56 @@ final readonly class MultisportPlanner
      */
     private function handover(LandLeg $landLeg, array $from, array $to): PlannedLeg
     {
-        $generatedRoute = $this->routingEngine->trace($this->query($landLeg, Shape::PointToPoint, $from), [$from, $to]);
+        $routeQuery = $this->query($landLeg, Shape::PointToPoint, $from);
+        $best = $this->routingEngine->trace($routeQuery, [$from, $to]);
+        $target = $landLeg->distanceMetres;
 
-        return new PlannedLeg($landLeg->sport, $generatedRoute->coordinates, $generatedRoute->distanceMetres, $generatedRoute->ascentMetres);
+        if ($landLeg->stretch && $best->distanceMetres < $target * 0.9) {
+            $best = $this->stretched($routeQuery, $from, $to, $target, $best);
+        }
+
+        return new PlannedLeg($landLeg->sport, $best->coordinates, $best->distanceMetres, $best->ascentMetres);
+    }
+
+    /**
+     * Tries a detour on each side of the direct line, keeps the one closest
+     * to the length, then moves its point once to land nearer still.
+     *
+     * @param  array{0: float, 1: float}  $from
+     * @param  array{0: float, 1: float}  $to
+     */
+    private function stretched(RouteQuery $routeQuery, array $from, array $to, int $target, GeneratedRoute $generatedRoute): GeneratedRoute
+    {
+        $straight = Distance::metres($from, $to);
+        $roadFactor = $straight > 50.0 ? max(1.0, $generatedRoute->distanceMetres / $straight) : 1.3;
+        $best = $generatedRoute;
+        $bestSide = null;
+
+        foreach (Detour::vias($from, $to, $target, $roadFactor) as $side => $via) {
+            $line = $this->routingEngine->trace($routeQuery, [$from, $via, $to]);
+
+            if (abs($line->distanceMetres - $target) < abs($best->distanceMetres - $target)) {
+                $best = $line;
+                $bestSide = $side;
+            }
+        }
+
+        $gained = $best->distanceMetres - $generatedRoute->distanceMetres;
+
+        if ($bestSide === null || $gained <= 0 || abs($best->distanceMetres - $target) <= $target * 0.05) {
+            return $best;
+        }
+
+        $scale = max(0.3, min(3.0, ($target - $generatedRoute->distanceMetres) / $gained));
+        $via = Detour::vias($from, $to, $target, $roadFactor, $scale)[$bestSide] ?? null;
+
+        if ($via === null) {
+            return $best;
+        }
+
+        $line = $this->routingEngine->trace($routeQuery, [$from, $via, $to]);
+
+        return abs($line->distanceMetres - $target) < abs($best->distanceMetres - $target) ? $line : $best;
     }
 
     /**

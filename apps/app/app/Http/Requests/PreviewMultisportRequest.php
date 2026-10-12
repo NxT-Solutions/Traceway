@@ -50,6 +50,7 @@ use OpenApi\Attributes\RequestBody;
                         new Property(property: 'distance_metres', type: 'integer', maximum: 300000, minimum: 1000),
                         new Property(property: 'finish_latitude', description: 'Required for a chain.', type: 'number', maximum: 90, minimum: -90),
                         new Property(property: 'finish_longitude', description: 'Required for a chain.', type: 'number', maximum: 180, minimum: -180),
+                        new Property(property: 'stretch', description: 'A chained leg covers distance_metres on the way to its finish, rather than taking the shortest way.', type: 'boolean'),
                     ],
                 ),
                 maxItems: 4,
@@ -89,12 +90,13 @@ class PreviewMultisportRequest extends FormRequest
             'legs.*.distance_metres' => ['required', 'integer', 'min:1000', 'max:300000'],
             'legs.*.finish_latitude' => ['required_if:layout,chain', 'nullable', 'numeric', 'between:-90,90'],
             'legs.*.finish_longitude' => ['required_if:layout,chain', 'nullable', 'numeric', 'between:-180,180'],
+            'legs.*.stretch' => ['sometimes', 'boolean'],
         ];
     }
 
     public function toQuery(): MultisportQuery
     {
-        /** @var array{layout: string, latitude: float|int, longitude: float|int, swim?: array{coordinates: list<array{0: float|int, 1: float|int}>}|null, legs: list<array{sport: string, surface: string, elevation: string, roads?: string, distance_metres: int, finish_latitude?: float|int|null, finish_longitude?: float|int|null}>} $validated */
+        /** @var array{layout: string, latitude: float|int, longitude: float|int, swim?: array{coordinates: list<array{0: float|int, 1: float|int}>}|null, legs: list<array{sport: string, surface: string, elevation: string, roads?: string, distance_metres: int, finish_latitude?: float|int|null, finish_longitude?: float|int|null, stretch?: bool|int|string}>} $validated */
         $validated = $this->validated();
         $swim = $validated['swim'] ?? null;
         $legs = [];
@@ -112,6 +114,7 @@ class PreviewMultisportRequest extends FormRequest
                 finish: $finishLatitude === null || $finishLongitude === null
                     ? null
                     : [(float) $finishLongitude, (float) $finishLatitude],
+                stretch: filter_var($leg['stretch'] ?? false, FILTER_VALIDATE_BOOLEAN),
             );
         }
 

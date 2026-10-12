@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\Distance;
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\GeneratedRoute;
 use App\Domain\Routing\LandLeg;
@@ -146,3 +147,64 @@ it('says which loop did not come back', function (): void {
         new LandLeg(Sport::Road, 20_000, Surface::Paved, ElevationBias::Neutral),
     ])))->toThrow(RuntimeException::class, 'No loop came back for leg 1.');
 });
+
+/**
+ * A routing engine whose roads run a third longer than the straight line
+ * through the waypoints.
+ */
+function measuringEngine(): RoutingEngine
+{
+    return new class implements RoutingEngine
+    {
+        /** @var list<list<array{0: float, 1: float}>> */
+        public array $traces = [];
+
+        public function route(RouteQuery $routeQuery): GeneratedRoute
+        {
+            throw new LogicException('The planner does not ask for a single route.');
+        }
+
+        public function candidates(RouteQuery $routeQuery): array
+        {
+            throw new LogicException('A chain does not ask for loops.');
+        }
+
+        public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
+        {
+            $this->traces[] = $waypoints;
+
+            return new GeneratedRoute($routeQuery, $waypoints, (int) round(Distance::along($waypoints) * 1.3), 0);
+        }
+
+        public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
+        {
+            throw new LogicException('The planner does not close loops.');
+        }
+    };
+}
+
+it('stretches a chained leg to its length through a point to the side', function (): void {
+    $routingEngine = measuringEngine();
+    $plan = new MultisportPlanner($routingEngine)->plan(new MultisportQuery(Layout::Chain, 51.12, 4.84, [
+        new LandLeg(Sport::Run, 12_000, Surface::Paved, ElevationBias::Neutral, finish: [4.88, 51.10], stretch: true),
+    ]));
+
+    expect($plan->legs[0]->distanceMetres)->toEqualWithDelta(12_000, 600)
+        ->and($routingEngine->traces[0])->toBe([[4.84, 51.12], [4.88, 51.10]])
+        ->and($routingEngine->traces[1])->toHaveCount(3)
+        ->and($plan->legs[0]->coordinates[0])->toBe([4.84, 51.12])
+        ->and(array_last($plan->legs[0]->coordinates))->toBe([4.88, 51.10]);
+});
+
+it('takes the shortest way when a chained leg does not stretch, or is already long enough', function (bool $stretch, int $length): void {
+    $routingEngine = measuringEngine();
+    $plan = new MultisportPlanner($routingEngine)->plan(new MultisportQuery(Layout::Chain, 51.12, 4.84, [
+        new LandLeg(Sport::Run, $length, Surface::Paved, ElevationBias::Neutral, finish: [4.88, 51.10], stretch: $stretch),
+    ]));
+
+    expect($routingEngine->traces)->toHaveCount(1)
+        ->and($plan->legs[0]->coordinates)->toBe([[4.84, 51.12], [4.88, 51.10]]);
+})->with([
+    'no stretch' => [false, 12_000],
+    'already long enough' => [true, 4_000],
+]);
