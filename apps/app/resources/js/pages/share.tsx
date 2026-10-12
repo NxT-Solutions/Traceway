@@ -2,7 +2,7 @@ import { Head } from '@inertiajs/react';
 import * as maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { streetsMapStyle } from '@/lib/maplibre';
-import { legDeviceName, legPaint } from '@/lib/multisport';
+import { legColour, legDeviceName } from '@/lib/multisport';
 import {
     ensureDirectionArrows,
     resizeDirectionArrows,
@@ -30,6 +30,7 @@ type SharedRoute = {
         ascent_metres: number;
         coordinates: Coordinate[];
         fit_url: string | null;
+        color?: string | null;
     }>;
 };
 
@@ -54,6 +55,9 @@ export default function Share({ route }: { route: SharedRoute }) {
     const mapNode = useRef<HTMLDivElement>(null);
     const [copied, setCopied] = useState(false);
     const kilometres = (route.distance_metres / 1000).toFixed(1);
+    const legColours = route.legs.map((leg, index) =>
+        legColour('bold', index, leg.color),
+    );
 
     useEffect(() => {
         const node = mapNode.current;
@@ -83,11 +87,18 @@ export default function Share({ route }: { route: SharedRoute }) {
         map.on('load', () => {
             const parts =
                 route.legs.length > 0
-                    ? route.legs.filter((leg) => leg.coordinates.length > 1)
+                    ? route.legs
+                          .map((leg, index) => ({
+                              discipline: leg.discipline,
+                              coordinates: leg.coordinates,
+                              color: legColour('bold', index, leg.color),
+                          }))
+                          .filter((leg) => leg.coordinates.length > 1)
                     : [
                           {
                               discipline: route.sport,
                               coordinates: route.coordinates,
+                              color: '#16303a',
                           },
                       ];
             map.addSource('route', {
@@ -98,10 +109,7 @@ export default function Share({ route }: { route: SharedRoute }) {
                         type: 'Feature' as const,
                         properties: {
                             discipline: part.discipline,
-                            color:
-                                route.legs.length > 0
-                                    ? legPaint(part.discipline).line
-                                    : '#16303a',
+                            color: part.color,
                         },
                         geometry: {
                             type: 'LineString' as const,
@@ -193,8 +201,7 @@ export default function Share({ route }: { route: SharedRoute }) {
                                 <i
                                     aria-hidden="true"
                                     style={{
-                                        background: legPaint(leg.discipline)
-                                            .line,
+                                        background: legColours[index],
                                     }}
                                 />
                                 <b>

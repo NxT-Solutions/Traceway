@@ -3,16 +3,10 @@ import '../../css/planner.css';
 import { Bike, Footprints, Mountain } from 'lucide-react';
 import type { GeoJSONSource, MapMouseEvent } from 'maplibre-gl';
 import * as maplibregl from 'maplibre-gl';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { MultisportIcon } from '@/components/multisport-icon';
 import {
-    type ReactNode,
-    type PointerEvent as ReactPointerEvent,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
-import {
+    LegColourPicker,
     type LegSheet,
     MultisportLegs,
     type Placing,
@@ -24,6 +18,7 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { type ResolvedAppearance, useAppearance } from '@/hooks/use-appearance';
+import { useDragReorder } from '@/hooks/use-drag-reorder';
 import {
     darkMapStyle,
     lightMapStyle,
@@ -31,14 +26,17 @@ import {
     themedMapStyle,
 } from '@/lib/maplibre';
 import {
+    type ColourSet,
+    coloursOf,
+    isColourSet,
     isLandLeg,
     isCoordinate as isLegCoordinate,
     isPlan,
     joinedLine,
     type LandLeg,
     type Layout,
+    legColour,
     legDeviceName,
-    legPaint,
     type MultisportPlan,
     mostLandLegs,
     mostSwimPoints,
@@ -67,6 +65,7 @@ type SheetName =
     | 'shape'
     | 'roads'
     | 'map'
+    | 'colour'
     | null;
 
 type Preview = {
@@ -587,6 +586,7 @@ function syncMultisport(
     map: maplibregl.Map,
     plan: MultisportPlan | null,
     swim: Coordinate[] | null,
+    colours: string[],
 ): void {
     const source = map.getSource('multisport');
 
@@ -611,7 +611,7 @@ function syncMultisport(
                           id: index,
                           properties: {
                               discipline: leg.discipline,
-                              color: legPaint(leg.discipline).line,
+                              color: colours[index] ?? '#2563eb',
                           },
                           geometry: {
                               type: 'LineString' as const,
@@ -945,6 +945,8 @@ type SavedMultisport = {
     layout: Layout;
     swim: Coordinate[] | null;
     plan: MultisportPlan | null;
+    colourSet?: ColourSet;
+    swimColour?: string | null;
 };
 
 function savedMultisport(saved: SavedPlanner | null): SavedMultisport | null {
@@ -1424,18 +1426,39 @@ export default function Dashboard() {
     const [plan, setPlan] = useState<MultisportPlan | null>(
         savedPlan?.plan ?? null,
     );
+    const [colourSet, setColourSet] = useState<ColourSet>(
+        isColourSet(savedPlan?.colourSet) ? savedPlan.colourSet : 'bold',
+    );
+    const [swimColour, setSwimColour] = useState<string | null>(
+        savedPlan?.swimColour ?? null,
+    );
     const multisportMarkersRef = useRef<maplibregl.Marker[]>([]);
     const multisportRef = useRef<{
         plan: MultisportPlan | null;
         swim: Coordinate[] | null;
-    }>({ plan: null, swim: null });
+        colours: string[];
+    }>({ plan: null, swim: null, colours: [] });
     const arrowLinesRef = useRef<Coordinate[][]>([]);
     const [routeSaved, setRouteSaved] = useState(false);
     const [saving, setSaving] = useState(false);
     modeRef.current = mode;
     const [buildPoints, setBuildPoints] = useState<BuildPoint[]>([]);
-    const pointsListRef = useRef<HTMLDivElement>(null);
-    const pointShiftRef = useRef<Map<string, number> | null>(null);
+    const pointDrag = useDragReorder(
+        buildPoints.map((point) => point.id),
+        (from, to) =>
+            setBuildPoints((current) => {
+                const next = [...current];
+                const [item] = next.splice(from, 1);
+
+                if (item === undefined) {
+                    return current;
+                }
+
+                next.splice(to, 0, item);
+
+                return next;
+            }),
+    );
     const [followRoads, setFollowRoads] = useState(true);
     const [finishLoop, setFinishLoop] = useState(true);
     const [viaName, setViaName] = useState<string | null>(null);
@@ -1639,7 +1662,21 @@ export default function Dashboard() {
                   coordinates: joinedLine(plan),
               };
     const shown = multisport ? planLine : preview;
-    multisportRef.current = { plan: multisport ? plan : null, swim };
+    const hasSwim = swim !== null;
+    const legColours = useMemo(
+        () => [
+            ...(hasSwim ? [legColour(colourSet, 0, swimColour)] : []),
+            ...legs.map((leg, index) =>
+                legColour(colourSet, index + (hasSwim ? 1 : 0), leg.color),
+            ),
+        ],
+        [colourSet, swimColour, hasSwim, legs],
+    );
+    multisportRef.current = {
+        plan: multisport ? plan : null,
+        swim,
+        colours: legColours,
+    };
     arrowLinesRef.current = multisport
         ? (plan?.legs ?? [])
               .filter((leg) => leg.discipline !== 'swim')
@@ -1714,7 +1751,7 @@ export default function Dashboard() {
     const sheetElevation = editing?.elevation ?? elevation;
     const sheetRoads = editing?.roads ?? roads;
     const sheetKm = editing?.distanceKm ?? distanceKm;
-    const SportIcon = sportIcon(multisport ? (legs[0]?.sport ?? sport) : sport);
+    const SportIcon = multisport ? MultisportIcon : sportIcon(sport);
     const visibleSports = useMemo(
         () =>
             sports.filter((item) =>
@@ -1815,6 +1852,7 @@ export default function Dashboard() {
                 map,
                 multisportRef.current.plan,
                 multisportRef.current.swim,
+                multisportRef.current.colours,
             );
             paintArrowLines(map, arrowLinesRef.current);
         };
@@ -1983,64 +2021,6 @@ export default function Dashboard() {
         }
     }, [renaming]);
 
-    useLayoutEffect(() => {
-        const before = pointShiftRef.current;
-        const list = pointsListRef.current;
-        const ids = new Set(buildPoints.map((point) => point.id));
-        pointShiftRef.current = null;
-
-        if (before === null || list === null) {
-            return;
-        }
-
-        const nodes = [...list.querySelectorAll<HTMLElement>('[data-point]')];
-        const shifts: Array<{ node: HTMLElement; dy: number }> = [];
-
-        for (const node of nodes) {
-            const id = node.dataset.point;
-
-            if (id === undefined || !ids.has(id)) {
-                continue;
-            }
-
-            const top = before.get(id);
-
-            if (top === undefined) {
-                continue;
-            }
-
-            node.style.transition = 'none';
-            node.style.transform = '';
-            const dy = top - node.getBoundingClientRect().top;
-
-            if (Math.abs(dy) < 1) {
-                node.style.transition = '';
-
-                continue;
-            }
-
-            node.style.transform = `translateY(${dy}px)`;
-            shifts.push({ node, dy });
-        }
-
-        if (shifts.length === 0) {
-            return;
-        }
-
-        const reduced = window.matchMedia(
-            '(prefers-reduced-motion: reduce)',
-        ).matches;
-
-        requestAnimationFrame(() => {
-            for (const { node } of shifts) {
-                node.style.transition = reduced
-                    ? 'none'
-                    : 'transform 180ms var(--ease)';
-                node.style.transform = '';
-            }
-        });
-    }, [buildPoints]);
-
     useEffect(() => {
         const map = mapRef.current;
 
@@ -2078,6 +2058,7 @@ export default function Dashboard() {
                 map,
                 multisport ? plan : null,
                 multisport ? swim : null,
+                legColours,
             );
             paintArrowLines(map, arrowLinesRef.current);
         };
@@ -2089,7 +2070,7 @@ export default function Dashboard() {
         }
 
         map.once('idle', paint);
-    }, [preview, routes, routeIndex, multisport, plan, swim]);
+    }, [preview, routes, routeIndex, multisport, plan, swim, legColours]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -2155,7 +2136,7 @@ export default function Dashboard() {
             via,
             routes,
             routeIndex,
-            multisport: { legs, layout, swim, plan },
+            multisport: { legs, layout, swim, plan, colourSet, swimColour },
         };
         window.localStorage.setItem(storageKey, JSON.stringify(payload));
     }, [
@@ -2177,6 +2158,8 @@ export default function Dashboard() {
         layout,
         swim,
         plan,
+        colourSet,
+        swimColour,
     ]);
 
     useEffect(() => {
@@ -2681,7 +2664,10 @@ export default function Dashboard() {
             ascent_metres: plan.ascent_metres,
             coordinates: joinedLine(plan),
             layout: plan.layout,
-            legs: plan.legs,
+            legs: plan.legs.map((leg, index) => ({
+                ...leg,
+                color: legColours[index] ?? null,
+            })),
         };
     }
 
@@ -2954,6 +2940,30 @@ export default function Dashboard() {
             nextSwim !== null && nextSwim.length === 0
                 ? 'Tap the water to draw the swim, then draw the route.'
                 : `${preset.label}. Draw the route when you are ready.`,
+        );
+    }
+
+    function chooseColourSet(value: ColourSet): void {
+        dirty.current = true;
+        setColourSet(value);
+        setSwimColour(null);
+        setLegs((current) => current.map((leg) => ({ ...leg, color: null })));
+    }
+
+    function pickColour(index: number, hex: string): void {
+        dirty.current = true;
+
+        if (swim !== null && index === 0) {
+            setSwimColour(hex);
+
+            return;
+        }
+
+        const legIndex = index - (swim === null ? 0 : 1);
+        setLegs((current) =>
+            current.map((leg, item) =>
+                item === legIndex ? { ...leg, color: hex } : leg,
+            ),
         );
     }
 
@@ -3240,150 +3250,6 @@ export default function Dashboard() {
         setRouteIndex(0);
         setMessage('Start moved. Draw a route when you are ready.');
     };
-
-    function reorderPoints(from: number, to: number): void {
-        const list = pointsListRef.current;
-
-        if (
-            from === to ||
-            from < 0 ||
-            to < 0 ||
-            from >= buildPoints.length ||
-            to >= buildPoints.length
-        ) {
-            list?.querySelectorAll<HTMLElement>('[data-point]').forEach(
-                (node) => {
-                    node.style.transform = '';
-                    node.style.transition = '';
-                    node.classList.remove('lift');
-                },
-            );
-
-            return;
-        }
-
-        if (list !== null) {
-            const before = new Map<string, number>();
-
-            list.querySelectorAll<HTMLElement>('[data-point]').forEach(
-                (node) => {
-                    const id = node.dataset.point;
-
-                    if (id !== undefined) {
-                        before.set(id, node.getBoundingClientRect().top);
-                    }
-
-                    node.style.transform = '';
-                    node.style.transition = '';
-                    node.classList.remove('lift');
-                },
-            );
-            pointShiftRef.current = before;
-        }
-
-        setBuildPoints((current) => {
-            const next = [...current];
-            const [item] = next.splice(from, 1);
-
-            if (item === undefined) {
-                return current;
-            }
-
-            next.splice(to, 0, item);
-
-            return next;
-        });
-    }
-
-    function startPointDrag(event: ReactPointerEvent<HTMLButtonElement>): void {
-        if (event.button !== 0 || buildPoints.length < 2) {
-            return;
-        }
-
-        const grip = event.currentTarget;
-        const row = grip.closest('.pt');
-        const list = pointsListRef.current;
-
-        if (!(row instanceof HTMLElement) || list === null) {
-            return;
-        }
-
-        event.preventDefault();
-        grip.setPointerCapture(event.pointerId);
-
-        const rows = [
-            ...list.querySelectorAll<HTMLElement>(':scope > .pt[data-point]'),
-        ];
-        const origin = rows.indexOf(row);
-
-        if (origin < 0) {
-            return;
-        }
-
-        const tops = rows.map((item) => item.getBoundingClientRect().top);
-        const height = row.getBoundingClientRect().height;
-        const above = tops[0];
-        const below = tops[1];
-        const pitch =
-            above !== undefined && below !== undefined
-                ? below - above
-                : height + 8;
-        let slot = origin;
-        row.classList.add('lift');
-
-        const place = (clientY: number) => {
-            const delta = clientY - event.clientY;
-            const clamped = Math.max(
-                -origin * pitch,
-                Math.min((rows.length - 1 - origin) * pitch, delta),
-            );
-            row.style.transform = `translateY(${clamped}px)`;
-            const nextSlot = Math.max(
-                0,
-                Math.min(rows.length - 1, Math.round(origin + clamped / pitch)),
-            );
-
-            if (nextSlot === slot) {
-                return;
-            }
-
-            slot = nextSlot;
-
-            rows.forEach((item, index) => {
-                if (item === row) {
-                    return;
-                }
-
-                let shift = 0;
-
-                if (origin < slot && index > origin && index <= slot) {
-                    shift = -pitch;
-                }
-
-                if (slot < origin && index >= slot && index < origin) {
-                    shift = pitch;
-                }
-
-                item.style.transform =
-                    shift === 0 ? '' : `translateY(${shift}px)`;
-            });
-        };
-
-        const move = (pointer: PointerEvent) => {
-            place(pointer.clientY);
-        };
-        const end = (pointer: PointerEvent) => {
-            grip.removeEventListener('pointermove', move);
-            grip.removeEventListener('pointerup', end);
-            grip.removeEventListener('pointercancel', end);
-            place(pointer.clientY);
-            reorderPoints(origin, slot);
-        };
-
-        grip.addEventListener('pointermove', move);
-        grip.addEventListener('pointerup', end);
-        grip.addEventListener('pointercancel', end);
-    }
 
     function redraw(next: {
         sport?: string;
@@ -3850,6 +3716,8 @@ export default function Dashboard() {
                                                 (item) => item.value === value,
                                             )?.label ?? value,
                                     }}
+                                    colours={legColours}
+                                    colourSet={colourSet}
                                     onPreset={choosePreset}
                                     onLayout={chooseLayout}
                                     onSwim={toggleSwim}
@@ -3985,7 +3853,10 @@ export default function Dashboard() {
                                             Tap a road on the map to add one
                                         </p>
                                     </div>
-                                    <div className="pts" ref={pointsListRef}>
+                                    <div
+                                        className="pts"
+                                        ref={pointDrag.listRef}
+                                    >
                                         <div className="pt">
                                             <span
                                                 className="mark start"
@@ -4104,7 +3975,9 @@ export default function Dashboard() {
                                                     className="grip"
                                                     aria-label={`Move point ${index + 1}. Drag, or use the arrow keys.`}
                                                     onPointerDown={(event) =>
-                                                        startPointDrag(event)
+                                                        pointDrag.startDrag(
+                                                            event,
+                                                        )
                                                     }
                                                     onKeyDown={(event) => {
                                                         if (
@@ -4117,7 +3990,7 @@ export default function Dashboard() {
                                                         }
 
                                                         event.preventDefault();
-                                                        reorderPoints(
+                                                        pointDrag.move(
                                                             index,
                                                             event.key ===
                                                                 'ArrowUp'
@@ -4450,12 +4323,11 @@ export default function Dashboard() {
                                                             : undefined
                                                     }
                                                     style={{
-                                                        background: legPaint(
-                                                            leg.discipline,
-                                                        ).line,
-                                                        color: legPaint(
-                                                            leg.discipline,
-                                                        ).line,
+                                                        background:
+                                                            legColours[index],
+                                                        color: legColours[
+                                                            index
+                                                        ],
                                                     }}
                                                 />
                                                 <b>
@@ -4752,6 +4624,38 @@ export default function Dashboard() {
                             />
                         ))}
                     </ChoiceList>
+                </SheetContent>
+            </Sheet>
+
+            <Sheet
+                open={sheet === 'colour'}
+                onOpenChange={(open) => !open && setSheet(null)}
+            >
+                <SheetContent
+                    side="bottom"
+                    className="tw-pop top-auto block h-fit max-h-[80vh] gap-0 overflow-y-auto rounded-t-[10px] bg-background pb-4 text-foreground shadow-sm"
+                >
+                    <SheetHeader className={sheetHeading}>
+                        <SheetTitle className="pr-6">Leg colours</SheetTitle>
+                    </SheetHeader>
+                    <LegColourPicker
+                        colourSet={colourSet}
+                        palette={coloursOf(colourSet)}
+                        legs={[
+                            ...(swim === null ? [] : [{ label: 'Swim' }]),
+                            ...legs.map((leg) => ({
+                                label:
+                                    sports.find(
+                                        (item) => item.value === leg.sport,
+                                    )?.label ?? leg.sport,
+                            })),
+                        ].map((leg, index) => ({
+                            ...leg,
+                            colour: legColours[index] ?? '#2563eb',
+                        }))}
+                        onSet={chooseColourSet}
+                        onPick={pickColour}
+                    />
                 </SheetContent>
             </Sheet>
 

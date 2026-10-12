@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\URL;
  * @property list<array{0: float, 1: float}> $coordinates
  * @property list<array{0: float, 1: float}>|null $user_coordinates
  * @property list<array{0: float, 1: float}>|null $finish_coordinates
- * @property list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>}>|null $legs
+ * @property list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color?: string|null}>|null $legs
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */

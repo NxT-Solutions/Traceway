@@ -1150,6 +1150,11 @@
                                     "description": "No course for the swim.",
                                     "type": "string",
                                     "nullable": true
+                                },
+                                "color": {
+                                    "description": "The colour picked for the leg, as #rrggbb.",
+                                    "type": "string",
+                                    "nullable": true
                                 }
                             },
                             "type": "object"
@@ -1745,6 +1750,12 @@
                                             },
                                             "coordinates": {
                                                 "$ref": "#/components/schemas/CoordinateLine"
+                                            },
+                                            "color": {
+                                                "description": "The colour picked for the leg, as #rrggbb.",
+                                                "type": "string",
+                                                "pattern": "^#[0-9a-fA-F]{6}$",
+                                                "nullable": true
                                             }
                                         },
                                         "type": "object"

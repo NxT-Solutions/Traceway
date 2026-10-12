@@ -42,6 +42,7 @@ use OpenApi\Attributes\RequestBody;
                         new Property(property: 'distance_metres', type: 'integer'),
                         new Property(property: 'ascent_metres', type: 'integer'),
                         new Property(property: 'coordinates', ref: '#/components/schemas/CoordinateLine'),
+                        new Property(property: 'color', description: 'The colour picked for the leg, as #rrggbb.', type: 'string', pattern: '^#[0-9a-fA-F]{6}$', nullable: true),
                     ],
                 ),
                 nullable: true,
@@ -84,6 +85,7 @@ class StoreSavedRouteRequest extends FormRequest
             'legs.*.coordinates.*' => ['array', 'size:2'],
             'legs.*.coordinates.*.0' => ['numeric', 'between:-180,180'],
             'legs.*.coordinates.*.1' => ['numeric', 'between:-90,90'],
+            'legs.*.color' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
         ];
     }
 

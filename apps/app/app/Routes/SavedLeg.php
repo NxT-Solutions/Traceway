@@ -20,22 +20,25 @@ final readonly class SavedLeg
         public int $distanceMetres,
         public int $ascentMetres,
         public array $coordinates,
+        public ?string $color = null,
     ) {
         throw_if($this->distanceMetres < 0 || $this->ascentMetres < 0, InvalidArgumentException::class, 'A leg cannot be shorter than nothing.');
         throw_if($this->sport instanceof Sport && count($this->coordinates) < 2, InvalidArgumentException::class, 'A land leg needs at least two points.');
         throw_if(! CoordinateLine::optional($this->coordinates) instanceof CoordinateLine, InvalidArgumentException::class, 'A leg needs a point.');
+        throw_if($this->color !== null && preg_match('/^#[0-9a-f]{6}$/i', $this->color) !== 1, InvalidArgumentException::class, 'A leg colour is a six-digit hex colour.');
     }
 
     /**
      * @param  list<array{0: float, 1: float}>  $coordinates
      */
-    public static function from(string $discipline, int $distanceMetres, int $ascentMetres, array $coordinates): self
+    public static function from(string $discipline, int $distanceMetres, int $ascentMetres, array $coordinates, ?string $color = null): self
     {
         return new self(
             $discipline === 'swim' ? null : Sport::from($discipline),
             $distanceMetres,
             $ascentMetres,
             $coordinates,
+            $color === null ? null : strtolower($color),
         );
     }
 
@@ -45,7 +48,7 @@ final readonly class SavedLeg
     }
 
     /**
-     * @return array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>}
+     * @return array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null}
      */
     public function toArray(): array
     {
@@ -54,6 +57,7 @@ final readonly class SavedLeg
             'distance_metres' => $this->distanceMetres,
             'ascent_metres' => $this->ascentMetres,
             'coordinates' => $this->coordinates,
+            'color' => $this->color,
         ];
     }
 }
