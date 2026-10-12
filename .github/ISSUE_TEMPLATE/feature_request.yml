@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest something Traceway should do.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a loose idea, start a [discussion](https://github.com/NxT-Solutions/Traceway/discussions/categories/ideas) first. Use this form when you can describe the problem and the change.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and what stops you today.
+      placeholder: When I plan a trail run, I cannot ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: checkboxes
+    id: sports
+    attributes:
+      label: Sports this affects
+      options:
+        - label: Road
+        - label: Gravel
+        - label: Mountain bike
+        - label: Run
+        - label: Trail run
+        - label: Walk
+        - label: Hike
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to build this myself.

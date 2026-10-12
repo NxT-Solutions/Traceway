@@ -1,0 +1,50 @@
+version: 2
+
+updates:
+  - package-ecosystem: composer
+    directory: /apps/app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      composer-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: bun
+    directory: /apps/app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      app-js-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      web-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /apps/mail
+    schedule:
+      interval: monthly
+    groups:
+      mail:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /.docker/production/images
+    schedule:
+      interval: monthly

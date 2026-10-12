@@ -1,0 +1,76 @@
+name: Bug report
+description: Something in the planner, the site, or an export does not work.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Search the [open issues](https://github.com/NxT-Solutions/Traceway/issues) first. For a security problem, use [private reporting](https://github.com/NxT-Solutions/Traceway/security/advisories/new) instead.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Map planner
+        - Route generation
+        - Course export
+        - Saved or shared routes
+        - Account, sign-in, or mail
+        - Content site
+        - API
+        - Local setup (DDEV)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw. Paste error messages as text.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the planner and choose Gravel
+        2. Set a start point and a 60 km loop
+        3. Select Generate
+    validations:
+      required: true
+  - type: dropdown
+    id: sport
+    attributes:
+      label: Sport
+      options:
+        - Not sport specific
+        - Road
+        - Gravel
+        - Mountain bike
+        - Run
+        - Trail run
+        - Walk
+        - Hike
+  - type: input
+    id: where
+    attributes:
+      label: Where it happened
+      description: traceway.online, a local install, or a self-hosted copy, with the commit or release if you know it.
+      placeholder: traceway.online
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: Safari 19 on iPhone, Firefox 140 on Windows
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, logs, or files
+      description: Drag files here. Remove anything personal, like your home address, before you attach a route.
