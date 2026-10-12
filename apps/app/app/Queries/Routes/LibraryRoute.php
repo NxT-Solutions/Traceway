@@ -10,7 +10,7 @@ final readonly class LibraryRoute
 {
     /**
      * @param  list<array{0: float, 1: float}>  $coordinates
-     * @param  list<array{discipline: string, distance_metres: int}>  $legs
+     * @param  list<array{discipline: string, distance_metres: int, fit_url: string|null}>  $legs
      */
     public function __construct(
         public RouteId $id,
@@ -22,6 +22,7 @@ final readonly class LibraryRoute
         public int $distanceMetres,
         public int $ascentMetres,
         public string $url,
+        public string $fitUrl,
         public ?string $createdAt,
         public array $coordinates,
         public ?string $layout = null,
@@ -39,10 +40,11 @@ final readonly class LibraryRoute
      *     distance_metres: int,
      *     ascent_metres: int,
      *     url: string,
+     *     fit_url: string,
      *     created_at: string|null,
      *     coordinates: list<array{0: float, 1: float}>,
      *     layout: string|null,
-     *     legs: list<array{discipline: string, distance_metres: int}>
+     *     legs: list<array{discipline: string, distance_metres: int, fit_url: string|null}>
      * }
      */
     public function toArray(): array
@@ -57,6 +59,7 @@ final readonly class LibraryRoute
             'distance_metres' => $this->distanceMetres,
             'ascent_metres' => $this->ascentMetres,
             'url' => $this->url,
+            'fit_url' => $this->fitUrl,
             'created_at' => $this->createdAt,
             'coordinates' => $this->coordinates,
             'layout' => $this->layout,

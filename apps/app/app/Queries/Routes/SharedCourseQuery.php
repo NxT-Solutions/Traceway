@@ -5,14 +5,23 @@ declare(strict_types=1);
 namespace App\Queries\Routes;
 
 use App\Domain\Routing\Sport;
+use App\Queries\RowReader;
 use App\Routes\RouteId;
 
 final class SharedCourseQuery
 {
     public function find(RouteId $routeId): SharedCourse
     {
-        $rowReader = SavedRouteRow::find($routeId->value);
+        return $this->course(SavedRouteRow::find($routeId->value));
+    }
 
+    public function findOwned(RouteId $routeId, int $riderId): SharedCourse
+    {
+        return $this->course(SavedRouteRow::findOwned($routeId->value, $riderId));
+    }
+
+    private function course(RowReader $rowReader): SharedCourse
+    {
         return new SharedCourse(
             name: $rowReader->string('name'),
             sport: Sport::from($rowReader->string('sport')),

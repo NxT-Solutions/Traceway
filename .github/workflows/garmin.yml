@@ -1,0 +1,180 @@
+name: Garmin App
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: garmin-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CONNECTIQ_SDK_VERSION: "9.2.0"
+  SDK_MANAGER_VERSION: "0.8.4"
+  SDK_MANAGER_SHA256: 5d57b8f9cfcd02d3b3f48e19d6daca0480e4c6f627926f15d8617ef8a6f57e0b
+  # The Connect IQ SDK license as accepted in the SDK manager. When Garmin
+  # changes it, this job fails until the new one is accepted and pinned here.
+  CONNECTIQ_AGREEMENT_HASH: CC737BBBA104D7740D5BBCF27D0F6382
+
+jobs:
+  build:
+    name: Garmin app build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/garmin
+    env:
+      GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}
+      GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Device files need a Garmin login. Forks and Dependabot get no
+      # secrets, so their pull requests skip the build instead of failing.
+      - name: Check Garmin Login
+        id: login
+        run: |
+          if [ -n "$GARMIN_USERNAME" ] && [ -n "$GARMIN_PASSWORD" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            echo "::error::GARMIN_USERNAME and GARMIN_PASSWORD are required to release the Garmin app."
+            exit 1
+          else
+            echo "::notice::No Garmin login in this run, so the Garmin app was not built."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set Up Java
+        if: steps.login.outputs.ready == 'true'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Connect IQ SDK And Devices
+        if: steps.login.outputs.ready == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.Garmin/ConnectIQ
+          key: connectiq-${{ runner.os }}-${{ env.CONNECTIQ_SDK_VERSION }}-${{ hashFiles('apps/garmin/manifest.xml') }}
+          restore-keys: connectiq-${{ runner.os }}-${{ env.CONNECTIQ_SDK_VERSION }}-
+
+      - name: Install Connect IQ SDK Manager
+        if: steps.login.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          archive="connect-iq-sdk-manager-cli_${SDK_MANAGER_VERSION}_Linux_x86_64.tar.gz"
+          curl --silent --show-error --fail --location --output "$RUNNER_TEMP/$archive" \
+            "https://github.com/lindell/connect-iq-sdk-manager-cli/releases/download/v${SDK_MANAGER_VERSION}/${archive}"
+          echo "${SDK_MANAGER_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/sdk-manager"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/sdk-manager"
+          echo "$RUNNER_TEMP/sdk-manager" >> "$GITHUB_PATH"
+
+      - name: Install SDK And Devices
+        if: steps.login.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          connect-iq-sdk-manager agreement accept --agreement-hash="$CONNECTIQ_AGREEMENT_HASH"
+          connect-iq-sdk-manager login
+          connect-iq-sdk-manager sdk set "$CONNECTIQ_SDK_VERSION"
+          connect-iq-sdk-manager device download --manifest=manifest.xml
+          echo "$(connect-iq-sdk-manager sdk current-path --bin)" >> "$GITHUB_PATH"
+
+      # A release is signed with the key the store knows. Every other build
+      # gets a throwaway key, so pull requests never touch the real one.
+      - name: Prepare Signing Key
+        if: steps.login.outputs.ready == 'true'
+        env:
+          CONNECTIQ_DEVELOPER_KEY: ${{ github.event_name == 'release' && secrets.CONNECTIQ_DEVELOPER_KEY || '' }}
+        run: |
+          set -euo pipefail
+          key="$RUNNER_TEMP/developer_key.der"
+          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            if [ -z "$CONNECTIQ_DEVELOPER_KEY" ]; then
+              echo "::error::CONNECTIQ_DEVELOPER_KEY is required to release the Garmin app."
+              exit 1
+            fi
+            printf '%s' "$CONNECTIQ_DEVELOPER_KEY" | base64 --decode > "$key"
+          else
+            openssl genrsa -out "$RUNNER_TEMP/developer_key.pem" 4096 2> /dev/null
+            openssl pkcs8 -topk8 -inform PEM -outform DER -in "$RUNNER_TEMP/developer_key.pem" -out "$key" -nocrypt
+          fi
+          chmod 600 "$key"
+          echo "DEVELOPER_KEY=$key" >> "$GITHUB_ENV"
+
+      - name: Stamp Release Version
+        if: steps.login.outputs.ready == 'true' && github.event_name == 'release'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag $TAG is not vX.Y.Z."
+            exit 1
+          fi
+          sed -i "s/version=\"0\.0\.0\"/version=\"$version\"/" manifest.xml
+          grep -q "version=\"$version\"" manifest.xml
+
+      # Exporting compiles the app for every product in the manifest.
+      - name: Build Store Package
+        if: steps.login.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          monkeyc -f monkey.jungle -e -r -w -y "$DEVELOPER_KEY" -o dist/traceway.iq
+
+      # The store listing images are SVG sources. They are drawn here, so nothing rendered is committed.
+      - name: Render Store Images
+        if: steps.login.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          sudo apt-get install --yes --no-install-recommends librsvg2-bin > /dev/null
+          mkdir -p dist/store
+          rsvg-convert --width 500 --height 500 store/icon.svg --output dist/store/traceway-store-icon.png
+          rsvg-convert --width 1440 --height 720 store/hero.svg --output dist/store/traceway-store-hero.png
+
+      - name: Upload Store Package
+        if: steps.login.outputs.ready == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: traceway-garmin
+          path: |
+            apps/garmin/dist/traceway.iq
+            apps/garmin/dist/store/*.png
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Attach Garmin app to release
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Store Package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: traceway-garmin
+          path: dist
+
+      - name: Attach To Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          mv dist/traceway.iq "dist/traceway-garmin-${TAG}.iq"
+          gh release upload "$TAG" "dist/traceway-garmin-${TAG}.iq" dist/store/*.png --clobber --repo "$GITHUB_REPOSITORY"

@@ -7,15 +7,20 @@ namespace App\Providers;
 use App\Auth\SessionRider;
 use App\Bus\CommandBus;
 use App\Commands\ChangePasswordCommand;
+use App\Commands\ClaimDevicePairingCommand;
 use App\Commands\DeleteAccountCommand;
 use App\Commands\DeleteRouteCommand;
 use App\Commands\DisconnectAppCommand;
 use App\Commands\ExportPersonalDataCommand;
+use App\Commands\LinkDeviceCommand;
 use App\Commands\OpenAccountCommand;
+use App\Commands\RevokeDeviceCommand;
 use App\Commands\SaveRouteCommand;
+use App\Commands\StartDevicePairingCommand;
 use App\Commands\UpdateProfileCommand;
 use App\Commands\WelcomeRiderCommand;
 use App\Contracts\Account\ConnectedAppRepository;
+use App\Contracts\Account\DeviceLinkRepository;
 use App\Contracts\Account\EmailConfirmation;
 use App\Contracts\Account\UserRepository;
 use App\Contracts\Auth\CurrentRider;
@@ -25,12 +30,16 @@ use App\Contracts\Routes\SavedRouteRepository;
 use App\Domain\Routing\PlaceFinder;
 use App\Domain\Routing\RoutingEngine;
 use App\Handlers\ChangePasswordHandler;
+use App\Handlers\ClaimDevicePairingHandler;
 use App\Handlers\DeleteAccountHandler;
 use App\Handlers\DeleteRouteHandler;
 use App\Handlers\DisconnectAppHandler;
 use App\Handlers\ExportPersonalDataHandler;
+use App\Handlers\LinkDeviceHandler;
 use App\Handlers\OpenAccountHandler;
+use App\Handlers\RevokeDeviceHandler;
 use App\Handlers\SaveRouteHandler;
+use App\Handlers\StartDevicePairingHandler;
 use App\Handlers\UpdateProfileHandler;
 use App\Handlers\WelcomeRiderHandler;
 use App\Integrations\GraphHopper\GraphHopperConnector;
@@ -45,6 +54,7 @@ use App\Mail\TracewayAccountMailer;
 use App\Models\PreventLazyLoading;
 use App\Notifications\RiderEmailConfirmation;
 use App\Repositories\EloquentConnectedAppRepository;
+use App\Repositories\EloquentDeviceLinkRepository;
 use App\Repositories\EloquentSavedRouteRepository;
 use App\Repositories\EloquentUserRepository;
 use Carbon\CarbonImmutable;
@@ -75,6 +85,10 @@ class AppServiceProvider extends ServiceProvider
             SaveRouteCommand::class => SaveRouteHandler::class,
             DeleteRouteCommand::class => DeleteRouteHandler::class,
             DisconnectAppCommand::class => DisconnectAppHandler::class,
+            StartDevicePairingCommand::class => StartDevicePairingHandler::class,
+            ClaimDevicePairingCommand::class => ClaimDevicePairingHandler::class,
+            LinkDeviceCommand::class => LinkDeviceHandler::class,
+            RevokeDeviceCommand::class => RevokeDeviceHandler::class,
         ]);
         $this->app->instance(DispatchesCommands::class, $commandBus);
         $this->app->alias(DispatchesCommands::class, CommandBus::class);
@@ -82,6 +96,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(UserRepository::class, EloquentUserRepository::class);
         $this->app->bind(SavedRouteRepository::class, EloquentSavedRouteRepository::class);
         $this->app->bind(ConnectedAppRepository::class, EloquentConnectedAppRepository::class);
+        $this->app->bind(DeviceLinkRepository::class, EloquentDeviceLinkRepository::class);
         $this->app->bind(CurrentRider::class, SessionRider::class);
         $this->app->bind(AccountMailer::class, TracewayAccountMailer::class);
         $this->app->bind(EmailConfirmation::class, RiderEmailConfirmation::class);
@@ -137,7 +152,17 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureRateLimiting();
         $this->configureAiTools();
+    }
+
+    /**
+     * A Garmin asks for its routes over the phone. Pairing is tighter, since a code is only six characters.
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('device', fn (Request $request): Limit => Limit::perMinute(60)->by($request->ip()));
+        RateLimiter::for('device-pairing', fn (Request $request): Limit => Limit::perMinute(6)->by($request->ip()));
     }
 
     /**

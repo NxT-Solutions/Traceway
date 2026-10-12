@@ -127,6 +127,559 @@
                 ]
             }
         },
+        "/api/device/routes/{savedRoute}/{format}": {
+            "get": {
+                "tags": [
+                    "Device"
+                ],
+                "summary": "Download a saved route as a course file",
+                "description": "The device stores the file as a course.",
+                "operationId": "deviceCourse",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "format",
+                        "in": "path",
+                        "description": "fit for Garmin. gpx for a device that reads GPX.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "fit",
+                                "gpx"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A FIT or GPX file.",
+                        "content": {
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            },
+                            "application/gpx+xml": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The token is missing or the device was removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The rider has no such route.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
+        "/api/device/routes/{savedRoute}/{format}/{leg}": {
+            "get": {
+                "tags": [
+                    "Device"
+                ],
+                "summary": "Download one land leg of a multisport plan as a course file",
+                "operationId": "deviceCourseLeg",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "format",
+                        "in": "path",
+                        "description": "fit for Garmin. gpx for a device that reads GPX.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "fit",
+                                "gpx"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "leg",
+                        "in": "path",
+                        "description": "The leg, counted from 1. The swim has no course.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 5,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A FIT or GPX file named for the leg.",
+                        "content": {
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            },
+                            "application/gpx+xml": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The token is missing or the device was removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The rider has no such route or land leg.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
+        "/api/device/pairings": {
+            "post": {
+                "tags": [
+                    "Device"
+                ],
+                "summary": "Open a pairing for a device",
+                "description": "The device shows the code. The rider types it in Settings, then Devices. The device keeps the secret and asks for its token with it.",
+                "operationId": "startDevicePairing",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/StartDevicePairingRequest"
+                },
+                "responses": {
+                    "201": {
+                        "description": "A code for the rider and a secret for the device.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "code",
+                                        "secret",
+                                        "expires_in"
+                                    ],
+                                    "properties": {
+                                        "code": {
+                                            "type": "string",
+                                            "maxLength": 6,
+                                            "minLength": 6
+                                        },
+                                        "secret": {
+                                            "type": "string"
+                                        },
+                                        "expires_in": {
+                                            "description": "Seconds until the code runs out.",
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too many pairings from this address.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/api/device/pairings/claim": {
+            "post": {
+                "tags": [
+                    "Device"
+                ],
+                "summary": "Collect the device token after the rider enters the code",
+                "description": "The device asks every few seconds. The token comes back once.",
+                "operationId": "claimDevicePairing",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/ClaimDevicePairingRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The rider linked the device. Send the token as a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "token"
+                                    ],
+                                    "properties": {
+                                        "token": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "202": {
+                        "description": "No rider has entered the code yet.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "status"
+                                    ],
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "enum": [
+                                                "waiting"
+                                            ]
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "410": {
+                        "description": "The code ran out, or the token was already collected.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/api/device/routes/{savedRoute}/line": {
+            "get": {
+                "tags": [
+                    "Device"
+                ],
+                "summary": "The shape of a saved route",
+                "description": "At most 150 points, each latitude then longitude, for a preview before the course is loaded.",
+                "operationId": "deviceRouteLine",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The thinned line.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeviceRouteLine"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The token is missing or the device was removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The rider has no such route.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
+        "/api/device/routes/{savedRoute}/line/{leg}": {
+            "get": {
+                "tags": [
+                    "Device"
+                ],
+                "summary": "The shape of one land leg of a multisport plan",
+                "operationId": "deviceRouteLegLine",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "leg",
+                        "in": "path",
+                        "description": "The leg, counted from 1. The swim has no course.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 5,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The thinned line of the leg.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeviceRouteLine"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The token is missing or the device was removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The rider has no such route or land leg.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
+        "/api/device/routes": {
+            "get": {
+                "tags": [
+                    "Device"
+                ],
+                "summary": "The latest saved routes of the rider who linked the device",
+                "operationId": "deviceRoutes",
+                "responses": {
+                    "200": {
+                        "description": "Up to 20 routes, newest first.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "routes"
+                                    ],
+                                    "properties": {
+                                        "routes": {
+                                            "type": "array",
+                                            "items": {
+                                                "required": [
+                                                    "id",
+                                                    "title",
+                                                    "name",
+                                                    "sport",
+                                                    "distance_metres",
+                                                    "ascent_metres",
+                                                    "bounds",
+                                                    "legs"
+                                                ],
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "title": {
+                                                        "description": "The route name for a menu, up to 40 characters.",
+                                                        "type": "string",
+                                                        "maxLength": 40,
+                                                        "minLength": 1
+                                                    },
+                                                    "name": {
+                                                        "description": "The name the course carries on the device.",
+                                                        "type": "string",
+                                                        "maxLength": 15,
+                                                        "minLength": 1
+                                                    },
+                                                    "sport": {
+                                                        "type": "string"
+                                                    },
+                                                    "distance_metres": {
+                                                        "type": "integer"
+                                                    },
+                                                    "ascent_metres": {
+                                                        "type": "integer"
+                                                    },
+                                                    "bounds": {
+                                                        "description": "South, west, north, east, in degrees.",
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "number"
+                                                        },
+                                                        "maxItems": 4,
+                                                        "minItems": 4
+                                                    },
+                                                    "legs": {
+                                                        "description": "The land legs of a multisport plan. Empty for a single sport.",
+                                                        "type": "array",
+                                                        "items": {
+                                                            "required": [
+                                                                "n",
+                                                                "name",
+                                                                "sport",
+                                                                "distance_metres",
+                                                                "ascent_metres",
+                                                                "bounds"
+                                                            ],
+                                                            "properties": {
+                                                                "n": {
+                                                                    "description": "The leg, counted from 1.",
+                                                                    "type": "integer"
+                                                                },
+                                                                "name": {
+                                                                    "type": "string",
+                                                                    "maxLength": 15,
+                                                                    "minLength": 1
+                                                                },
+                                                                "sport": {
+                                                                    "type": "string"
+                                                                },
+                                                                "distance_metres": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "ascent_metres": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "bounds": {
+                                                                    "description": "South, west, north, east, in degrees.",
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "maxItems": 4,
+                                                                    "minItems": 4
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The token is missing or the device was removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
         "/routes/fit": {
             "post": {
                 "tags": [
@@ -470,6 +1023,79 @@
                     },
                     "502": {
                         "description": "No loop came back.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/settings/devices": {
+            "post": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Link a device to the signed-in person with the code it shows",
+                "operationId": "linkDevice",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/LinkDeviceRequest"
+                },
+                "responses": {
+                    "302": {
+                        "description": "Back to Devices."
+                    },
+                    "422": {
+                        "description": "The code is not waiting, or the label is not valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/settings/devices/{deviceLink}": {
+            "delete": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Remove a linked device. Its token stops working at once.",
+                "operationId": "revokeDevice",
+                "parameters": [
+                    {
+                        "name": "deviceLink",
+                        "in": "path",
+                        "description": "The linked device.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Back to Devices."
+                    },
+                    "404": {
+                        "description": "The person has no such device.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -993,6 +1619,27 @@
                 },
                 "type": "object"
             },
+            "DeviceRouteLine": {
+                "required": [
+                    "line"
+                ],
+                "properties": {
+                    "line": {
+                        "description": "Latitude then longitude, in degrees.",
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "number"
+                            },
+                            "maxItems": 2,
+                            "minItems": 2
+                        },
+                        "maxItems": 150
+                    }
+                },
+                "type": "object"
+            },
             "PersonalDataDocument": {
                 "required": [
                     "exported_at",
@@ -1290,6 +1937,27 @@
                     }
                 }
             },
+            "ClaimDevicePairingRequest": {
+                "description": "The secret the device got when it opened the pairing.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "secret"
+                            ],
+                            "properties": {
+                                "secret": {
+                                    "type": "string",
+                                    "maxLength": 48,
+                                    "minLength": 48
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
             "ExportFitCourseRequest": {
                 "description": "The course to write into a FIT file.",
                 "required": true,
@@ -1532,6 +2200,31 @@
                     }
                 }
             },
+            "LinkDeviceRequest": {
+                "description": "The code on the device and a name for it.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "code",
+                                "label"
+                            ],
+                            "properties": {
+                                "code": {
+                                    "description": "Six letters and digits. Spaces and case do not matter.",
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string",
+                                    "maxLength": 40
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
             "PasswordUpdateRequest": {
                 "description": "The current password and the replacement. Neither is returned.",
                 "required": true,
@@ -1640,6 +2333,26 @@
                                         "trail_run",
                                         "walk",
                                         "hike"
+                                    ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "StartDevicePairingRequest": {
+                "description": "The device app that asks for a code.",
+                "required": false,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "provider": {
+                                    "type": "string",
+                                    "default": "garmin",
+                                    "enum": [
+                                        "garmin"
                                     ]
                                 }
                             },
@@ -1780,6 +2493,11 @@
                 "description": "The session cookie of the signed-in person. State-changing calls also send the X-XSRF-TOKEN header. A signed share link does not use this cookie.",
                 "name": "laravel_session",
                 "in": "cookie"
+            },
+            "deviceToken": {
+                "type": "http",
+                "description": "The token a device app, such as Traceway for Connect IQ on a Garmin, gets after the rider types its pairing code in Settings, then Devices. It reads only that rider's own routes.",
+                "scheme": "bearer"
             }
         }
     },
@@ -1796,6 +2514,10 @@
         {
             "name": "Library",
             "description": "Library"
+        },
+        {
+            "name": "Device",
+            "description": "Device"
         },
         {
             "name": "Share",

@@ -6,8 +6,11 @@ namespace App\OpenApi;
 
 use OpenApi\Attributes\Get;
 use OpenApi\Attributes\Info;
+use OpenApi\Attributes\Items;
 use OpenApi\Attributes\OpenApi;
+use OpenApi\Attributes\Property;
 use OpenApi\Attributes\Response;
+use OpenApi\Attributes\Schema;
 use OpenApi\Attributes\SecurityScheme;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
@@ -36,5 +39,24 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
     description: 'The session cookie of the signed-in person. State-changing calls also send the X-XSRF-TOKEN header. A signed share link does not use this cookie.',
     name: 'laravel_session',
     in: 'cookie',
+)]
+#[SecurityScheme(
+    securityScheme: 'deviceToken',
+    type: 'http',
+    description: "The token a device app, such as Traceway for Connect IQ on a Garmin, gets after the rider types its pairing code in Settings, then Devices. It reads only that rider's own routes.",
+    scheme: 'bearer',
+)]
+#[Schema(
+    schema: 'DeviceRouteLine',
+    required: ['line'],
+    properties: [
+        new Property(
+            property: 'line',
+            description: 'Latitude then longitude, in degrees.',
+            type: 'array',
+            items: new Items(type: 'array', items: new Items(type: 'number'), maxItems: 2, minItems: 2),
+            maxItems: 150,
+        ),
+    ],
 )]
 final class Spec {}
