@@ -194,7 +194,6 @@ export function MultisportLegs({
                             type="button"
                             role="radio"
                             aria-checked={layout === option.value}
-                            aria-pressed={layout === option.value}
                             onClick={() => onLayout(option.value)}
                         >
                             {option.label}

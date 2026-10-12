@@ -197,7 +197,7 @@
 .tw-planner .ghostbtn:hover{background:var(--hover)}
 .tw-planner .seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px;padding:4px;border:1px solid var(--hair);border-radius:10px}
 .tw-planner .seg button{height:34px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-size:14px;font-weight:500;cursor:pointer;transition:background .2s,color .2s}
-.tw-planner .seg button[aria-selected="true"],.tw-planner .seg button[aria-pressed="true"]{background:var(--seg-on);color:var(--seg-on-fg)}
+.tw-planner .seg button[aria-selected="true"],.tw-planner .seg button[aria-checked="true"]{background:var(--seg-on);color:var(--seg-on-fg)}
 .tw-planner .pbody{flex:1 1 auto;min-height:0;overflow:auto;padding:10px 20px 20px;display:flex;flex-direction:column;gap:14px;overscroll-behavior:contain}
 .tw-planner .pbody>*{flex-shrink:0}
 .tw-planner .sec-label{margin:0 0 4px;font-size:13px;font-weight:500;color:var(--muted)}
