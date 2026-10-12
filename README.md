@@ -25,13 +25,9 @@
 
 <br>
 
-<p align="center">
-  <img src=".github/readme/promo.webp" alt="Shoes on, no route yet. A pin drops, Traceway draws four loops and keeps a clean 10 km run on quiet paved roads. The course loads on a watch, the runner leaves the phone at home. Traceway, loops for every sport." width="100%">
-</p>
-
-<p align="center"><sub>The same film with sound, 24 seconds:</sub></p>
-
 https://github.com/user-attachments/assets/add4d827-82a7-4a9a-973d-9ef6819503d2
+
+<p align="center"><sub>Press play for the 24-second film. Turn the sound on.</sub></p>
 
 Traceway plans a loop for any sport and writes the course file your watch, GPS, or bike computer follows on its own. Drop a pin, name a distance, pick a sport. Traceway reads the roads and paths around the pin, draws the loops that come back without doubling over themselves, and keeps the best one. Then you take the file and leave the phone at home.
 
