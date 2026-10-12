@@ -204,6 +204,7 @@ export default function Share({ route }: { route: SharedRoute }) {
                 mapRef={mapRef}
                 lines={playerLines}
                 coverRef={asideRef}
+                distanceMetres={route.distance_metres}
             />
             <aside ref={asideRef}>
                 <p className="mark">Traceway</p>

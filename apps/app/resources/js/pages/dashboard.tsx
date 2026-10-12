@@ -2421,9 +2421,18 @@ export default function Dashboard() {
             Math.max(12, canvas.height - edge - 48),
             cover + 44,
         );
+        const player = document.querySelector('.player-card');
+        const below =
+            player instanceof HTMLElement
+                ? player.getBoundingClientRect().bottom - canvas.top + 12
+                : 0;
+        const top = Math.max(
+            edge,
+            Math.min(below, canvas.height - bottom - 60),
+        );
 
         return {
-            top: edge,
+            top,
             right: visible < 200 ? 16 : 72,
             bottom,
             left: edge,
@@ -3676,6 +3685,7 @@ export default function Dashboard() {
                         mapRef={mapRef}
                         lines={playerLines}
                         coverRef={panelRef}
+                        distanceMetres={shown?.distance_metres}
                     />
                     <aside
                         ref={panelRef}
