@@ -7,31 +7,53 @@ import Toybox.WatchUi;
 module Brand {
     const INK = 0x071F20;
     const PAPER = 0xF7F5EC;
-    const MARKER = 0x97CB46;
     const MUTED = 0x9AA9A6;
+
+    // The marker green. A 64-colour screen gets the nearest bright green in its palette.
+    (:color)
+    function marker() {
+        return 0x97CB46;
+    }
+
+    (:mip)
+    function marker() {
+        return 0xAAFF55;
+    }
 
     function ground(dc) {
         dc.setColor(PAPER, INK);
         dc.clear();
     }
 
-    // The wordmark, centred, with its top at y. Returns where it ends.
-    function wordmark(dc, y) {
-        var logo = WatchUi.loadResource(Rez.Drawables.Wordmark);
-        dc.drawBitmap((dc.getWidth() - logo.getWidth()) / 2, y, logo);
+    // A bitmap centred across the screen, with its top at y. Returns its height.
+    function bitmap(dc, y, image) {
+        dc.drawBitmap((dc.getWidth() - image.getWidth()) / 2, y, image);
 
-        return y + logo.getHeight();
+        return image.getHeight();
     }
 
-    // Text centred on x, wrapped to a share of the screen width. Returns the height it took.
-    function text(dc, y, font, color, value, widthShare, lines) {
-        var width = (dc.getWidth() * widthShare).toNumber();
-        var fitted = Graphics.fitTextToArea(value, font, width, dc.getFontHeight(font) * lines, true);
+    // Wraps text to a share of the screen width and a number of lines, with an ellipsis past that.
+    function fit(dc, font, value, widthShare, lines) {
+        var lineHeight = dc.getFontHeight(font);
 
+        return Graphics.fitTextToArea(value, font, (dc.getWidth() * widthShare).toNumber(), lineHeight * lines + lineHeight / 2, true);
+    }
+
+    function heightOf(dc, font, fitted) {
+        return dc.getTextDimensions(fitted, font)[1];
+    }
+
+    // Fitted text centred across the screen, with its top at y. Returns its height.
+    function text(dc, y, font, color, fitted) {
         dc.setColor(color, Graphics.COLOR_TRANSPARENT);
         dc.drawText(dc.getWidth() / 2, y, font, fitted, Graphics.TEXT_JUSTIFY_CENTER);
 
-        return dc.getTextDimensions(fitted, font)[1];
+        return heightOf(dc, font, fitted);
+    }
+
+    // Where a group of this height starts, so it sits in the middle of the screen.
+    function top(dc, total) {
+        return (dc.getHeight() - total) / 2;
     }
 
     // A screen with the wordmark and one message under it.
@@ -39,13 +61,41 @@ module Brand {
         ground(dc);
 
         var height = dc.getHeight();
-        var bottom = wordmark(dc, (height * 0.22).toNumber());
+        var logo = WatchUi.loadResource(Rez.Drawables.Wordmark);
+        var gap = (height * 0.07).toNumber();
+        var titleText = fit(dc, Graphics.FONT_SMALL, title, 0.78, 2);
+        var detailText = detail == null ? null : fit(dc, Graphics.FONT_XTINY, detail, 0.72, 3);
+        var total = logo.getHeight() + gap + heightOf(dc, Graphics.FONT_SMALL, titleText);
 
-        text(dc, bottom + (height * 0.1).toNumber(), Graphics.FONT_SMALL, PAPER, title, 0.78, 2);
-
-        if (detail != null) {
-            text(dc, bottom + (height * 0.1).toNumber() + dc.getFontHeight(Graphics.FONT_SMALL) * 2, Graphics.FONT_XTINY, MUTED, detail, 0.72, 3);
+        if (detailText != null) {
+            total += gap / 3 + heightOf(dc, Graphics.FONT_XTINY, detailText);
         }
+
+        var y = top(dc, total);
+
+        y += bitmap(dc, y, logo) + gap;
+        y += text(dc, y, Graphics.FONT_SMALL, PAPER, titleText);
+
+        if (detailText != null) {
+            text(dc, y + gap / 3, Graphics.FONT_XTINY, MUTED, detailText);
+        }
+    }
+
+    // The primary action, in the words of the sport.
+    function verb(sport) {
+        if (sport.equals("run") || sport.equals("trail_run")) {
+            return "Run it";
+        }
+
+        if (sport.equals("hike")) {
+            return "Hike it";
+        }
+
+        if (sport.equals("walk")) {
+            return "Walk it";
+        }
+
+        return "Ride it";
     }
 
     // A small sport tile for a menu row.
@@ -59,18 +109,6 @@ module Brand {
         }
 
         return Rez.Drawables.SportFoot;
-    }
-
-    function sportIconLarge(sport) {
-        if (sport.equals("road") || sport.equals("gravel")) {
-            return Rez.Drawables.SportRoadLarge;
-        }
-
-        if (sport.equals("mtb")) {
-            return Rez.Drawables.SportMtbLarge;
-        }
-
-        return Rez.Drawables.SportFootLarge;
     }
 }
 

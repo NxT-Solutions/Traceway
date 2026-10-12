@@ -35,7 +35,7 @@ class DeviceRoutesController extends Controller
                     property: 'routes',
                     type: 'array',
                     items: new Items(
-                        required: ['id', 'title', 'name', 'sport', 'distance_metres', 'ascent_metres', 'legs'],
+                        required: ['id', 'title', 'name', 'sport', 'distance_metres', 'ascent_metres', 'bounds', 'legs'],
                         properties: [
                             new Property(property: 'id', type: 'string', format: 'uuid'),
                             new Property(property: 'title', description: 'The route name for a menu, up to 40 characters.', type: 'string', maxLength: 40, minLength: 1),
@@ -43,16 +43,20 @@ class DeviceRoutesController extends Controller
                             new Property(property: 'sport', type: 'string'),
                             new Property(property: 'distance_metres', type: 'integer'),
                             new Property(property: 'ascent_metres', type: 'integer'),
+                            new Property(property: 'bounds', description: 'South, west, north, east, in degrees.', type: 'array', items: new Items(type: 'number'), maxItems: 4, minItems: 4),
                             new Property(
                                 property: 'legs',
                                 description: 'The land legs of a multisport plan. Empty for a single sport.',
                                 type: 'array',
                                 items: new Items(
-                                    required: ['n', 'name', 'sport'],
+                                    required: ['n', 'name', 'sport', 'distance_metres', 'ascent_metres', 'bounds'],
                                     properties: [
                                         new Property(property: 'n', description: 'The leg, counted from 1.', type: 'integer'),
                                         new Property(property: 'name', type: 'string', maxLength: 15, minLength: 1),
                                         new Property(property: 'sport', type: 'string'),
+                                        new Property(property: 'distance_metres', type: 'integer'),
+                                        new Property(property: 'ascent_metres', type: 'integer'),
+                                        new Property(property: 'bounds', description: 'South, west, north, east, in degrees.', type: 'array', items: new Items(type: 'number'), maxItems: 4, minItems: 4),
                                     ],
                                 ),
                             ),

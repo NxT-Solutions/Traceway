@@ -1,1 +1,12 @@
 project.manifest = manifest.xml
+
+# A 64-colour MIP watch snaps the brand green to olive, so it draws with the palette's own lime (:mip).
+# A device without maps sketches the route on ink instead of showing it on a map (:nomaps).
+base.excludeAnnotations = mip;nomaps
+fenix7.excludeAnnotations = color;nomaps
+fr955.excludeAnnotations = color;nomaps
+fr255.excludeAnnotations = color;maps
+fr265.excludeAnnotations = mip;maps
+fenix7.resourcePath = $(fenix7.resourcePath);resources-mip
+fr255.resourcePath = $(fr255.resourcePath);resources-mip
+fr955.resourcePath = $(fr955.resourcePath);resources-mip

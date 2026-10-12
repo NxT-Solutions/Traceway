@@ -1,12 +1,10 @@
 <drawables>
-    <bitmap id="LauncherIcon" filename="launcher_icon.svg"/>
-    <bitmap id="Wordmark" filename="wordmark.svg" scaleX="48%" scaleRelativeTo="screen"/>
-    <bitmap id="WordmarkSmall" filename="wordmark.svg" scaleX="44%" scaleRelativeTo="screen"/>
-    <bitmap id="SportRoad" filename="sport_road.svg" scaleX="12%" scaleRelativeTo="screen"/>
-    <bitmap id="SportMtb" filename="sport_mtb.svg" scaleX="12%" scaleRelativeTo="screen"/>
-    <bitmap id="SportFoot" filename="sport_foot.svg" scaleX="12%" scaleRelativeTo="screen"/>
-    <bitmap id="SportRoadLarge" filename="sport_road.svg" scaleX="20%" scaleRelativeTo="screen"/>
-    <bitmap id="SportMtbLarge" filename="sport_mtb.svg" scaleX="20%" scaleRelativeTo="screen"/>
-    <bitmap id="SportFootLarge" filename="sport_foot.svg" scaleX="20%" scaleRelativeTo="screen"/>
-    <bitmap id="Check" filename="check.svg" scaleX="20%" scaleRelativeTo="screen"/>
+    <bitmap id="LauncherIcon" dithering="none" filename="launcher_icon.svg"/>
+    <bitmap id="Wordmark" dithering="none" filename="wordmark.svg" scaleX="48%" scaleRelativeTo="screen"/>
+    <bitmap id="WordmarkSmall" dithering="none" filename="wordmark.svg" scaleX="44%" scaleRelativeTo="screen"/>
+    <bitmap id="SportRoad" dithering="none" filename="sport_road.svg" scaleX="12%" scaleRelativeTo="screen"/>
+    <bitmap id="SportMtb" dithering="none" filename="sport_mtb.svg" scaleX="12%" scaleRelativeTo="screen"/>
+    <bitmap id="SportFoot" dithering="none" filename="sport_foot.svg" scaleX="12%" scaleRelativeTo="screen"/>
+    <bitmap id="Check" dithering="none" filename="check.svg" scaleX="20%" scaleRelativeTo="screen"/>
+    <bitmap id="StartDot" dithering="none" filename="start_dot.svg" scaleX="7%" scaleRelativeTo="screen"/>
 </drawables>

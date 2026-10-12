@@ -86,18 +86,23 @@ class PairView extends WatchUi.View {
 
         var width = dc.getWidth();
         var height = dc.getHeight();
-        var y = Brand.wordmark(dc, (height * 0.14).toNumber());
+        var small = Graphics.FONT_XTINY;
+        var logo = WatchUi.loadResource(Rez.Drawables.Wordmark);
+        var label = Brand.fit(dc, small, "Link this device", 0.8, 1);
+        var where = Brand.fit(dc, small, "Enter it on " + Api.host(), 0.84, 1);
+        var how = Brand.fit(dc, small, "Settings, then Devices", 0.84, 1);
+        var codeHeight = dc.getFontHeight(Graphics.FONT_LARGE) + 5;
+        var wide = (height * 0.07).toNumber();
+        var narrow = (height * 0.03).toNumber();
+        var total = logo.getHeight() + wide + Brand.heightOf(dc, small, label) + narrow + codeHeight + wide + Brand.heightOf(dc, small, where) + Brand.heightOf(dc, small, how);
+        var y = Brand.top(dc, total);
 
-        y += (height * 0.06).toNumber();
-        Brand.text(dc, y, Graphics.FONT_XTINY, Brand.MUTED, "Link this device", 0.8, 1);
-        y += dc.getFontHeight(Graphics.FONT_XTINY) + (height * 0.03).toNumber();
-
+        y += Brand.bitmap(dc, y, logo) + wide;
+        y += Brand.text(dc, y, small, Brand.MUTED, label) + narrow;
         drawCode(dc, y, width);
-        y += dc.getFontHeight(Graphics.FONT_LARGE) + (height * 0.07).toNumber();
-
-        Brand.text(dc, y, Graphics.FONT_XTINY, Brand.PAPER, "Enter it on " + Api.host(), 0.84, 1);
-        y += dc.getFontHeight(Graphics.FONT_XTINY);
-        Brand.text(dc, y, Graphics.FONT_XTINY, Brand.MUTED, "Settings, then Devices", 0.84, 1);
+        y += codeHeight + wide;
+        y += Brand.text(dc, y, small, Brand.PAPER, where);
+        Brand.text(dc, y, small, Brand.MUTED, how);
     }
 
     // The code as six slots, each underlined with the marker green.
@@ -121,7 +126,7 @@ class PairView extends WatchUi.View {
 
             dc.setColor(Brand.PAPER, Graphics.COLOR_TRANSPARENT);
             dc.drawText(x + slot / 2, y, font, _code.substring(index, index + 1), Graphics.TEXT_JUSTIFY_CENTER);
-            dc.setColor(Brand.MARKER, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(Brand.marker(), Graphics.COLOR_TRANSPARENT);
             dc.fillRoundedRectangle(x, line, slot, 3, 1);
         }
     }
