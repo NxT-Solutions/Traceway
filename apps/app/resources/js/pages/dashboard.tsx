@@ -45,6 +45,8 @@ import {
     newLeg,
     presets,
     type RaceDistance,
+    raceDistancesFor,
+    raceOf,
     sessionOf,
     withIds,
 } from '@/lib/multisport';
@@ -69,6 +71,7 @@ type SheetName =
     | 'roads'
     | 'map'
     | 'colour'
+    | 'race'
     | null;
 
 type Preview = {
@@ -1798,6 +1801,9 @@ export default function Dashboard() {
     const sheetRoads = editing?.roads ?? roads;
     const sheetKm = editing?.distanceKm ?? distanceKm;
     const SportIcon = multisport ? MultisportIcon : sportIcon(sport);
+    const session = sessionOf(legs, hasSwim);
+    const races = raceDistancesFor(session);
+    const race = raceOf(session, legs, swimTargetKm);
     const drawingIcons = multisport
         ? [
               ...(hasSwim ? [Waves] : []),
@@ -3043,21 +3049,21 @@ export default function Dashboard() {
         );
     }
 
-    function chooseRace(race: RaceDistance): void {
-        const session = sessionOf(legs, swim !== null);
+    function chooseRace(chosen: RaceDistance): void {
         const label =
             presets.find((item) => item.value === session)?.label ?? '';
-        setSwimTargetKm(race.swimKm);
-        setName(`${race.label} ${label.toLowerCase()}`.trim());
+        setSheet(null);
+        setSwimTargetKm(chosen.swimKm);
+        setName(`${chosen.label} ${label.toLowerCase()}`.trim());
         setMessage(
-            race.swimKm === null
-                ? `${race.copy} Draw the route when you are ready.`
-                : `${race.copy} Draw about ${race.swimKm} km of swim on the water, then draw the route.`,
+            chosen.swimKm === null
+                ? `${chosen.copy} Draw the route when you are ready.`
+                : `${chosen.copy} Draw about ${chosen.swimKm} km of swim on the water, then draw the route.`,
         );
         changeLegs(
             legs.map((leg, index) => ({
                 ...leg,
-                distanceKm: race.legs[index] ?? leg.distanceKm,
+                distanceKm: chosen.legs[index] ?? leg.distanceKm,
                 stretch: true,
             })),
         );
@@ -3861,7 +3867,6 @@ export default function Dashboard() {
                                     colours={legColours}
                                     colourSet={colourSet}
                                     swimTargetKm={swimTargetKm}
-                                    onRace={chooseRace}
                                     onPreset={choosePreset}
                                     onLayout={chooseLayout}
                                     onSwim={toggleSwim}
@@ -4794,6 +4799,32 @@ export default function Dashboard() {
                                 copy={option.copy}
                                 selected={shape === option.value}
                                 onSelect={() => chooseShape(option.value)}
+                            />
+                        ))}
+                    </ChoiceList>
+                </SheetContent>
+            </Sheet>
+
+            <Sheet
+                open={sheet === 'race'}
+                onOpenChange={(open) => !open && setSheet(null)}
+            >
+                <SheetContent
+                    side="bottom"
+                    className={choiceSheet}
+                    style={{ maxHeight: '80vh' }}
+                >
+                    <SheetHeader className={sheetHeading}>
+                        <SheetTitle className="pr-6">Race distance</SheetTitle>
+                    </SheetHeader>
+                    <ChoiceList label="Race distance">
+                        {races.map((item) => (
+                            <RadioRow
+                                key={item.value}
+                                label={item.label}
+                                copy={item.copy}
+                                selected={race?.value === item.value}
+                                onSelect={() => chooseRace(item)}
                             />
                         ))}
                     </ChoiceList>
