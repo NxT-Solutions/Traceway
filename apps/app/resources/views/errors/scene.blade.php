@@ -1,0 +1,271 @@
+{{-- The night trail under every error page. Mirrors apps/web/src/components/ErrorPage.astro. --}}
+<div class="scene" aria-hidden="true">
+    <svg viewBox="0 0 800 240" preserveAspectRatio="xMidYMax meet">
+        <g class="sky">
+            <circle cx="90" cy="30" r="1.4"></circle>
+            <circle cx="180" cy="70" r="1"></circle>
+            <circle cx="260" cy="22" r="1.6"></circle>
+            <circle cx="330" cy="58" r="1"></circle>
+            <circle cx="470" cy="34" r="1.3"></circle>
+            <circle cx="545" cy="80" r="1"></circle>
+            <circle cx="620" cy="26" r="1.5"></circle>
+            <circle cx="700" cy="62" r="1.1"></circle>
+            <circle cx="760" cy="18" r="1"></circle>
+            <circle cx="-60" cy="50" r="1.2"></circle>
+            <circle cx="880" cy="44" r="1.3"></circle>
+            <circle cx="1000" cy="20" r="1"></circle>
+            <circle cx="-200" cy="24" r="1.4"></circle>
+        </g>
+        <g class="slide-far">
+            <path class="far"
+                d="M-800 240L-800 150L-740 118L-690 138L-630 104L-560 140L-500 122L-440 146L-400 150L-340 118L-290 138L-230 104L-160 140L-100 122L-40 146L0 150L60 118L110 138L170 104L240 140L300 122L360 146L400 150L460 118L510 138L570 104L640 140L700 122L760 146L800 150L860 118L910 138L970 104L1040 140L1100 122L1160 146L1200 150L1260 118L1310 138L1370 104L1440 140L1500 122L1560 146L1600 150L1660 118L1710 138L1770 104L1840 140L1900 122L1960 146L2000 150L2060 118L2110 138L2170 104L2240 140L2300 122L2360 146L2400 150L2400 240Z">
+            </path>
+        </g>
+        <g class="slide-near">
+            <path class="near"
+                d="M-800 240L-800 182C-750 152 -690 154 -650 176S-550 196 -500 182C-450 152 -390 154 -350 176S-250 196 -200 182C-150 152 -90 154 -50 176S50 196 100 182C150 152 210 154 250 176S350 196 400 182C450 152 510 154 550 176S650 196 700 182C750 152 810 154 850 176S950 196 1000 182C1050 152 1110 154 1150 176S1250 196 1300 182C1350 152 1410 154 1450 176S1550 196 1600 182C1650 152 1710 154 1750 176S1850 196 1900 182C1950 152 2010 154 2050 176S2150 196 2200 182C2250 152 2310 154 2350 176S2450 196 2500 182L2500 240Z">
+            </path>
+        </g>
+        <rect class="ground" x="-800" y="200" width="3200" height="60"></rect>
+        <g class="slide-ground">
+            <path class="trees"
+                d="M-770 200L-760 166L-750 200ZM-749 200L-742 178L-735 200ZM-659 200L-650 172L-641 200ZM-570 200L-560 166L-550 200ZM-549 200L-542 178L-535 200ZM-459 200L-450 172L-441 200ZM-370 200L-360 166L-350 200ZM-349 200L-342 178L-335 200ZM-259 200L-250 172L-241 200ZM-170 200L-160 166L-150 200ZM-149 200L-142 178L-135 200ZM-59 200L-50 172L-41 200ZM30 200L40 166L50 200ZM51 200L58 178L65 200ZM141 200L150 172L159 200ZM230 200L240 166L250 200ZM251 200L258 178L265 200ZM341 200L350 172L359 200ZM430 200L440 166L450 200ZM451 200L458 178L465 200ZM541 200L550 172L559 200ZM630 200L640 166L650 200ZM651 200L658 178L665 200ZM741 200L750 172L759 200ZM830 200L840 166L850 200ZM851 200L858 178L865 200ZM941 200L950 172L959 200ZM1030 200L1040 166L1050 200ZM1051 200L1058 178L1065 200ZM1141 200L1150 172L1159 200ZM1230 200L1240 166L1250 200ZM1251 200L1258 178L1265 200ZM1341 200L1350 172L1359 200ZM1430 200L1440 166L1450 200ZM1451 200L1458 178L1465 200ZM1541 200L1550 172L1559 200ZM1630 200L1640 166L1650 200ZM1651 200L1658 178L1665 200ZM1741 200L1750 172L1759 200ZM1830 200L1840 166L1850 200ZM1851 200L1858 178L1865 200ZM1941 200L1950 172L1959 200ZM2030 200L2040 166L2050 200ZM2051 200L2058 178L2065 200ZM2141 200L2150 172L2159 200ZM2230 200L2240 166L2250 200ZM2251 200L2258 178L2265 200ZM2341 200L2350 172L2359 200Z">
+            </path>
+            <path class="posts"
+                d="M-700 200V184M-500 200V184M-300 200V184M-100 200V184M100 200V184M300 200V184M500 200V184M700 200V184M900 200V184M1100 200V184M1300 200V184M1500 200V184M1700 200V184M1900 200V184M2100 200V184M2300 200V184">
+            </path>
+        </g>
+        <line class="trail" x1="-800" y1="214" x2="400" y2="214"></line>
+        <line class="trail trail-ahead" x1="400" y1="214" x2="2400" y2="214"></line>
+
+        <g transform="translate(400 212)">
+            @if ($page['athlete'] === 'run')
+                <g class="athlete">
+                    <g class="bob">
+                        <g transform="translate(6 -80)">
+                            <g class="limb ab far-side" stroke-width="5">
+                                <line x1="0" y1="0" x2="0" y2="16"></line>
+                                <line x1="0" y1="16" x2="13" y2="10"></line>
+                            </g>
+                        </g>
+                        <g transform="translate(0 -48)">
+                            <g class="limb tb far-side" stroke-width="6">
+                                <line x1="0" y1="0" x2="0" y2="24"></line>
+                                <g transform="translate(0 24)">
+                                    <g class="limb sb">
+                                        <line x1="0" y1="0" x2="0" y2="24"></line>
+                                        <line x1="0" y1="24" x2="7" y2="24"></line>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                        <line class="jersey" x1="0" y1="-50" x2="7" y2="-80"
+                            stroke-width="11"></line>
+                        <circle class="head" cx="11" cy="-94" r="8.5"></circle>
+                        <path class="jersey" d="M2.5 -97.5 L19.5 -97.5" stroke-width="3.5"></path>
+                        @if ($page['prop'] === 'stopwatch')
+                            <g class="drops">
+                                <circle cx="1" cy="-98" r="2.2"></circle>
+                                <circle cx="4" cy="-104" r="1.7"></circle>
+                            </g>
+                        @endif
+                        <g transform="translate(0 -48)">
+                            <g class="limb ta near-side" stroke-width="6">
+                                <line x1="0" y1="0" x2="0" y2="24"></line>
+                                <g transform="translate(0 24)">
+                                    <g class="limb sa">
+                                        <line x1="0" y1="0" x2="0" y2="24"></line>
+                                        <line x1="0" y1="24" x2="7" y2="24"></line>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                        <g transform="translate(6 -80)">
+                            <g class="limb aa near-side" stroke-width="5">
+                                <line x1="0" y1="0" x2="0" y2="16"></line>
+                                <line x1="0" y1="16" x2="13" y2="10"></line>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            @elseif ($page['athlete'] === 'hike')
+                <g class="athlete">
+                    <g class="bob">
+                        <g transform="translate(3 -80)">
+                            <g class="limb ab far-side" stroke-width="5">
+                                <line x1="0" y1="0" x2="0" y2="16"></line>
+                                <line x1="0" y1="16" x2="10" y2="20"></line>
+                                <line x1="10" y1="20" x2="15" y2="58"
+                                    stroke-width="2.5"></line>
+                            </g>
+                        </g>
+                        <g transform="translate(0 -48)">
+                            <g class="limb tb far-side" stroke-width="6">
+                                <line x1="0" y1="0" x2="0" y2="24"></line>
+                                <g transform="translate(0 24)">
+                                    <g class="limb sb">
+                                        <line x1="0" y1="0" x2="0" y2="24"></line>
+                                        <line x1="0" y1="24" x2="7" y2="24"></line>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                        <rect class="pack" x="-15" y="-82" width="13" height="28" rx="5"></rect>
+                        <line class="jersey" x1="0" y1="-50" x2="3" y2="-80"
+                            stroke-width="11"></line>
+                        <circle class="head" cx="5" cy="-94" r="8.5"></circle>
+                        <path class="jersey" d="M-7 -99 L17 -99 M-1 -100 Q5 -110 11 -100" stroke-width="3.5"></path>
+                        <g transform="translate(0 -48)">
+                            <g class="limb ta near-side" stroke-width="6">
+                                <line x1="0" y1="0" x2="0" y2="24"></line>
+                                <g transform="translate(0 24)">
+                                    <g class="limb sa">
+                                        <line x1="0" y1="0" x2="0" y2="24"></line>
+                                        <line x1="0" y1="24" x2="7" y2="24"></line>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                        <g transform="translate(3 -80)">
+                            <g class="limb aa near-side" stroke-width="5">
+                                <line x1="0" y1="0" x2="0" y2="16"></line>
+                                <line x1="0" y1="16" x2="10" y2="20"></line>
+                                <line x1="10" y1="20" x2="15" y2="58"
+                                    stroke-width="2.5"></line>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            @else
+                <g class="athlete">
+                    <g class="rider">
+                        <g transform="translate(-4 -50)">
+                            <g class="limb tb far-side" stroke-width="6">
+                                <line x1="0" y1="0" x2="0" y2="23"></line>
+                                <g transform="translate(0 23)">
+                                    <g class="limb sb">
+                                        <line x1="0" y1="0" x2="0" y2="24"></line>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                        <polyline class="far-side" points="15,-69 25,-60 32,-52" stroke-width="5"></polyline>
+                        <g transform="translate(-30 -18)">
+                            <circle class="tyre" r="16.5"></circle>
+                            <g class="wheel">
+                                <line x1="-16" y1="0" x2="16" y2="0"></line>
+                                <line x1="0" y1="-16" x2="0" y2="16"></line>
+                                <line x1="-11.3" y1="-11.3" x2="11.3" y2="11.3"></line>
+                                <line x1="-11.3" y1="11.3" x2="11.3" y2="-11.3"></line>
+                            </g>
+                        </g>
+                        <g transform="translate(34 -18)">
+                            <circle class="tyre" r="16.5"></circle>
+                            <g class="wheel">
+                                <line x1="-16" y1="0" x2="16" y2="0"></line>
+                                <line x1="0" y1="-16" x2="0" y2="16"></line>
+                                <line x1="-11.3" y1="-11.3" x2="11.3" y2="11.3"></line>
+                                <line x1="-11.3" y1="11.3" x2="11.3" y2="-11.3"></line>
+                            </g>
+                        </g>
+                        <path class="frame"
+                            d="M-30 -18L0 -16L-6 -44L-30 -18M-6 -44L24 -46L0 -16M24 -46L34 -18M24 -46L26 -52L33 -52L35 -46">
+                        </path>
+                        <line class="near-side" x1="-13" y1="-47" x2="-1" y2="-47"
+                            stroke-width="4"></line>
+                        <line class="jersey" x1="-4" y1="-50" x2="16" y2="-70"
+                            stroke-width="11"></line>
+                        <circle class="head" cx="23" cy="-79" r="8"></circle>
+                        <path class="helmet" d="M14.5 -80a9 8.5 0 0 1 17.5 -2.5z"></path>
+                        <g transform="translate(0 -16)">
+                            <g class="crank">
+                                <line class="near-side" x1="-8" y1="0" x2="8" y2="0"
+                                    stroke-width="3"></line>
+                            </g>
+                        </g>
+                        <g transform="translate(-4 -50)">
+                            <g class="limb ta near-side" stroke-width="6">
+                                <line x1="0" y1="0" x2="0" y2="23"></line>
+                                <g transform="translate(0 23)">
+                                    <g class="limb sa">
+                                        <line x1="0" y1="0" x2="0" y2="24"></line>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                        <polyline class="near-side" points="15,-69 25,-60 32,-52" stroke-width="5"></polyline>
+                    </g>
+                </g>
+            @endif
+
+            <g transform="{{ $page['athlete'] === 'ride' ? 'translate(52 -126)' : 'translate(42 -138)' }}">
+                <g class="prop">
+                    <circle class="bubble" cx="-24" cy="30" r="2.6"></circle>
+                    <circle class="bubble" cx="-16" cy="22" r="4.2"></circle>
+                    <circle class="bubble" r="21"></circle>
+                    @if ($page['prop'] === 'question')
+                        <text class="glyph" y="9">?</text>
+                    @endif
+                    @if ($page['prop'] === 'bang')
+                        <text class="glyph" y="9">!</text>
+                    @endif
+                    @if ($page['prop'] === 'lock')
+                        <g class="shake">
+                            <rect class="ink" x="-9" y="-3" width="18" height="14" rx="3"></rect>
+                            <path class="ink-line" d="M-5.5 -3v-4a5.5 5.5 0 0 1 11 0v4"></path>
+                        </g>
+                    @endif
+                    @if ($page['prop'] === 'key')
+                        <g class="wobble">
+                            <circle class="ink-line" cx="-6" cy="0" r="5"></circle>
+                            <path class="ink-line" d="M-1 0h12M7 0v5M11 0v4"></path>
+                        </g>
+                    @endif
+                    @if ($page['prop'] === 'hourglass')
+                        <g class="flip">
+                            <path class="ink-line" d="M-8 -11h16M-8 11h16M-6 -11L6 11M6 -11L-6 11"></path>
+                            <path class="ink" d="M-4.5 -8h9L0 -1z"></path>
+                        </g>
+                    @endif
+                    @if ($page['prop'] === 'stopwatch')
+                        <g>
+                            <circle class="ink-line" cy="2" r="10"></circle>
+                            <path class="ink-line" d="M-3 -12h6M0 -12v4"></path>
+                            <g transform="translate(0 2)">
+                                <g class="tick">
+                                    <line class="ink-line" x1="0" y1="0" x2="0"
+                                        y2="-6"></line>
+                                </g>
+                            </g>
+                        </g>
+                    @endif
+                    @if ($page['prop'] === 'wrench')
+                        <g class="wobble">
+                            <line class="ink-line" x1="-9" y1="9" x2="3" y2="-3"
+                                stroke-width="5"></line>
+                            <circle class="ink" cx="5" cy="-5" r="6.5"></circle>
+                            <circle class="bubble" cx="8.5" cy="-8.5" r="3.4"></circle>
+                        </g>
+                    @endif
+                    @if ($page['prop'] === 'bottle')
+                        <g class="shake">
+                            <path class="ink" d="M-5 -6h10v15a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3z"></path>
+                            <rect class="ink" x="-3" y="-12" width="6" height="5" rx="1"></rect>
+                        </g>
+                    @endif
+                    @if ($page['prop'] === 'weight')
+                        <g class="shake">
+                            <line class="ink-line" x1="-12" y1="0" x2="12" y2="0">
+                            </line>
+                            <rect class="ink" x="-10" y="-8" width="5" height="16" rx="1.5"></rect>
+                            <rect class="ink" x="5" y="-8" width="5" height="16" rx="1.5"></rect>
+                            <rect class="ink" x="-14" y="-5" width="3.5" height="10" rx="1"></rect>
+                            <rect class="ink" x="10.5" y="-5" width="3.5" height="10" rx="1">
+                            </rect>
+                        </g>
+                    @endif
+                </g>
+            </g>
+        </g>
+    </svg>
+</div>

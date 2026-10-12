@@ -1,0 +1,20 @@
+---
+import ErrorPage from '../../components/ErrorPage.astro';
+import { staticErrors } from '../../errors';
+
+// Nginx serves these when it answers with an error itself, as when PHP is down.
+export function getStaticPaths() {
+    return staticErrors.map((status) => ({
+        params: { status: String(status) },
+        props: { status },
+    }));
+}
+
+interface Props {
+    status: number;
+}
+
+const { status } = Astro.props;
+---
+
+<ErrorPage status={status} />

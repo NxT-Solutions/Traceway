@@ -1,0 +1,152 @@
+/* Error pages. A night trail: the athlete keeps moving while the scenery slides past. Self-contained, so it renders even when the app or its assets are down. */
+:root{
+  --paper:oklch(0.97 0.012 95);
+  --ink:oklch(0.22 0.03 200);
+  --ink-deep:oklch(0.165 0.03 200);
+  --chart:oklch(0.78 0.17 128);
+  --chart-dim:oklch(0.71 0.17 128);
+  --chart-ink:oklch(0.2 0.04 200);
+  --muted-on-ink:oklch(0.72 0.02 110);
+  --hair-on-ink:oklch(0.34 0.03 200);
+  --limb:oklch(0.92 0.012 95);
+  --limb-far:oklch(0.6 0.02 200);
+  --ease:cubic-bezier(0.22,1,0.36,1);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{min-height:100svh;display:flex;flex-direction:column;background:radial-gradient(120% 70% at 50% 100%,oklch(0.27 0.035 195) 0%,var(--ink) 55%,var(--ink-deep) 100%) fixed;color:var(--paper);font-family:Outfit,'Avenir Next','Segoe UI',system-ui,sans-serif;font-size:17px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:clip}
+a{color:inherit;text-decoration:none}
+a:focus-visible{outline:2px solid var(--paper);outline-offset:3px;border-radius:6px}
+
+.err-top{display:flex;align-items:center;padding:20px clamp(20px,4vw,48px)}
+.err-brand{display:inline-flex;align-items:center;gap:10px;min-height:44px;font-size:20px;font-weight:600;letter-spacing:-0.02em}
+.err-brand svg{display:block}
+.err-brand .mkd{fill:var(--chart)}
+
+.err-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:8px clamp(20px,4vw,48px) 28px;text-align:center}
+.err-main h1{margin:0;font-size:clamp(34px,5vw,56px);line-height:1;letter-spacing:-0.04em;font-weight:600;text-wrap:balance;animation:rise .7s var(--ease) .15s both}
+.err-main p{margin:0;max-width:34em;font-size:clamp(17px,1.4vw,20px);color:var(--muted-on-ink);text-wrap:pretty;animation:rise .7s var(--ease) .25s both}
+.err-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:6px;animation:rise .7s var(--ease) .35s both}
+.err-fill,.err-ghost{display:inline-flex;align-items:center;justify-content:center;height:48px;padding:0 22px;border-radius:10px;font-size:16px;white-space:nowrap;transition:background .25s,border-color .25s,transform .3s var(--ease)}
+.err-fill{background:var(--chart);color:var(--chart-ink);font-weight:600}
+.err-fill:hover{background:var(--chart-dim)}
+.err-ghost{border:1px solid var(--hair-on-ink);font-weight:500}
+.err-ghost:hover{border-color:var(--muted-on-ink)}
+.err-fill:active,.err-ghost:active{transform:scale(.97)}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* The race bib carries the status code. It hangs from two pins and sways. */
+.bib{position:relative;width:min(240px,62vw);padding:0 0 14px;border-radius:12px;background:var(--paper);color:var(--ink);box-shadow:0 26px 50px -24px oklch(0 0 0 / 0.8);transform-origin:50% -40px;animation:bib-in .9s var(--ease) both,sway 4.2s ease-in-out .9s infinite}
+.bib-band{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;border-radius:12px 12px 0 0;background:var(--chart);color:var(--chart-ink);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.bib-code{display:block;padding-top:4px;font-size:clamp(64px,10vw,92px);font-weight:700;line-height:1;letter-spacing:-0.05em;font-variant-numeric:tabular-nums}
+.bib-label{display:block;font-size:12px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:oklch(0.45 0.03 200)}
+.bib i{position:absolute;width:12px;height:5px;border-radius:3px;border:1.5px solid oklch(0.6 0.02 200);background:oklch(0.9 0.01 200)}
+.bib i:nth-of-type(1){left:10px;top:44px}
+.bib i:nth-of-type(2){right:10px;top:44px}
+.bib i:nth-of-type(3){left:10px;bottom:10px}
+.bib i:nth-of-type(4){right:10px;bottom:10px}
+@keyframes bib-in{from{opacity:0;transform:translateY(-40px) rotate(-8deg)}to{opacity:1;transform:none}}
+@keyframes sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+
+/* The scene. Layers slide one period to the left and loop. */
+.scene{position:relative;flex:none;height:clamp(190px,34vh,320px);overflow:hidden}
+.scene svg{position:absolute;left:50%;bottom:0;height:100%;width:100%;transform:translateX(-50%);display:block}
+@media (max-width:760px){.scene svg{width:760px}}
+.sky circle{fill:var(--paper);animation:twinkle 3.6s ease-in-out infinite}
+.sky circle:nth-child(3n){animation-delay:-1.2s}
+.sky circle:nth-child(3n+1){animation-delay:-2.4s}
+@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.7}}
+.far{fill:oklch(0.26 0.03 200)}
+.near{fill:oklch(0.235 0.035 165)}
+.trees{fill:oklch(0.28 0.045 150)}
+.posts{stroke:var(--chart);stroke-width:2;stroke-linecap:round;opacity:.5}
+.ground{fill:var(--ink-deep)}
+.trail{stroke:var(--chart);stroke-width:4;stroke-linecap:round;fill:none}
+.trail-ahead{stroke-dasharray:12 10;opacity:.55}
+.slide-far{animation:slide-400 var(--far) linear infinite}
+.slide-near{animation:slide-300 var(--near) linear infinite}
+.slide-ground{animation:slide-200 var(--ground) linear infinite}
+.trail-ahead{animation:dash var(--dash) linear infinite}
+@keyframes slide-400{to{transform:translateX(-400px)}}
+@keyframes slide-300{to{transform:translateX(-300px)}}
+@keyframes slide-200{to{transform:translateX(-200px)}}
+@keyframes dash{to{stroke-dashoffset:22}}
+
+/* Athletes. Limbs rotate about their own joint, at the group origin. */
+.athlete{stroke-linecap:round;stroke-linejoin:round;fill:none}
+.athlete .near-side{stroke:var(--limb)}
+.athlete .far-side{stroke:var(--limb-far)}
+.athlete .head{fill:var(--limb);stroke:none}
+.athlete .jersey{stroke:var(--chart)}
+.athlete .helmet{fill:var(--chart);stroke:none}
+.athlete .pack{fill:oklch(0.5 0.08 140);stroke:none}
+.limb{animation:var(--cycle) linear infinite}
+.bob{animation:bob calc(var(--cycle) / 2) ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+
+.is-run{--cycle:.66s;--ground:1.43s;--dash:.157s;--near:4.3s;--far:19s}
+.is-hike{--cycle:1.2s;--ground:3.33s;--dash:.37s;--near:10s;--far:44s}
+.is-ride{--cycle:.8s;--ground:.9s;--dash:.1s;--near:2.7s;--far:12s}
+.is-run .ta{animation-name:run-thigh-a}.is-run .sa{animation-name:run-shin-a}
+.is-run .tb{animation-name:run-thigh-b}.is-run .sb{animation-name:run-shin-b}
+.is-run .aa{animation-name:run-arm-a}.is-run .ab{animation-name:run-arm-b}
+.is-hike .ta{animation-name:hike-thigh-a}.is-hike .sa{animation-name:hike-shin-a}
+.is-hike .tb{animation-name:hike-thigh-b}.is-hike .sb{animation-name:hike-shin-b}
+.is-hike .aa{animation-name:hike-arm-a}.is-hike .ab{animation-name:hike-arm-b}
+.is-ride .ta{animation-name:ride-thigh-a}.is-ride .sa{animation-name:ride-shin-a}
+.is-ride .tb{animation-name:ride-thigh-b}.is-ride .sb{animation-name:ride-shin-b}
+.crank{animation:spin var(--cycle) linear infinite}
+.wheel{animation:spin .49s linear infinite}
+.wheel line{stroke:var(--limb-far);stroke-width:1.2}
+.tyre{stroke:var(--limb);stroke-width:3.5}
+.frame{stroke:var(--chart);stroke-width:3.5}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* A pothole every few seconds. */
+.jolt .rider{animation:jolt 3.2s ease-in-out infinite}
+@keyframes jolt{0%,82%,100%{transform:none}86%{transform:translateY(-9px) rotate(-3deg)}90%{transform:translateY(0) rotate(1deg)}94%{transform:translateY(-3px)}}
+
+/* The thought bubble over the athlete. */
+.prop{animation:float 2.6s ease-in-out infinite}
+.prop .bubble{fill:var(--paper)}
+.prop .ink{fill:var(--ink)}
+.prop .ink-line{stroke:var(--ink);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.prop .glyph{fill:var(--ink);font:700 26px/1 Outfit,'Avenir Next','Segoe UI',system-ui,sans-serif;text-anchor:middle}
+@keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(0,-6px)}}
+.flip{animation:flip 3s var(--ease) infinite}
+@keyframes flip{0%,40%{transform:rotate(0)}60%,100%{transform:rotate(180deg)}}
+.tick{animation:spin 2s steps(8) infinite}
+.wobble{animation:wobble 1.6s ease-in-out infinite}
+@keyframes wobble{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(14deg)}}
+.shake{animation:shake 2.4s ease-in-out infinite}
+@keyframes shake{0%,70%,100%{transform:rotate(0)}75%{transform:rotate(-12deg)}85%{transform:rotate(10deg)}92%{transform:rotate(-4deg)}}
+.drops circle{fill:oklch(0.8 0.08 230);animation:drip 1.1s ease-in infinite}
+.drops circle:nth-child(2){animation-delay:-.55s}
+@keyframes drip{from{opacity:.9;transform:translate(0,0)}to{opacity:0;transform:translate(-10px,22px)}}
+
+@media (max-width:520px){
+  .err-top{padding-top:14px}
+  .err-main{gap:18px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-play-state:paused!important}
+  .bib,.err-main h1,.err-main p,.err-actions{animation:none!important}
+}
+
+/* Limb keyframes. Pedalling angles come from two-link IK, hip to pedal; gaits are sampled sine curves. */
+@keyframes run-thigh-a{0%{transform:rotate(0deg)}8.3%{transform:rotate(-19deg)}16.7%{transform:rotate(-32.9deg)}25%{transform:rotate(-38deg)}33.3%{transform:rotate(-32.9deg)}41.7%{transform:rotate(-19deg)}50%{transform:rotate(0deg)}58.3%{transform:rotate(19deg)}66.7%{transform:rotate(32.9deg)}75%{transform:rotate(38deg)}83.3%{transform:rotate(32.9deg)}91.7%{transform:rotate(19deg)}100%{transform:rotate(0deg)}}
+@keyframes run-shin-a{0%{transform:rotate(95deg)}8.3%{transform:rotate(83.7deg)}16.7%{transform:rotate(56.9deg)}25%{transform:rotate(29.8deg)}33.3%{transform:rotate(13.4deg)}41.7%{transform:rotate(8.4deg)}50%{transform:rotate(8deg)}58.3%{transform:rotate(8.4deg)}66.7%{transform:rotate(13.4deg)}75%{transform:rotate(29.7deg)}83.3%{transform:rotate(56.9deg)}91.7%{transform:rotate(83.7deg)}100%{transform:rotate(95deg)}}
+@keyframes run-thigh-b{0%{transform:rotate(0deg)}8.3%{transform:rotate(19deg)}16.7%{transform:rotate(32.9deg)}25%{transform:rotate(38deg)}33.3%{transform:rotate(32.9deg)}41.7%{transform:rotate(19deg)}50%{transform:rotate(0deg)}58.3%{transform:rotate(-19deg)}66.7%{transform:rotate(-32.9deg)}75%{transform:rotate(-38deg)}83.3%{transform:rotate(-32.9deg)}91.7%{transform:rotate(-19deg)}100%{transform:rotate(0deg)}}
+@keyframes run-shin-b{0%{transform:rotate(8deg)}8.3%{transform:rotate(8.4deg)}16.7%{transform:rotate(13.4deg)}25%{transform:rotate(29.7deg)}33.3%{transform:rotate(56.9deg)}41.7%{transform:rotate(83.7deg)}50%{transform:rotate(95deg)}58.3%{transform:rotate(83.7deg)}66.7%{transform:rotate(56.9deg)}75%{transform:rotate(29.8deg)}83.3%{transform:rotate(13.4deg)}91.7%{transform:rotate(8.4deg)}100%{transform:rotate(8deg)}}
+@keyframes run-arm-a{0%{transform:rotate(0deg)}8.3%{transform:rotate(22.5deg)}16.7%{transform:rotate(39deg)}25%{transform:rotate(45deg)}33.3%{transform:rotate(39deg)}41.7%{transform:rotate(22.5deg)}50%{transform:rotate(0deg)}58.3%{transform:rotate(-22.5deg)}66.7%{transform:rotate(-39deg)}75%{transform:rotate(-45deg)}83.3%{transform:rotate(-39deg)}91.7%{transform:rotate(-22.5deg)}100%{transform:rotate(0deg)}}
+@keyframes run-arm-b{0%{transform:rotate(0deg)}8.3%{transform:rotate(-22.5deg)}16.7%{transform:rotate(-39deg)}25%{transform:rotate(-45deg)}33.3%{transform:rotate(-39deg)}41.7%{transform:rotate(-22.5deg)}50%{transform:rotate(0deg)}58.3%{transform:rotate(22.5deg)}66.7%{transform:rotate(39deg)}75%{transform:rotate(45deg)}83.3%{transform:rotate(39deg)}91.7%{transform:rotate(22.5deg)}100%{transform:rotate(0deg)}}
+@keyframes hike-thigh-a{0%{transform:rotate(0deg)}8.3%{transform:rotate(-11deg)}16.7%{transform:rotate(-19.1deg)}25%{transform:rotate(-22deg)}33.3%{transform:rotate(-19.1deg)}41.7%{transform:rotate(-11deg)}50%{transform:rotate(0deg)}58.3%{transform:rotate(11deg)}66.7%{transform:rotate(19.1deg)}75%{transform:rotate(22deg)}83.3%{transform:rotate(19.1deg)}91.7%{transform:rotate(11deg)}100%{transform:rotate(0deg)}}
+@keyframes hike-shin-a{0%{transform:rotate(30deg)}8.3%{transform:rotate(26.6deg)}16.7%{transform:rotate(18.6deg)}25%{transform:rotate(10.5deg)}33.3%{transform:rotate(5.6deg)}41.7%{transform:rotate(4.1deg)}50%{transform:rotate(4deg)}58.3%{transform:rotate(4.1deg)}66.7%{transform:rotate(5.6deg)}75%{transform:rotate(10.5deg)}83.3%{transform:rotate(18.6deg)}91.7%{transform:rotate(26.6deg)}100%{transform:rotate(30deg)}}
+@keyframes hike-thigh-b{0%{transform:rotate(0deg)}8.3%{transform:rotate(11deg)}16.7%{transform:rotate(19.1deg)}25%{transform:rotate(22deg)}33.3%{transform:rotate(19.1deg)}41.7%{transform:rotate(11deg)}50%{transform:rotate(0deg)}58.3%{transform:rotate(-11deg)}66.7%{transform:rotate(-19.1deg)}75%{transform:rotate(-22deg)}83.3%{transform:rotate(-19.1deg)}91.7%{transform:rotate(-11deg)}100%{transform:rotate(0deg)}}
+@keyframes hike-shin-b{0%{transform:rotate(4deg)}8.3%{transform:rotate(4.1deg)}16.7%{transform:rotate(5.6deg)}25%{transform:rotate(10.5deg)}33.3%{transform:rotate(18.6deg)}41.7%{transform:rotate(26.6deg)}50%{transform:rotate(30deg)}58.3%{transform:rotate(26.6deg)}66.7%{transform:rotate(18.6deg)}75%{transform:rotate(10.5deg)}83.3%{transform:rotate(5.6deg)}91.7%{transform:rotate(4.1deg)}100%{transform:rotate(4deg)}}
+@keyframes hike-arm-a{0%{transform:rotate(0deg)}8.3%{transform:rotate(12deg)}16.7%{transform:rotate(20.8deg)}25%{transform:rotate(24deg)}33.3%{transform:rotate(20.8deg)}41.7%{transform:rotate(12deg)}50%{transform:rotate(0deg)}58.3%{transform:rotate(-12deg)}66.7%{transform:rotate(-20.8deg)}75%{transform:rotate(-24deg)}83.3%{transform:rotate(-20.8deg)}91.7%{transform:rotate(-12deg)}100%{transform:rotate(0deg)}}
+@keyframes hike-arm-b{0%{transform:rotate(0deg)}8.3%{transform:rotate(-12deg)}16.7%{transform:rotate(-20.8deg)}25%{transform:rotate(-24deg)}33.3%{transform:rotate(-20.8deg)}41.7%{transform:rotate(-12deg)}50%{transform:rotate(0deg)}58.3%{transform:rotate(12deg)}66.7%{transform:rotate(20.8deg)}75%{transform:rotate(24deg)}83.3%{transform:rotate(20.8deg)}91.7%{transform:rotate(12deg)}100%{transform:rotate(0deg)}}
+@keyframes ride-thigh-a{0%{transform:rotate(-60.4deg)}8.3%{transform:rotate(-49.6deg)}16.7%{transform:rotate(-39.2deg)}25%{transform:rotate(-32.2deg)}33.3%{transform:rotate(-30.1deg)}41.7%{transform:rotate(-32.3deg)}50%{transform:rotate(-37.7deg)}58.3%{transform:rotate(-46deg)}66.7%{transform:rotate(-56.6deg)}75%{transform:rotate(-66.5deg)}83.3%{transform:rotate(-71.2deg)}91.7%{transform:rotate(-68.6deg)}100%{transform:rotate(-60.4deg)}}
+@keyframes ride-shin-a{0%{transform:rotate(79.8deg)}8.3%{transform:rotate(65.5deg)}16.7%{transform:rotate(54.9deg)}25%{transform:rotate(52.3deg)}33.3%{transform:rotate(58.9deg)}41.7%{transform:rotate(71.6deg)}50%{transform:rotate(86.5deg)}58.3%{transform:rotate(100.2deg)}66.7%{transform:rotate(109.7deg)}75%{transform:rotate(112deg)}83.3%{transform:rotate(106.2deg)}91.7%{transform:rotate(94.4deg)}100%{transform:rotate(79.8deg)}}
+@keyframes ride-thigh-b{0%{transform:rotate(-37.7deg)}8.3%{transform:rotate(-46deg)}16.7%{transform:rotate(-56.6deg)}25%{transform:rotate(-66.5deg)}33.3%{transform:rotate(-71.2deg)}41.7%{transform:rotate(-68.6deg)}50%{transform:rotate(-60.4deg)}58.3%{transform:rotate(-49.6deg)}66.7%{transform:rotate(-39.2deg)}75%{transform:rotate(-32.2deg)}83.3%{transform:rotate(-30.1deg)}91.7%{transform:rotate(-32.3deg)}100%{transform:rotate(-37.7deg)}}
+@keyframes ride-shin-b{0%{transform:rotate(86.5deg)}8.3%{transform:rotate(100.2deg)}16.7%{transform:rotate(109.7deg)}25%{transform:rotate(112deg)}33.3%{transform:rotate(106.2deg)}41.7%{transform:rotate(94.4deg)}50%{transform:rotate(79.8deg)}58.3%{transform:rotate(65.5deg)}66.7%{transform:rotate(54.9deg)}75%{transform:rotate(52.3deg)}83.3%{transform:rotate(58.9deg)}91.7%{transform:rotate(71.6deg)}100%{transform:rotate(86.5deg)}}
