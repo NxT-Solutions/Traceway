@@ -21,6 +21,14 @@ async function scan(page, path) {
         return;
     }
 
+    await audit(page, path);
+}
+
+/**
+ * Checks the page as it stands, so a state reached by clicking, such as an
+ * open sheet, is checked too.
+ */
+async function audit(page, label) {
     // axe-core 4.13 turns oklch() into the wrong sRGB color, so its
     // contrast numbers are not the ratios in WcagTest.php.
     const result = await new AxeBuilder({ page })
@@ -32,7 +40,7 @@ async function scan(page, path) {
 
     for (const violation of result.violations) {
         const nodes = violation.nodes.map((node) => node.target.join(' ')).slice(0, 3).join('; ');
-        failures.push(`${path} [${page.viewportSize().width}px] ${violation.id}: ${violation.help} (${nodes})`);
+        failures.push(`${label} [${page.viewportSize().width}px] ${violation.id}: ${violation.help} (${nodes})`);
     }
 }
 
@@ -56,6 +64,27 @@ try {
     }
 
     await scan(desktop, '/settings/security');
+
+    // The multisport plan, and the sheets it opens.
+    await scan(desktop, '/dashboard');
+    await desktop.getByRole('tab', { name: 'Multisport' }).click();
+    await desktop.getByRole('button', { name: /^Type\s*\w/ }).waitFor();
+    await audit(desktop, '/dashboard multisport');
+    await desktop.getByRole('button', { name: /^Type\s*\w/ }).click();
+    await desktop.getByRole('radio', { name: /^Triathlon\b/ }).waitFor();
+    await audit(desktop, '/dashboard session sheet');
+    await desktop.getByRole('radio', { name: /^Triathlon\b/ }).click();
+    await desktop.getByRole('button', { name: /^Colours\b/ }).click();
+    await desktop.getByRole('radiogroup', { name: 'Colour set' }).waitFor();
+    await audit(desktop, '/dashboard colour sheet');
+
+    await phone.goto(`${base}/login`, { waitUntil: 'domcontentloaded' });
+    await phone.getByRole('button', { name: /^Road\b/ }).click();
+    await phone.waitForURL(/\/dashboard/, { timeout: 20000 });
+    await phone.getByRole('button', { name: 'Expand the plan' }).click();
+    await phone.getByRole('tab', { name: 'Multisport' }).click();
+    await phone.getByRole('button', { name: /^Type\s*\w/ }).waitFor();
+    await audit(phone, '/dashboard multisport');
 
     if (failures.length > 0) {
         console.error(failures.join('\n'));
