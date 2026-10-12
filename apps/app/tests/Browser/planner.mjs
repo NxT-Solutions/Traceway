@@ -47,6 +47,13 @@ try {
     await desktop.waitForURL(/\/dashboard/, { timeout: 20000 });
     await fits(desktop, 'Planner');
 
+    await desktop.getByRole('tab', { name: 'Multisport' }).click();
+    await desktop.getByRole('button', { name: 'Triathlon' }).click();
+    await desktop.getByRole('button', { name: /^Swim\b/ }).waitFor();
+    await desktop.getByRole('radio', { name: 'Chain' }).click();
+    await desktop.getByText('Tap where leg 2 ends').waitFor();
+    await fits(desktop, 'Multisport planner');
+
     await open(desktop, '/saved');
     await desktop.getByRole('link', { name: 'Plan your route' }).waitFor();
 

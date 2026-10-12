@@ -194,9 +194,9 @@
 .tw-planner #route-name{border:0;background:transparent;outline-offset:4px}
 .tw-planner .ghostbtn{width:36px;height:36px;border:0;border-radius:10px;background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto}
 .tw-planner .ghostbtn:hover{background:var(--hover)}
-.tw-planner .seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;border:1px solid var(--hair);border-radius:10px}
+.tw-planner .seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px;padding:4px;border:1px solid var(--hair);border-radius:10px}
 .tw-planner .seg button{height:34px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-size:14px;font-weight:500;cursor:pointer;transition:background .2s,color .2s}
-.tw-planner .seg button[aria-selected="true"]{background:var(--seg-on);color:var(--seg-on-fg)}
+.tw-planner .seg button[aria-selected="true"],.tw-planner .seg button[aria-pressed="true"]{background:var(--seg-on);color:var(--seg-on-fg)}
 .tw-planner .pbody{flex:1 1 auto;min-height:0;overflow:auto;padding:10px 20px 20px;display:flex;flex-direction:column;gap:14px;overscroll-behavior:contain}
 .tw-planner .pbody>*{flex-shrink:0}
 .tw-planner .sec-label{margin:0 0 4px;font-size:13px;font-weight:500;color:var(--muted)}
@@ -602,3 +602,19 @@ body:has(.tw-planner) .tw-pop button.choice.on .check{background:oklch(0.78 0.17
 body:has(.tw-planner) .tw-pop .check svg{display:none}
 body:has(.tw-planner) .tw-pop button.choice.on .check svg{display:block}
 body:has(.tw-planner) .tw-pop .group-label{margin:4px 0 0;font-size:13px;color:var(--muted, oklch(0.45 0.02 200))}
+.tw-planner .mark.leg{color:#fff}
+.tw-planner .mark.swim{background:transparent;border:1.5px dashed #1d4ed8;color:#1d4ed8}
+.tw-planner .legs .pt.on .field{border-color:var(--text)}
+.tw-planner .leg-list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.tw-planner .leg-list li{display:flex;align-items:center;gap:10px;font-size:14px}
+.tw-planner .leg-list li b{font-weight:500}
+.tw-planner .leg-list li span{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted)}
+.tw-planner .leg-list i{display:inline-block;width:22px;height:3px;border-radius:2px;flex:0 0 auto}
+.tw-planner .leg-list i.dotted{height:0;background:none!important;border-top:3px dashed currentColor}
+.tw-planner .finish-pin{width:26px;height:26px;border-radius:50%;background:#fff;color:#16303a;display:flex;align-items:center;justify-content:center;font-family:Outfit,sans-serif;font-size:11px;font-weight:600;border:2px solid #16303a;box-shadow:0 1px 4px oklch(0.22 0.03 200 / 0.28);pointer-events:none}
+.tw-planner .swim-pin{width:14px;height:14px;border-radius:50%;background:#1d4ed8;border:2px solid #fff;box-shadow:0 1px 4px oklch(0.22 0.03 200 / 0.28);pointer-events:none}
+.tw-share .legs{display:flex;flex-direction:column;gap:6px;margin:0 0 14px;padding:0;list-style:none;font-size:14px}
+.tw-share .legs li{display:flex;align-items:center;gap:10px}
+.tw-share .legs li b{font-weight:500}
+.tw-share .legs li span{margin-left:auto;font-variant-numeric:tabular-nums;color:#3d4c46}
+.tw-share .legs i{display:inline-block;width:22px;height:3px;border-radius:2px}

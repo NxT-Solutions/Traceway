@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Bike, Footprints, Mountain } from 'lucide-react';
+import { Bike, Footprints, Mountain, Waypoints } from 'lucide-react';
 import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import * as maplibregl from 'maplibre-gl';
 import {
@@ -33,9 +33,13 @@ type SavedRoute = {
     url: string;
     created_at: string | null;
     coordinates: Coordinate[];
+    layout: 'loops' | 'chain' | null;
+    legs: Array<{ discipline: string; distance_metres: number }>;
 };
 
 const sportLabel: Record<string, string> = {
+    multisport: 'Multisport',
+    swim: 'Swim',
     road: 'Road',
     gravel: 'Gravel',
     mtb: 'Mountain bike',
@@ -62,13 +66,22 @@ const roadLabel: Record<string, string> = {
     any: 'Any roads',
 };
 
+/**
+ * A multisport plan files under its own sport, not the sport of its first leg.
+ */
+function sportKey(route: SavedRoute): string {
+    return route.legs.length > 0 ? 'multisport' : route.sport;
+}
+
 function SportMark({ sport }: { sport: string }) {
     const Icon =
-        sport === 'mtb'
-            ? Mountain
-            : sport === 'road' || sport === 'gravel'
-              ? Bike
-              : Footprints;
+        sport === 'multisport'
+            ? Waypoints
+            : sport === 'mtb'
+              ? Mountain
+              : sport === 'road' || sport === 'gravel'
+                ? Bike
+                : Footprints;
 
     return (
         <span className="sport-mark" title={sportLabel[sport] ?? sport}>
@@ -79,6 +92,15 @@ function SportMark({ sport }: { sport: string }) {
 }
 
 function routeSpecs(route: SavedRoute): string {
+    if (route.legs.length > 0) {
+        return route.legs
+            .map(
+                (leg) =>
+                    `${sportLabel[leg.discipline] ?? leg.discipline} ${(leg.distance_metres / 1000).toFixed(1)} km`,
+            )
+            .join(' → ');
+    }
+
     return [
         sportLabel[route.sport] ?? route.sport,
         surfaceLabel[route.surface] ?? route.surface,
@@ -314,7 +336,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
 
                 return (
                     named &&
-                    (sport === 'all' || route.sport === sport) &&
+                    (sport === 'all' || sportKey(route) === sport) &&
                     (surface === 'all' || route.surface === surface) &&
                     (hills === 'all' || route.elevation === hills) &&
                     (roads === 'all' || route.roads === roads)
@@ -954,7 +976,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                             </span>
                                             <span className="title-line">
                                                 <SportMark
-                                                    sport={route.sport}
+                                                    sport={sportKey(route)}
                                                 />
                                                 <span className="title">
                                                     {route.name}
@@ -994,7 +1016,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                             </span>
                                             <span className="title-line">
                                                 <SportMark
-                                                    sport={route.sport}
+                                                    sport={sportKey(route)}
                                                 />
                                                 <span className="title">
                                                     {route.name}
@@ -1201,7 +1223,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                                 </span>
                                                 <span className="title-line">
                                                     <SportMark
-                                                        sport={route.sport}
+                                                        sport={sportKey(route)}
                                                     />
                                                     <span className="title">
                                                         {route.name}
@@ -1374,7 +1396,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                                             <span>
                                                 <span className="title-line">
                                                     <SportMark
-                                                        sport={route.sport}
+                                                        sport={sportKey(route)}
                                                     />
                                                     <span className="title">
                                                         {route.name}
@@ -1475,7 +1497,7 @@ function RouteFilters({
             {choiceChips(
                 'Sport',
                 sport,
-                [...new Set(routes.map((route) => route.sport))],
+                [...new Set(routes.map(sportKey))],
                 sportLabel,
                 onSport,
             )}
