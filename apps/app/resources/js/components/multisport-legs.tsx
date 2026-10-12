@@ -23,7 +23,8 @@ export type LegSheet =
     | 'elevation'
     | 'roads'
     | 'colour'
-    | 'race';
+    | 'race'
+    | 'session';
 
 export type Placing = { kind: 'swim' } | { kind: 'finish'; leg: number } | null;
 
@@ -103,7 +104,6 @@ export function MultisportLegs({
     colours,
     colourSet,
     swimTargetKm,
-    onPreset,
     onLayout,
     onSwim,
     onDrawSwim,
@@ -125,7 +125,6 @@ export function MultisportLegs({
     colourSet: ColourSet;
     /** How far the swim of the chosen race is, so the athlete can draw it. */
     swimTargetKm: number | null;
-    onPreset: (value: (typeof presets)[number]['value']) => void;
     onLayout: (value: Layout) => void;
     onSwim: (enabled: boolean) => void;
     onDrawSwim: () => void;
@@ -154,33 +153,19 @@ export function MultisportLegs({
         <>
             <section aria-label="Session">
                 <p className="sec-label">Session</p>
-                <div className="seg" role="radiogroup" aria-label="Session">
-                    {presets.map((preset) => (
-                        <button
-                            key={preset.value}
-                            type="button"
-                            role="radio"
-                            aria-checked={session === preset.value}
-                            aria-pressed={session === preset.value}
-                            onClick={() => onPreset(preset.value)}
-                        >
-                            {preset.label}
-                        </button>
-                    ))}
-                    <button
-                        type="button"
-                        role="radio"
-                        aria-checked={session === 'custom'}
-                        aria-pressed={session === 'custom'}
-                        disabled={session !== 'custom'}
-                        title="Change the legs to make your own session."
-                    >
-                        {customSession.label}
-                    </button>
-                </div>
-                <p className="small" style={{ marginTop: 8 }}>
-                    {race === null ? sessionCopy : race.copy}
-                </p>
+                <button
+                    type="button"
+                    className="row"
+                    onClick={() => onOpen('session')}
+                >
+                    <span className="k">Type</span>
+                    <span className="v">
+                        {[...presets, customSession].find(
+                            (item) => item.value === session,
+                        )?.label ?? customSession.label}
+                        <Chevron />
+                    </span>
+                </button>
                 {races.length > 0 ? (
                     <button
                         type="button"
@@ -194,6 +179,9 @@ export function MultisportLegs({
                         </span>
                     </button>
                 ) : null}
+                <p className="small" style={{ marginTop: 8 }}>
+                    {race === null ? sessionCopy : race.copy}
+                </p>
                 <div
                     className="seg"
                     role="radiogroup"
