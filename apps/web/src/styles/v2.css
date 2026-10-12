@@ -272,3 +272,15 @@ details p{color:var(--muted);padding:0 0 24px;max-width:62ch}
   .wire circle{display:none}
   .rail li,.hud dd{transition:none}
 }
+
+/* multisport */
+#multisport .tiles{margin-top:clamp(36px,5vw,56px)}
+.ms-more{margin-top:clamp(40px,5vw,64px);gap:40px 64px;align-items:start}
+.ms-more h3{font-size:26px;line-height:1.05;letter-spacing:-0.03em;font-weight:600}
+.ms-more p{margin-top:14px;color:var(--muted);max-width:52ch}
+.race-list{margin:18px 0 0;padding:0;list-style:none;border-top:1px solid var(--ink);max-width:520px}
+.race-list li{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--hair);font-size:16px}
+.race-list b{font-weight:500}
+.race-list span{color:var(--muted);font-variant-numeric:tabular-nums}
+#sports .lede a{text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--hair)}
+#sports .lede a:hover{text-decoration-color:currentColor}
