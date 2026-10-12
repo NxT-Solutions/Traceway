@@ -1,6 +1,8 @@
-<x-main title="Your Traceway data" preheader="A copy of your account and saved routes is attached.">
+<template>
+<MainLayout title="Your Traceway data" preheader="A copy of your account and saved routes is attached.">
   <h1 class="tw-h1">Your Traceway data</h1>
   <p class="tw-p">Hello %%NAME%%.</p>
   <p class="tw-p">A copy of the data Traceway keeps about you is attached as <strong>traceway-data.json</strong>. It includes your account and your saved routes. It does not include your password or sign-in secrets.</p>
-  <x-button>Review your data</x-button>
-</x-main>
+  <Button>Review your data</Button>
+</MainLayout>
+</template>

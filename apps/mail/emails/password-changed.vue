@@ -1,7 +1,9 @@
-<x-main title="Your Traceway password changed" preheader="If this was you, there is nothing to do.">
+<template>
+<MainLayout title="Your Traceway password changed" preheader="If this was you, there is nothing to do.">
   <h1 class="tw-h1">Your password changed</h1>
   <p class="tw-p">Hello %%NAME%%.</p>
   <p class="tw-p">The password for your Traceway account was just changed. If this was you, there is nothing to do.</p>
   <p class="tw-p">If it was not you, reset your password now.</p>
-  <x-button>Reset your password</x-button>
-</x-main>
+  <Button>Reset your password</Button>
+</MainLayout>
+</template>

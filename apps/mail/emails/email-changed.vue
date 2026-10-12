@@ -1,7 +1,9 @@
-<x-main title="Your Traceway email changed" preheader="Your sign-in email is now %%NEW_EMAIL%%.">
+<template>
+<MainLayout title="Your Traceway email changed" preheader="Your sign-in email is now %%NEW_EMAIL%%.">
   <h1 class="tw-h1">Your sign-in email changed</h1>
   <p class="tw-p">Hello %%NAME%%.</p>
   <p class="tw-p">Your Traceway account now signs in with <strong>%%NEW_EMAIL%%</strong>. Traceway sent a confirmation link to that address.</p>
   <p class="tw-p">If you did not make this change, reset your password now.</p>
-  <x-button>Reset your password</x-button>
-</x-main>
+  <Button>Reset your password</Button>
+</MainLayout>
+</template>

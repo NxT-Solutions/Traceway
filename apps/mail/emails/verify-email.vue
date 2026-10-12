@@ -1,8 +1,10 @@
-<x-main title="Confirm your Traceway email" preheader="One tap to confirm this address and open the planner.">
+<template>
+<MainLayout title="Confirm your Traceway email" preheader="One tap to confirm this address and open the planner.">
   <h1 class="tw-h1">Confirm your email</h1>
   <p class="tw-p">Hello %%NAME%%.</p>
   <p class="tw-p">Confirm this address so Traceway knows it is yours. The link works for 60 minutes.</p>
-  <x-button>Confirm email</x-button>
-  <x-fallback />
+  <Button>Confirm email</Button>
+  <Fallback />
   <p class="tw-muted" style="margin: 0;">If you did not ask for a Traceway account, you can ignore this message.</p>
-</x-main>
+</MainLayout>
+</template>
