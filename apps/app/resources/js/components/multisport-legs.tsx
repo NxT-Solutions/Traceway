@@ -5,6 +5,7 @@ import {
     colourName,
     colourSets,
     customSession,
+    inkOn,
     type LandLeg,
     type Layout,
     layouts,
@@ -251,10 +252,7 @@ export function MultisportLegs({
                             <span
                                 className="mark swim"
                                 aria-hidden="true"
-                                style={{
-                                    borderColor: colours[0],
-                                    color: colours[0],
-                                }}
+                                style={{ borderColor: colours[0] }}
                             >
                                 1
                             </span>
@@ -303,6 +301,9 @@ export function MultisportLegs({
                                 aria-hidden="true"
                                 style={{
                                     background: colours[index + offset - 1],
+                                    color: inkOn(
+                                        colours[index + offset - 1] ?? '',
+                                    ),
                                 }}
                             >
                                 {index + offset}
@@ -404,6 +405,67 @@ export function MultisportLegs({
             {active === undefined ? null : (
                 <section aria-label={`Leg ${activeLeg + offset}`}>
                     <p className="sec-label">{`Leg ${activeLeg + offset}`}</p>
+                    {legs.length > 1 ? (
+                        <div
+                            className="row order"
+                            role="group"
+                            aria-label={`Order of leg ${activeLeg + offset}`}
+                        >
+                            <span className="k">Order</span>
+                            <span className="v">
+                                <button
+                                    type="button"
+                                    className="ghostbtn"
+                                    aria-label="Move this leg earlier"
+                                    disabled={activeLeg === 0}
+                                    onClick={() =>
+                                        onMove(activeLeg, activeLeg - 1)
+                                    }
+                                >
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 16 16"
+                                        fill="none"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            d="M4 10 L8 6 L12 10"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="ghostbtn"
+                                    aria-label="Move this leg later"
+                                    disabled={activeLeg === legs.length - 1}
+                                    onClick={() =>
+                                        onMove(activeLeg, activeLeg + 1)
+                                    }
+                                >
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 16 16"
+                                        fill="none"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            d="M4 6 L8 10 L12 6"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                </button>
+                            </span>
+                        </div>
+                    ) : null}
                     <button
                         type="button"
                         className="row"

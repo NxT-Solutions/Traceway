@@ -10,6 +10,7 @@ final readonly class ExportedRoute
      * @param  list<array{0: float, 1: float}>  $coordinates
      * @param  list<array{0: float, 1: float}>|null  $userCoordinates
      * @param  list<array{0: float, 1: float}>|null  $finishCoordinates
+     * @param  list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null}>  $legs  The legs of a multisport plan, swim included.
      */
     public function __construct(
         public string $name,
@@ -24,6 +25,8 @@ final readonly class ExportedRoute
         public ?array $finishCoordinates,
         public ?string $createdAt,
         public ?string $updatedAt,
+        public ?string $layout = null,
+        public array $legs = [],
     ) {}
 
     /**
@@ -42,6 +45,8 @@ final readonly class ExportedRoute
             'coordinates' => $this->coordinates,
             'user_coordinates' => $this->userCoordinates,
             'finish_coordinates' => $this->finishCoordinates,
+            'layout' => $this->layout,
+            'legs' => $this->legs,
             'created_at' => $this->createdAt,
             'updated_at' => $this->updatedAt,
         ];

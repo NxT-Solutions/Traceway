@@ -7,6 +7,7 @@ namespace App\Queries\Account;
 use App\Account\Email;
 use App\Account\RiderName;
 use App\Queries\RowReader;
+use App\Routes\SavedLeg;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -105,6 +106,8 @@ final class PersonalDataQuery
                 'coordinates',
                 'user_coordinates',
                 'finish_coordinates',
+                'layout',
+                'legs',
                 'created_at',
                 'updated_at',
             ]);
@@ -126,6 +129,8 @@ final class PersonalDataQuery
                 $reader->optionalLine('finish_coordinates'),
                 $reader->iso('created_at'),
                 $reader->iso('updated_at'),
+                $reader->optionalString('layout'),
+                array_map(fn (SavedLeg $savedLeg): array => $savedLeg->toArray(), $reader->legs('legs')),
             );
         }
 

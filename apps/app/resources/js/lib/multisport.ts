@@ -454,6 +454,36 @@ export function legColour(
     return colours[position % colours.length]?.hex ?? '#2563eb';
 }
 
+function luminance(hex: string): number {
+    const channels = [1, 3, 5].map((start) => {
+        const value = Number.parseInt(hex.slice(start, start + 2), 16) / 255;
+
+        return value <= 0.03928
+            ? value / 12.92
+            : ((value + 0.055) / 1.055) ** 2.4;
+    });
+
+    return (
+        0.2126 * (channels[0] ?? 0) +
+        0.7152 * (channels[1] ?? 0) +
+        0.0722 * (channels[2] ?? 0)
+    );
+}
+
+/**
+ * White on a dark leg colour, ink on a light one, so a number on the colour
+ * keeps the 4.5:1 contrast WCAG asks of text.
+ */
+export function inkOn(hex: string): string {
+    if (!isHexColour(hex)) {
+        return '#ffffff';
+    }
+
+    const background = luminance(hex);
+
+    return 1.05 / (background + 0.05) >= 4.5 ? '#ffffff' : '#0f172a';
+}
+
 export function colourName(hex: string): string {
     for (const set of colourSets) {
         const found = set.colours.find(
