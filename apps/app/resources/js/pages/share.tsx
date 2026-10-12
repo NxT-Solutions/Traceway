@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import * as maplibregl from 'maplibre-gl';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { type PlayerLine, RoutePlayer } from '@/components/route-player';
 import { streetsMapStyle } from '@/lib/maplibre';
 import { legColour, legDeviceName } from '@/lib/multisport';
 import {
@@ -53,10 +54,31 @@ const surfaceLabel: Record<string, string> = {
 
 export default function Share({ route }: { route: SharedRoute }) {
     const mapNode = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<maplibregl.Map | null>(null);
+    const asideRef = useRef<HTMLElement>(null);
     const [copied, setCopied] = useState(false);
     const kilometres = (route.distance_metres / 1000).toFixed(1);
     const legColours = route.legs.map((leg, index) =>
         legColour('bold', index, leg.color),
+    );
+    const playerLines = useMemo<PlayerLine[]>(
+        () =>
+            route.legs.length > 0
+                ? route.legs
+                      .map((leg, index) => ({
+                          label: sportLabel[leg.discipline] ?? leg.discipline,
+                          color: legColour('bold', index, leg.color),
+                          coordinates: leg.coordinates,
+                      }))
+                      .filter((line) => line.coordinates.length > 1)
+                : [
+                      {
+                          label: sportLabel[route.sport] ?? route.sport,
+                          color: '#16303a',
+                          coordinates: route.coordinates,
+                      },
+                  ],
+        [route],
     );
 
     useEffect(() => {
@@ -74,6 +96,7 @@ export default function Share({ route }: { route: SharedRoute }) {
             zoom: 12,
             attributionControl: { compact: true },
         });
+        mapRef.current = map;
         map.addControl(
             new maplibregl.NavigationControl({ showCompass: false }),
             'bottom-right',
@@ -169,6 +192,7 @@ export default function Share({ route }: { route: SharedRoute }) {
         return () => {
             window.removeEventListener('resize', resizeArrows);
             map.remove();
+            mapRef.current = null;
         };
     }, [route]);
 
@@ -176,7 +200,12 @@ export default function Share({ route }: { route: SharedRoute }) {
         <div className="tw-share">
             <Head title={route.name} />
             <div ref={mapNode} className="map" />
-            <aside>
+            <RoutePlayer
+                mapRef={mapRef}
+                lines={playerLines}
+                coverRef={asideRef}
+            />
+            <aside ref={asideRef}>
                 <p className="mark">Traceway</p>
                 <h1>{route.name}</h1>
                 <p className="facts">
