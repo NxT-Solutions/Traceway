@@ -2,7 +2,7 @@
 
 Thank you for contributing to Traceway. This agreement lets the project accept your work. Read it before you open your first pull request.
 
-Traceway is licensed to the public under the [PolyForm Noncommercial License 1.0.0](LICENSE). That license lets anyone use the project for noncommercial purposes. The maintainer, Noah Gillard, keeps the right to use and license the project in other ways, including commercially. Because your contribution becomes part of the project, the maintainer needs the same rights in your contribution. This agreement grants them.
+Traceway is licensed to the public under the [MIT License](LICENSE). The maintainer, Noah Gillard, may also license the project under other terms later. Because your contribution becomes part of the project, the maintainer needs the right to license your contribution the same way. This agreement grants it.
 
 You keep the copyright in your contribution. You can still use your own work however you like.
 

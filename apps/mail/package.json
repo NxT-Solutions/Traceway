@@ -1,7 +1,7 @@
 {
     "name": "traceway-mail",
     "private": true,
-    "license": "PolyForm-Noncommercial-1.0.0",
+    "license": "MIT",
     "type": "module",
     "scripts": {
         "build": "maizzle build"
