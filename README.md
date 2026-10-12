@@ -97,7 +97,7 @@ Put the map files in `persistent/graphhopper`. The container is `graphhopper` on
 
 ## Contributing
 
-Contributions are welcome: bug reports, device reports, docs, design, and code. Read [CONTRIBUTING.md](CONTRIBUTING.md) to get started. Every contributor signs the [Contributor License Agreement](CLA.md) once, on their first pull request.
+Contributions are welcome: bug reports, device reports, docs, design, and code. Read [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 ## License
 
