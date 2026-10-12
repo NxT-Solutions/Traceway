@@ -5,7 +5,7 @@ description: The check Traceway expects before work is called done. Use when fin
 
 # Traceway quality
 
-From `codebase/`:
+From `apps/app`:
 
 - PHP format: `vendor/bin/pint --dirty --format agent`
 - Blade: `bun run blade:fix`. Rules are in `.bladeformatterrc.json`: 4 spaces, final newline, Tailwind class order. `composer blade:check` is the same check as the gate.
