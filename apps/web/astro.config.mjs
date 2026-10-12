@@ -11,6 +11,16 @@ const devPublic = new URL(devOrigin);
 export default defineConfig({
     site: devOrigin,
     output: 'static',
+    // The site is one page. Old page links land on their section.
+    redirects: {
+        '/how-it-works': '/#how',
+        '/sports': '/#sports',
+        '/devices': '/#devices',
+        '/notes': '/',
+        '/notes/from-the-driveway': '/#how',
+        '/notes/one-plan-every-leg': '/#multisport',
+        '/notes/onto-the-computer': '/#devices',
+    },
     server: {
         host: true,
         port: 4321,

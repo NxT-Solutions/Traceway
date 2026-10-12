@@ -6,11 +6,11 @@ None of this is a conformance claim. There is no VoiceOver claim.
 
 ## Home — `apps/web/src/pages/index.astro`
 
-Purpose: read what Traceway does, then open the planner. How it works,
-Sports, Devices, and Notes share this header.
+Purpose: read what Traceway does, then open the planner. The content
+site is this one page.
 
 - Keyboard path: mark and word, then How it works, Sports, Devices,
-  Notes, Log in (or You), then “Open the planner”, then the main
+  Log in (or You), then “Open the planner”, then the main
   content in DOM order. Focus order matches that row (2.4.3, 2.1.1).
 - The header is a `nav`. The page has one `h1` (1.3.1, 1.3.2).
 - The mark is decorative beside the word Traceway (1.1.1). “Open the
