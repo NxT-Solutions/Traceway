@@ -61,11 +61,23 @@ ENV PUBLIC_SITE_URL=https://traceway.online
 
 RUN npm run build
 
+FROM node:26-alpine AS mail-build
+
+WORKDIR /src/apps/mail
+
+COPY apps/mail/package.json apps/mail/package-lock.json ./
+RUN npm ci
+
+COPY apps/mail/ ./
+
+RUN npm run build
+
 FROM base AS runtime
 
 COPY apps/app/ /var/www/html/
 COPY --from=php-build /var/www/html/vendor /var/www/html/vendor
 COPY --from=php-build /var/www/html/public/build /var/www/html/public/build
+COPY --from=mail-build /src/apps/app/resources/views/mail/compiled /var/www/html/resources/views/mail/compiled
 COPY --from=web-build /src/dist /var/www/web
 
 RUN rm -f public/hot

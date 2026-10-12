@@ -31,7 +31,7 @@ The repo has three apps:
 
 - `apps/app` is the Laravel planner, with React and Inertia. Read [`apps/app/AGENTS.md`](apps/app/AGENTS.md) before you change PHP or React.
 - `apps/web` is the Astro content site.
-- `apps/mail` holds the account mail sources. Rebuild and commit the compiled output when you change them (see the README).
+- `apps/mail` holds the account mail sources. The compiled HTML is build output and is not committed. Rebuild it to check a change in Mailpit (see the README).
 
 ## Rules of the codebase
 

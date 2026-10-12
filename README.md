@@ -47,12 +47,12 @@ ddev logs -s web
 
 ### Account mail
 
-The mail sources live in `apps/mail`: one layout in `layouts/main.html`, the button in `components/`, and one file per message in `emails/`. The build inlines the styles so Outlook keeps them and writes the HTML Laravel sends to `apps/app/resources/views/mail/compiled`. Rebuild and commit that output after you change a source:
+The mail sources live in `apps/mail`. They are [Maizzle 6](https://maizzle.com) Vue templates: one layout in `layouts/MainLayout.vue`, the button and the fallback link in `components/`, and one file per message in `emails/`. The build inlines the styles so Outlook keeps them and writes the HTML Laravel sends to `apps/app/resources/views/mail/compiled`.
+
+That folder is build output, so Git ignores it. `ddev start` builds it, CI builds it before the tests, and the production image builds it on release. After you change a source, rebuild it:
 
 ```bash
-cd apps/mail
-npm ci
-npm run build
+ddev exec -d /var/www/html/apps/mail npm run build
 ```
 
 Local mail goes to Mailpit. `ddev mailpit` opens it.

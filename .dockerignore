@@ -10,6 +10,7 @@ apps/web/.astro
 apps/app/.env
 apps/app/public/hot
 apps/app/public/build
+apps/app/resources/views/mail/compiled
 apps/app/database/*.sqlite
 apps/app/storage/logs
 apps/app/storage/framework
