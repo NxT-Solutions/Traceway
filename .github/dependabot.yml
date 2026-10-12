@@ -37,11 +37,6 @@ updates:
     directory: /apps/mail
     schedule:
       interval: monthly
-    ignore:
-      # Maizzle 6 changes the CLI and the config format. Move to it on purpose,
-      # then drop this.
-      - dependency-name: "@maizzle/framework"
-        update-types: ["version-update:semver-major"]
     groups:
       mail:
         patterns: ["*"]
