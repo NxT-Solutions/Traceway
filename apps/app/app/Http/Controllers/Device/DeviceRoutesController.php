@@ -27,7 +27,7 @@ class DeviceRoutesController extends Controller
     )]
     #[Response(
         response: HttpResponse::HTTP_OK,
-        description: 'Up to 20 routes, newest first. Each name is the one the course carries on the device.',
+        description: 'Up to 20 routes, newest first.',
         content: new JsonContent(
             required: ['routes'],
             properties: [
@@ -35,10 +35,11 @@ class DeviceRoutesController extends Controller
                     property: 'routes',
                     type: 'array',
                     items: new Items(
-                        required: ['id', 'name', 'sport', 'distance_metres', 'ascent_metres', 'legs'],
+                        required: ['id', 'title', 'name', 'sport', 'distance_metres', 'ascent_metres', 'legs'],
                         properties: [
                             new Property(property: 'id', type: 'string', format: 'uuid'),
-                            new Property(property: 'name', type: 'string', maxLength: 15, minLength: 1),
+                            new Property(property: 'title', description: 'The route name for a menu, up to 40 characters.', type: 'string', maxLength: 40, minLength: 1),
+                            new Property(property: 'name', description: 'The name the course carries on the device.', type: 'string', maxLength: 15, minLength: 1),
                             new Property(property: 'sport', type: 'string'),
                             new Property(property: 'distance_metres', type: 'integer'),
                             new Property(property: 'ascent_metres', type: 'integer'),

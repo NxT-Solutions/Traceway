@@ -10,6 +10,7 @@ use App\Commands\StartDevicePairingCommand;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ClaimDevicePairingRequest;
+use App\Http\Requests\StartDevicePairingRequest;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Attributes\JsonContent;
 use OpenApi\Attributes\Post;
@@ -28,6 +29,7 @@ class DevicePairingController extends Controller
         security: [],
         tags: ['Device'],
     )]
+    #[RequestBody(ref: '#/components/requestBodies/StartDevicePairingRequest', required: false)]
     #[Response(
         response: HttpResponse::HTTP_CREATED,
         description: 'A code for the rider and a secret for the device.',
@@ -45,9 +47,9 @@ class DevicePairingController extends Controller
         description: 'Too many pairings from this address.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
-    public function start(DispatchesCommands $dispatchesCommands): JsonResponse
+    public function start(StartDevicePairingRequest $startDevicePairingRequest, DispatchesCommands $dispatchesCommands): JsonResponse
     {
-        $devicePairing = $dispatchesCommands->dispatch(new StartDevicePairingCommand);
+        $devicePairing = $dispatchesCommands->dispatch(new StartDevicePairingCommand($startDevicePairingRequest->provider()));
 
         abort_unless($devicePairing instanceof DevicePairing, 500);
 

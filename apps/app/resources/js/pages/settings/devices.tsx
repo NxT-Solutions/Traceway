@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 type Device = {
     id: string;
     label: string;
+    provider: string;
     linked_at: string | null;
     last_used_at: string | null;
 };
@@ -45,7 +46,7 @@ export default function Devices({ devices }: { devices: Device[] }) {
                 <Heading
                     variant="small"
                     title="Link a device"
-                    description="Open the Traceway app on your Garmin. It shows a six-character code. Type it here, and the device lists your saved routes and loads one as a course."
+                    description="Open the Traceway app on your device. On a Garmin, that is Traceway in Connect IQ. It shows a six-character code. Type it here, and the device lists your saved routes and loads one as a course."
                 />
 
                 <form onSubmit={link} className="grid gap-4">
@@ -115,8 +116,9 @@ export default function Devices({ devices }: { devices: Device[] }) {
                                         {device.label}
                                     </p>
                                     <p className="text-muted-foreground">
-                                        Linked {written(device.linked_at)}. Last
-                                        used {written(device.last_used_at)}.
+                                        {device.provider}. Linked{' '}
+                                        {written(device.linked_at)}. Last used{' '}
+                                        {written(device.last_used_at)}.
                                     </p>
                                 </div>
                                 <Button

@@ -14,10 +14,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * A Garmin running the Traceway Connect IQ app. It waits on a pairing code until a rider links it, then holds a hashed token.
+ * A device running a Traceway app, such as the Connect IQ app on a Garmin. It waits on a pairing code until a rider links it, then holds a hashed token.
  *
  * @property string $id
  * @property int|null $user_id
+ * @property string $provider
  * @property string|null $label
  * @property string|null $pairing_code
  * @property string|null $pairing_secret_hash
@@ -28,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['pairing_code', 'pairing_secret_hash', 'pairing_expires_at'])]
+#[Fillable(['provider', 'pairing_code', 'pairing_secret_hash', 'pairing_expires_at'])]
 #[Hidden(['pairing_secret_hash', 'token_hash'])]
 class DeviceLink extends Model
 {

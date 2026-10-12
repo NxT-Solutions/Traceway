@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('device_links', function (Blueprint $blueprint): void {
             $blueprint->uuid('id')->primary();
             $blueprint->foreignId('user_id')->nullable()->constrained()->cascadeOnDelete();
+            $blueprint->string('provider', 32)->default('garmin');
             $blueprint->string('label')->nullable();
             $blueprint->string('pairing_code', 6)->nullable()->unique();
             $blueprint->string('pairing_secret_hash', 64)->nullable()->unique();

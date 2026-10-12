@@ -11,14 +11,14 @@ use App\Routes\SavedLeg;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The short list a Garmin shows. Names are the ones the course carries on the device, so the app can find it after the download.
+ * The short list a device app shows. The title is for the menu. The name is the one the course carries on the device, so the app can find it after the download.
  */
 final class DeviceRoutesQuery
 {
     public const int LIMIT = 20;
 
     /**
-     * @return list<array{id: string, name: string, sport: string, distance_metres: int, ascent_metres: int, legs: list<array{n: int, name: string, sport: string}>}>
+     * @return list<array{id: string, title: string, name: string, sport: string, distance_metres: int, ascent_metres: int, legs: list<array{n: int, name: string, sport: string}>}>
      */
     public function forRider(int $riderId): array
     {
@@ -37,6 +37,7 @@ final class DeviceRoutesQuery
 
             $routes[] = [
                 'id' => $reader->string('id'),
+                'title' => mb_substr(trim($name) === '' ? 'Traceway' : trim($name), 0, 40),
                 'name' => DeviceName::forCourse($name)->value,
                 'sport' => $reader->string('sport'),
                 'distance_metres' => $reader->int('distance_metres'),

@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Courses\DeviceName;
-use App\Domain\Courses\GpxCourse;
-use App\Domain\Routing\Sport;
-use App\Http\Responses\FitCourseDownload;
+use App\Domain\Courses\CourseFormat;
+use App\Http\Responses\CourseDownload;
 use App\Queries\Routes\SharedCourseQuery;
 use App\Routes\RouteId;
-use App\Routes\SavedLeg;
 use OpenApi\Attributes\Get;
 use OpenApi\Attributes\MediaType;
 use OpenApi\Attributes\Parameter;
@@ -55,25 +52,7 @@ class ExportSharedCourseController extends Controller
     )]
     public function gpx(string $savedRoute, SharedCourseQuery $sharedCourseQuery): HttpResponse
     {
-        $sharedCourse = $sharedCourseQuery->find(new RouteId($savedRoute));
-        $name = FitCourseDownload::name($sharedCourse->name);
-
-        $gpx = $sharedCourse->legs === []
-            ? GpxCourse::encode($name, $sharedCourse->coordinates)
-            : GpxCourse::encodeLegs($name, array_map(
-                fn (SavedLeg $savedLeg, int $index): array => [
-                    'name' => $savedLeg->sport instanceof Sport ? DeviceName::forLeg($name, $index + 1, $savedLeg->sport)->value : 'Swim',
-                    'type' => $savedLeg->discipline(),
-                    'coordinates' => $savedLeg->coordinates,
-                ],
-                $sharedCourse->legs,
-                array_keys($sharedCourse->legs),
-            ));
-
-        return response($gpx, 200, [
-            'Content-Type' => 'application/gpx+xml',
-            'Content-Disposition' => 'attachment; filename="'.FitCourseDownload::file($name, 'gpx').'"',
-        ]);
+        return CourseDownload::course($sharedCourseQuery->find(new RouteId($savedRoute)), CourseFormat::Gpx);
     }
 
     #[Get(
@@ -111,7 +90,7 @@ class ExportSharedCourseController extends Controller
     )]
     public function fit(string $savedRoute, SharedCourseQuery $sharedCourseQuery): HttpResponse
     {
-        return FitCourseDownload::course($sharedCourseQuery->find(new RouteId($savedRoute)));
+        return CourseDownload::course($sharedCourseQuery->find(new RouteId($savedRoute)), CourseFormat::Fit);
     }
 
     #[Get(
@@ -160,6 +139,6 @@ class ExportSharedCourseController extends Controller
     )]
     public function fitLeg(string $savedRoute, int $leg, SharedCourseQuery $sharedCourseQuery): HttpResponse
     {
-        return FitCourseDownload::leg($sharedCourseQuery->find(new RouteId($savedRoute)), $leg);
+        return CourseDownload::leg($sharedCourseQuery->find(new RouteId($savedRoute)), $leg, CourseFormat::Fit);
     }
 }

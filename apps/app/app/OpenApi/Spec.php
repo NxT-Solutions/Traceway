@@ -40,7 +40,7 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 #[SecurityScheme(
     securityScheme: 'deviceToken',
     type: 'http',
-    description: "The token a Garmin running the Traceway app gets after the rider types its pairing code in Settings, then Devices. It reads only that rider's own routes.",
+    description: "The token a device app, such as Traceway for Connect IQ on a Garmin, gets after the rider types its pairing code in Settings, then Devices. It reads only that rider's own routes.",
     scheme: 'bearer',
 )]
 final class Spec {}

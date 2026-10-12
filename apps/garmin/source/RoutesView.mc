@@ -41,7 +41,7 @@ class RoutesView extends WatchUi.View {
             var km = (route["distance_metres"] / 1000.0).format("%.1f") + " km";
 
             if (legs.size() == 0) {
-                menu.addItem(new WatchUi.MenuItem(route["name"], km, entries.size(), null));
+                menu.addItem(new WatchUi.MenuItem(route["title"], km, entries.size(), null));
                 entries.add({ :name => route["name"], :path => path });
             }
 

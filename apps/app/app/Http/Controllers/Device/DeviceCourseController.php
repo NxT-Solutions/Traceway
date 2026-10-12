@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Device;
 
+use App\Domain\Courses\CourseFormat;
 use App\Http\Controllers\Controller;
-use App\Http\Responses\FitCourseDownload;
+use App\Http\Responses\CourseDownload;
 use App\Models\User;
 use App\Queries\Routes\SharedCourseQuery;
 use App\Routes\RouteId;
@@ -21,10 +22,10 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 class DeviceCourseController extends Controller
 {
     #[Get(
-        path: '/api/device/routes/{savedRoute}/fit',
-        operationId: 'deviceFit',
+        path: '/api/device/routes/{savedRoute}/{format}',
+        operationId: 'deviceCourse',
         description: 'The device stores the file as a course.',
-        summary: 'Download a saved route as a FIT course',
+        summary: 'Download a saved route as a course file',
         security: [['deviceToken' => []]],
         tags: ['Device'],
     )]
@@ -35,13 +36,20 @@ class DeviceCourseController extends Controller
         required: true,
         schema: new Schema(type: 'string', format: 'uuid'),
     )]
+    #[Parameter(
+        name: 'format',
+        description: 'fit for Garmin. gpx for a device that reads GPX.',
+        in: 'path',
+        required: true,
+        schema: new Schema(type: 'string', enum: ['fit', 'gpx']),
+    )]
     #[Response(
         response: HttpResponse::HTTP_OK,
-        description: 'A FIT file.',
-        content: new MediaType(
-            mediaType: 'application/octet-stream',
-            schema: new Schema(type: 'string', format: 'binary'),
-        ),
+        description: 'A FIT or GPX file.',
+        content: [
+            new MediaType(mediaType: 'application/octet-stream', schema: new Schema(type: 'string', format: 'binary')),
+            new MediaType(mediaType: 'application/gpx+xml', schema: new Schema(type: 'string', format: 'binary')),
+        ],
     )]
     #[Response(
         response: HttpResponse::HTTP_UNAUTHORIZED,
@@ -53,15 +61,18 @@ class DeviceCourseController extends Controller
         description: 'The rider has no such route.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
-    public function fit(Request $request, string $savedRoute, SharedCourseQuery $sharedCourseQuery): HttpResponse
+    public function course(Request $request, string $savedRoute, string $format, SharedCourseQuery $sharedCourseQuery): HttpResponse
     {
-        return FitCourseDownload::course($sharedCourseQuery->findOwned(new RouteId($savedRoute), $this->riderId($request)));
+        return CourseDownload::course(
+            $sharedCourseQuery->findOwned(new RouteId($savedRoute), $this->riderId($request)),
+            CourseFormat::from($format),
+        );
     }
 
     #[Get(
-        path: '/api/device/routes/{savedRoute}/fit/{leg}',
-        operationId: 'deviceFitLeg',
-        summary: 'Download one land leg of a multisport plan as a FIT course',
+        path: '/api/device/routes/{savedRoute}/{format}/{leg}',
+        operationId: 'deviceCourseLeg',
+        summary: 'Download one land leg of a multisport plan as a course file',
         security: [['deviceToken' => []]],
         tags: ['Device'],
     )]
@@ -73,6 +84,13 @@ class DeviceCourseController extends Controller
         schema: new Schema(type: 'string', format: 'uuid'),
     )]
     #[Parameter(
+        name: 'format',
+        description: 'fit for Garmin. gpx for a device that reads GPX.',
+        in: 'path',
+        required: true,
+        schema: new Schema(type: 'string', enum: ['fit', 'gpx']),
+    )]
+    #[Parameter(
         name: 'leg',
         description: 'The leg, counted from 1. The swim has no course.',
         in: 'path',
@@ -81,11 +99,11 @@ class DeviceCourseController extends Controller
     )]
     #[Response(
         response: HttpResponse::HTTP_OK,
-        description: 'A FIT file named for the leg.',
-        content: new MediaType(
-            mediaType: 'application/octet-stream',
-            schema: new Schema(type: 'string', format: 'binary'),
-        ),
+        description: 'A FIT or GPX file named for the leg.',
+        content: [
+            new MediaType(mediaType: 'application/octet-stream', schema: new Schema(type: 'string', format: 'binary')),
+            new MediaType(mediaType: 'application/gpx+xml', schema: new Schema(type: 'string', format: 'binary')),
+        ],
     )]
     #[Response(
         response: HttpResponse::HTTP_UNAUTHORIZED,
@@ -97,9 +115,13 @@ class DeviceCourseController extends Controller
         description: 'The rider has no such route or land leg.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
-    public function fitLeg(Request $request, string $savedRoute, int $leg, SharedCourseQuery $sharedCourseQuery): HttpResponse
+    public function leg(Request $request, string $savedRoute, string $format, int $leg, SharedCourseQuery $sharedCourseQuery): HttpResponse
     {
-        return FitCourseDownload::leg($sharedCourseQuery->findOwned(new RouteId($savedRoute), $this->riderId($request)), $leg);
+        return CourseDownload::leg(
+            $sharedCourseQuery->findOwned(new RouteId($savedRoute), $this->riderId($request)),
+            $leg,
+            CourseFormat::from($format),
+        );
     }
 
     private function riderId(Request $request): int

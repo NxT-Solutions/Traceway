@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries\Account;
 
+use App\Account\DeviceProvider;
 use App\Queries\RowReader;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 final class DeviceLinksQuery
 {
     /**
-     * @return list<array{id: string, label: string, linked_at: string|null, last_used_at: string|null}>
+     * @return list<array{id: string, label: string, provider: string, linked_at: string|null, last_used_at: string|null}>
      */
     public function forRider(int $riderId): array
     {
@@ -21,7 +22,7 @@ final class DeviceLinksQuery
             ->where('user_id', $riderId)
             ->whereNotNull('token_hash')
             ->latest('linked_at')
-            ->get(['id', 'label', 'linked_at', 'last_used_at']);
+            ->get(['id', 'provider', 'label', 'linked_at', 'last_used_at']);
 
         $devices = [];
 
@@ -29,7 +30,8 @@ final class DeviceLinksQuery
             $reader = new RowReader($row);
             $devices[] = [
                 'id' => $reader->string('id'),
-                'label' => $reader->optionalString('label') ?? 'Garmin',
+                'label' => $reader->optionalString('label') ?? 'Device',
+                'provider' => (DeviceProvider::tryFrom($reader->string('provider')) ?? DeviceProvider::Garmin)->label(),
                 'linked_at' => $reader->iso('linked_at'),
                 'last_used_at' => $reader->iso('last_used_at'),
             ];

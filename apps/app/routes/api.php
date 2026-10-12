@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Courses\CourseFormat;
 use App\Http\Controllers\Device\DeviceCourseController;
 use App\Http\Controllers\Device\DevicePairingController;
 use App\Http\Controllers\Device\DeviceRoutesController;
@@ -18,12 +19,14 @@ Route::prefix('device')->group(function (): void {
 
     Route::middleware(['throttle:device', AuthenticateDevice::class])->group(function (): void {
         Route::get('routes', DeviceRoutesController::class)->name('device.routes');
-        Route::get('routes/{savedRoute}/fit', [DeviceCourseController::class, 'fit'])
+        Route::get('routes/{savedRoute}/{format}', [DeviceCourseController::class, 'course'])
             ->whereUuid('savedRoute')
-            ->name('device.routes.fit');
-        Route::get('routes/{savedRoute}/fit/{leg}', [DeviceCourseController::class, 'fitLeg'])
+            ->whereIn('format', array_column(CourseFormat::cases(), 'value'))
+            ->name('device.routes.course');
+        Route::get('routes/{savedRoute}/{format}/{leg}', [DeviceCourseController::class, 'leg'])
             ->whereUuid('savedRoute')
+            ->whereIn('format', array_column(CourseFormat::cases(), 'value'))
             ->whereNumber('leg')
-            ->name('device.routes.fit.leg');
+            ->name('device.routes.course.leg');
     });
 });

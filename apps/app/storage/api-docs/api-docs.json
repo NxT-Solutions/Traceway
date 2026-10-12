@@ -127,14 +127,14 @@
                 ]
             }
         },
-        "/api/device/routes/{savedRoute}/fit": {
+        "/api/device/routes/{savedRoute}/{format}": {
             "get": {
                 "tags": [
                     "Device"
                 ],
-                "summary": "Download a saved route as a FIT course",
+                "summary": "Download a saved route as a course file",
                 "description": "The device stores the file as a course.",
-                "operationId": "deviceFit",
+                "operationId": "deviceCourse",
                 "parameters": [
                     {
                         "name": "savedRoute",
@@ -145,13 +145,32 @@
                             "type": "string",
                             "format": "uuid"
                         }
+                    },
+                    {
+                        "name": "format",
+                        "in": "path",
+                        "description": "fit for Garmin. gpx for a device that reads GPX.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "fit",
+                                "gpx"
+                            ]
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A FIT file.",
+                        "description": "A FIT or GPX file.",
                         "content": {
                             "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            },
+                            "application/gpx+xml": {
                                 "schema": {
                                     "type": "string",
                                     "format": "binary"
@@ -187,13 +206,13 @@
                 ]
             }
         },
-        "/api/device/routes/{savedRoute}/fit/{leg}": {
+        "/api/device/routes/{savedRoute}/{format}/{leg}": {
             "get": {
                 "tags": [
                     "Device"
                 ],
-                "summary": "Download one land leg of a multisport plan as a FIT course",
-                "operationId": "deviceFitLeg",
+                "summary": "Download one land leg of a multisport plan as a course file",
+                "operationId": "deviceCourseLeg",
                 "parameters": [
                     {
                         "name": "savedRoute",
@@ -203,6 +222,19 @@
                         "schema": {
                             "type": "string",
                             "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "format",
+                        "in": "path",
+                        "description": "fit for Garmin. gpx for a device that reads GPX.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "fit",
+                                "gpx"
+                            ]
                         }
                     },
                     {
@@ -219,9 +251,15 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "A FIT file named for the leg.",
+                        "description": "A FIT or GPX file named for the leg.",
                         "content": {
                             "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            },
+                            "application/gpx+xml": {
                                 "schema": {
                                     "type": "string",
                                     "format": "binary"
@@ -265,6 +303,9 @@
                 "summary": "Open a pairing for a device",
                 "description": "The device shows the code. The rider types it in Settings, then Devices. The device keeps the secret and asks for its token with it.",
                 "operationId": "startDevicePairing",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/StartDevicePairingRequest"
+                },
                 "responses": {
                     "201": {
                         "description": "A code for the rider and a secret for the device.",
@@ -383,7 +424,7 @@
                 "operationId": "deviceRoutes",
                 "responses": {
                     "200": {
-                        "description": "Up to 20 routes, newest first. Each name is the one the course carries on the device.",
+                        "description": "Up to 20 routes, newest first.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -396,6 +437,7 @@
                                             "items": {
                                                 "required": [
                                                     "id",
+                                                    "title",
                                                     "name",
                                                     "sport",
                                                     "distance_metres",
@@ -407,7 +449,14 @@
                                                         "type": "string",
                                                         "format": "uuid"
                                                     },
+                                                    "title": {
+                                                        "description": "The route name for a menu, up to 40 characters.",
+                                                        "type": "string",
+                                                        "maxLength": 40,
+                                                        "minLength": 1
+                                                    },
                                                     "name": {
+                                                        "description": "The name the course carries on the device.",
                                                         "type": "string",
                                                         "maxLength": 15,
                                                         "minLength": 1
@@ -2115,6 +2164,26 @@
                     }
                 }
             },
+            "StartDevicePairingRequest": {
+                "description": "The device app that asks for a code.",
+                "required": false,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "provider": {
+                                    "type": "string",
+                                    "default": "garmin",
+                                    "enum": [
+                                        "garmin"
+                                    ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
             "StoreSavedRouteRequest": {
                 "description": "The route the signed-in person wants to keep.",
                 "required": true,
@@ -2250,7 +2319,7 @@
             },
             "deviceToken": {
                 "type": "http",
-                "description": "The token a Garmin running the Traceway app gets after the rider types its pairing code in Settings, then Devices. It reads only that rider's own routes.",
+                "description": "The token a device app, such as Traceway for Connect IQ on a Garmin, gets after the rider types its pairing code in Settings, then Devices. It reads only that rider's own routes.",
                 "scheme": "bearer"
             }
         }
