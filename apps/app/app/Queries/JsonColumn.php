@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries;
 
+use App\Routes\SavedLeg;
 use RuntimeException;
 
 /**
@@ -43,6 +44,34 @@ final class JsonColumn
         }
 
         return self::line($value);
+    }
+
+    /**
+     * The legs of a multisport plan, or none for a single sport.
+     *
+     * @return list<SavedLeg>
+     */
+    public static function legs(mixed $value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        $legs = [];
+
+        foreach (self::decode($value) as $leg) {
+            throw_if(! is_array($leg), RuntimeException::class, 'A leg is not a record.');
+
+            $discipline = $leg['discipline'] ?? null;
+            $distance = $leg['distance_metres'] ?? null;
+            $ascent = $leg['ascent_metres'] ?? null;
+
+            throw_if(! is_string($discipline) || ! is_numeric($distance) || ! is_numeric($ascent), RuntimeException::class, 'A leg is missing a value.');
+
+            $legs[] = SavedLeg::from($discipline, (int) $distance, (int) $ascent, self::line($leg['coordinates'] ?? null));
+        }
+
+        return $legs;
     }
 
     /**

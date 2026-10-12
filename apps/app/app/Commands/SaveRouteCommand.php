@@ -6,13 +6,18 @@ namespace App\Commands;
 
 use App\Account\RiderId;
 use App\Domain\Routing\ElevationBias;
+use App\Domain\Routing\Layout;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 use App\Routes\CoordinateLine;
 use App\Routes\RouteName;
+use App\Routes\SavedLeg;
 
 final readonly class SaveRouteCommand
 {
+    /**
+     * @param  list<SavedLeg>  $legs  The legs of a multisport plan, in order. Empty for a single sport.
+     */
     public function __construct(
         public RiderId $riderId,
         public RouteName $name,
@@ -25,5 +30,7 @@ final readonly class SaveRouteCommand
         public CoordinateLine $coordinates,
         public ?CoordinateLine $userCoordinates,
         public ?CoordinateLine $finishCoordinates,
+        public ?Layout $layout = null,
+        public array $legs = [],
     ) {}
 }

@@ -32,3 +32,32 @@ it('asks a guest to log in before downloading a course', function (): void {
     $this->postJson(route('routes.fit'), [])
         ->assertUnauthorized();
 });
+
+it('names the course after its leg of a multisport plan', function (): void {
+    $response = $this->actingAs(User::factory()->create())
+        ->post(route('routes.fit'), [
+            'name' => 'Sunday triathlon',
+            'sport' => 'run',
+            'leg' => 3,
+            'coordinates' => [[3.72, 51.05], [3.8, 51.08]],
+        ]);
+
+    $response->assertOk();
+
+    expect($response->getContent())->toContain('Sunday tr 3 Run');
+});
+
+it('refuses a leg outside a multisport plan', function (int $leg): void {
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.fit'), [
+            'name' => 'Tri',
+            'sport' => 'run',
+            'leg' => $leg,
+            'coordinates' => [[3.72, 51.05], [3.8, 51.08]],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('leg');
+})->with([
+    'zero' => [0],
+    'six' => [6],
+]);

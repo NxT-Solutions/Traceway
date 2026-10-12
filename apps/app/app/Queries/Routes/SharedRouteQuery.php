@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Queries\Routes;
 
+use App\Domain\Routing\Sport;
 use App\Routes\RouteId;
+use App\Routes\SavedLeg;
 
 final class SharedRouteQuery
 {
@@ -28,6 +30,26 @@ final class SharedRouteQuery
             coordinates: $rowReader->line('coordinates'),
             gpxUrl: SignedRouteLink::gpx($routeId->value),
             fitUrl: SignedRouteLink::fit($routeId->value),
+            layout: $rowReader->optionalString('layout'),
+            legs: $this->legs($routeId, $rowReader->legs('legs')),
         );
+    }
+
+    /**
+     * @param  list<SavedLeg>  $savedLegs
+     * @return list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, fit_url: string|null}>
+     */
+    private function legs(RouteId $routeId, array $savedLegs): array
+    {
+        $legs = [];
+
+        foreach ($savedLegs as $index => $savedLeg) {
+            $legs[] = [
+                ...$savedLeg->toArray(),
+                'fit_url' => $savedLeg->sport instanceof Sport ? SignedRouteLink::fitLeg($routeId->value, $index + 1) : null,
+            ];
+        }
+
+        return $legs;
     }
 }
