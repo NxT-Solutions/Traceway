@@ -84,7 +84,7 @@ jobs:
         if: steps.login.outputs.ready == 'true'
         run: |
           set -euo pipefail
-          connect-iq-sdk-manager agreement accept --acceptance-hash="$CONNECTIQ_AGREEMENT_HASH"
+          connect-iq-sdk-manager agreement accept --agreement-hash="$CONNECTIQ_AGREEMENT_HASH"
           connect-iq-sdk-manager login
           connect-iq-sdk-manager sdk set "$CONNECTIQ_SDK_VERSION"
           connect-iq-sdk-manager device download --manifest=manifest.xml
