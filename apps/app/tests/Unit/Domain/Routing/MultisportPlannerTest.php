@@ -208,3 +208,60 @@ it('takes the shortest way when a chained leg does not stretch, or is already lo
     'no stretch' => [false, 12_000],
     'already long enough' => [true, 4_000],
 ]);
+
+it('loops the second leg away from the roads the first came back on', function (): void {
+    $engine = new class implements RoutingEngine
+    {
+        public int $calls = 0;
+
+        public function route(RouteQuery $routeQuery): GeneratedRoute
+        {
+            throw new LogicException('Not used.');
+        }
+
+        public function candidates(RouteQuery $routeQuery): array
+        {
+            $this->calls++;
+
+            if ($this->calls === 1) {
+                return [new GeneratedRoute($routeQuery, [[4.0, 51.0], [4.02, 51.0], [4.02, 51.02], [4.0, 51.0]], 10_000, 0)];
+            }
+
+            return [
+                new GeneratedRoute($routeQuery, [[4.0, 51.0], [4.02, 51.02], [4.02, 51.0], [4.0, 51.0]], 5_000, 0),
+                new GeneratedRoute($routeQuery, [[4.0, 51.0], [3.98, 51.0], [3.98, 50.98], [4.0, 51.0]], 4_600, 0),
+            ];
+        }
+
+        public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
+        {
+            throw new LogicException('Loops do not trace.');
+        }
+
+        public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
+        {
+            throw new LogicException('Not used.');
+        }
+    };
+
+    $plan = new MultisportPlanner($engine)->plan(new MultisportQuery(Layout::Loops, 51.0, 4.0, [
+        new LandLeg(Sport::Road, 10_000, Surface::Paved, ElevationBias::Neutral),
+        new LandLeg(Sport::Run, 5_000, Surface::Paved, ElevationBias::Neutral),
+    ]));
+
+    expect($plan->legs[1]->coordinates[1])->toBe([3.98, 51.0]);
+});
+
+it('detours a chained leg that would run straight back over the leg before it', function (): void {
+    $routingEngine = measuringEngine();
+    $plan = new MultisportPlanner($routingEngine)->plan(new MultisportQuery(Layout::Chain, 51.12, 4.84, [
+        new LandLeg(Sport::Road, 5_000, Surface::Paved, ElevationBias::Neutral, finish: [4.88, 51.10]),
+        new LandLeg(Sport::Run, 5_000, Surface::Paved, ElevationBias::Neutral, finish: [4.84, 51.12]),
+    ]));
+
+    expect($routingEngine->traces[0])->toHaveCount(2)
+        ->and(count($routingEngine->traces))->toBeGreaterThan(2)
+        ->and($plan->legs[1]->coordinates)->toHaveCount(3)
+        ->and($plan->legs[1]->coordinates[0])->toBe([4.88, 51.10])
+        ->and(array_last($plan->legs[1]->coordinates))->toBe([4.84, 51.12]);
+});
