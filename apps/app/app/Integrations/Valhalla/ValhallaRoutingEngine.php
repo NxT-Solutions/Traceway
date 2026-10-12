@@ -12,13 +12,22 @@ use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\ValhallaCosting;
+use App\Domain\Routing\WaypointPieces;
 use App\Integrations\Valhalla\Requests\RouteRequest;
 use RuntimeException;
 use Saloon\Http\Response;
 
 final readonly class ValhallaRoutingEngine implements RoutingEngine
 {
-    public function __construct(private ValhallaConnector $valhallaConnector) {}
+    /**
+     * @param  int  $maxRequestMetres  The straight-line span one request may cover. The public
+     *                                 server refuses more than 150 km, so a longer route is
+     *                                 asked for in pieces.
+     */
+    public function __construct(
+        private ValhallaConnector $valhallaConnector,
+        private int $maxRequestMetres = 140_000,
+    ) {}
 
     public function route(RouteQuery $routeQuery): GeneratedRoute
     {
@@ -75,10 +84,10 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
      */
     private function loops(RouteQuery $routeQuery, float $radiusScale, int $stops, bool $offsetCenter): array
     {
-        $requests = [];
+        $plans = [];
 
         foreach ([12.0, 72.0, 132.0, 192.0, 252.0, 312.0] as $bearing) {
-            $requests[] = new RouteRequest(ValhallaCosting::payload($routeQuery, LoopWaypoints::around(
+            $plans[] = ['waypoints' => LoopWaypoints::around(
                 $routeQuery->startLatitude,
                 $routeQuery->startLongitude,
                 $routeQuery->distanceMetres,
@@ -88,27 +97,11 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
                 $radiusScale,
                 $stops,
                 $offsetCenter,
-            )));
+            )];
         }
 
-        $found = [];
-
-        $this->valhallaConnector->pool(
-            requests: $requests,
-            concurrency: count($requests),
-            responseHandler: function (Response $response) use ($routeQuery, &$found): void {
-                try {
-                    $found[] = $this->routeFrom($routeQuery, $response);
-                } catch (RuntimeException) {
-                    // A direction that does not fit is skipped.
-                }
-            },
-            exceptionHandler: static function (): void {
-                // A direction the server did not answer is skipped.
-            },
-        )->send()->wait();
-
-        return $found;
+        // A direction that does not fit, or that the server did not answer, is skipped.
+        return array_values(array_filter($this->routeAll($routeQuery, $plans)));
     }
 
     /**
@@ -132,34 +125,18 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
 
     public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
     {
-        $requests = [];
+        $plans = [];
 
         foreach (LoopClosure::plans($ridden, $from, $to, $routeQuery->distanceMetres) as $plan) {
-            $requests[] = new RouteRequest(ValhallaCosting::payload(
-                $routeQuery,
-                $plan['waypoints'],
-                $plan['heading'],
-                mustVisit: false,
-                viaRadius: $plan['via_radius'] ?? null,
-            ));
+            $plans[] = [
+                'waypoints' => $plan['waypoints'],
+                'heading' => $plan['heading'],
+                'viaRadius' => $plan['via_radius'] ?? null,
+            ];
         }
 
-        $found = [];
-
-        $this->valhallaConnector->pool(
-            requests: $requests,
-            concurrency: count($requests),
-            responseHandler: function (Response $response) use ($routeQuery, &$found): void {
-                try {
-                    $found[] = $this->routeFrom($routeQuery, $response);
-                } catch (RuntimeException) {
-                    // A closing road that does not connect is skipped.
-                }
-            },
-            exceptionHandler: static function (): void {
-                // A closing road the server did not answer is skipped.
-            },
-        )->send()->wait();
+        // A closing road that does not connect, or that the server did not answer, is skipped.
+        $found = array_values(array_filter($this->routeAll($routeQuery, $plans)));
 
         return LoopClosure::cleanest($ridden, $found, $routeQuery->distanceMetres)
             ?? $this->trace($routeQuery, [$from, $to]);
@@ -170,13 +147,103 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
      */
     private function fetch(RouteQuery $routeQuery, array $waypoints, bool $mustVisit = false): GeneratedRoute
     {
-        return $this->routeFrom(
-            $routeQuery,
-            $this->valhallaConnector->send(new RouteRequest(ValhallaCosting::payload($routeQuery, $waypoints, mustVisit: $mustVisit))),
+        return $this->routeAll($routeQuery, [['waypoints' => $waypoints, 'mustVisit' => $mustVisit]])[0]
+            ?? throw new RuntimeException('No loop matched those filters.');
+    }
+
+    /**
+     * Asks for every plan at once. A plan longer than one request may cover
+     * goes out in pieces, and its pieces are joined back into one route. A
+     * plan with a piece that does not route comes back as null.
+     *
+     * @param  list<array{waypoints: list<array{0: float, 1: float}>, heading?: int|null, mustVisit?: bool, viaRadius?: int|null}>  $plans
+     * @return list<GeneratedRoute|null>
+     */
+    private function routeAll(RouteQuery $routeQuery, array $plans): array
+    {
+        $requests = [];
+        $pieceCounts = [];
+
+        foreach ($plans as $planIndex => $plan) {
+            $pieces = WaypointPieces::split($plan['waypoints'], $this->maxRequestMetres);
+            // Loop headings hold the start and the finish of a whole loop, not of a piece.
+            $pieceQuery = count($pieces) > 1 ? $this->pointToPoint($routeQuery) : $routeQuery;
+            $pieceCounts[$planIndex] = count($pieces);
+
+            foreach ($pieces as $pieceIndex => $piece) {
+                $requests[$planIndex.':'.$pieceIndex] = new RouteRequest(ValhallaCosting::payload(
+                    $pieceQuery,
+                    $piece,
+                    $pieceIndex === 0 ? ($plan['heading'] ?? null) : null,
+                    mustVisit: $plan['mustVisit'] ?? false,
+                    viaRadius: $plan['viaRadius'] ?? null,
+                ));
+            }
+        }
+
+        /** @var array<string, array{coordinates: list<array{0: float, 1: float}>, metres: int}> $lines */
+        $lines = [];
+
+        if ($requests !== []) {
+            $this->valhallaConnector->pool(
+                requests: $requests,
+                concurrency: min(count($requests), 6),
+                responseHandler: function (Response $response, int|string $key) use (&$lines): void {
+                    try {
+                        $lines[(string) $key] = $this->lineFrom($response);
+                    } catch (RuntimeException) {
+                        // A piece that does not route leaves its plan out.
+                    }
+                },
+                exceptionHandler: static function (): void {
+                    // A piece the server did not answer leaves its plan out.
+                },
+            )->send()->wait();
+        }
+
+        $routes = [];
+
+        foreach ($pieceCounts as $planIndex => $count) {
+            $coordinates = [];
+            $metres = 0;
+
+            for ($pieceIndex = 0; $pieceIndex < $count; $pieceIndex++) {
+                $line = $lines[$planIndex.':'.$pieceIndex] ?? null;
+
+                if ($line === null) {
+                    $coordinates = null;
+
+                    break;
+                }
+
+                $coordinates = $coordinates === [] ? $line['coordinates'] : array_merge($coordinates, array_slice($line['coordinates'], 1));
+                $metres += $line['metres'];
+            }
+
+            $routes[] = $coordinates === null || $coordinates === [] ? null : $this->routeOf($routeQuery, $coordinates, $metres);
+        }
+
+        return $routes;
+    }
+
+    private function pointToPoint(RouteQuery $routeQuery): RouteQuery
+    {
+        return new RouteQuery(
+            sport: $routeQuery->sport,
+            shape: Shape::PointToPoint,
+            distanceMetres: $routeQuery->distanceMetres,
+            surface: $routeQuery->surface,
+            elevation: $routeQuery->elevation,
+            startLatitude: $routeQuery->startLatitude,
+            startLongitude: $routeQuery->startLongitude,
+            preferQuiet: $routeQuery->preferQuiet,
         );
     }
 
-    private function routeFrom(RouteQuery $routeQuery, Response $response): GeneratedRoute
+    /**
+     * @return array{coordinates: list<array{0: float, 1: float}>, metres: int}
+     */
+    private function lineFrom(Response $response): array
     {
         $length = $response->json('trip.summary.length');
         /** @var list<array{shape?: string}> $legs */
@@ -198,8 +265,14 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
 
         throw_if($coordinates === [], RuntimeException::class, 'The router returned an empty line.');
 
-        $distanceMetres = (int) round(((float) $length) * 1000);
+        return ['coordinates' => $coordinates, 'metres' => (int) round(((float) $length) * 1000)];
+    }
 
+    /**
+     * @param  list<array{0: float, 1: float}>  $coordinates
+     */
+    private function routeOf(RouteQuery $routeQuery, array $coordinates, int $distanceMetres): GeneratedRoute
+    {
         if ($routeQuery->shape === Shape::Loop) {
             $trimmed = RouteCleanliness::withoutSpurs($coordinates);
 

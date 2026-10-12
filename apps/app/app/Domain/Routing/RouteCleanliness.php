@@ -17,6 +17,11 @@ final class RouteCleanliness
     {
         /** @var list<array{from: array{0: float, 1: float}, to: array{0: float, 1: float}, fromLat: int, fromLon: int, toLat: int, toLon: int, bearing: float}> $used */
         $used = [];
+        // Earlier segments by the grid cells they pass near, so each segment
+        // is checked only against the ones close enough to match. Checking
+        // every earlier segment took seconds on a 180 km loop.
+        /** @var array<string, list<int>> $nearby */
+        $nearby = [];
         $reversedMetres = 0.0;
         $totalMetres = 0.0;
         $count = count($coordinates);
@@ -42,8 +47,31 @@ final class RouteCleanliness
             $toLat = self::cell($to[1], 0.00035);
             $toLon = self::cell($to[0], 0.00045);
 
-            if (self::reverses($used, $from, $to, $fromLat, $fromLon, $toLat, $toLon, $bearing)) {
+            $midpoint = [($from[0] + $to[0]) / 2, ($from[1] + $to[1]) / 2];
+            $close = [];
+
+            foreach ([$from, $to, $midpoint] as $point) {
+                foreach ($nearby[self::gridKey($point)] ?? [] as $edgeIndex) {
+                    $close[$edgeIndex] = true;
+                }
+            }
+
+            $candidates = [];
+
+            foreach (array_keys($close) as $edgeIndex) {
+                $edge = $used[$edgeIndex] ?? null;
+
+                if ($edge !== null) {
+                    $candidates[] = $edge;
+                }
+            }
+
+            if (self::reverses($candidates, $from, $to, $fromLat, $fromLon, $toLat, $toLon, $bearing)) {
                 $reversedMetres += $metres;
+            }
+
+            foreach (self::gridKeysNear($from, $to) as $key) {
+                $nearby[$key][] = count($used);
             }
 
             $used[] = [
@@ -570,6 +598,44 @@ final class RouteCleanliness
         $progress = max(0.0, min(1.0, ((($px - $ax) * $dx) + (($py - $ay) * $dy)) / $lengthSquared));
 
         return [($ax + ($progress * $dx)) / $lonScale, ($ay + ($progress * $dy)) / $latScale];
+    }
+
+    /** Grid cells about 200 m across, for finding nearby segments. */
+    private const float GRID = 0.002;
+
+    /** Wider than the 40 m and two-cell matches in reverses(), so no match is missed. */
+    private const float MARGIN = 0.0015;
+
+    /**
+     * @param  array{0: float, 1: float}  $point
+     */
+    private static function gridKey(array $point): string
+    {
+        return ((int) floor($point[0] / self::GRID)).':'.((int) floor($point[1] / self::GRID));
+    }
+
+    /**
+     * Every grid cell a segment, padded by the margin, touches.
+     *
+     * @param  array{0: float, 1: float}  $from
+     * @param  array{0: float, 1: float}  $to
+     * @return list<string>
+     */
+    private static function gridKeysNear(array $from, array $to): array
+    {
+        $west = (int) floor((min($from[0], $to[0]) - self::MARGIN) / self::GRID);
+        $east = (int) floor((max($from[0], $to[0]) + self::MARGIN) / self::GRID);
+        $south = (int) floor((min($from[1], $to[1]) - self::MARGIN) / self::GRID);
+        $north = (int) floor((max($from[1], $to[1]) + self::MARGIN) / self::GRID);
+        $keys = [];
+
+        for ($x = $west; $x <= $east; $x++) {
+            for ($y = $south; $y <= $north; $y++) {
+                $keys[] = $x.':'.$y;
+            }
+        }
+
+        return $keys;
     }
 
     private static function cell(float $degrees, float $size): int
