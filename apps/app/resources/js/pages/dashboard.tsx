@@ -72,6 +72,7 @@ type SheetName =
     | 'map'
     | 'colour'
     | 'race'
+    | 'session'
     | null;
 
 type Preview = {
@@ -3025,6 +3026,8 @@ export default function Dashboard() {
             return;
         }
 
+        setSheet(null);
+
         const nextLegs = withIds(preset.legs).map((leg) => ({
             ...leg,
             stretch: true,
@@ -3865,7 +3868,6 @@ export default function Dashboard() {
                                     colours={legColours}
                                     colourSet={colourSet}
                                     swimTargetKm={swimTargetKm}
-                                    onPreset={choosePreset}
                                     onLayout={chooseLayout}
                                     onSwim={toggleSwim}
                                     onDrawSwim={drawSwim}
@@ -4800,6 +4802,38 @@ export default function Dashboard() {
                             />
                         ))}
                     </ChoiceList>
+                </SheetContent>
+            </Sheet>
+
+            <Sheet
+                open={sheet === 'session'}
+                onOpenChange={(open) => !open && setSheet(null)}
+            >
+                <SheetContent
+                    side="bottom"
+                    className={choiceSheet}
+                    style={{ maxHeight: '80vh' }}
+                >
+                    <SheetHeader className={sheetHeading}>
+                        <SheetTitle className="pr-6">Session</SheetTitle>
+                    </SheetHeader>
+                    <ChoiceList label="Session">
+                        {presets.map((item) => (
+                            <RadioRow
+                                key={item.value}
+                                label={item.label}
+                                copy={item.copy}
+                                selected={session === item.value}
+                                onSelect={() => choosePreset(item.value)}
+                            />
+                        ))}
+                    </ChoiceList>
+                    {session === 'custom' ? (
+                        <p className="small" style={{ marginTop: 12 }}>
+                            Your legs make a custom session. Pick one above to
+                            start from it.
+                        </p>
+                    ) : null}
                 </SheetContent>
             </Sheet>
 

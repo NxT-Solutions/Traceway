@@ -669,4 +669,5 @@ body:has(.tw-planner) .tw-pop .swatch:focus-visible{outline:2px solid var(--text
   .tw-planner .fill .drawing svg{animation:none}
 }
 body:has(.tw-planner) .tw-pop [data-slot="sheet-header"] + :is(.choices, .colour-picker, .slider){margin-top:14px}
-.tw-planner .seg[aria-label="Session"] button{padding:0 2px;font-size:13px}
+body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child{cursor:pointer;color:var(--text, oklch(0.22 0.03 200));opacity:.7}
+body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{background:var(--hover, oklch(0.94 0.012 95));opacity:1}

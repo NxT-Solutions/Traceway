@@ -83,7 +83,7 @@ export const presets = [
     {
         value: 'triathlon',
         label: 'Triathlon',
-        copy: 'Swim, ride, run. Olympic distances.',
+        copy: 'Swim, ride, run.',
         swim: true,
         legs: [leg('road', 40), leg('run', 10)],
     },

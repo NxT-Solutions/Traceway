@@ -48,11 +48,11 @@ try {
     await fits(desktop, 'Planner');
 
     await desktop.getByRole('tab', { name: 'Multisport' }).click();
-    const triathlon = desktop.getByRole('radio', { name: 'Triathlon' });
-    await triathlon.click();
-    if ((await triathlon.getAttribute('aria-checked')) !== 'true') {
-        throw new Error('Triathlon is not the chosen session');
-    }
+    await desktop.getByRole('button', { name: /^Type\s*\w/ }).click();
+    await desktop.getByRole('radio', { name: /^Triathlon\b/ }).click();
+    await desktop
+        .getByRole('button', { name: /^Type\s*Triathlon/ })
+        .waitFor({ timeout: 5000 });
     await desktop.getByRole('button', { name: /^Swim\b/ }).waitFor();
     await desktop.getByRole('radio', { name: 'Chain' }).click();
     await desktop.getByText('Tap where leg 2 ends').waitFor();
