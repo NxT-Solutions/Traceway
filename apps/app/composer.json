@@ -87,16 +87,24 @@
         "rector:check": [
             "rector process --dry-run --no-progress-bar"
         ],
-        "ci:check": [
+        "ci:lint": [
             "Composer\\Config::disableProcessTimeout",
             "@rector:check",
             "@lint:check",
             "@architecture",
             "bun run blade:check",
+            "bun run check"
+        ],
+        "ci:test": [
+            "Composer\\Config::disableProcessTimeout",
             "@types:check",
-            "bun run check",
             "bun run types:check",
             "@test"
+        ],
+        "ci:check": [
+            "Composer\\Config::disableProcessTimeout",
+            "@ci:lint",
+            "@ci:test"
         ],
         "types:check": [
             "phpstan analyse"
