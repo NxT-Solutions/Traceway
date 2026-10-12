@@ -14,6 +14,14 @@ else
     printf '\nAPP_URL=%s\n' "${DDEV_PRIMARY_URL}" >> .env
 fi
 
+# SQLite everywhere. Drop DB_* lines an older DDEV wrote for its Postgres container.
+sed -i -E '/^DB_(HOST|PORT|DATABASE|USERNAME|PASSWORD)=/d' .env
+if grep -q '^DB_CONNECTION=' .env; then
+    sed -i "s|^DB_CONNECTION=.*|DB_CONNECTION=sqlite|" .env
+else
+    printf '\nDB_CONNECTION=sqlite\n' >> .env
+fi
+
 composer install --no-interaction --prefer-dist
 
 if ! grep -q '^APP_KEY=base64:' .env; then
