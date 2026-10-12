@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Check Out Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Derive Image Name
         id: image
@@ -123,7 +123,7 @@ jobs:
           test -n "${PRODUCTION_SSH_KEY:-}" || { echo "PRODUCTION_SSH_KEY secret is required"; exit 1; }
 
       - name: Deploy Production On VPS
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         env:
           TRACEWAY_IMAGE: ${{ needs.build.outputs.image }}
           OPS_REPO_DIR: ${{ vars.OPS_REPO_DIR }}
