@@ -17,5 +17,5 @@ Closes #
 - [ ] I signed the [Contributor License Agreement](../CLA.md), or I will when the bot asks.
 - [ ] `composer ci:check` passes.
 - [ ] I added or updated tests for the behaviour I changed.
-- [ ] If I changed a mail source in `apps/mail`, I rebuilt and committed the compiled output.
+- [ ] If I changed a mail source in `apps/mail`, I rebuilt it and checked the message in Mailpit.
 - [ ] I updated the docs if behaviour or setup changed.

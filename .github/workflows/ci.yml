@@ -59,6 +59,20 @@ jobs:
       - name: Build Assets
         run: bun run build
 
+      - name: Set Up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mail/package-lock.json
+
+      # The mail tests read the HTML this writes to resources/views/mail/compiled.
+      - name: Build Account Mail
+        working-directory: apps/mail
+        run: |
+          npm ci
+          npm run build
+
       - name: Run All Checks
         run: composer ci:check
 

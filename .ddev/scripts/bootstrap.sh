@@ -24,3 +24,7 @@ mkdir -p database
 touch database/database.sqlite
 php artisan migrate --force --no-interaction
 php artisan db:seed --force --no-interaction
+
+cd /var/www/html/apps/mail
+npm ci
+npm run build
