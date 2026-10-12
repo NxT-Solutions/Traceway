@@ -44,7 +44,7 @@ RUN APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
     && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && touch /tmp/traceway-build.sqlite \
     && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
-    && bun install \
+    && bun install --frozen-lockfile \
     && bun run build \
     && rm -f .env public/hot
 

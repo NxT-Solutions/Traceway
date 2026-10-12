@@ -54,7 +54,7 @@ jobs:
           touch database/database.sqlite
 
       - name: Install Frontend Dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Build Assets
         run: bun run build

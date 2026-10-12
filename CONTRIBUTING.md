@@ -6,7 +6,7 @@ Thank you for helping. Traceway plans routes for any sport and exports them as c
 
 - Read the [Code of Conduct](CODE_OF_CONDUCT.md). It applies in issues, pull requests, and discussions.
 - Read the [license](LICENSE). Traceway is open source under the MIT License.
-- Sign the [Contributor License Agreement](CLA.md). A bot asks you on your first pull request. A pull request cannot merge until you sign.
+- When you open a pull request, you license your contribution under the same MIT License as the rest of Traceway.
 - Report a security problem privately. See [SECURITY.md](SECURITY.md).
 
 ## Find something to work on

@@ -1,12 +1,104 @@
-# Traceway
+<p align="center">
+  <a href="https://traceway.online">
+    <img src=".github/readme/banner.webp" alt="Traceway. Name the distance. Get a loop worth taking." width="100%">
+  </a>
+</p>
 
-Traceway draws a loop for any sport on a map and exports a course file a watch, a GPS, or a bike computer can follow.
+<p align="center">
+  <a href="https://github.com/NxT-Solutions/Traceway/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/NxT-Solutions/Traceway/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/NxT-Solutions/Traceway/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/NxT-Solutions/Traceway?style=flat&labelColor=071f20&color=97cb46&label=release"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-97cb46?style=flat&labelColor=071f20"></a>
+  <a href="https://traceway.online"><img alt="traceway.online" src="https://img.shields.io/badge/planner-traceway.online-97cb46?style=flat&labelColor=071f20"></a>
+</p>
 
-Run, trail run, walk, hike, road, gravel, and mountain bike are all first-class. The hosted planner is at https://traceway.online.
+<p align="center">
+  <a href="https://traceway.online"><b>Open the planner</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://traceway.online/how-it-works">How it works</a>
+  &nbsp;·&nbsp;
+  <a href="https://traceway.online/devices">Devices</a>
+  &nbsp;·&nbsp;
+  <a href="#run-it-locally">Run it locally</a>
+  &nbsp;·&nbsp;
+  <a href="CONTRIBUTING.md">Contribute</a>
+</p>
 
-[Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [License](LICENSE)
+<br>
 
-## Local setup
+https://github.com/user-attachments/assets/add4d827-82a7-4a9a-973d-9ef6819503d2
+
+<p align="center"><sub>Press play for the 24-second film. Turn the sound on.</sub></p>
+
+Traceway plans a loop for any sport and writes the course file your watch, GPS, or bike computer follows on its own. Drop a pin, name a distance, pick a sport. Traceway reads the roads and paths around the pin, draws the loops that come back without doubling over themselves, and keeps the best one. Then you take the file and leave the phone at home.
+
+No feed, no followers, no leaderboard. Just the map and the route.
+
+## What it does
+
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <h3>Generate</h3>
+      Set a start, a length, a sport, a surface, the hills, and how quiet the roads should be. Traceway draws three loops, scores them, and shows the one closest to your ask. Add a via to bend the loop through a place.
+    </td>
+    <td width="33%" valign="top">
+      <h3>Build</h3>
+      Tap the map to draw your own route. Each tap snaps to the nearest real road or path, and the route closes back to the start.
+    </td>
+    <td width="33%" valign="top">
+      <h3>Export</h3>
+      Download a FIT course for Garmin or a GPX file for anything else. Save a route to your profile, or share it with a signed link.
+    </td>
+  </tr>
+</table>
+
+## How a loop is drawn
+
+<p align="center">
+  <img src=".github/readme/how-it-works.webp" alt="A pin drops near Westerlo. Traceway reads the roads around it, scores every way back, keeps the best of three loops, sets the direction, bends it through a via, and writes morning-loop.fit." width="100%">
+</p>
+
+Traceway reads the roads and paths within reach of the pin and asks the routing engine for the ways back. Every way back gets a score, and each sport scores the map its own way: road, run, and walk mark busy roads down hard, while gravel, mountain bike, and trail care more about surface and climb. The best three come out ahead, with arrows for the way you go. Add a via and the loop bends through it, closed, on roads, and never doubling back along the same stretch.
+
+## Every sport, one planner
+
+Foot and bike are equal in Traceway. Foot sports route the way a walker or runner moves, and bikes route by bike type: road, gravel, or mountain. The surface you pick, paved, mixed, or dirt, decides how much tarmac the loop takes.
+
+- **On foot:** run, trail run, walk, hike.
+- **On a bike:** road, gravel, mountain bike.
+
+## On your device
+
+The device already knows the map. Traceway gives it the course.
+
+- **Garmin:** a FIT course. Import it in Garmin Connect under Training, Courses, or copy it to `Garmin/NewFiles` over USB.
+- **COROS, Suunto, Wahoo, Hammerhead, Bryton:** the same GPX file.
+- A Garmin shows the first 15 characters of a course name, so Traceway keeps a short device name beside the full one.
+
+## The planner
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/readme/planner-dark.webp">
+  <img src=".github/readme/planner-light.webp" alt="The Traceway planner with a 19.1 km road loop through Ghent. Direction arrows show the way to ride, and the panel offers Export GPX, Export FIT, and Save to profile." width="100%">
+</picture>
+
+<p align="center"><sub>The planner follows your appearance. GitHub shows the light or dark version to match yours.</sub></p>
+
+## How it is built
+
+| Part | Stack |
+|---|---|
+| Planner, `apps/app` | Laravel 13, PHP 8.5, Inertia 3, React 19, TypeScript, Tailwind CSS 4, MapLibre GL |
+| Content site, `apps/web` | Astro |
+| Account mail, `apps/mail` | Maizzle 6, built to inlined HTML for Outlook and dark mode |
+| Routing | Valhalla by default. GraphHopper and OSRM are drop-in drivers. |
+| Map | OpenFreeMap tiles from OpenStreetMap data |
+
+Route geometry always comes from the routing engine. Traceway scores and picks what the engine returns. It never invents a coordinate.
+
+Quality gates run on every pull request: Pest, PHPStan at level max with strict rules, Rector, Pint, PHPArkitect, Biome, TypeScript, and the Blade formatter. `main` only takes a change once they pass.
+
+## Run it locally
 
 Install [Docker](https://docs.docker.com/get-docker/) and [DDEV](https://ddev.com/get-started/), then from this directory:
 
@@ -97,10 +189,12 @@ Put the map files in `persistent/graphhopper`. The container is `graphhopper` on
 
 ## Contributing
 
-Contributions are welcome: bug reports, device reports, docs, design, and code. Read [CONTRIBUTING.md](CONTRIBUTING.md) to get started. Every contributor signs the [Contributor License Agreement](CLA.md) once, on their first pull request.
+Bug reports, device reports, docs, design, and code are all welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) to get started, and the [Code of Conduct](CODE_OF_CONDUCT.md) before you post. For help, see [SUPPORT.md](SUPPORT.md). Report a security problem privately, as [SECURITY.md](SECURITY.md) describes.
 
 ## License
 
 Traceway is open source under the [MIT License](LICENSE). You may use, copy, change, share, and sell it, for any purpose, as long as you keep the copyright and license notice.
 
 The name Traceway and its logo are not covered by the license. A fork must use a different name.
+
+Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. Tiles by [OpenFreeMap](https://openfreemap.org) and [OpenMapTiles](https://openmaptiles.org). Maps drawn with [MapLibre](https://maplibre.org).
