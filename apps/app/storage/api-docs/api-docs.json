@@ -271,6 +271,67 @@
                 "security": []
             }
         },
+        "/share/{savedRoute}/fit/{leg}": {
+            "get": {
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Download one leg of a shared multisport plan as FIT",
+                "operationId": "sharedFitLeg",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "leg",
+                        "in": "path",
+                        "description": "The leg, counted from 1. The swim has no course.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 5,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "signature",
+                        "in": "query",
+                        "description": "The signature on the share link.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A FIT file named for the leg.",
+                        "content": {
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The link is not signed."
+                    },
+                    "404": {
+                        "description": "No such land leg."
+                    }
+                },
+                "security": []
+            }
+        },
         "/.well-known/passkey-endpoints": {
             "get": {
                 "tags": [
@@ -305,6 +366,65 @@
                     }
                 },
                 "security": []
+            }
+        },
+        "/routes/multisport": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Draw every leg of a brick, duathlon, or triathlon",
+                "operationId": "previewMultisport",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/PreviewMultisportRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "Every leg, in order.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MultisportPreview"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The transition or a leg is not valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "A leg did not come back.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
             }
         },
         "/routes/preview": {
@@ -747,6 +867,66 @@
                 },
                 "type": "object"
             },
+            "MultisportPreview": {
+                "required": [
+                    "layout",
+                    "distance_metres",
+                    "ascent_metres",
+                    "legs"
+                ],
+                "properties": {
+                    "layout": {
+                        "type": "string",
+                        "enum": [
+                            "loops",
+                            "chain"
+                        ]
+                    },
+                    "distance_metres": {
+                        "type": "integer"
+                    },
+                    "ascent_metres": {
+                        "type": "integer"
+                    },
+                    "legs": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "discipline",
+                                "distance_metres",
+                                "ascent_metres",
+                                "coordinates"
+                            ],
+                            "properties": {
+                                "discipline": {
+                                    "type": "string",
+                                    "enum": [
+                                        "swim",
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                },
+                                "distance_metres": {
+                                    "type": "integer"
+                                },
+                                "ascent_metres": {
+                                    "type": "integer"
+                                },
+                                "coordinates": {
+                                    "$ref": "#/components/schemas/CoordinateLine"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
             "RoutePreview": {
                 "required": [
                     "distance_metres",
@@ -889,7 +1069,9 @@
                     "ascent_metres",
                     "coordinates",
                     "gpx_url",
-                    "fit_url"
+                    "fit_url",
+                    "layout",
+                    "legs"
                 ],
                 "properties": {
                     "name": {
@@ -921,6 +1103,57 @@
                     },
                     "fit_url": {
                         "type": "string"
+                    },
+                    "layout": {
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "loops",
+                            "chain"
+                        ]
+                    },
+                    "legs": {
+                        "description": "The legs of a multisport plan, in order. Empty for a single sport.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "discipline",
+                                "distance_metres",
+                                "ascent_metres",
+                                "coordinates",
+                                "fit_url"
+                            ],
+                            "properties": {
+                                "discipline": {
+                                    "type": "string",
+                                    "enum": [
+                                        "swim",
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                },
+                                "distance_metres": {
+                                    "type": "integer"
+                                },
+                                "ascent_metres": {
+                                    "type": "integer"
+                                },
+                                "coordinates": {
+                                    "$ref": "#/components/schemas/CoordinateLine"
+                                },
+                                "fit_url": {
+                                    "description": "No course for the swim.",
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
                     }
                 },
                 "type": "object"
@@ -1082,6 +1315,128 @@
                                 },
                                 "coordinates": {
                                     "$ref": "#/components/schemas/CoordinateLine"
+                                },
+                                "leg": {
+                                    "description": "The leg of a multisport plan. The course is named after it, such as \"Brick 2 Run\".",
+                                    "type": "integer",
+                                    "maximum": 5,
+                                    "minimum": 1
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "PreviewMultisportRequest": {
+                "description": "The transition, an optional swim, and the land legs in order.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "layout",
+                                "latitude",
+                                "longitude",
+                                "legs"
+                            ],
+                            "properties": {
+                                "layout": {
+                                    "type": "string",
+                                    "enum": [
+                                        "loops",
+                                        "chain"
+                                    ]
+                                },
+                                "latitude": {
+                                    "type": "number",
+                                    "maximum": 90,
+                                    "minimum": -90
+                                },
+                                "longitude": {
+                                    "type": "number",
+                                    "maximum": 180,
+                                    "minimum": -180
+                                },
+                                "swim": {
+                                    "required": [
+                                        "coordinates"
+                                    ],
+                                    "properties": {
+                                        "coordinates": {
+                                            "$ref": "#/components/schemas/CoordinateLine"
+                                        }
+                                    },
+                                    "type": "object",
+                                    "nullable": true
+                                },
+                                "legs": {
+                                    "type": "array",
+                                    "items": {
+                                        "required": [
+                                            "sport",
+                                            "surface",
+                                            "elevation",
+                                            "distance_metres"
+                                        ],
+                                        "properties": {
+                                            "sport": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "road",
+                                                    "gravel",
+                                                    "mtb",
+                                                    "run",
+                                                    "trail_run",
+                                                    "walk",
+                                                    "hike"
+                                                ]
+                                            },
+                                            "surface": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "paved",
+                                                    "mixed",
+                                                    "dirt"
+                                                ]
+                                            },
+                                            "elevation": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "minimize",
+                                                    "neutral",
+                                                    "maximize"
+                                                ]
+                                            },
+                                            "roads": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "quiet",
+                                                    "any"
+                                                ]
+                                            },
+                                            "distance_metres": {
+                                                "type": "integer",
+                                                "maximum": 300000,
+                                                "minimum": 1000
+                                            },
+                                            "finish_latitude": {
+                                                "description": "Required for a chain.",
+                                                "type": "number",
+                                                "maximum": 90,
+                                                "minimum": -90
+                                            },
+                                            "finish_longitude": {
+                                                "description": "Required for a chain.",
+                                                "type": "number",
+                                                "maximum": 180,
+                                                "minimum": -180
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "maxItems": 4,
+                                    "minItems": 1
                                 }
                             },
                             "type": "object"
@@ -1348,6 +1703,54 @@
                                 },
                                 "coordinates": {
                                     "$ref": "#/components/schemas/CoordinateLine"
+                                },
+                                "layout": {
+                                    "description": "How the legs of a multisport plan meet.",
+                                    "type": "string",
+                                    "nullable": true,
+                                    "enum": [
+                                        "loops",
+                                        "chain"
+                                    ]
+                                },
+                                "legs": {
+                                    "description": "The legs of a multisport plan, in order. The swim, if any, comes first.",
+                                    "type": "array",
+                                    "items": {
+                                        "required": [
+                                            "discipline",
+                                            "distance_metres",
+                                            "ascent_metres",
+                                            "coordinates"
+                                        ],
+                                        "properties": {
+                                            "discipline": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "swim",
+                                                    "road",
+                                                    "gravel",
+                                                    "mtb",
+                                                    "run",
+                                                    "trail_run",
+                                                    "walk",
+                                                    "hike"
+                                                ]
+                                            },
+                                            "distance_metres": {
+                                                "type": "integer"
+                                            },
+                                            "ascent_metres": {
+                                                "type": "integer"
+                                            },
+                                            "coordinates": {
+                                                "$ref": "#/components/schemas/CoordinateLine"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "nullable": true,
+                                    "maxItems": 5
                                 }
                             },
                             "type": "object"

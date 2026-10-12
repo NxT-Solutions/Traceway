@@ -133,3 +133,110 @@ it('asks a guest to log in before saving a route', function (): void {
     $this->postJson(route('routes.saved.store'), savedRoutePayload())
         ->assertUnauthorized();
 });
+
+/**
+ * @return array<string, mixed>
+ */
+function multisportPayload(): array
+{
+    return [
+        ...savedRoutePayload(),
+        'name' => 'Sunday triathlon',
+        'sport' => 'road',
+        'layout' => 'loops',
+        'user_coordinates' => null,
+        'finish_coordinates' => null,
+        'legs' => [
+            ['discipline' => 'swim', 'distance_metres' => 750, 'ascent_metres' => 0, 'coordinates' => [[4.89, 51.1], [4.895, 51.103]]],
+            ['discipline' => 'road', 'distance_metres' => 20_000, 'ascent_metres' => 40, 'coordinates' => [[4.9, 51.1], [4.93, 51.12], [4.9, 51.1]]],
+            ['discipline' => 'run', 'distance_metres' => 5_000, 'ascent_metres' => 10, 'coordinates' => [[4.9, 51.1], [4.91, 51.11], [4.9, 51.1]]],
+        ],
+    ];
+}
+
+it('saves a multisport plan with its legs and shares a course for each land leg', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson(route('routes.saved.store'), multisportPayload())
+        ->assertOk();
+
+    $savedRoute = SavedRoute::query()->firstOrFail();
+
+    expect($savedRoute->layout)->toBe('loops')
+        ->and($savedRoute->legs)->toHaveCount(3)
+        ->and($savedRoute->legs[0]['discipline'] ?? null)->toBe('swim');
+
+    $this->actingAs($user)
+        ->get(route('routes.library'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->component('saved')
+            ->where('routes.0.layout', 'loops')
+            ->where('routes.0.legs', [
+                ['discipline' => 'swim', 'distance_metres' => 750],
+                ['discipline' => 'road', 'distance_metres' => 20_000],
+                ['discipline' => 'run', 'distance_metres' => 5_000],
+            ]));
+
+    $this->get($savedRoute->shareUrl())
+        ->assertOk()
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->component('share')
+            ->where('route.layout', 'loops')
+            ->where('route.legs.0.fit_url', expected: null)
+            ->where('route.legs.1.fit_url', URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $savedRoute->id, 'leg' => 2]))
+            ->where('route.legs.2.coordinates', [[4.9, 51.1], [4.91, 51.11], [4.9, 51.1]]));
+
+    $fit = $this->get(URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $savedRoute->id, 'leg' => 3]));
+
+    $fit->assertOk()->assertHeader('content-disposition', 'attachment; filename="sunday-tr-3-run.fit"');
+
+    expect($fit->getContent())->toContain('Sunday tr 3 Run');
+
+    $gpx = $this->get($savedRoute->gpxUrl())->assertOk()->getContent();
+
+    expect($gpx)->toBeString()
+        ->and(substr_count((string) $gpx, '<trk>'))->toBe(3)
+        ->and($gpx)->toContain('<name>Swim</name><type>swim</type>')
+        ->and($gpx)->toContain('<name>Sunday t 2 Road</name><type>road</type>');
+});
+
+it('has no course for the swim or a leg past the end', function (int $leg): void {
+    $route = SavedRoute::factory()->create([
+        'layout' => 'loops',
+        'legs' => multisportPayload()['legs'],
+    ]);
+
+    $this->get(URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $route->id, 'leg' => $leg]))
+        ->assertNotFound();
+})->with([
+    'swim' => [1],
+    'past the end' => [4],
+]);
+
+it('refuses a multisport plan with a land leg of one point or no layout', function (array $change): void {
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.saved.store'), [...multisportPayload(), ...$change])
+        ->assertUnprocessable();
+})->with([
+    'one point land leg' => [['legs' => [['discipline' => 'run', 'distance_metres' => 5_000, 'ascent_metres' => 0, 'coordinates' => [[4.9, 51.1]]]]]],
+    'no layout' => [['layout' => null]],
+    'unknown discipline' => [['legs' => [['discipline' => 'rowing', 'distance_metres' => 5_000, 'ascent_metres' => 0, 'coordinates' => [[4.9, 51.1], [4.91, 51.11]]]]]],
+]);
+
+it('keeps a single-sport route without legs', function (): void {
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.saved.store'), savedRoutePayload())
+        ->assertOk();
+
+    $savedRoute = SavedRoute::query()->firstOrFail();
+
+    expect($savedRoute->layout)->toBeNull()
+        ->and($savedRoute->legs)->toBeNull();
+
+    $this->get($savedRoute->shareUrl())
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->where('route.layout', expected: null)
+            ->where('route.legs', []));
+});

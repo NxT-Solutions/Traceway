@@ -7,10 +7,13 @@ namespace App\Http;
 use App\Account\RiderId;
 use App\Commands\SaveRouteCommand;
 use App\Domain\Routing\ElevationBias;
+use App\Domain\Routing\Layout;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 use App\Routes\CoordinateLine;
 use App\Routes\RouteName;
+use App\Routes\SavedLeg;
+use InvalidArgumentException;
 
 /**
  * Narrows a validated save payload into the command. The form request already
@@ -35,7 +38,44 @@ final class ValidatedRoute
             coordinates: CoordinateLine::ride(self::line($data, 'coordinates')),
             userCoordinates: self::optionalLine($data, 'user_coordinates'),
             finishCoordinates: self::optionalLine($data, 'finish_coordinates'),
+            layout: isset($data['layout']) ? Layout::from(self::text($data, 'layout')) : null,
+            legs: self::legs($data),
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return list<SavedLeg>
+     */
+    private static function legs(array $data): array
+    {
+        $value = $data['legs'] ?? null;
+
+        if ($value === null) {
+            return [];
+        }
+
+        abort_if(! is_array($value) || ! array_is_list($value), 422);
+
+        $legs = [];
+
+        foreach ($value as $leg) {
+            abort_unless(is_array($leg), 422);
+
+            /** @var array<string, mixed> $leg */
+            try {
+                $legs[] = SavedLeg::from(
+                    self::text($leg, 'discipline'),
+                    self::whole($leg, 'distance_metres'),
+                    self::whole($leg, 'ascent_metres'),
+                    self::line($leg, 'coordinates'),
+                );
+            } catch (InvalidArgumentException) {
+                abort(422);
+            }
+        }
+
+        return $legs;
     }
 
     /**

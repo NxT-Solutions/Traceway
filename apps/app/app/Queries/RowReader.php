@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries;
 
+use App\Routes\SavedLeg;
 use Carbon\CarbonImmutable;
 use RuntimeException;
 
@@ -80,6 +81,14 @@ final readonly class RowReader
     public function optionalLine(string $key): ?array
     {
         return JsonColumn::optionalLine($this->value($key));
+    }
+
+    /**
+     * @return list<SavedLeg>
+     */
+    public function legs(string $key): array
+    {
+        return JsonColumn::legs($this->value($key));
     }
 
     public function mixed(string $key): mixed

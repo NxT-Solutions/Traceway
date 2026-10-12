@@ -6,6 +6,7 @@ namespace App\Queries\Routes;
 
 use App\Queries\RowReader;
 use App\Routes\RouteId;
+use App\Routes\SavedLeg;
 use Illuminate\Support\Facades\DB;
 
 final class LibraryQuery
@@ -30,10 +31,12 @@ final class LibraryQuery
                 'surface',
                 'elevation',
                 'roads',
+                'layout',
                 'distance_metres',
                 'ascent_metres',
                 'created_at',
                 'coordinates',
+                'legs',
             ]);
 
         $routes = [];
@@ -53,6 +56,11 @@ final class LibraryQuery
                 SignedRouteLink::share($id),
                 $reader->iso('created_at'),
                 $reader->line('coordinates'),
+                $reader->optionalString('layout'),
+                array_map(fn (SavedLeg $savedLeg): array => [
+                    'discipline' => $savedLeg->discipline(),
+                    'distance_metres' => $savedLeg->distanceMetres,
+                ], $reader->legs('legs')),
             );
         }
 

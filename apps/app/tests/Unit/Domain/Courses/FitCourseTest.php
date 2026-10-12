@@ -26,6 +26,19 @@ it('writes a course file a head unit can open', function (): void {
         ->and($fileCrc[1])->toBe(fitCrc(substr($bytes, 0, -2)));
 });
 
+it('keeps a long accented name whole in the sixteen-byte name field', function (): void {
+    $bytes = FitCourse::encode('Zürich Ir 2 Run', Sport::Run, [[3.72, 51.05], [3.74, 51.06]]);
+    $start = strpos($bytes, 'Z');
+
+    expect($start)->toBeInt();
+
+    $field = substr($bytes, (int) $start, 16);
+
+    expect(rtrim($field, "\0"))->toBe('Zürich Ir 2 Ru')
+        ->and(mb_check_encoding(rtrim($field, "\0"), 'UTF-8'))->toBeTrue()
+        ->and($field[15])->toBe("\0");
+});
+
 it('refuses a course with a single point', function (): void {
     expect(fn (): string => FitCourse::encode('Dawn ride', Sport::Road, [[3.72, 51.05]]))
         ->toThrow(InvalidArgumentException::class);

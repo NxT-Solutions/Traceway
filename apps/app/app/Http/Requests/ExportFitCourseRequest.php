@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Domain\Courses\DeviceName;
 use App\Domain\Routing\Sport;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -22,6 +23,7 @@ use OpenApi\Attributes\RequestBody;
             new Property(property: 'name', type: 'string', maxLength: 80),
             new Property(property: 'sport', type: 'string', enum: ['road', 'gravel', 'mtb', 'run', 'trail_run', 'walk', 'hike']),
             new Property(property: 'coordinates', ref: '#/components/schemas/CoordinateLine'),
+            new Property(property: 'leg', description: 'The leg of a multisport plan. The course is named after it, such as "Brick 2 Run".', type: 'integer', maximum: 5, minimum: 1),
         ],
         type: 'object',
     ),
@@ -45,6 +47,7 @@ class ExportFitCourseRequest extends FormRequest
             'coordinates.*' => ['array', 'size:2'],
             'coordinates.*.0' => ['numeric', 'between:-180,180'],
             'coordinates.*.1' => ['numeric', 'between:-90,90'],
+            'leg' => ['sometimes', 'integer', 'min:1', 'max:5'],
         ];
     }
 
@@ -54,7 +57,9 @@ class ExportFitCourseRequest extends FormRequest
 
         throw_unless(is_string($name), InvalidArgumentException::class, 'A course name is required.');
 
-        return $name;
+        $leg = $this->validated('leg');
+
+        return is_numeric($leg) ? DeviceName::forLeg($name, (int) $leg, $this->sport())->value : $name;
     }
 
     public function sport(): Sport

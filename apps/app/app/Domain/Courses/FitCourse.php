@@ -101,7 +101,7 @@ final class FitCourse
             [4, 16, 7],
             [5, 1, 0],
         ]);
-        $data = chr(1).pack('a16', $name).self::byte($sport);
+        $data = chr(1).pack('a16', mb_strcut($name, 0, 15, 'UTF-8')).self::byte($sport);
 
         return $definition.$data;
     }

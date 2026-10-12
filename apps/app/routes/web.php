@@ -7,6 +7,7 @@ use App\Http\Controllers\BuildRouteController;
 use App\Http\Controllers\DestroySavedRouteController;
 use App\Http\Controllers\ExportFitCourseController;
 use App\Http\Controllers\ExportSharedCourseController;
+use App\Http\Controllers\PreviewMultisportController;
 use App\Http\Controllers\PreviewRouteController;
 use App\Http\Controllers\SavedRouteLibraryController;
 use App\Http\Controllers\ShowSharedRouteController;
@@ -31,6 +32,10 @@ Route::get('share/{savedRoute}/gpx', [ExportSharedCourseController::class, 'gpx'
 Route::get('share/{savedRoute}/fit', [ExportSharedCourseController::class, 'fit'])
     ->middleware('signed')
     ->name('routes.share.fit');
+Route::get('share/{savedRoute}/fit/{leg}', [ExportSharedCourseController::class, 'fitLeg'])
+    ->whereNumber('leg')
+    ->middleware('signed')
+    ->name('routes.share.fit.leg');
 
 Route::get('docs/public', fn (): RedirectResponse => redirect()->to('/docs'));
 Route::get('docs/account', fn (): RedirectResponse => redirect()->to('/docs'));
@@ -40,6 +45,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('saved', SavedRouteLibraryController::class)->name('routes.library');
     Route::post('routes/preview', PreviewRouteController::class)->name('routes.preview');
     Route::post('routes/build', BuildRouteController::class)->name('routes.build');
+    Route::post('routes/multisport', PreviewMultisportController::class)->name('routes.multisport');
     Route::post('routes/snap', SnapPointController::class)->name('routes.snap');
     Route::post('routes/fit', ExportFitCourseController::class)->name('routes.fit');
     Route::post('routes/saved', StoreSavedRouteController::class)->name('routes.saved.store');

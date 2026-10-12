@@ -17,6 +17,7 @@ final class SharedCourseQuery
             name: $rowReader->string('name'),
             sport: Sport::from($rowReader->string('sport')),
             coordinates: $rowReader->line('coordinates'),
+            legs: $rowReader->legs('legs'),
         );
     }
 }

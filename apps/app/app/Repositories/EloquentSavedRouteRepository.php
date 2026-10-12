@@ -11,6 +11,7 @@ use App\Models\SavedRoute;
 use App\Routes\ForeignRoute;
 use App\Routes\MissingRoute;
 use App\Routes\RouteId;
+use App\Routes\SavedLeg;
 use Illuminate\Support\Facades\DB;
 
 final readonly class EloquentSavedRouteRepository implements SavedRouteRepository
@@ -31,6 +32,10 @@ final readonly class EloquentSavedRouteRepository implements SavedRouteRepositor
             $savedRoute->coordinates = $saveRouteCommand->coordinates->points;
             $savedRoute->user_coordinates = $saveRouteCommand->userCoordinates?->points;
             $savedRoute->finish_coordinates = $saveRouteCommand->finishCoordinates?->points;
+            $savedRoute->layout = $saveRouteCommand->layout?->value;
+            $savedRoute->legs = $saveRouteCommand->legs === []
+                ? null
+                : array_map(fn (SavedLeg $savedLeg): array => $savedLeg->toArray(), $saveRouteCommand->legs);
             $savedRoute->save();
 
             return $savedRoute->id;

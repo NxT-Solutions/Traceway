@@ -21,11 +21,13 @@ use Illuminate\Support\Facades\URL;
  * @property string $surface
  * @property string $elevation
  * @property string $roads
+ * @property string|null $layout
  * @property int $distance_metres
  * @property int $ascent_metres
  * @property list<array{0: float, 1: float}> $coordinates
  * @property list<array{0: float, 1: float}>|null $user_coordinates
  * @property list<array{0: float, 1: float}>|null $finish_coordinates
+ * @property list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>}>|null $legs
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -35,11 +37,13 @@ use Illuminate\Support\Facades\URL;
     'surface',
     'elevation',
     'roads',
+    'layout',
     'distance_metres',
     'ascent_metres',
     'coordinates',
     'user_coordinates',
     'finish_coordinates',
+    'legs',
 ])]
 class SavedRoute extends Model
 {
@@ -82,6 +86,7 @@ class SavedRoute extends Model
             'coordinates' => 'array',
             'user_coordinates' => 'array',
             'finish_coordinates' => 'array',
+            'legs' => 'array',
         ];
     }
 }
