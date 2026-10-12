@@ -10,6 +10,9 @@ import {
     layouts,
     mostLandLegs,
     presets,
+    type RaceDistance,
+    raceDistancesFor,
+    raceOf,
     sessionOf,
 } from '@/lib/multisport';
 import { type Coordinate, metresBetween } from '@/lib/route-arrows';
@@ -99,6 +102,8 @@ export function MultisportLegs({
     labels,
     colours,
     colourSet,
+    swimTargetKm,
+    onRace,
     onPreset,
     onLayout,
     onSwim,
@@ -119,6 +124,9 @@ export function MultisportLegs({
     /** The colour of each leg in order, the swim first when there is one. */
     colours: string[];
     colourSet: ColourSet;
+    /** How far the swim of the chosen race is, so the athlete can draw it. */
+    swimTargetKm: number | null;
+    onRace: (race: RaceDistance) => void;
     onPreset: (value: (typeof presets)[number]['value']) => void;
     onLayout: (value: Layout) => void;
     onSwim: (enabled: boolean) => void;
@@ -141,6 +149,8 @@ export function MultisportLegs({
     const sessionCopy =
         [...presets, customSession].find((item) => item.value === session)
             ?.copy ?? '';
+    const races = raceDistancesFor(session);
+    const race = raceOf(session, legs, swimTargetKm);
 
     return (
         <>
@@ -171,8 +181,39 @@ export function MultisportLegs({
                     </button>
                 </div>
                 <p className="small" style={{ marginTop: 8 }}>
-                    {sessionCopy}
+                    {race === null ? sessionCopy : race.copy}
                 </p>
+                {races.length > 0 ? (
+                    <>
+                        <p className="sec-label" style={{ marginTop: 12 }}>
+                            Race distance
+                        </p>
+                        <div
+                            className="seg races"
+                            role="radiogroup"
+                            aria-label="Race distance"
+                        >
+                            {races.map((item) => (
+                                <button
+                                    key={item.value}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={race?.value === item.value}
+                                    aria-pressed={race?.value === item.value}
+                                    title={item.copy}
+                                    onClick={() => onRace(item)}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
+                        {race === null ? (
+                            <p className="small" style={{ marginTop: 8 }}>
+                                Your own distances. Pick a race to fill them in.
+                            </p>
+                        ) : null}
+                    </>
+                ) : null}
                 <div
                     className="seg"
                     role="radiogroup"
@@ -259,10 +300,14 @@ export function MultisportLegs({
                                 <span>Swim</span>
                                 <small className="tabular-nums">
                                     {swim.length === 0
-                                        ? 'Tap the water'
+                                        ? swimTargetKm === null
+                                            ? 'Tap the water'
+                                            : `Draw ${swimTargetKm} km`
                                         : swim.length === 1
                                           ? 'Pin'
-                                          : `${swimKm(swim)} km`}
+                                          : swimTargetKm === null
+                                            ? `${swimKm(swim)} km`
+                                            : `${swimKm(swim)} of ${swimTargetKm} km`}
                                 </small>
                                 <span className="vh">
                                     {drawingSwim
