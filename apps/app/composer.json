@@ -18,7 +18,7 @@
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
         "resend/resend-php": "^1.16",
-        "saloonphp/laravel-plugin": "^4.0",
+        "saloonphp/laravel-plugin": "^5.0",
         "saloonphp/saloon": "^4.0",
         "scalar/laravel": "^0.4.1"
     },
