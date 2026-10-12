@@ -25,6 +25,7 @@ import {
     streetsMapStyle,
     themedMapStyle,
 } from '@/lib/maplibre';
+import { forgetSharedPlannerDraft, plannerDraftKey } from '@/lib/planner-draft';
 import {
     arrowIconSize,
     directionArrows,
@@ -793,8 +794,6 @@ function isPreview(value: unknown): value is Preview {
     );
 }
 
-const storageKey = 'traceway.planner.v1';
-
 type SavedPlanner = {
     version: 1;
     latitude: number;
@@ -842,10 +841,12 @@ function isSaved(value: unknown): value is SavedPlanner {
     );
 }
 
-function readSaved(): SavedPlanner | null {
+function readSaved(storageKey: string): SavedPlanner | null {
     if (typeof window === 'undefined') {
         return null;
     }
+
+    forgetSharedPlannerDraft();
 
     try {
         const raw = window.localStorage.getItem(storageKey);
@@ -1235,7 +1236,10 @@ export default function Dashboard() {
     const hideSnapRef = useRef<() => void>(() => {});
     const routesRef = useRef<Preview[]>([]);
     const routeIndexRef = useRef(0);
-    const saved = useRef(readSaved()).current;
+    const { auth } = usePage<{ auth: { user: { id: number; name: string } } }>()
+        .props;
+    const storageKey = plannerDraftKey(auth.user.id);
+    const saved = useRef(readSaved(storageKey)).current;
     const dirty = useRef(saved !== null);
     const [latitude, setLatitude] = useState(saved?.latitude ?? 51.05);
     const [longitude, setLongitude] = useState(saved?.longitude ?? 3.72);
@@ -1439,7 +1443,6 @@ export default function Dashboard() {
         settledStatus.current = message;
     }
 
-    const { auth } = usePage<{ auth: { user: { name: string } } }>().props;
     const rider = auth.user.name;
     const riderInitials = rider
         .split(/\s+/)
@@ -1892,6 +1895,7 @@ export default function Dashboard() {
         };
         window.localStorage.setItem(storageKey, JSON.stringify(payload));
     }, [
+        storageKey,
         latitude,
         longitude,
         distanceKm,
