@@ -49,6 +49,9 @@ return [
 
     'valhalla' => [
         'url' => env('VALHALLA_URL', 'https://valhalla1.openstreetmap.de'),
+        // The public server refuses a request whose points span more than
+        // 150 km, so longer routes go out in pieces under this span.
+        'max_request_metres' => (int) env('VALHALLA_MAX_REQUEST_METRES', 140000),
     ],
 
 ];

@@ -92,10 +92,12 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $url = config('services.valhalla.url');
+            $span = config('services.valhalla.max_request_metres');
 
-            return new ValhallaRoutingEngine(new ValhallaConnector(
-                is_string($url) && $url !== '' ? $url : 'https://valhalla1.openstreetmap.de',
-            ));
+            return new ValhallaRoutingEngine(
+                new ValhallaConnector(is_string($url) && $url !== '' ? $url : 'https://valhalla1.openstreetmap.de'),
+                is_int($span) && $span >= 10_000 ? $span : 140_000,
+            );
         });
 
         $this->app->bind(function (): ValhallaConnector {
