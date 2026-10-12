@@ -19,6 +19,8 @@ import {
     type Placing,
 } from '@/components/multisport-legs';
 import { type PlayerLine, RoutePlayer } from '@/components/route-player';
+import { SendToDevice } from '@/components/send-to-device';
+import { Button } from '@/components/ui/button';
 import {
     Sheet,
     SheetContent,
@@ -1494,6 +1496,7 @@ export default function Dashboard() {
     const arrowLinesRef = useRef<Coordinate[][]>([]);
     const [routeSaved, setRouteSaved] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [sending, setSending] = useState(false);
     modeRef.current = mode;
     const [buildPoints, setBuildPoints] = useState<BuildPoint[]>([]);
     const [activePoint, setActivePoint] = useState<string | null>(null);
@@ -4733,11 +4736,24 @@ export default function Dashboard() {
                                         type="button"
                                         className="outline"
                                         disabled={shown === null}
-                                        onClick={() => void downloadFit()}
+                                        onClick={() => setSending(true)}
                                     >
-                                        Export FIT
+                                        Send to device
                                     </button>
                                 </div>
+                                <SendToDevice
+                                    open={sending}
+                                    onOpenChange={setSending}
+                                >
+                                    <Button
+                                        type="button"
+                                        onClick={() => void downloadFit()}
+                                    >
+                                        {multisport
+                                            ? 'Download a FIT for each leg'
+                                            : 'Download FIT'}
+                                    </Button>
+                                </SendToDevice>
                                 <div className="btns one">
                                     <button
                                         type="button"

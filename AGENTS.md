@@ -4,6 +4,7 @@ This is a Turborepo.
 
 - `apps/app` is the Laravel planner. Run Composer, Artisan, Pint, PHPStan, and Pest with DDEV, from the repo root: `ddev exec -d /var/www/html/apps/app …`. Read `apps/app/AGENTS.md` before changing PHP or React.
 - `apps/web` is the Astro content site. It is the root of the DDEV site (`ddev describe`). The `astro` daemon hot-reloads it.
+- `apps/garmin` is the Connect IQ device app, in Monkey C. It pairs with a code and reads `/api/device/*` with a Bearer token. It builds with the Connect IQ SDK, not in CI. See `apps/garmin/README.md`.
 - The planner is the Laravel app on the same host: `/login`, `/register`, `/dashboard`. Its Vite server is the `laravel-vite` daemon, under `/_app/`, so the two dev servers do not collide.
 
 ## Product

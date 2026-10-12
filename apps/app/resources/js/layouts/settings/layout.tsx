@@ -29,6 +29,11 @@ const sidebarNavItems: NavItem[] = [
         icon: null,
     },
     {
+        title: 'Devices',
+        href: '/settings/devices',
+        icon: null,
+    },
+    {
         title: 'Your data',
         href: '/settings/privacy',
         icon: null,

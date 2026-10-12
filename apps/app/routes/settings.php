@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\PasskeyEndpointsController;
+use App\Http\Controllers\Settings\DevicesController;
 use App\Http\Controllers\Settings\PrivacyController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
@@ -19,6 +20,14 @@ Route::middleware(['auth'])->group(function (): void {
 
     Route::get('settings/privacy', [PrivacyController::class, 'edit'])->name('privacy.edit');
     Route::get('settings/privacy/export', [PrivacyController::class, 'export'])->name('privacy.export');
+
+    Route::get('settings/devices', [DevicesController::class, 'edit'])->name('devices.edit');
+    Route::post('settings/devices', [DevicesController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('devices.store');
+    Route::delete('settings/devices/{deviceLink}', [DevicesController::class, 'destroy'])
+        ->whereUuid('deviceLink')
+        ->name('devices.destroy');
 });
 
 Route::middleware(['auth', 'verified'])->group(function (): void {

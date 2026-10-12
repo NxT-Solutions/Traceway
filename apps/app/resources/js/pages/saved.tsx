@@ -11,6 +11,8 @@ import {
     useState,
 } from 'react';
 import { MultisportIcon } from '@/components/multisport-icon';
+import { SendToDevice } from '@/components/send-to-device';
+import { Button } from '@/components/ui/button';
 import { useAppearance } from '@/hooks/use-appearance';
 import { themedMapStyle } from '@/lib/maplibre';
 import {
@@ -32,10 +34,15 @@ type SavedRoute = {
     distance_metres: number;
     ascent_metres: number;
     url: string;
+    fit_url: string;
     created_at: string | null;
     coordinates: Coordinate[];
     layout: 'loops' | 'chain' | null;
-    legs: Array<{ discipline: string; distance_metres: number }>;
+    legs: Array<{
+        discipline: string;
+        distance_metres: number;
+        fit_url: string | null;
+    }>;
 };
 
 const sportLabel: Record<string, string> = {
@@ -1536,6 +1543,13 @@ function RouteDetail({
     copied: boolean;
     onCopy: () => void;
 }) {
+    const [sending, setSending] = useState(false);
+    const legFits = route.legs.flatMap((leg, index) =>
+        leg.fit_url === null
+            ? []
+            : [{ ...leg, n: index + 1, url: leg.fit_url }],
+    );
+
     return (
         <>
             <div className="detail-head">
@@ -1583,7 +1597,28 @@ function RouteDetail({
                     {copied ? 'Copied' : 'Copy link'}
                 </button>
                 <a href={route.url}>Open</a>
+                <button type="button" onClick={() => setSending(true)}>
+                    Send to device
+                </button>
             </div>
+            <SendToDevice open={sending} onOpenChange={setSending}>
+                {legFits.length === 0 ? (
+                    <Button asChild>
+                        <a href={route.fit_url} download>
+                            Download FIT
+                        </a>
+                    </Button>
+                ) : (
+                    legFits.map((leg) => (
+                        <Button key={leg.n} asChild variant="outline">
+                            <a href={leg.url} download>
+                                Leg {leg.n},{' '}
+                                {sportLabel[leg.discipline] ?? leg.discipline}
+                            </a>
+                        </Button>
+                    ))
+                )}
+            </SendToDevice>
         </>
     );
 }
