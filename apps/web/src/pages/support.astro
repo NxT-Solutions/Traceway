@@ -1,0 +1,50 @@
+---
+import Base from '../layouts/Base.astro';
+import { support } from '../support';
+---
+
+<Base
+    title="Support"
+    description="Traceway is free, and it always will be. Donations pay for the server, the routing engine, and the map."
+>
+    <main class="wrap page">
+        <p class="kicker">Support</p>
+        <h1>Free today. Free for good.</h1>
+        <div class="prose">
+            <p>
+                Traceway is free, and it always will be. No ads, no tracking, no
+                paid tier, and no feature held back behind a subscription.
+            </p>
+            <p>
+                I built it because I love being out there, on the bike, on the
+                trail, on a long run, and I wanted the best route planner I could
+                get without paying the high monthly prices the big apps ask for.
+                So I made one, and I made it for everyone.
+            </p>
+            <p>
+                Drawing a loop still costs money. A server runs the planner, a
+                routing engine scores every road and path, and the map data from
+                OpenStreetMap has to live somewhere close to it. I pay for all
+                of it, in spare time.
+            </p>
+            <p>
+                If you enjoy Traceway, a donation helps keep it online. It is
+                never required. Nothing unlocks, and the planner stays the same
+                for everyone.
+            </p>
+        </div>
+        <div class="page-cta">
+            <a class="fill" href={support.paypal} rel="noopener">
+                Donate with PayPal
+            </a>
+            <a class="ghost" href={support.github} rel="noopener">
+                Sponsor on GitHub
+            </a>
+            <small>
+                Or send any amount to <a href={support.paypalMe} rel="noopener"
+                    >paypal.me/noahgillard1</a
+                >.
+            </small>
+        </div>
+    </main>
+</Base>

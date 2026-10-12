@@ -224,6 +224,7 @@
 .tw-planner .note{margin:0;font-size:14px;color:var(--muted)}
 .tw-planner .small{margin:0;font-size:12px;color:var(--muted)}
 .tw-planner .small b{font-weight:500;color:var(--text)}
+.tw-planner .thanks a{color:var(--text);text-decoration:underline;text-underline-offset:2px}
 .tw-library{height:calc(100dvh - 64px);overflow:auto;background:var(--bg);color:var(--text)}
 .tw-library .page{max-width:1216px;margin:0 auto;padding:36px 24px 72px}
 .tw-library .top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 20px}
@@ -345,6 +346,8 @@
 .tw-share .facts{margin:8px 0 14px;font-size:14px;color:#3d4c46}
 .tw-share .exports{display:flex;flex-wrap:wrap;gap:8px}
 .tw-share .exports a,.tw-share .exports button{display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 14px;border:1px solid #16303a;border-radius:10px;background:transparent;color:#16303a;font:inherit;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer}
+.tw-share .credit{margin:12px 0 0;font-size:13px;color:#5d6b62}
+.tw-share .credit a{color:#16303a;text-decoration:underline;text-underline-offset:2px}
 .tw-planner .outline{flex:1 1 0;height:42px;border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);font-size:15px;font-weight:500;cursor:pointer}
 .tw-planner .outline:hover{background:var(--hover)}
 .tw-planner .legend{display:flex;align-items:center;gap:18px;font-size:13px;color:var(--muted);flex-wrap:wrap}

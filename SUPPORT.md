@@ -7,3 +7,5 @@
 - **A security problem**: report it privately. See [SECURITY.md](SECURITY.md).
 
 Traceway is maintained in spare time. There is no paid support, and answers can take a few days.
+
+Traceway is free, and it always will be. If you enjoy it, you can [chip in for the hosting](https://traceway.online/support).

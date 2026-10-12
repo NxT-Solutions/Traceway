@@ -163,6 +163,8 @@ summary::-webkit-details-marker{display:none}
 summary svg{flex:0 0 auto;transition:transform .35s var(--ease)}
 details[open] summary svg{transform:rotate(45deg)}
 details p{color:var(--muted);padding:0 0 24px;max-width:62ch}
+details p a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--hair)}
+details p a:hover{text-decoration-color:currentColor}
 
 /* cta */
 .cta{text-align:left}

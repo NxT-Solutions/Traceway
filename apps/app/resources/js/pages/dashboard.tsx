@@ -65,6 +65,7 @@ import {
     metresBetween,
     routeBadge,
 } from '@/lib/route-arrows';
+import { support } from '@/lib/support';
 import { cn } from '@/lib/utils';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -1493,6 +1494,7 @@ export default function Dashboard() {
     }>({ plan: null, swim: null, colours: [] });
     const arrowLinesRef = useRef<Coordinate[][]>([]);
     const [routeSaved, setRouteSaved] = useState(false);
+    const [exported, setExported] = useState(false);
     const [saving, setSaving] = useState(false);
     modeRef.current = mode;
     const [buildPoints, setBuildPoints] = useState<BuildPoint[]>([]);
@@ -2710,6 +2712,7 @@ export default function Dashboard() {
                     }),
                     'traceway.gpx',
                 );
+                setExported(true);
             }
 
             return;
@@ -2728,6 +2731,7 @@ export default function Dashboard() {
         link.download = 'traceway.gpx';
         link.click();
         URL.revokeObjectURL(url);
+        setExported(true);
     }
 
     async function downloadLegFits(chosen: MultisportPlan): Promise<void> {
@@ -2768,6 +2772,7 @@ export default function Dashboard() {
         setMessage(
             'One FIT course per leg. Load each into its leg of a multisport activity.',
         );
+        setExported(true);
     }
 
     async function downloadFit(): Promise<void> {
@@ -2810,6 +2815,7 @@ export default function Dashboard() {
         link.download = 'traceway.fit';
         link.click();
         URL.revokeObjectURL(url);
+        setExported(true);
     }
 
     function savePayload(): Record<string, unknown> | null {
@@ -4789,6 +4795,19 @@ export default function Dashboard() {
                                         of 15 characters.
                                     </p>
                                 )}
+                                {exported ? (
+                                    <p className="small thanks">
+                                        Glad it helped? Traceway is free.{' '}
+                                        <a
+                                            href={support.paypal}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            Chip in for the hosting
+                                        </a>
+                                        .
+                                    </p>
+                                ) : null}
                             </section>
                         </div>
                     </aside>
