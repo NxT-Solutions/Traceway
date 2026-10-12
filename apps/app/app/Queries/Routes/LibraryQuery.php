@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries\Routes;
 
+use App\Domain\Routing\LineSimplifier;
 use App\Queries\RowReader;
 use App\Routes\RouteId;
 use App\Routes\SavedLeg;
@@ -55,7 +56,9 @@ final class LibraryQuery
                 $reader->int('ascent_metres'),
                 SignedRouteLink::share($id),
                 $reader->iso('created_at'),
-                $reader->line('coordinates'),
+                // The library draws thumbnails and an overview map, so the
+                // line is thinned. The share page and its files keep it all.
+                LineSimplifier::simplify($reader->line('coordinates'), LineSimplifier::OVERVIEW_METRES),
                 $reader->optionalString('layout'),
                 array_map(fn (SavedLeg $savedLeg): array => [
                     'discipline' => $savedLeg->discipline(),

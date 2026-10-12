@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Responses;
 
+use App\Domain\Routing\LineSimplifier;
 use OpenApi\Attributes\Items;
 use OpenApi\Attributes\Property;
 use OpenApi\Attributes\Schema;
@@ -60,9 +61,10 @@ final readonly class BuiltRoute
         return [
             'distance_metres' => $userMetres + $finishMetres,
             'ascent_metres' => $this->ascentMetres,
-            'coordinates' => $this->line,
-            'user_coordinates' => $this->user,
-            'finish_coordinates' => $this->finish ?? [],
+            // Lengths come from the full lines. Only the points sent are thinned.
+            'coordinates' => LineSimplifier::simplify($this->line, LineSimplifier::ROUTE_METRES),
+            'user_coordinates' => LineSimplifier::simplify($this->user, LineSimplifier::ROUTE_METRES),
+            'finish_coordinates' => LineSimplifier::simplify($this->finish ?? [], LineSimplifier::ROUTE_METRES),
             'user_metres' => $userMetres,
             'finish_metres' => $finishMetres,
             'legs_metres' => $this->legs($this->user, $this->waypoints),
