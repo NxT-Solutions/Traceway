@@ -668,3 +668,4 @@ body:has(.tw-planner) .tw-pop .swatch:focus-visible{outline:2px solid var(--text
 @media (prefers-reduced-motion: reduce){
   .tw-planner .fill .drawing svg{animation:none}
 }
+body:has(.tw-planner) .tw-pop [data-slot="sheet-header"] + :is(.choices, .colour-picker, .slider){margin-top:14px}
