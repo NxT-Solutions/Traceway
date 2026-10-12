@@ -10,7 +10,6 @@ import {
     layouts,
     mostLandLegs,
     presets,
-    type RaceDistance,
     raceDistancesFor,
     raceOf,
     sessionOf,
@@ -23,7 +22,8 @@ export type LegSheet =
     | 'surface'
     | 'elevation'
     | 'roads'
-    | 'colour';
+    | 'colour'
+    | 'race';
 
 export type Placing = { kind: 'swim' } | { kind: 'finish'; leg: number } | null;
 
@@ -103,7 +103,6 @@ export function MultisportLegs({
     colours,
     colourSet,
     swimTargetKm,
-    onRace,
     onPreset,
     onLayout,
     onSwim,
@@ -126,7 +125,6 @@ export function MultisportLegs({
     colourSet: ColourSet;
     /** How far the swim of the chosen race is, so the athlete can draw it. */
     swimTargetKm: number | null;
-    onRace: (race: RaceDistance) => void;
     onPreset: (value: (typeof presets)[number]['value']) => void;
     onLayout: (value: Layout) => void;
     onSwim: (enabled: boolean) => void;
@@ -184,35 +182,17 @@ export function MultisportLegs({
                     {race === null ? sessionCopy : race.copy}
                 </p>
                 {races.length > 0 ? (
-                    <>
-                        <p className="sec-label" style={{ marginTop: 12 }}>
-                            Race distance
-                        </p>
-                        <div
-                            className="seg races"
-                            role="radiogroup"
-                            aria-label="Race distance"
-                        >
-                            {races.map((item) => (
-                                <button
-                                    key={item.value}
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={race?.value === item.value}
-                                    aria-pressed={race?.value === item.value}
-                                    title={item.copy}
-                                    onClick={() => onRace(item)}
-                                >
-                                    {item.label}
-                                </button>
-                            ))}
-                        </div>
-                        {race === null ? (
-                            <p className="small" style={{ marginTop: 8 }}>
-                                Your own distances. Pick a race to fill them in.
-                            </p>
-                        ) : null}
-                    </>
+                    <button
+                        type="button"
+                        className="row"
+                        onClick={() => onOpen('race')}
+                    >
+                        <span className="k">Race distance</span>
+                        <span className="v">
+                            {race === null ? 'Your own' : race.label}
+                            <Chevron />
+                        </span>
+                    </button>
                 ) : null}
                 <div
                     className="seg"

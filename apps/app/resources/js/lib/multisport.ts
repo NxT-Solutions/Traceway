@@ -136,12 +136,20 @@ export function sessionOf(legs: LandLeg[], hasSwim: boolean): SessionKind {
 }
 
 /**
- * The standard race distances, so a session can rehearse a whole race.
+ * The official race distances, so a session can rehearse a whole race.
  * Leg lengths follow the leg order of the session. Formats are named by
- * their distance, not by the brands that run them.
+ * their distance, not by the brands that run them. A brick has no race of
+ * its own, so it takes the ride and run of each triathlon distance.
  */
 export const raceDistances = {
     triathlon: [
+        {
+            value: 'super_sprint',
+            label: 'Super sprint',
+            copy: '400 m swim, 10 km ride, 2.5 km run.',
+            swimKm: 0.4,
+            legs: [10, 2.5],
+        },
         {
             value: 'sprint',
             label: 'Sprint',
@@ -152,7 +160,7 @@ export const raceDistances = {
         {
             value: 'olympic',
             label: 'Olympic',
-            copy: '1.5 km swim, 40 km ride, 10 km run.',
+            copy: 'Standard distance: 1.5 km swim, 40 km ride, 10 km run.',
             swimKm: 1.5,
             legs: [40, 10],
         },
@@ -201,6 +209,36 @@ export const raceDistances = {
             legs: [10, 150, 30],
         },
     ],
+    brick: [
+        {
+            value: 'sprint',
+            label: 'Sprint',
+            copy: 'The ride and run of a sprint triathlon: 20 km, then 5 km.',
+            swimKm: null,
+            legs: [20, 5],
+        },
+        {
+            value: 'olympic',
+            label: 'Olympic',
+            copy: 'The ride and run of an Olympic triathlon: 40 km, then 10 km.',
+            swimKm: null,
+            legs: [40, 10],
+        },
+        {
+            value: 'middle',
+            label: '70.3',
+            copy: 'The ride and run of a middle distance: 90 km, then 21.1 km.',
+            swimKm: null,
+            legs: [90, 21.1],
+        },
+        {
+            value: 'full',
+            label: '140.6',
+            copy: 'The ride and run of a full distance: 180 km, then 42.2 km.',
+            swimKm: null,
+            legs: [180, 42.2],
+        },
+    ],
 } as const;
 
 export type RaceDistance = {
@@ -214,9 +252,7 @@ export type RaceDistance = {
 export function raceDistancesFor(
     session: SessionKind,
 ): readonly RaceDistance[] {
-    return session === 'triathlon' || session === 'duathlon'
-        ? raceDistances[session]
-        : [];
+    return session === 'custom' ? [] : raceDistances[session];
 }
 
 /**
