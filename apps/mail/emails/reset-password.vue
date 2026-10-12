@@ -1,8 +1,10 @@
-<x-main title="Reset your Traceway password" preheader="Choose a new password. The link works for 60 minutes.">
+<template>
+<MainLayout title="Reset your Traceway password" preheader="Choose a new password. The link works for 60 minutes.">
   <h1 class="tw-h1">Reset your password</h1>
   <p class="tw-p">Hello %%NAME%%.</p>
   <p class="tw-p">Choose a new password for your Traceway account. The link works for 60 minutes.</p>
-  <x-button>Choose a new password</x-button>
-  <x-fallback />
+  <Button>Choose a new password</Button>
+  <Fallback />
   <p class="tw-muted" style="margin: 0;">If you did not ask for this, you can ignore this message. Your password stays the same.</p>
-</x-main>
+</MainLayout>
+</template>

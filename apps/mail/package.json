@@ -4,9 +4,9 @@
     "license": "PolyForm-Noncommercial-1.0.0",
     "type": "module",
     "scripts": {
-        "build": "maizzle build production"
+        "build": "maizzle build"
     },
     "dependencies": {
-        "@maizzle/framework": "^5.5.0"
+        "@maizzle/framework": "^6.2.1"
     }
 }
