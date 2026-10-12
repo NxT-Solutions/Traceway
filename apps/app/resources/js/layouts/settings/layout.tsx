@@ -3,6 +3,7 @@ import type { PropsWithChildren } from 'react';
 import { useAppearance } from '@/hooks/use-appearance';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
+import { forgetPlannerDrafts } from '@/lib/planner-draft';
 import { toUrl } from '@/lib/utils';
 import { logout } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
@@ -152,6 +153,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                             data-test="logout-button"
                             onClick={() => {
                                 cleanup();
+                                forgetPlannerDrafts();
                                 router.flushAll();
                             }}
                         >
