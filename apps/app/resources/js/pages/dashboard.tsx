@@ -1496,6 +1496,11 @@ export default function Dashboard() {
     const [saving, setSaving] = useState(false);
     modeRef.current = mode;
     const [buildPoints, setBuildPoints] = useState<BuildPoint[]>([]);
+    const [activePoint, setActivePoint] = useState<string | null>(null);
+    const [mapKeyboard, setMapKeyboard] = useState(false);
+    const activePointIndex = buildPoints.findIndex(
+        (point) => point.id === activePoint,
+    );
     const pointDrag = useDragReorder(
         buildPoints.map((point) => point.id),
         (from, to) =>
@@ -1939,6 +1944,29 @@ export default function Dashboard() {
         });
 
         geolocateRef.current = geolocate;
+
+        // The map takes the keyboard too: the arrow keys move it, and Enter
+        // places a point at the cross in the middle, wherever a tap would.
+        const canvas = map.getCanvas();
+        canvas.setAttribute(
+            'aria-label',
+            'Map. Arrow keys move it, plus and minus zoom, and Enter places a point at the cross in the middle.',
+        );
+        canvas.addEventListener('keydown', (event: KeyboardEvent) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+
+            event.preventDefault();
+            const centre = map.getCenter();
+            onMapClickRef.current(centre.lng, centre.lat);
+        });
+        canvas.addEventListener('focus', () => {
+            setMapKeyboard(canvas.matches(':focus-visible'));
+        });
+        canvas.addEventListener('blur', () => {
+            setMapKeyboard(false);
+        });
         map.addControl(geolocate, 'top-right');
 
         map.on('error', (event) => {
@@ -3680,13 +3708,19 @@ export default function Dashboard() {
                                 </button>
                             </div>
                         </div>
-                        {mode === 'build' ? (
+                        {mapKeyboard ? (
+                            <p className="maphint" role="status">
+                                <b>+</b> Arrows move the map · Enter places a
+                                point
+                            </p>
+                        ) : null}
+                        {mode === 'build' && !mapKeyboard ? (
                             <p className="maphint">
                                 <b>+</b> The ring sits on the nearest road or
                                 path
                             </p>
                         ) : null}
-                        {multisport && placing !== null ? (
+                        {multisport && placing !== null && !mapKeyboard ? (
                             <p className="maphint">
                                 <b>+</b>{' '}
                                 {placing.kind === 'swim'
@@ -4113,7 +4147,11 @@ export default function Dashboard() {
                                         </div>
                                         {buildPoints.map((point, index) => (
                                             <div
-                                                className="pt"
+                                                className={
+                                                    point.id === activePoint
+                                                        ? 'pt on'
+                                                        : 'pt'
+                                                }
                                                 data-point={point.id}
                                                 key={point.id}
                                             >
@@ -4126,12 +4164,18 @@ export default function Dashboard() {
                                                 <button
                                                     type="button"
                                                     className="field"
-                                                    onClick={() =>
+                                                    aria-pressed={
+                                                        point.id === activePoint
+                                                    }
+                                                    onClick={() => {
+                                                        setActivePoint(
+                                                            point.id,
+                                                        );
                                                         showPoint(
                                                             point.longitude,
                                                             point.latitude,
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
                                                 >
                                                     <span>{point.name}</span>
                                                     <small>
@@ -4312,6 +4356,83 @@ export default function Dashboard() {
                                             <span>Add a point</span>
                                         </button>
                                     </div>
+                                    {activePointIndex >= 0 &&
+                                    buildPoints.length > 1 ? (
+                                        <div
+                                            className="row order"
+                                            role="group"
+                                            aria-label={`Order of point ${activePointIndex + 1}`}
+                                        >
+                                            <span className="k">
+                                                {`Point ${activePointIndex + 1}`}
+                                            </span>
+                                            <span className="v">
+                                                <button
+                                                    type="button"
+                                                    className="ghostbtn"
+                                                    aria-label="Move this point earlier"
+                                                    disabled={
+                                                        activePointIndex === 0
+                                                    }
+                                                    onClick={() =>
+                                                        pointDrag.move(
+                                                            activePointIndex,
+                                                            activePointIndex -
+                                                                1,
+                                                        )
+                                                    }
+                                                >
+                                                    <svg
+                                                        width="16"
+                                                        height="16"
+                                                        viewBox="0 0 16 16"
+                                                        fill="none"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <path
+                                                            d="M4 10 L8 6 L12 10"
+                                                            stroke="currentColor"
+                                                            strokeWidth="1.6"
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="ghostbtn"
+                                                    aria-label="Move this point later"
+                                                    disabled={
+                                                        activePointIndex ===
+                                                        buildPoints.length - 1
+                                                    }
+                                                    onClick={() =>
+                                                        pointDrag.move(
+                                                            activePointIndex,
+                                                            activePointIndex +
+                                                                1,
+                                                        )
+                                                    }
+                                                >
+                                                    <svg
+                                                        width="16"
+                                                        height="16"
+                                                        viewBox="0 0 16 16"
+                                                        fill="none"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <path
+                                                            d="M4 6 L8 10 L12 6"
+                                                            stroke="currentColor"
+                                                            strokeWidth="1.6"
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                            </span>
+                                        </div>
+                                    ) : null}
                                 </section>
                             )}
                             {mode === 'build' ? (
