@@ -25,6 +25,8 @@ main.page{flex:1 0 auto;width:100%;padding-block:clamp(44px,8vw,104px) clamp(64p
 .rows .tag{grid-column:1;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500}
 .page-cta{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;margin-top:clamp(36px,5vw,56px)}
 .page-cta small{color:var(--muted);font-size:14px}
+.page-cta small a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--hair)}
+.page-cta small a:hover{text-decoration-color:currentColor}
 
 /* the page settles in once, without waiting on scroll */
 @media (prefers-reduced-motion: no-preference){

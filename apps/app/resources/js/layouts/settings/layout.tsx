@@ -146,6 +146,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                             </Link>
                         ))}
                         <div className="sep" />
+                        <a href="/support">Support Traceway</a>
                         <Link
                             href={logout()}
                             as="button"
