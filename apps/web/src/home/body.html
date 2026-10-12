@@ -5,19 +5,19 @@
         <div class="hero" id="hero">
           <p class="kicker">Loops for every sport</p>
           <h1>Name the distance.<br>Get a loop worth taking.</h1>
-          <p class="lede">Drop a pin anywhere. Traceway walks the roads and paths around it, draws the loops that come back, keeps the best one, and writes the course file your watch or GPS follows on its own.</p>
+          <p class="lede">Drop a pin, pick your sport and a distance. Traceway plans a loop from there and back, ready for your watch or bike computer.</p>
           <div class="hero-cta">
             <a class="fill hero-btn" href="/dashboard">Open the planner</a>
             <span class="cue"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v12M4 10l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>Scroll to watch it work</span>
           </div>
         </div>
         <div class="narr">
-          <p data-s="1">Traceway walks <em>every road</em> it can reach from your pin.</p>
-          <p data-s="2">Every way back gets a score. <em>Three</em> come out ahead.</p>
-          <p data-s="3">The one closest to your distance stays. <em>The rest fade.</em></p>
-          <p data-s="4">Arrows point the way you go, so the line has a <em>direction</em>.</p>
-          <p data-s="5">Want to pass through Bergom? Add a <em>via</em>. The loop bends, and stays a loop.</p>
-          <p data-s="6">The course file is ready. Your device <em>follows it alone</em>.</p>
+          <p data-s="1">Traceway looks at <em>every road and path</em> around your pin.</p>
+          <p data-s="2">It tries the ways back. <em>Three</em> come out best.</p>
+          <p data-s="3">The one closest to your distance wins. <em>The rest fade.</em></p>
+          <p data-s="4">Arrows show <em>which way round</em> you go.</p>
+          <p data-s="5">Want to pass through Bergom? Add it as a <em>via point</em>. The loop bends to pass it.</p>
+          <p data-s="6">Done. Your watch or bike computer <em>shows the way</em>.</p>
         </div>
       </div>
     </div>
@@ -167,19 +167,18 @@
         <li data-a="0">Pin</li>
         <li data-a="1">Search</li>
         <li data-a="2">Loops</li>
-        <li data-a="3">Choose</li>
+        <li data-a="3">Pick</li>
         <li data-a="4">Direction</li>
         <li data-a="5">Via</li>
-        <li data-a="6">Export</li>
+        <li data-a="6">Device</li>
       </ol>
       <p class="act" id="act" aria-hidden="true"><span id="act-n">01</span> <span id="act-t">Pin</span></p>
       <div class="device" id="device" aria-hidden="true">
         <div class="filecard">
-          <div class="fn">morning-loop.fit</div>
+          <div class="fn">Morning loop</div>
           <div class="r"><span>Distance</span><span id="fc-dist">41.6 km</span></div>
-          <div class="r"><span>Ascent</span><span>180 m</span></div>
+          <div class="r"><span>Climbing</span><span>180 m</span></div>
           <div class="r"><span>Surface</span><span>Paved</span></div>
-          <div class="r"><span>Device name</span><span>Morning loop</span></div>
         </div>
         <div class="unit">
           <div class="scr">
@@ -195,12 +194,12 @@
     </div>
 
     <dl class="hud" id="hud">
-      <div><dt>Asked</dt><dd>40 km · paved · quiet</dd></div>
-      <div id="h-roads" class="dim"><dt>Roads reached</dt><dd id="v-roads">0 of 120</dd></div>
-      <div id="h-cand" class="dim"><dt>Candidates</dt><dd id="v-cand">—</dd></div>
-      <div id="h-loop"><dt>Loop</dt><dd id="v-loop">0.0 km</dd></div>
-      <div id="h-asc" class="dim"><dt>Ascent</dt><dd id="v-asc">—</dd></div>
-      <div id="h-course"><dt>Course</dt><dd id="v-course">Drawing…</dd></div>
+      <div><dt>You asked</dt><dd>40 km · road · quiet</dd></div>
+      <div id="h-roads" class="dim"><dt>Roads checked</dt><dd id="v-roads">0 of 120</dd></div>
+      <div id="h-cand" class="dim"><dt>Loops found</dt><dd id="v-cand">—</dd></div>
+      <div id="h-loop"><dt>Distance</dt><dd id="v-loop">0.0 km</dd></div>
+      <div id="h-asc" class="dim"><dt>Climbing</dt><dd id="v-asc">—</dd></div>
+      <div id="h-course"><dt>Route</dt><dd id="v-course">Planning…</dd></div>
     </dl>
 
   </div>
@@ -211,7 +210,7 @@
     <div class="sec-head rv">
       <p class="kicker">How it works</p>
       <h2>Three moves. Then you go.</h2>
-      <p class="lede">No dragging waypoints around a map. You say where, how far, and which sport. Traceway does the routing.</p>
+      <p class="lede">No fiddling with the map. Say where, how far, and which sport. Traceway finds the route.</p>
     </div>
     <div class="steps">
       <article class="step rv" style="--i:0">
@@ -230,7 +229,7 @@
         <svg class="ic" viewBox="0 0 56 56" aria-hidden="true"><rect pathLength="1" x="14" y="6" width="28" height="44" rx="7"></rect><path pathLength="1" d="M22 30 c3 -6 6 -8 10 -8 c4 0 5 4 2 10 c-2 4 -6 6 -10 6"></path><circle class="dot" cx="22" cy="30" r="3"></circle></svg>
         <span class="num">03</span>
         <h3>Take it with you</h3>
-        <p>Export a GPX for a watch or GPS, or a FIT course for Garmin. The device draws the line on its own map. The phone can stay at home.</p>
+        <p>Put it on your Garmin, COROS, Suunto, Wahoo, or Hammerhead. It shows the way on its own map. The phone can stay at home.</p>
       </article>
     </div>
   </div>
@@ -241,14 +240,14 @@
     <div class="sec-head rv">
       <p class="kicker">Sports</p>
       <h2>One pin. Six sports.</h2>
-      <p class="lede">Surface, climb, and quiet streets weigh differently for each sport. A road loop, a gravel loop, a mountain-bike loop, a run, a trail run, and a walk can all leave the same pin. Or <a href="#multisport">put several in one plan</a>.</p>
+      <p class="lede">Each sport gets its own kind of loop: quiet tarmac for the road, dirt for gravel, hills for the trails. Or <a href="#multisport">put several in one plan</a>.</p>
     </div>
     <div class="grid g3 tiles">
       <article class="tile rv" style="--i:0">
         <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-road"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
         <div class="meta"><span>Road</span><b>Paved · quiet</b></div>
         <h3>Road</h3>
-        <p>Quiet lanes and cycleways. Trunk roads lose.</p>
+        <p>Quiet lanes and cycleways. Busy main roads drop out.</p>
       </article>
       <article class="tile rv" style="--i:1">
         <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-gravel"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
@@ -289,7 +288,7 @@
     <div class="sec-head rv">
       <p class="kicker">Multisport</p>
       <h2>Swim, ride, run. One plan.</h2>
-      <p class="lede">Put several sports in one plan. Every leg gets its own sport, length, and colour, and the legs meet at your transition. Rehearse a race at its real distances, or meet friends at a handover with your gear and each cover your own distance.</p>
+      <p class="lede">Plan a brick or a full triathlon in one go. Each leg gets its own sport and distance, and they meet at your transition. Train at real race distances, or meet friends along the way.</p>
     </div>
     <div class="grid g2 tiles">
       <article class="tile rv" style="--i:0">
@@ -316,12 +315,12 @@
     <div class="grid g2 ms-more">
       <div class="rv">
         <h3>Loops or a chain</h3>
-        <p>Every leg can leave the transition and come back to it, so you change once and go again. Or chain the legs, so each one ends where the next begins. Give a chained leg a length and it winds out to cover it on the way to the next handover.</p>
-        <p>No leg turns back on its own road, or runs back over a road an earlier leg used.</p>
+        <p>Every leg can start and finish at your transition. Or chain them, so each leg ends where the next begins, handy when friends meet you with your gear.</p>
+        <p>No leg doubles back on a road you have already done.</p>
       </div>
       <div class="rv" style="--i:1">
         <h3>Race distances</h3>
-        <p>Swim, ride, and run, for a triathlon. A brick takes the ride and the run, and an aquabike the swim and the ride.</p>
+        <p>Pick a race and the distances fill in. Swim, ride, and run:</p>
         <ul class="race-list" aria-label="Triathlon distances, swim, ride, and run">
           <li><b>Super sprint</b><span>0.4 · 10 · 2.5 km</span></li>
           <li><b>Eighth (1/8)</b><span>0.5 · 20 · 5 km</span></li>
@@ -343,21 +342,19 @@
       <div class="rv">
         <p class="kicker">On the device</p>
         <h2 style="margin-top:16px">Leave the phone at home.</h2>
-        <p class="body" style="margin-top:24px">Traceway writes a GPX file for a watch, a bike computer, or any GPS that reads one, and a FIT course for Garmin. Import it in Connect under Training, then Courses, and sync. Over USB, drop the FIT in Garmin/NewFiles. The device follows the line on its own map. No signal required.</p>
-        <p class="body">A Garmin reads the first 15 characters of a course name, so every file carries a short name beside the full one. You never see a course called "morning-loop-westerlo-via-be".</p>
-        <p class="body">A multisport plan gives one FIT course for each leg on land, named like "Brick 2 Run", ready to load into its leg of a multisport activity. The GPX holds every leg as its own track.</p>
+        <p class="body" style="margin-top:24px">Your route goes onto your watch or bike computer, and it shows the way on its own map. No phone, no signal.</p>
+        <p class="body">Planning a triathlon? Each leg arrives as its own route, ready for the multisport mode on your watch.</p>
         <ul class="formats">
-          <li><b>FIT course</b><span>Garmin<small>Turn guidance, course points, the short name already set.</small></span></li>
-          <li><b>GPX</b><span>Watches and GPS units<small>COROS, Suunto, Wahoo, Hammerhead, and anything else that reads GPX.</small></span></li>
+          <li><b>Garmin</b><span>Turn-by-turn directions<small>Add the route in Garmin Connect and sync.</small></span></li>
+          <li><b>Other brands</b><span>COROS, Suunto, Wahoo, Hammerhead<small>And most watches and bike computers that can load a route.</small></span></li>
         </ul>
       </div>
       <div class="transfer rv" style="--i:1" aria-hidden="true">
         <div class="filecard">
-          <div class="fn">morning-loop.fit</div>
+          <div class="fn">Morning loop</div>
           <div class="r"><span>Distance</span><span>40.2 km</span></div>
-          <div class="r"><span>Ascent</span><span>180 m</span></div>
+          <div class="r"><span>Climbing</span><span>180 m</span></div>
           <div class="r"><span>Surface</span><span>Paved</span></div>
-          <div class="r"><span>Device name</span><span>Morning loop</span></div>
         </div>
         <svg class="wire" viewBox="0 0 140 60" aria-hidden="true">
           <path id="wirepath" d="M4 30 C40 30 60 30 136 30"></path>
@@ -382,7 +379,7 @@
   <div class="wrap">
     <h2 class="rv"><span>No feed.</span><span>No club.</span><span class="x">No public routes.</span></h2>
     <div class="stance-grid">
-      <p class="rv" style="--i:1">Traceway is a solo planner. <b>Your pin, your loop and your Sunday morning stay yours.</b> Nobody sees where you start, nobody ranks your day, and the only thing that leaves the planner is a course file, headed for your watch or GPS.</p>
+      <p class="rv" style="--i:1">Traceway is a solo planner. <b>Your pin, your loop and your Sunday morning stay yours.</b> Nobody sees where you start, nobody ranks your day, and the only thing that leaves the planner is your route, headed for your watch.</p>
       <p class="rv" style="--i:2">There is nothing to scroll and nobody to keep up with. <b>You get a line that is worth the day, and the quiet to take it.</b> The map is OpenStreetMap. The judgement about what makes a road or a path good is ours.</p>
     </div>
   </div>
@@ -397,39 +394,39 @@
     <div class="faq-list rv" style="--i:1">
       <details>
         <summary>Does the device need a signal or an app?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
-        <p>No. The course file is the whole outing. Load it once, over sync or USB, and the watch or GPS follows the line on its own map, with no phone and no signal.</p>
+        <p>No. Load the route once and your watch or bike computer follows it on its own map. No phone, no signal.</p>
       </details>
       <details>
-        <summary>FIT or GPX, which one do I pick?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
-        <p>FIT for a Garmin watch or bike computer, because it carries turn guidance and the short course name the device expects. GPX for COROS, Suunto, Wahoo, Hammerhead, and almost anything else. Both files hold the same line.</p>
+        <summary>Which watches and bike computers work?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>Garmin, COROS, Suunto, Wahoo, Hammerhead, and most others that can load a route. On a Garmin you also get turn-by-turn directions.</p>
       </details>
       <details>
         <summary>Can I make the loop pass a particular place?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
-        <p>Add a via point. The loop bends through it and stays a loop: closed, on roads, never doubling back along the same stretch. The distance updates as it bends.</p>
+        <p>Add a via point. The loop bends through it and still brings you home, without doubling back.</p>
       </details>
       <details>
         <summary>Can I plan a triathlon or a brick?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
-        <p>Yes. Open Multisport in the planner and pick a brick, a triathlon, a duathlon, or an aquabike. Choose a race distance, from a super sprint to a full Ironman, or set each leg yourself. Every leg on land gets its own FIT course.</p>
+        <p>Yes. Pick a brick, a triathlon, a duathlon, or an aquabike, then a race distance from a super sprint to a full Ironman. Or set each leg yourself.</p>
       </details>
       <details>
         <summary>Does Traceway route the swim?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
-        <p>No. A routing engine cannot route on water, so you draw the swim yourself, point by point on the lake, or drop a single pin. The planner shows how much you have drawn against the race distance.</p>
+        <p>No, there are no roads on the water. You draw the swim on the map yourself, and the planner shows how far you have drawn.</p>
       </details>
       <details>
         <summary>Can friends meet me at a handover?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
-        <p>Yes. Chain the legs and set each handover on the map, then give each leg the length you want. Drag a handover to move it, and the plan draws again.</p>
+        <p>Yes. Put each handover on the map and give each leg its distance. Drag a handover to move it.</p>
       </details>
       <details>
         <summary>Can I follow the route before I go?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
-        <p>Every route has a player under the map. Slide it from the start to the finish, or press play, and a pin follows the line in the colour of its leg.</p>
+        <p>Yes. Press play under the map and a pin rides the whole route for you.</p>
       </details>
       <details>
         <summary>Will it send me down a busy road?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
-        <p>Each sport has its own idea of a good line. Road, walk, and run score busy roads down hard, so they lose early. Gravel, mountain bike, and trail care more about surface and climb than about traffic.</p>
+        <p>Not if it can help it. Road, run, and walk avoid busy roads. Gravel, mountain bike, and trail care more about the ground and the hills.</p>
       </details>
       <details>
         <summary>Does it work outside Belgium?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
-        <p>The map is OpenStreetMap, so the pin goes anywhere the map has roads and paths. The loops shown on this page leave Westerlo, where Traceway is built.</p>
+        <p>Yes. The pin goes anywhere with roads and paths on OpenStreetMap. The loops on this page start in Westerlo, where Traceway is built.</p>
       </details>
     </div>
   </div>
