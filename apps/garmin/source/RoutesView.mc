@@ -3,7 +3,8 @@ import Toybox.WatchUi;
 
 // Fetches the route list, then hands over to a menu. A multisport plan shows one entry per land leg.
 class RoutesView extends WatchUi.View {
-    var _text = "Loading routes";
+    var _title = "Loading routes";
+    var _detail = null;
     var _asked = false;
 
     function initialize() {
@@ -25,35 +26,34 @@ class RoutesView extends WatchUi.View {
         }
 
         if (code != 200 || !(data instanceof Dictionary)) {
-            _text = "No connection.\nCheck the phone.";
-            WatchUi.requestUpdate();
+            show("No connection", "Open Garmin Connect on the phone.");
             return;
         }
 
         var entries = [];
-        var menu = new WatchUi.Menu2({ :title => "Traceway" });
+        var menu = new WatchUi.Menu2({ :title => new WordmarkTitle() });
         var routes = data["routes"];
 
         for (var index = 0; index < routes.size(); index++) {
             var route = routes[index];
             var path = "/api/device/routes/" + route["id"] + "/fit";
             var legs = route["legs"];
-            var km = (route["distance_metres"] / 1000.0).format("%.1f") + " km";
 
             if (legs.size() == 0) {
-                menu.addItem(new WatchUi.MenuItem(route["title"], km, entries.size(), null));
-                entries.add({ :name => route["name"], :path => path });
+                menu.addItem(new WatchUi.IconMenuItem(route["title"], summary(route), entries.size(), new WatchUi.Bitmap({ :rezId => Brand.sportIcon(route["sport"]) }), null));
+                entries.add({ :name => route["name"], :title => route["title"], :sport => route["sport"], :path => path });
             }
 
             for (var leg = 0; leg < legs.size(); leg++) {
-                menu.addItem(new WatchUi.MenuItem(legs[leg]["name"], "Leg " + legs[leg]["n"], entries.size(), null));
-                entries.add({ :name => legs[leg]["name"], :path => path + "/" + legs[leg]["n"] });
+                var part = legs[leg];
+
+                menu.addItem(new WatchUi.IconMenuItem(part["name"], "Leg " + part["n"] + " of " + route["title"], entries.size(), new WatchUi.Bitmap({ :rezId => Brand.sportIcon(part["sport"]) }), null));
+                entries.add({ :name => part["name"], :title => part["name"], :sport => part["sport"], :path => path + "/" + part["n"] });
             }
         }
 
         if (entries.size() == 0) {
-            _text = "No saved routes.\nSave one in the planner.";
-            WatchUi.requestUpdate();
+            show("No saved routes yet", "Save a route in the Traceway planner, then open this again.");
             return;
         }
 
@@ -61,8 +61,24 @@ class RoutesView extends WatchUi.View {
         WatchUi.switchToView(menu, new RoutesMenuDelegate(entries), WatchUi.SLIDE_IMMEDIATE);
     }
 
+    function summary(route) {
+        var text = (route["distance_metres"] / 1000.0).format("%.1f") + " km";
+
+        if (route["ascent_metres"] > 0) {
+            text += ", " + route["ascent_metres"] + " m up";
+        }
+
+        return text;
+    }
+
+    function show(title, detail) {
+        _title = title;
+        _detail = detail;
+        WatchUi.requestUpdate();
+    }
+
     function onUpdate(dc) {
-        Screen.message(dc, _text);
+        Brand.message(dc, _title, _detail);
     }
 }
 

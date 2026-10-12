@@ -12,6 +12,16 @@ A device app for Garmin bike computers and watches. It lists the rider's saved T
 
 Removing the device in Settings stops its token at once. The app then asks for a new code.
 
+## Look
+
+The app follows the planner: an ink ground (`#071f20`), paper type (`#f7f5ec`), and the marker green (`#97cb46`) used sparingly. It uses the device's own fonts.
+
+The drawables in `resources/drawables` are SVG sources, and the compiler renders them at each device's size:
+- the wordmark, Outfit 600 drawn as outlines, so no font is needed at build time;
+- the launcher icon, which is the favicon;
+- the sport tiles, the library's lucide glyphs on ink;
+- the green check.
+
 ## Build and release
 
 CI builds the app, and nothing built is committed. `.github/workflows/garmin.yml` handles it:
