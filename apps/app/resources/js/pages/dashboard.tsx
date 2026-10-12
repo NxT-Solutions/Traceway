@@ -3050,11 +3050,9 @@ export default function Dashboard() {
     }
 
     function chooseRace(chosen: RaceDistance): void {
-        const label =
-            presets.find((item) => item.value === session)?.label ?? '';
         setSheet(null);
         setSwimTargetKm(chosen.swimKm);
-        setName(`${chosen.label} ${label.toLowerCase()}`.trim());
+        setName(chosen.name);
         setMessage(
             chosen.swimKm === null
                 ? `${chosen.copy} Draw the route when you are ready.`

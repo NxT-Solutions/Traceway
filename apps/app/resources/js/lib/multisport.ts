@@ -94,6 +94,13 @@ export const presets = [
         swim: false,
         legs: [leg('run', 10), leg('road', 40), leg('run', 5)],
     },
+    {
+        value: 'aquabike',
+        label: 'Aquabike',
+        copy: 'Swim, then ride. No run.',
+        swim: true,
+        legs: [leg('road', 40)],
+    },
 ] as const;
 
 export type SessionKind = (typeof presets)[number]['value'] | 'custom';
@@ -110,8 +117,8 @@ const runSports = ['run', 'trail_run'];
 /**
  * The session the legs add up to. A brick is a ride then a run, a
  * triathlon is the same after a swim, and a duathlon is a run, a ride, and
- * a run. Any bike sport counts as the ride and a run or trail run as the
- * run. Anything else is custom.
+ * a run. An aquabike is a swim and a ride. Any bike sport counts as the
+ * ride and a run or trail run as the run. Anything else is custom.
  */
 export function sessionOf(legs: LandLeg[], hasSwim: boolean): SessionKind {
     const shape = legs
@@ -132,55 +139,82 @@ export function sessionOf(legs: LandLeg[], hasSwim: boolean): SessionKind {
         return 'duathlon';
     }
 
+    if (shape === 'bike' && hasSwim) {
+        return 'aquabike';
+    }
+
     return 'custom';
 }
 
 /**
- * The official race distances, so a session can rehearse a whole race.
- * Leg lengths follow the leg order of the session. Formats are named by
- * their distance, not by the brands that run them. A brick has no race of
- * its own, so it takes the ride and run of each triathlon distance.
+ * The official and best-known race distances, so a session can rehearse a
+ * whole race. Leg lengths follow the leg order of the session. The quarter
+ * and eighth are Benelux formats whose distances vary by race, so they take
+ * the most common ones. A brick has no race of its own, so it takes the
+ * ride and run of each triathlon.
  */
 export const raceDistances = {
     triathlon: [
         {
             value: 'super_sprint',
             label: 'Super sprint',
+            name: 'Super sprint triathlon',
             copy: '400 m swim, 10 km ride, 2.5 km run.',
             swimKm: 0.4,
             legs: [10, 2.5],
         },
         {
+            value: 'eighth',
+            label: 'Eighth (1/8)',
+            name: 'Eighth triathlon',
+            copy: '500 m swim, 20 km ride, 5 km run. The short Benelux format.',
+            swimKm: 0.5,
+            legs: [20, 5],
+        },
+        {
             value: 'sprint',
             label: 'Sprint',
+            name: 'Sprint triathlon',
             copy: '750 m swim, 20 km ride, 5 km run.',
             swimKm: 0.75,
             legs: [20, 5],
         },
         {
+            value: 'quarter',
+            label: 'Quarter (1/4)',
+            name: 'Quarter triathlon',
+            copy: '1 km swim, 42 km ride, 10 km run. Races ride 40 to 45 km.',
+            swimKm: 1,
+            legs: [42, 10],
+        },
+        {
             value: 'olympic',
             label: 'Olympic',
+            name: 'Olympic triathlon',
             copy: 'Standard distance: 1.5 km swim, 40 km ride, 10 km run.',
             swimKm: 1.5,
             legs: [40, 10],
         },
         {
-            value: 'middle',
-            label: '70.3',
-            copy: 'Middle distance: 1.9 km swim, 90 km ride, 21.1 km run.',
-            swimKm: 1.9,
-            legs: [90, 21.1],
-        },
-        {
-            value: 'pro',
-            label: '100',
-            copy: 'The 100 km pro format: 2 km swim, 80 km ride, 18 km run.',
+            value: 't100',
+            label: 'T100',
+            name: 'T100',
+            copy: '2 km swim, 80 km ride, 18 km run.',
             swimKm: 2,
             legs: [80, 18],
         },
         {
-            value: 'full',
-            label: '140.6',
+            value: 'ironman_70_3',
+            label: 'Ironman 70.3',
+            name: 'Ironman 70.3',
+            copy: 'Half distance: 1.9 km swim, 90 km ride, 21.1 km run.',
+            swimKm: 1.9,
+            legs: [90, 21.1],
+        },
+        {
+            value: 'ironman',
+            label: 'Ironman',
+            name: 'Ironman',
             copy: 'Full distance: 3.8 km swim, 180 km ride, 42.2 km run.',
             swimKm: 3.8,
             legs: [180, 42.2],
@@ -190,6 +224,7 @@ export const raceDistances = {
         {
             value: 'sprint',
             label: 'Sprint',
+            name: 'Sprint duathlon',
             copy: '5 km run, 20 km ride, 2.5 km run.',
             swimKm: null,
             legs: [5, 20, 2.5],
@@ -197,13 +232,15 @@ export const raceDistances = {
         {
             value: 'standard',
             label: 'Standard',
+            name: 'Standard duathlon',
             copy: '10 km run, 40 km ride, 5 km run.',
             swimKm: null,
             legs: [10, 40, 5],
         },
         {
-            value: 'long',
-            label: 'Long',
+            value: 'powerman',
+            label: 'Powerman',
+            name: 'Powerman',
             copy: 'Long distance: 10 km run, 150 km ride, 30 km run.',
             swimKm: null,
             legs: [10, 150, 30],
@@ -213,6 +250,7 @@ export const raceDistances = {
         {
             value: 'sprint',
             label: 'Sprint',
+            name: 'Sprint brick',
             copy: 'The ride and run of a sprint triathlon: 20 km, then 5 km.',
             swimKm: null,
             legs: [20, 5],
@@ -220,23 +258,60 @@ export const raceDistances = {
         {
             value: 'olympic',
             label: 'Olympic',
+            name: 'Olympic brick',
             copy: 'The ride and run of an Olympic triathlon: 40 km, then 10 km.',
             swimKm: null,
             legs: [40, 10],
         },
         {
-            value: 'middle',
-            label: '70.3',
-            copy: 'The ride and run of a middle distance: 90 km, then 21.1 km.',
+            value: 't100',
+            label: 'T100',
+            name: 'T100 brick',
+            copy: 'The ride and run of a T100: 80 km, then 18 km.',
+            swimKm: null,
+            legs: [80, 18],
+        },
+        {
+            value: 'ironman_70_3',
+            label: 'Ironman 70.3',
+            name: 'Ironman 70.3 brick',
+            copy: 'The ride and run of an Ironman 70.3: 90 km, then 21.1 km.',
             swimKm: null,
             legs: [90, 21.1],
         },
         {
-            value: 'full',
-            label: '140.6',
-            copy: 'The ride and run of a full distance: 180 km, then 42.2 km.',
+            value: 'ironman',
+            label: 'Ironman',
+            name: 'Ironman brick',
+            copy: 'The ride and run of an Ironman: 180 km, then 42.2 km.',
             swimKm: null,
             legs: [180, 42.2],
+        },
+    ],
+    aquabike: [
+        {
+            value: 'standard',
+            label: 'Standard',
+            name: 'Standard aquabike',
+            copy: '1.5 km swim, 40 km ride.',
+            swimKm: 1.5,
+            legs: [40],
+        },
+        {
+            value: 'middle',
+            label: 'Middle',
+            name: 'Middle aquabike',
+            copy: 'The swim and ride of an Ironman 70.3: 1.9 km, then 90 km.',
+            swimKm: 1.9,
+            legs: [90],
+        },
+        {
+            value: 'long',
+            label: 'Long',
+            name: 'Long aquabike',
+            copy: 'The swim and ride of an Ironman: 3.8 km, then 180 km.',
+            swimKm: 3.8,
+            legs: [180],
         },
     ],
 } as const;
@@ -244,6 +319,8 @@ export const raceDistances = {
 export type RaceDistance = {
     value: string;
     label: string;
+    /** What the plan is called once the race is chosen. */
+    name: string;
     copy: string;
     swimKm: number | null;
     legs: readonly number[];
