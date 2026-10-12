@@ -12,11 +12,25 @@ A device app for Garmin bike computers and watches. It lists the rider's saved T
 
 Removing the device in Settings stops its token at once. The app then asks for a new code.
 
-## Build
+## Build and release
 
-You need a free Garmin account to download the [Connect IQ SDK](https://developer.garmin.com/connect-iq/sdk/) and the Monkey C extension for VS Code. No business approval is needed.
+CI builds the app, and nothing built is committed. `.github/workflows/garmin.yml` handles it:
 
-Make a signing key once, outside the repo:
+- **Every pull request and push to main:** it installs the pinned Connect IQ SDK and the manifest's devices, then exports `traceway.iq` for every product. The file is uploaded as the `traceway-garmin` artifact and signed with a throwaway key.
+- **A published release (`vX.Y.Z`):** it stamps that version into `manifest.xml` and signs the package with the real key. It then attaches `traceway-garmin-vX.Y.Z.iq` to the release. Upload that file at the Connect IQ developer dashboard. Garmin has no API for store uploads.
+
+The workflow needs these repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `GARMIN_USERNAME`, `GARMIN_PASSWORD` | A Garmin account for downloading the SDK device files. It must sign in without a second factor. |
+| `CONNECTIQ_DEVELOPER_KEY` | `base64 -i ~/.connectiq/developer_key.der`, the key every store update is signed with. |
+
+The workflow pins the SDK version and the hash of the accepted SDK license. When Garmin changes the license, accept it in the SDK manager and copy the new `agreement-hash` from `sdkmanager-config.ini` into the workflow.
+
+### Local builds
+
+You need a free Garmin account to download the [Connect IQ SDK](https://developer.garmin.com/connect-iq/sdk/). Make a signing key once, outside the repo, and back it up:
 
 ```bash
 mkdir -p ~/.connectiq && openssl genrsa -out ~/.connectiq/developer_key.pem 4096
@@ -32,12 +46,9 @@ Build for one device:
 monkeyc -f monkey.jungle -d edge840 -y ~/.connectiq/developer_key.der -o bin/traceway.prg
 ```
 
-The same key must sign every store update, so back it up.
-
 ## Run
 
 - **Simulator:** `connectiq`, then `monkeydo bin/traceway.prg edge840`. In the app settings, set the address to the DDEV site, or to a `ddev share` URL if the simulator rejects the local certificate.
 - **On a device:** copy `bin/traceway.prg` into `GARMIN/APPS` over USB.
-- **Store:** export with `monkeyc -e` and upload the `.iq` at the Connect IQ developer dashboard.
 
-Every product in `manifest.xml` builds with SDK 9.2.0.
+Every product in `manifest.xml` builds with SDK 9.2.0. The manifest version stays `0.0.0`, and a release sets the real one.
