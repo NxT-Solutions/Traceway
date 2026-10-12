@@ -1,6 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import '../../css/planner.css';
-import { Bike, Footprints, Mountain } from 'lucide-react';
+import { Bike, Footprints, Mountain, Waves } from 'lucide-react';
 import type { GeoJSONSource, MapMouseEvent } from 'maplibre-gl';
 import * as maplibregl from 'maplibre-gl';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
@@ -11,6 +11,7 @@ import {
     MultisportLegs,
     type Placing,
 } from '@/components/multisport-legs';
+import { type PlayerLine, RoutePlayer } from '@/components/route-player';
 import {
     Sheet,
     SheetContent,
@@ -1672,10 +1673,32 @@ export default function Dashboard() {
         ],
         [colourSet, swimColour, hasSwim, legs],
     );
+    /**
+     * The colour of each drawn leg. A drawn plan has no swim leg when the
+     * swim had no points yet, so legs are matched by kind, not by place:
+     * the swim takes the swim colour and the land legs take theirs in order.
+     */
+    const planColours = useMemo(() => {
+        const swimColourNow = legColour(colourSet, 0, swimColour);
+        const landColours = legColours.slice(hasSwim ? 1 : 0);
+        let land = 0;
+
+        return (plan?.legs ?? []).map((leg) => {
+            if (leg.discipline === 'swim') {
+                return swimColourNow;
+            }
+
+            const colour = landColours[land] ?? '#2563eb';
+            land += 1;
+
+            return colour;
+        });
+    }, [plan, legColours, hasSwim, colourSet, swimColour]);
+    const mapColours = plan === null ? legColours : planColours;
     multisportRef.current = {
         plan: multisport ? plan : null,
         swim,
-        colours: legColours,
+        colours: mapColours,
     };
     arrowLinesRef.current = multisport
         ? (plan?.legs ?? [])
@@ -1752,6 +1775,38 @@ export default function Dashboard() {
     const sheetRoads = editing?.roads ?? roads;
     const sheetKm = editing?.distanceKm ?? distanceKm;
     const SportIcon = multisport ? MultisportIcon : sportIcon(sport);
+    const drawingIcons = multisport
+        ? [
+              ...(hasSwim ? [Waves] : []),
+              ...legs.map((leg) => sportIcon(leg.sport)),
+          ]
+        : [sportIcon(sport)];
+    const playerLines = useMemo<PlayerLine[]>(() => {
+        if (multisport) {
+            return (plan?.legs ?? [])
+                .map((leg, index) => ({
+                    label:
+                        leg.discipline === 'swim'
+                            ? 'Swim'
+                            : (sports.find(
+                                  (item) => item.value === leg.discipline,
+                              )?.label ?? leg.discipline),
+                    color: planColours[index] ?? '#2563eb',
+                    coordinates: leg.coordinates,
+                }))
+                .filter((line) => line.coordinates.length > 1);
+        }
+
+        return preview === null
+            ? []
+            : [
+                  {
+                      label: sportLabel,
+                      color: routePaint(routeIndex).line,
+                      coordinates: preview.coordinates,
+                  },
+              ];
+    }, [multisport, plan, planColours, preview, sportLabel, routeIndex]);
     const visibleSports = useMemo(
         () =>
             sports.filter((item) =>
@@ -2058,7 +2113,7 @@ export default function Dashboard() {
                 map,
                 multisport ? plan : null,
                 multisport ? swim : null,
-                legColours,
+                mapColours,
             );
             paintArrowLines(map, arrowLinesRef.current);
         };
@@ -2070,7 +2125,7 @@ export default function Dashboard() {
         }
 
         map.once('idle', paint);
-    }, [preview, routes, routeIndex, multisport, plan, swim, legColours]);
+    }, [preview, routes, routeIndex, multisport, plan, swim, mapColours]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -2666,7 +2721,7 @@ export default function Dashboard() {
             layout: plan.layout,
             legs: plan.legs.map((leg, index) => ({
                 ...leg,
-                color: legColours[index] ?? null,
+                color: planColours[index] ?? null,
             })),
         };
     }
@@ -3503,6 +3558,11 @@ export default function Dashboard() {
                             OpenStreetMap
                         </p>
                     </div>
+                    <RoutePlayer
+                        mapRef={mapRef}
+                        lines={playerLines}
+                        coverRef={panelRef}
+                    />
                     <aside
                         ref={panelRef}
                         className={panelOpen ? 'panel open' : 'panel'}
@@ -4237,11 +4297,30 @@ export default function Dashboard() {
                                           : generate())
                                 }
                             >
-                                {busy
-                                    ? 'Drawing…'
-                                    : shown
-                                      ? 'Draw again'
-                                      : 'Draw route'}
+                                {busy ? (
+                                    <>
+                                        <span
+                                            className="drawing"
+                                            aria-hidden="true"
+                                        >
+                                            {drawingIcons.map((Icon, index) => (
+                                                <Icon
+                                                    // Icons follow the leg order.
+                                                    key={`${index}-${Icon.displayName ?? ''}`}
+                                                    className="size-4"
+                                                    style={{
+                                                        animationDelay: `${index * 160}ms`,
+                                                    }}
+                                                />
+                                            ))}
+                                        </span>
+                                        Drawing…
+                                    </>
+                                ) : shown ? (
+                                    'Draw again'
+                                ) : (
+                                    'Draw route'
+                                )}
                             </button>
                             <section className="result" aria-label="Result">
                                 <div className="top">
@@ -4324,8 +4403,8 @@ export default function Dashboard() {
                                                     }
                                                     style={{
                                                         background:
-                                                            legColours[index],
-                                                        color: legColours[
+                                                            planColours[index],
+                                                        color: planColours[
                                                             index
                                                         ],
                                                     }}
@@ -4633,7 +4712,8 @@ export default function Dashboard() {
             >
                 <SheetContent
                     side="bottom"
-                    className="tw-pop top-auto block h-fit max-h-[80vh] gap-0 overflow-y-auto rounded-t-[10px] bg-background pb-4 text-foreground shadow-sm"
+                    className={choiceSheet}
+                    style={{ maxHeight: '80vh' }}
                 >
                     <SheetHeader className={sheetHeading}>
                         <SheetTitle className="pr-6">Leg colours</SheetTitle>
