@@ -1234,9 +1234,14 @@ function bindLengthField(node: HTMLInputElement | null): void {
 function LengthEditor({
     initialKm,
     onApply,
+    onShortest,
+    note = 'Whole kilometres from 5 to 200. Loops land within a few kilometres of this. The three closest are kept.',
 }: {
     initialKm: number;
     onApply: (kilometres: number) => void;
+    /** Offered for a chained leg, which can take the shortest way instead. */
+    onShortest?: () => void;
+    note?: string;
 }) {
     const field = useRef<HTMLInputElement>(null);
     const committed = useRef(initialKm);
@@ -1305,18 +1310,25 @@ function LengthEditor({
                     </span>
                 </div>
             </div>
-            <p className="small">
-                Whole kilometres from 5 to 200. Loops land within a few
-                kilometres of this. The three closest are kept.
-            </p>
+            <p className="small">{note}</p>
             <div className="foot">
-                <button
-                    type="button"
-                    className="textbtn"
-                    onClick={() => paint(40)}
-                >
-                    Reset
-                </button>
+                {onShortest === undefined ? (
+                    <button
+                        type="button"
+                        className="textbtn"
+                        onClick={() => paint(40)}
+                    >
+                        Reset
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        className="textbtn"
+                        onClick={onShortest}
+                    >
+                        Shortest way
+                    </button>
+                )}
                 <button
                     type="button"
                     className="outline sm"
@@ -1434,6 +1446,9 @@ export default function Dashboard() {
         savedPlan?.swimColour ?? null,
     );
     const multisportMarkersRef = useRef<maplibregl.Marker[]>([]);
+    const moveFinishRef = useRef<(index: number, point: Coordinate) => void>(
+        () => {},
+    );
     const multisportRef = useRef<{
         plan: MultisportPlan | null;
         swim: Coordinate[] | null;
@@ -2151,11 +2166,19 @@ export default function Dashboard() {
                 const element = document.createElement('div');
                 element.className = 'finish-pin';
                 element.textContent = String(index + offset);
-                multisportMarkersRef.current.push(
-                    new maplibregl.Marker({ element, anchor: 'center' })
-                        .setLngLat(leg.finish)
-                        .addTo(map),
-                );
+                element.title = `Drag to move where leg ${index + offset} ends`;
+                const marker = new maplibregl.Marker({
+                    element,
+                    anchor: 'center',
+                    draggable: true,
+                })
+                    .setLngLat(leg.finish)
+                    .addTo(map);
+                marker.on('dragend', () => {
+                    const at = marker.getLngLat();
+                    moveFinishRef.current(index, [at.lng, at.lat]);
+                });
+                multisportMarkersRef.current.push(marker);
             });
         }
 
@@ -2909,6 +2932,7 @@ export default function Dashboard() {
                             ? {
                                   finish_latitude: leg.finish[1],
                                   finish_longitude: leg.finish[0],
+                                  stretch: leg.stretch === true,
                               }
                             : {}),
                     })),
@@ -3129,6 +3153,23 @@ export default function Dashboard() {
             `Tap the map where leg ${index + (swim === null ? 1 : 2)} ends.`,
         );
     }
+
+    moveFinishRef.current = (index, point) => {
+        const nextLegs = legs.map((leg, item) =>
+            item === index ? { ...leg, finish: point } : leg,
+        );
+        dirty.current = true;
+        setLegs(nextLegs);
+        setActiveLeg(index);
+
+        if (plan !== null) {
+            void drawMultisport({ legs: nextLegs });
+
+            return;
+        }
+
+        setMessage('Finish moved. Draw the route when you are ready.');
+    };
 
     function clickMultisport(lng: number, lat: number): void {
         const point: Coordinate = [lng, lat];
@@ -4593,9 +4634,19 @@ export default function Dashboard() {
                     {sheet === 'length' ? (
                         <LengthEditor
                             initialKm={sheetKm}
+                            {...(multisport && layout === 'chain'
+                                ? {
+                                      onShortest: () =>
+                                          updateLeg({ stretch: false }),
+                                      note: 'Whole kilometres from 5 to 200. The leg winds out to cover this on the way to its finish. Shortest way takes the direct route.',
+                                  }
+                                : {})}
                             onApply={(kilometres) => {
                                 if (multisport) {
-                                    updateLeg({ distanceKm: kilometres });
+                                    updateLeg({
+                                        distanceKm: kilometres,
+                                        stretch: layout === 'chain',
+                                    });
 
                                     return;
                                 }

@@ -20,6 +20,11 @@ export type LandLeg = {
      * the colour for its place in the chosen colour set.
      */
     color?: string | null;
+    /**
+     * In a chain, the leg covers distanceKm on the way to its finish
+     * instead of taking the shortest way there.
+     */
+    stretch?: boolean;
 };
 
 export type PlannedLeg = {
@@ -384,6 +389,7 @@ export function isLandLeg(value: unknown): value is LandLeg {
         (record.finish === null || isCoordinate(record.finish)) &&
         (record.color === undefined ||
             record.color === null ||
-            isHexColour(record.color))
+            isHexColour(record.color)) &&
+        (record.stretch === undefined || typeof record.stretch === 'boolean')
     );
 }

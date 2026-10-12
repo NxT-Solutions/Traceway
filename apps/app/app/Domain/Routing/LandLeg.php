@@ -13,6 +13,7 @@ final readonly class LandLeg
 {
     /**
      * @param  array{0: float, 1: float}|null  $finish  Where a chained leg hands over, as [lon, lat].
+     * @param  bool  $stretch  A chained leg covers its length on the way to the finish, rather than taking the shortest way.
      */
     public function __construct(
         public Sport $sport,
@@ -21,6 +22,7 @@ final readonly class LandLeg
         public ElevationBias $elevation,
         public bool $preferQuiet = false,
         public ?array $finish = null,
+        public bool $stretch = false,
     ) {
         if ($this->distanceMetres < 1_000 || $this->distanceMetres > 300_000) {
             throw new InvalidArgumentException('A leg must be between 1 km and 300 km.');

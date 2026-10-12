@@ -1436,6 +1436,10 @@
                                                 "type": "number",
                                                 "maximum": 180,
                                                 "minimum": -180
+                                            },
+                                            "stretch": {
+                                                "description": "A chained leg covers distance_metres on the way to its finish, rather than taking the shortest way.",
+                                                "type": "boolean"
                                             }
                                         },
                                         "type": "object"

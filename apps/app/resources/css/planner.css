@@ -611,7 +611,8 @@ body:has(.tw-planner) .tw-pop .group-label{margin:4px 0 0;font-size:13px;color:v
 .tw-planner .leg-list li span{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted)}
 .tw-planner .leg-list i{display:inline-block;width:22px;height:3px;border-radius:2px;flex:0 0 auto}
 .tw-planner .leg-list i.dotted{height:0;background:none!important;border-top:3px dashed currentColor}
-.tw-planner .finish-pin{width:26px;height:26px;border-radius:50%;background:#fff;color:#16303a;display:flex;align-items:center;justify-content:center;font-family:Outfit,sans-serif;font-size:11px;font-weight:600;border:2px solid #16303a;box-shadow:0 1px 4px oklch(0.22 0.03 200 / 0.28);pointer-events:none}
+.tw-planner .finish-pin{width:28px;height:28px;border-radius:50%;background:#fff;color:#16303a;display:flex;align-items:center;justify-content:center;font-family:Outfit,sans-serif;font-size:11px;font-weight:600;border:2px solid #16303a;box-shadow:0 1px 4px oklch(0.22 0.03 200 / 0.28);cursor:grab;touch-action:none}
+.tw-planner .finish-pin:active{cursor:grabbing}
 .tw-planner .swim-pin{width:14px;height:14px;border-radius:50%;background:#1d4ed8;border:2px solid #fff;box-shadow:0 1px 4px oklch(0.22 0.03 200 / 0.28);pointer-events:none}
 .tw-share .legs{display:flex;flex-direction:column;gap:6px;margin:0 0 14px;padding:0;list-style:none;font-size:14px}
 .tw-share .legs li{display:flex;align-items:center;gap:10px}

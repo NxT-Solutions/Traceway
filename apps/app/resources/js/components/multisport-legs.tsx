@@ -306,7 +306,9 @@ export function MultisportLegs({
                                     {layout === 'chain'
                                         ? item.finish === null
                                             ? 'No finish yet'
-                                            : 'To its finish'
+                                            : item.stretch === true
+                                              ? `${item.distanceKm} km to its finish`
+                                              : 'Shortest way'
                                         : `${item.distanceKm} km`}
                                 </small>
                                 <span className="vh">Edit this leg</span>
@@ -423,19 +425,20 @@ export function MultisportLegs({
                                 <Chevron />
                             </span>
                         </button>
-                    ) : (
-                        <button
-                            type="button"
-                            className="row"
-                            onClick={() => onOpen('length')}
-                        >
-                            <span className="k">Length</span>
-                            <span className="v">
-                                {active.distanceKm} km
-                                <Chevron />
-                            </span>
-                        </button>
-                    )}
+                    ) : null}
+                    <button
+                        type="button"
+                        className="row"
+                        onClick={() => onOpen('length')}
+                    >
+                        <span className="k">Length</span>
+                        <span className="v">
+                            {layout === 'chain' && active.stretch !== true
+                                ? 'Shortest way'
+                                : `${active.distanceKm} km`}
+                            <Chevron />
+                        </span>
+                    </button>
                     <button
                         type="button"
                         className="row"
