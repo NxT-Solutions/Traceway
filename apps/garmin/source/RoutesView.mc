@@ -1,4 +1,6 @@
+import Toybox.Graphics;
 import Toybox.Lang;
+import Toybox.System;
 import Toybox.WatchUi;
 
 // Fetches the route list, then hands over to a menu. A multisport plan shows one entry per land leg.
@@ -36,19 +38,22 @@ class RoutesView extends WatchUi.View {
 
         for (var index = 0; index < routes.size(); index++) {
             var route = routes[index];
-            var path = "/api/device/routes/" + route["id"] + "/fit";
+            var base = "/api/device/routes/" + route["id"];
             var legs = route["legs"];
 
             if (legs.size() == 0) {
-                menu.addItem(new WatchUi.IconMenuItem(route["title"], summary(route), entries.size(), new WatchUi.Bitmap({ :rezId => Brand.sportIcon(route["sport"]) }), null));
-                entries.add({ :name => route["name"], :title => route["title"], :sport => route["sport"], :path => path });
+                var numbers = summary(route);
+
+                menu.addItem(new WatchUi.IconMenuItem(fit(route["title"], Graphics.FONT_MEDIUM), fit(numbers, Graphics.FONT_SMALL), entries.size(), new WatchUi.Bitmap({ :rezId => Brand.sportIcon(route["sport"]) }), null));
+                entries.add({ :name => route["name"], :title => route["title"], :sport => route["sport"], :summary => numbers, :path => base + "/fit", :line => base + "/line", :bounds => route["bounds"] });
             }
 
             for (var leg = 0; leg < legs.size(); leg++) {
                 var part = legs[leg];
+                var which = "Leg " + part["n"] + " of " + route["title"];
 
-                menu.addItem(new WatchUi.IconMenuItem(part["name"], "Leg " + part["n"] + " of " + route["title"], entries.size(), new WatchUi.Bitmap({ :rezId => Brand.sportIcon(part["sport"]) }), null));
-                entries.add({ :name => part["name"], :title => part["name"], :sport => part["sport"], :path => path + "/" + part["n"] });
+                menu.addItem(new WatchUi.IconMenuItem(fit(part["name"], Graphics.FONT_MEDIUM), fit(which, Graphics.FONT_SMALL), entries.size(), new WatchUi.Bitmap({ :rezId => Brand.sportIcon(part["sport"]) }), null));
+                entries.add({ :name => part["name"], :title => part["name"], :sport => part["sport"], :summary => "Leg " + part["n"] + ", " + summary(part), :path => base + "/fit/" + part["n"], :line => base + "/line/" + part["n"], :bounds => part["bounds"] });
             }
         }
 
@@ -61,11 +66,18 @@ class RoutesView extends WatchUi.View {
         WatchUi.switchToView(menu, new RoutesMenuDelegate(entries), WatchUi.SLIDE_IMMEDIATE);
     }
 
+    // A menu does not shorten a label before its icon, so long names are cut here, with an ellipsis.
+    function fit(text, font) {
+        var width = (System.getDeviceSettings().screenWidth * 0.7).toNumber();
+
+        return Graphics.fitTextToArea(text, font, width, Graphics.getFontHeight(font), true);
+    }
+
     function summary(route) {
         var text = (route["distance_metres"] / 1000.0).format("%.1f") + " km";
 
         if (route["ascent_metres"] > 0) {
-            text += ", " + route["ascent_metres"] + " m up";
+            text += ", +" + route["ascent_metres"] + " m";
         }
 
         return text;
@@ -99,7 +111,6 @@ class RoutesMenuDelegate extends WatchUi.Menu2InputDelegate {
             return;
         }
 
-        var view = new DownloadView(_entries[id]);
-        WatchUi.pushView(view, new DownloadDelegate(view), WatchUi.SLIDE_LEFT);
+        Detail.show(_entries[id]);
     }
 }

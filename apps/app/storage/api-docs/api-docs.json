@@ -415,6 +415,134 @@
                 "security": []
             }
         },
+        "/api/device/routes/{savedRoute}/line": {
+            "get": {
+                "tags": [
+                    "Device"
+                ],
+                "summary": "The shape of a saved route",
+                "description": "At most 150 points, each latitude then longitude, for a preview before the course is loaded.",
+                "operationId": "deviceRouteLine",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The thinned line.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeviceRouteLine"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The token is missing or the device was removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The rider has no such route.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
+        "/api/device/routes/{savedRoute}/line/{leg}": {
+            "get": {
+                "tags": [
+                    "Device"
+                ],
+                "summary": "The shape of one land leg of a multisport plan",
+                "operationId": "deviceRouteLegLine",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "leg",
+                        "in": "path",
+                        "description": "The leg, counted from 1. The swim has no course.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 5,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The thinned line of the leg.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeviceRouteLine"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The token is missing or the device was removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The rider has no such route or land leg.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
         "/api/device/routes": {
             "get": {
                 "tags": [
@@ -442,6 +570,7 @@
                                                     "sport",
                                                     "distance_metres",
                                                     "ascent_metres",
+                                                    "bounds",
                                                     "legs"
                                                 ],
                                                 "properties": {
@@ -470,6 +599,15 @@
                                                     "ascent_metres": {
                                                         "type": "integer"
                                                     },
+                                                    "bounds": {
+                                                        "description": "South, west, north, east, in degrees.",
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "number"
+                                                        },
+                                                        "maxItems": 4,
+                                                        "minItems": 4
+                                                    },
                                                     "legs": {
                                                         "description": "The land legs of a multisport plan. Empty for a single sport.",
                                                         "type": "array",
@@ -477,7 +615,10 @@
                                                             "required": [
                                                                 "n",
                                                                 "name",
-                                                                "sport"
+                                                                "sport",
+                                                                "distance_metres",
+                                                                "ascent_metres",
+                                                                "bounds"
                                                             ],
                                                             "properties": {
                                                                 "n": {
@@ -491,6 +632,21 @@
                                                                 },
                                                                 "sport": {
                                                                     "type": "string"
+                                                                },
+                                                                "distance_metres": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "ascent_metres": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "bounds": {
+                                                                    "description": "South, west, north, east, in degrees.",
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "maxItems": 4,
+                                                                    "minItems": 4
                                                                 }
                                                             },
                                                             "type": "object"
@@ -1459,6 +1615,27 @@
                                 "example": "The sport field is required."
                             }
                         }
+                    }
+                },
+                "type": "object"
+            },
+            "DeviceRouteLine": {
+                "required": [
+                    "line"
+                ],
+                "properties": {
+                    "line": {
+                        "description": "Latitude then longitude, in degrees.",
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "number"
+                            },
+                            "maxItems": 2,
+                            "minItems": 2
+                        },
+                        "maxItems": 150
                     }
                 },
                 "type": "object"

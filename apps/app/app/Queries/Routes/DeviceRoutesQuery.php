@@ -18,7 +18,7 @@ final class DeviceRoutesQuery
     public const int LIMIT = 20;
 
     /**
-     * @return list<array{id: string, title: string, name: string, sport: string, distance_metres: int, ascent_metres: int, legs: list<array{n: int, name: string, sport: string}>}>
+     * @return list<array{id: string, title: string, name: string, sport: string, distance_metres: int, ascent_metres: int, bounds: array{0: float, 1: float, 2: float, 3: float}, legs: list<array{n: int, name: string, sport: string, distance_metres: int, ascent_metres: int, bounds: array{0: float, 1: float, 2: float, 3: float}}>}>
      */
     public function forRider(int $riderId): array
     {
@@ -27,7 +27,7 @@ final class DeviceRoutesQuery
             ->latest()
             ->orderByDesc('id')
             ->limit(self::LIMIT)
-            ->get(['id', 'name', 'sport', 'distance_metres', 'ascent_metres', 'legs']);
+            ->get(['id', 'name', 'sport', 'distance_metres', 'ascent_metres', 'coordinates', 'legs']);
 
         $routes = [];
 
@@ -42,6 +42,7 @@ final class DeviceRoutesQuery
                 'sport' => $reader->string('sport'),
                 'distance_metres' => $reader->int('distance_metres'),
                 'ascent_metres' => $reader->int('ascent_metres'),
+                'bounds' => $this->bounds($reader->line('coordinates')),
                 'legs' => $this->legs($name, $reader->legs('legs')),
             ];
         }
@@ -51,7 +52,7 @@ final class DeviceRoutesQuery
 
     /**
      * @param  list<SavedLeg>  $savedLegs
-     * @return list<array{n: int, name: string, sport: string}>
+     * @return list<array{n: int, name: string, sport: string, distance_metres: int, ascent_metres: int, bounds: array{0: float, 1: float, 2: float, 3: float}}>
      */
     private function legs(string $name, array $savedLegs): array
     {
@@ -64,10 +65,37 @@ final class DeviceRoutesQuery
                     'n' => $index + 1,
                     'name' => DeviceName::forLeg($base, $index + 1, $savedLeg->sport)->value,
                     'sport' => $savedLeg->sport->value,
+                    'distance_metres' => $savedLeg->distanceMetres,
+                    'ascent_metres' => $savedLeg->ascentMetres,
+                    'bounds' => $this->bounds($savedLeg->coordinates),
                 ];
             }
         }
 
         return $legs;
+    }
+
+    /**
+     * South, west, north, east, so a device can frame its map before the line arrives.
+     *
+     * @param  list<array{0: float, 1: float}>  $line
+     * @return array{0: float, 1: float, 2: float, 3: float}
+     */
+    private function bounds(array $line): array
+    {
+        $first = $line[0] ?? [0.0, 0.0];
+        $south = $first[1];
+        $north = $first[1];
+        $west = $first[0];
+        $east = $first[0];
+
+        foreach ($line as [$longitude, $latitude]) {
+            $south = min($south, $latitude);
+            $north = max($north, $latitude);
+            $west = min($west, $longitude);
+            $east = max($east, $longitude);
+        }
+
+        return [round($south, 5), round($west, 5), round($north, 5), round($east, 5)];
     }
 }

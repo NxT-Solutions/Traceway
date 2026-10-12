@@ -7,7 +7,8 @@ Traceway sends a saved route to a device as a course file. Garmin is the only pr
 - **Course files.** `App\Domain\Courses\CourseFormat` lists the formats: `fit` and `gpx`. `App\Http\Responses\CourseDownload` turns a saved route, or one land leg, into either one. Share links and device apps get the same bytes.
 - **Device names.** `DeviceName` keeps a course name to 15 characters, the most a Garmin shows. Another device with a different limit gets its own rule beside it.
 - **Pairing and the device API.** A device app asks `POST /api/device/pairings` for a code, and sends its `provider`. The rider types the code under Settings, then Devices. The app collects a Bearer token and reads:
-  - `GET /api/device/routes`, which lists routes with a `title` for menus and a `name` for the course on the device;
+  - `GET /api/device/routes`, which lists routes with a `title` for menus, a `name` for the course on the device, and the route's `bounds`;
+  - `GET /api/device/routes/{id}/line`, the route thinned to at most 150 points, latitude first, for a preview (`/line/{leg}` for one leg);
   - `GET /api/device/routes/{id}/{format}`, the whole route as a course file;
   - `GET /api/device/routes/{id}/{format}/{leg}`, one land leg of a multisport plan.
 - **The provider.** `App\Account\DeviceProvider` has one case per provider. Each device link records its provider, and Settings shows it.

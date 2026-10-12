@@ -93,6 +93,7 @@ it('lists only the routes of the rider who linked the device, with device names'
         ->assertJsonPath('routes.0.title', 'A very long morning loop')
         ->assertJsonPath('routes.0.name', 'A very long mor')
         ->assertJsonPath('routes.0.sport', 'road')
+        ->assertJsonPath('routes.0.bounds', [51.05, 3.72, 51.06, 3.74])
         ->assertJsonPath('routes.0.legs', []);
 });
 
@@ -131,7 +132,16 @@ it('downloads each land leg of a multisport plan and no swim', function (): void
 
     $this->withToken($token)
         ->getJson(route('device.routes'))
-        ->assertJsonPath('routes.0.legs', [['n' => 2, 'name' => 'Brick 2 Road', 'sport' => 'road']]);
+        ->assertJsonPath('routes.0.legs', [['n' => 2, 'name' => 'Brick 2 Road', 'sport' => 'road', 'distance_metres' => 20_000, 'ascent_metres' => 0, 'bounds' => [51.1, 4.9, 51.11, 4.91]]]);
+
+    $this->withToken($token)
+        ->getJson(route('device.routes.line.leg', ['savedRoute' => $route->id, 'leg' => 2]))
+        ->assertOk()
+        ->assertJsonPath('line.0', [51.1, 4.9]);
+
+    $this->withToken($token)
+        ->getJson(route('device.routes.line.leg', ['savedRoute' => $route->id, 'leg' => 1]))
+        ->assertNotFound();
 
     $body = $this->withToken($token)
         ->get(route('device.routes.course.leg', ['savedRoute' => $route->id, 'format' => 'fit', 'leg' => 2]))
@@ -142,6 +152,33 @@ it('downloads each land leg of a multisport plan and no swim', function (): void
 
     $this->withToken($token)
         ->getJson(route('device.routes.course.leg', ['savedRoute' => $route->id, 'format' => 'fit', 'leg' => 1]))
+        ->assertNotFound();
+});
+
+it('previews a route as a thinned line, latitude first, for its own rider only', function (): void {
+    $user = User::factory()->create();
+    $line = [];
+
+    foreach (range(0, 999) as $step) {
+        $line[] = [4.0 + $step * 0.001 + ($step % 2) * 0.0005, 51.0 + sin($step / 40) * 0.05];
+    }
+
+    $own = SavedRoute::factory()->for($user)->create(['coordinates' => $line]);
+    $foreign = SavedRoute::factory()->create();
+    $token = linkDevice($user);
+
+    $preview = $this->withToken($token)
+        ->getJson(route('device.routes.line', ['savedRoute' => $own->id]))
+        ->assertOk()
+        ->json('line');
+
+    expect($preview)->toBeArray()
+        ->and(count($preview))->toBeLessThanOrEqual(150)->toBeGreaterThan(10)
+        ->and($preview[0])->toEqual([51.0, 4.0])
+        ->and(end($preview)[1])->toEqual(round($line[999][0], 5));
+
+    $this->withToken($token)
+        ->getJson(route('device.routes.line', ['savedRoute' => $foreign->id]))
         ->assertNotFound();
 });
 
