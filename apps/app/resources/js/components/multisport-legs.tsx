@@ -1,14 +1,26 @@
+import { useDragReorder } from '@/hooks/use-drag-reorder';
 import {
+    type Colour,
+    type ColourSet,
+    colourName,
+    colourSets,
+    customSession,
     type LandLeg,
     type Layout,
     layouts,
-    legPaint,
     mostLandLegs,
     presets,
+    sessionOf,
 } from '@/lib/multisport';
 import { type Coordinate, metresBetween } from '@/lib/route-arrows';
 
-export type LegSheet = 'sport' | 'length' | 'surface' | 'elevation' | 'roads';
+export type LegSheet =
+    | 'sport'
+    | 'length'
+    | 'surface'
+    | 'elevation'
+    | 'roads'
+    | 'colour';
 
 export type Placing = { kind: 'swim' } | { kind: 'finish'; leg: number } | null;
 
@@ -85,6 +97,8 @@ export function MultisportLegs({
     activeLeg,
     placing,
     labels,
+    colours,
+    colourSet,
     onPreset,
     onLayout,
     onSwim,
@@ -102,6 +116,9 @@ export function MultisportLegs({
     activeLeg: number;
     placing: Placing;
     labels: Labels;
+    /** The colour of each leg in order, the swim first when there is one. */
+    colours: string[];
+    colourSet: ColourSet;
     onPreset: (value: (typeof presets)[number]['value']) => void;
     onLayout: (value: Layout) => void;
     onSwim: (enabled: boolean) => void;
@@ -114,25 +131,48 @@ export function MultisportLegs({
     onPlaceFinish: (index: number) => void;
 }) {
     const offset = swim === null ? 1 : 2;
+    const legDrag = useDragReorder(
+        legs.map((leg) => leg.id),
+        onMove,
+    );
     const active = legs[activeLeg] ?? legs[0];
     const drawingSwim = placing?.kind === 'swim';
+    const session = sessionOf(legs, swim !== null);
+    const sessionCopy =
+        [...presets, customSession].find((item) => item.value === session)
+            ?.copy ?? '';
 
     return (
         <>
             <section aria-label="Session">
                 <p className="sec-label">Session</p>
-                <div className="seg" role="group" aria-label="Session preset">
+                <div className="seg" role="radiogroup" aria-label="Session">
                     {presets.map((preset) => (
                         <button
                             key={preset.value}
                             type="button"
-                            title={preset.copy}
+                            role="radio"
+                            aria-checked={session === preset.value}
+                            aria-pressed={session === preset.value}
                             onClick={() => onPreset(preset.value)}
                         >
                             {preset.label}
                         </button>
                     ))}
+                    <button
+                        type="button"
+                        role="radio"
+                        aria-checked={session === 'custom'}
+                        aria-pressed={session === 'custom'}
+                        disabled={session !== 'custom'}
+                        title="Change the legs to make your own session."
+                    >
+                        {customSession.label}
+                    </button>
                 </div>
+                <p className="small" style={{ marginTop: 8 }}>
+                    {sessionCopy}
+                </p>
                 <div
                     className="seg"
                     role="radiogroup"
@@ -146,7 +186,6 @@ export function MultisportLegs({
                             role="radio"
                             aria-checked={layout === option.value}
                             aria-pressed={layout === option.value}
-                            title={option.copy}
                             onClick={() => onLayout(option.value)}
                         >
                             {option.label}
@@ -156,6 +195,27 @@ export function MultisportLegs({
                 <p className="small" style={{ marginTop: 8 }}>
                     {layouts.find((option) => option.value === layout)?.copy}
                 </p>
+                <button
+                    type="button"
+                    className="row"
+                    onClick={() => onOpen('colour')}
+                >
+                    <span className="k">Colours</span>
+                    <span className="v">
+                        <span className="swatch-strip" aria-hidden="true">
+                            {colours.map((colour, index) => (
+                                <i
+                                    // A plan's legs are fixed in number.
+                                    key={`${colour}-${index}`}
+                                    style={{ background: colour }}
+                                />
+                            ))}
+                        </span>
+                        {colourSets.find((set) => set.value === colourSet)
+                            ?.label ?? 'Bold'}
+                        <Chevron />
+                    </span>
+                </button>
             </section>
             <section className="legs" aria-label="Legs">
                 <div className="flex items-baseline justify-between gap-3">
@@ -168,7 +228,7 @@ export function MultisportLegs({
                               : 'Tap the map to move the transition'}
                     </p>
                 </div>
-                <div className="pts">
+                <div className="pts" ref={legDrag.listRef}>
                     <div className="pt">
                         <span className="mark start" aria-hidden="true">
                             <span />
@@ -180,7 +240,14 @@ export function MultisportLegs({
                     </div>
                     {swim === null ? null : (
                         <div className={drawingSwim ? 'pt on' : 'pt'}>
-                            <span className="mark swim" aria-hidden="true">
+                            <span
+                                className="mark swim"
+                                aria-hidden="true"
+                                style={{
+                                    borderColor: colours[0],
+                                    color: colours[0],
+                                }}
+                            >
                                 1
                             </span>
                             <button
@@ -217,12 +284,13 @@ export function MultisportLegs({
                         <div
                             key={item.id}
                             className={index === activeLeg ? 'pt on' : 'pt'}
+                            data-point={item.id}
                         >
                             <span
                                 className="mark leg"
                                 aria-hidden="true"
                                 style={{
-                                    background: legPaint(item.sport).line,
+                                    background: colours[index + offset - 1],
                                 }}
                             >
                                 {index + offset}
@@ -246,7 +314,10 @@ export function MultisportLegs({
                             <button
                                 type="button"
                                 className="grip"
-                                aria-label={`Move leg ${index + offset}. Use the arrow keys.`}
+                                aria-label={`Move leg ${index + offset}. Drag, or use the arrow keys.`}
+                                onPointerDown={(event) =>
+                                    legDrag.startDrag(event)
+                                }
                                 onKeyDown={(event) => {
                                     if (
                                         event.key !== 'ArrowUp' &&
@@ -256,34 +327,27 @@ export function MultisportLegs({
                                     }
 
                                     event.preventDefault();
-                                    onMove(
+                                    legDrag.move(
                                         index,
                                         event.key === 'ArrowUp'
                                             ? index - 1
                                             : index + 1,
                                     );
                                 }}
-                                onClick={() =>
-                                    onMove(
-                                        index,
-                                        index === 0 ? index + 1 : index - 1,
-                                    )
-                                }
                             >
                                 <svg
                                     width="14"
                                     height="14"
-                                    viewBox="0 0 16 16"
-                                    fill="none"
+                                    viewBox="0 0 14 14"
+                                    fill="currentColor"
                                     aria-hidden="true"
                                 >
-                                    <path
-                                        d="M5 6 L8 3 L11 6 M5 10 L8 13 L11 10"
-                                        stroke="currentColor"
-                                        strokeWidth="1.6"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
+                                    <circle cx="4.5" cy="2.5" r="1.3" />
+                                    <circle cx="9.5" cy="2.5" r="1.3" />
+                                    <circle cx="4.5" cy="7" r="1.3" />
+                                    <circle cx="9.5" cy="7" r="1.3" />
+                                    <circle cx="4.5" cy="11.5" r="1.3" />
+                                    <circle cx="9.5" cy="11.5" r="1.3" />
                                 </svg>
                             </button>
                             <button
@@ -375,6 +439,24 @@ export function MultisportLegs({
                     <button
                         type="button"
                         className="row"
+                        onClick={() => onOpen('colour')}
+                    >
+                        <span className="k">Colour</span>
+                        <span className="v">
+                            <i
+                                className="swatch-dot"
+                                aria-hidden="true"
+                                style={{
+                                    background: colours[activeLeg + offset - 1],
+                                }}
+                            />
+                            {colourName(colours[activeLeg + offset - 1] ?? '')}
+                            <Chevron />
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        className="row"
                         onClick={() => onOpen('surface')}
                     >
                         <span className="k">Surface</span>
@@ -408,5 +490,104 @@ export function MultisportLegs({
                 </section>
             )}
         </>
+    );
+}
+
+/**
+ * Pick a colour set for the whole plan, then change any one leg to another
+ * colour from that set. Every colour in a set stands apart from the others,
+ * so legs that share a road can still be told apart.
+ */
+export function LegColourPicker({
+    colourSet,
+    palette,
+    legs,
+    onSet,
+    onPick,
+}: {
+    colourSet: ColourSet;
+    palette: readonly Colour[];
+    legs: Array<{ label: string; colour: string }>;
+    onSet: (value: ColourSet) => void;
+    onPick: (index: number, hex: string) => void;
+}) {
+    const shared = new Set(
+        legs
+            .map((leg) => leg.colour)
+            .filter((colour, index, all) => all.indexOf(colour) !== index),
+    );
+
+    return (
+        <div className="colour-picker">
+            <div className="choices" role="radiogroup" aria-label="Colour set">
+                {colourSets.map((set) => (
+                    <button
+                        key={set.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={colourSet === set.value}
+                        className={
+                            colourSet === set.value ? 'choice on' : 'choice'
+                        }
+                        onClick={() => onSet(set.value)}
+                    >
+                        <span className="t">
+                            <b>{set.label}</b>
+                            <small>{set.copy}</small>
+                        </span>
+                        <span className="swatch-strip" aria-hidden="true">
+                            {set.colours.map((colour) => (
+                                <i
+                                    key={colour.hex}
+                                    style={{ background: colour.hex }}
+                                />
+                            ))}
+                        </span>
+                    </button>
+                ))}
+            </div>
+            <div className="leg-colours">
+                {legs.map((leg, index) => (
+                    <div
+                        // Legs are listed in plan order.
+                        key={`${leg.label}-${index}`}
+                        className="leg-colour"
+                    >
+                        <span className="name">
+                            <b>{index + 1}</b> {leg.label}
+                        </span>
+                        <div
+                            className="swatches"
+                            role="radiogroup"
+                            aria-label={`Colour for leg ${index + 1}, ${leg.label}`}
+                        >
+                            {palette.map((colour) => (
+                                <button
+                                    key={colour.hex}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={leg.colour === colour.hex}
+                                    aria-label={colour.name}
+                                    title={colour.name}
+                                    className="swatch"
+                                    style={{ background: colour.hex }}
+                                    onClick={() => onPick(index, colour.hex)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {shared.size > 0 ? (
+                <p className="small" role="status">
+                    Two legs share a colour. Where they overlap, they will look
+                    like one line.
+                </p>
+            ) : (
+                <p className="small">
+                    Choosing a set gives every leg its own colour again.
+                </p>
+            )}
+        </div>
     );
 }

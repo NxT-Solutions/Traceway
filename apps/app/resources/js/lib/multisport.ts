@@ -15,6 +15,11 @@ export type LandLeg = {
     elevation: string;
     roads: 'quiet' | 'any';
     finish: Coordinate | null;
+    /**
+     * A colour the athlete picked for this leg. Without one, the leg takes
+     * the colour for its place in the chosen colour set.
+     */
+    color?: string | null;
 };
 
 export type PlannedLeg = {
@@ -86,6 +91,45 @@ export const presets = [
     },
 ] as const;
 
+export type SessionKind = (typeof presets)[number]['value'] | 'custom';
+
+export const customSession = {
+    value: 'custom',
+    label: 'Custom',
+    copy: 'Your own mix of legs. Pick a session to start from one.',
+} as const;
+
+const bikeSports = ['road', 'gravel', 'mtb'];
+const runSports = ['run', 'trail_run'];
+
+/**
+ * The session the legs add up to. A brick is a ride then a run, a
+ * triathlon is the same after a swim, and a duathlon is a run, a ride, and
+ * a run. Any bike sport counts as the ride and a run or trail run as the
+ * run. Anything else is custom.
+ */
+export function sessionOf(legs: LandLeg[], hasSwim: boolean): SessionKind {
+    const shape = legs
+        .map((item) =>
+            bikeSports.includes(item.sport)
+                ? 'bike'
+                : runSports.includes(item.sport)
+                  ? 'run'
+                  : 'other',
+        )
+        .join(' ');
+
+    if (shape === 'bike run') {
+        return hasSwim ? 'triathlon' : 'brick';
+    }
+
+    if (shape === 'run bike run' && !hasSwim) {
+        return 'duathlon';
+    }
+
+    return 'custom';
+}
+
 export function withIds(legs: ReadonlyArray<Omit<LandLeg, 'id'>>): LandLeg[] {
     return legs.map((item) => ({
         ...item,
@@ -98,22 +142,109 @@ export function newLeg(sport: string): LandLeg {
     return { ...leg(sport, sport === 'run' ? 5 : 20), id: crypto.randomUUID() };
 }
 
-const landPaint = { line: '#16303a', label: 'Bike' } as const;
-const footPaint = { line: '#6d28d9', label: 'Foot' } as const;
-const swimPaint = { line: '#1d4ed8', label: 'Swim' } as const;
+export type Colour = { hex: string; name: string };
 
 /**
- * Bikes in ink, foot in violet, the swim in blue and dashed. Colours match
- * the planner route palette, which the map needs as literal values.
+ * Sets of five colours, one for each leg a plan can hold. The colours in a
+ * set differ in hue and in lightness, so two legs on the same road stay
+ * apart, and none of them is the yellow or orange the basemap uses for
+ * roads. Leg 1 takes the first colour, leg 2 the second, and so on.
  */
-export function legPaint(discipline: string): { line: string; label: string } {
-    if (discipline === 'swim') {
-        return swimPaint;
+export const colourSets = [
+    {
+        value: 'bold',
+        label: 'Bold',
+        copy: 'Strong colours for the streets and light maps.',
+        colours: [
+            { hex: '#2563eb', name: 'Blue' },
+            { hex: '#db2777', name: 'Magenta' },
+            { hex: '#15803d', name: 'Green' },
+            { hex: '#7c3aed', name: 'Violet' },
+            { hex: '#111827', name: 'Ink' },
+        ],
+    },
+    {
+        value: 'colour_blind',
+        label: 'Colour-blind safe',
+        copy: 'Okabe and Ito colours that stay apart with every kind of colour blindness.',
+        colours: [
+            { hex: '#0072b2', name: 'Blue' },
+            { hex: '#cc79a7', name: 'Reddish purple' },
+            { hex: '#009e73', name: 'Bluish green' },
+            { hex: '#000000', name: 'Black' },
+            { hex: '#56b4e9', name: 'Sky blue' },
+        ],
+    },
+    {
+        value: 'night',
+        label: 'Night',
+        copy: 'Bright colours that read on the dark map.',
+        colours: [
+            { hex: '#38bdf8', name: 'Sky' },
+            { hex: '#f472b6', name: 'Pink' },
+            { hex: '#4ade80', name: 'Mint' },
+            { hex: '#c4b5fd', name: 'Lilac' },
+            { hex: '#f8fafc', name: 'White' },
+        ],
+    },
+    {
+        value: 'earth',
+        label: 'Earth',
+        copy: 'Deep, quieter colours for a busy map.',
+        colours: [
+            { hex: '#1e3a8a', name: 'Navy' },
+            { hex: '#9f1239', name: 'Wine' },
+            { hex: '#166534', name: 'Forest' },
+            { hex: '#6b21a8', name: 'Plum' },
+            { hex: '#374151', name: 'Slate' },
+        ],
+    },
+] as const;
+
+export type ColourSet = (typeof colourSets)[number]['value'];
+
+export function isColourSet(value: unknown): value is ColourSet {
+    return colourSets.some((set) => set.value === value);
+}
+
+export function coloursOf(set: ColourSet): readonly Colour[] {
+    return (colourSets.find((item) => item.value === set) ?? colourSets[0])
+        .colours;
+}
+
+/**
+ * The colour for the leg at this place in the plan, counting the swim.
+ */
+export function legColour(
+    set: ColourSet,
+    position: number,
+    picked?: string | null,
+): string {
+    if (typeof picked === 'string' && isHexColour(picked)) {
+        return picked;
     }
 
-    return ['road', 'gravel', 'mtb'].includes(discipline)
-        ? landPaint
-        : footPaint;
+    const colours = coloursOf(set);
+
+    return colours[position % colours.length]?.hex ?? '#2563eb';
+}
+
+export function colourName(hex: string): string {
+    for (const set of colourSets) {
+        const found = set.colours.find(
+            (colour) => colour.hex === hex.toLowerCase(),
+        );
+
+        if (found !== undefined) {
+            return found.name;
+        }
+    }
+
+    return hex;
+}
+
+export function isHexColour(value: unknown): value is string {
+    return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
 }
 
 const deviceLabels: Record<string, string> = {
@@ -250,6 +381,9 @@ export function isLandLeg(value: unknown): value is LandLeg {
         typeof record.surface === 'string' &&
         typeof record.elevation === 'string' &&
         (record.roads === 'quiet' || record.roads === 'any') &&
-        (record.finish === null || isCoordinate(record.finish))
+        (record.finish === null || isCoordinate(record.finish)) &&
+        (record.color === undefined ||
+            record.color === null ||
+            isHexColour(record.color))
     );
 }

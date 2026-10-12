@@ -69,6 +69,7 @@ final class ValidatedRoute
                     self::whole($leg, 'distance_metres'),
                     self::whole($leg, 'ascent_metres'),
                     self::line($leg, 'coordinates'),
+                    isset($leg['color']) ? self::text($leg, 'color') : null,
                 );
             } catch (InvalidArgumentException) {
                 abort(422);

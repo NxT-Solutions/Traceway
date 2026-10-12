@@ -148,7 +148,7 @@ function multisportPayload(): array
         'finish_coordinates' => null,
         'legs' => [
             ['discipline' => 'swim', 'distance_metres' => 750, 'ascent_metres' => 0, 'coordinates' => [[4.89, 51.1], [4.895, 51.103]]],
-            ['discipline' => 'road', 'distance_metres' => 20_000, 'ascent_metres' => 40, 'coordinates' => [[4.9, 51.1], [4.93, 51.12], [4.9, 51.1]]],
+            ['discipline' => 'road', 'distance_metres' => 20_000, 'ascent_metres' => 40, 'coordinates' => [[4.9, 51.1], [4.93, 51.12], [4.9, 51.1]], 'color' => '#DB2777'],
             ['discipline' => 'run', 'distance_metres' => 5_000, 'ascent_metres' => 10, 'coordinates' => [[4.9, 51.1], [4.91, 51.11], [4.9, 51.1]]],
         ],
     ];
@@ -185,6 +185,8 @@ it('saves a multisport plan with its legs and shares a course for each land leg'
             ->component('share')
             ->where('route.layout', 'loops')
             ->where('route.legs.0.fit_url', expected: null)
+            ->where('route.legs.0.color', expected: null)
+            ->where('route.legs.1.color', '#db2777')
             ->where('route.legs.1.fit_url', URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $savedRoute->id, 'leg' => 2]))
             ->where('route.legs.2.coordinates', [[4.9, 51.1], [4.91, 51.11], [4.9, 51.1]]));
 
@@ -223,6 +225,7 @@ it('refuses a multisport plan with a land leg of one point or no layout', functi
     'one point land leg' => [['legs' => [['discipline' => 'run', 'distance_metres' => 5_000, 'ascent_metres' => 0, 'coordinates' => [[4.9, 51.1]]]]]],
     'no layout' => [['layout' => null]],
     'unknown discipline' => [['legs' => [['discipline' => 'rowing', 'distance_metres' => 5_000, 'ascent_metres' => 0, 'coordinates' => [[4.9, 51.1], [4.91, 51.11]]]]]],
+    'colour that is not a hex colour' => [['legs' => [['discipline' => 'run', 'distance_metres' => 5_000, 'ascent_metres' => 0, 'coordinates' => [[4.9, 51.1], [4.91, 51.11]], 'color' => 'orange']]]],
 ]);
 
 it('keeps a single-sport route without legs', function (): void {

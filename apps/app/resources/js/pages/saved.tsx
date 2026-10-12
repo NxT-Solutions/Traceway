@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Bike, Footprints, Mountain, Waypoints } from 'lucide-react';
+import { Bike, Footprints, Mountain } from 'lucide-react';
 import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import * as maplibregl from 'maplibre-gl';
 import {
@@ -10,6 +10,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { MultisportIcon } from '@/components/multisport-icon';
 import { useAppearance } from '@/hooks/use-appearance';
 import { themedMapStyle } from '@/lib/maplibre';
 import {
@@ -76,7 +77,7 @@ function sportKey(route: SavedRoute): string {
 function SportMark({ sport }: { sport: string }) {
     const Icon =
         sport === 'multisport'
-            ? Waypoints
+            ? MultisportIcon
             : sport === 'mtb'
               ? Mountain
               : sport === 'road' || sport === 'gravel'

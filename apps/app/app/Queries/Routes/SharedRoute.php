@@ -35,6 +35,7 @@ use OpenApi\Attributes\Schema;
                     new Property(property: 'ascent_metres', type: 'integer'),
                     new Property(property: 'coordinates', ref: '#/components/schemas/CoordinateLine'),
                     new Property(property: 'fit_url', description: 'No course for the swim.', type: 'string', nullable: true),
+                    new Property(property: 'color', description: 'The colour picked for the leg, as #rrggbb.', type: 'string', nullable: true),
                 ],
             ),
         ),
@@ -44,7 +45,7 @@ final readonly class SharedRoute
 {
     /**
      * @param  list<array{0: float, 1: float}>  $coordinates
-     * @param  list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, fit_url: string|null}>  $legs
+     * @param  list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null}>  $legs
      */
     public function __construct(
         public string $name,
@@ -74,7 +75,7 @@ final readonly class SharedRoute
      *     gpx_url: string,
      *     fit_url: string,
      *     layout: string|null,
-     *     legs: list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, fit_url: string|null}>
+     *     legs: list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null}>
      * }
      */
     public function toArray(): array

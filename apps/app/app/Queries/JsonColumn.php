@@ -68,7 +68,9 @@ final class JsonColumn
 
             throw_if(! is_string($discipline) || ! is_numeric($distance) || ! is_numeric($ascent), RuntimeException::class, 'A leg is missing a value.');
 
-            $legs[] = SavedLeg::from($discipline, (int) $distance, (int) $ascent, self::line($leg['coordinates'] ?? null));
+            $color = $leg['color'] ?? null;
+
+            $legs[] = SavedLeg::from($discipline, (int) $distance, (int) $ascent, self::line($leg['coordinates'] ?? null), is_string($color) ? $color : null);
         }
 
         return $legs;

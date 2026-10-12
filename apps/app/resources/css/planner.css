@@ -618,3 +618,16 @@ body:has(.tw-planner) .tw-pop .group-label{margin:4px 0 0;font-size:13px;color:v
 .tw-share .legs li b{font-weight:500}
 .tw-share .legs li span{margin-left:auto;font-variant-numeric:tabular-nums;color:#3d4c46}
 .tw-share .legs i{display:inline-block;width:22px;height:3px;border-radius:2px}
+.tw-planner .swatch-strip,body:has(.tw-planner) .tw-pop .swatch-strip{display:inline-flex;gap:3px;margin-right:4px}
+.tw-planner .swatch-strip i,body:has(.tw-planner) .tw-pop .swatch-strip i{display:block;width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 1px rgb(0 0 0 / 0.12)}
+.tw-planner .swatch-dot{display:inline-block;width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1px rgb(0 0 0 / 0.12)}
+body:has(.tw-planner) .tw-pop .colour-picker{display:flex;flex-direction:column;gap:14px;padding:0 16px 16px}
+body:has(.tw-planner) .tw-pop .colour-picker .choices{display:flex;flex-direction:column;gap:8px}
+body:has(.tw-planner) .tw-pop .leg-colours{display:flex;flex-direction:column;gap:10px}
+body:has(.tw-planner) .tw-pop .leg-colour{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px}
+body:has(.tw-planner) .tw-pop .leg-colour .name b{display:inline-flex;width:20px;font-weight:600;font-variant-numeric:tabular-nums}
+body:has(.tw-planner) .tw-pop .swatches{display:flex;gap:8px}
+body:has(.tw-planner) .tw-pop .swatch{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgb(0 0 0 / 0.18);cursor:pointer;padding:0}
+body:has(.tw-planner) .tw-pop .swatch[aria-checked="true"]{box-shadow:0 0 0 2px var(--text, oklch(0.22 0.03 200))}
+body:has(.tw-planner) .tw-pop .swatch:focus-visible{outline:2px solid var(--text, oklch(0.22 0.03 200));outline-offset:2px}
+.tw-planner .seg button:disabled{cursor:default;opacity:.5}
