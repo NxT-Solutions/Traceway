@@ -7,11 +7,12 @@ use App\Http\Controllers\Settings\PrivacyController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Auth\Middleware\RequirePassword;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::middleware(['auth'])->group(function (): void {
-    Route::redirect('settings', '/settings/profile');
+    Route::get('settings', fn (): RedirectResponse => redirect()->to('/settings/profile'));
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');

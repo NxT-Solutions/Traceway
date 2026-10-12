@@ -6,6 +6,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Pest 5.3.1 calls the paratest 7.26.0 worker constructor. 7.26.1 adds
+      # an argument and breaks the parallel runner. Drop this once Pest moves.
+      - dependency-name: brianium/paratest
+        versions: ["7.26.1"]
     groups:
       composer-minor-and-patch:
         update-types: [minor, patch]
