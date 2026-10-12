@@ -1,10 +1,14 @@
+import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const base = process.env.BASE_URL || 'https://traceway.ddev.site:8443';
-const executable = process.env.CHROMIUM_PATH || [
+// A local Chrome for Testing when there is one, else the Chromium that
+// `playwright-core install chromium` puts in Playwright's cache, as CI does.
+const local = [
     process.env.HOME,
     'Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
 ].join('/');
+const executable = process.env.CHROMIUM_PATH || (existsSync(local) ? local : undefined);
 
 const browser = await chromium.launch({
     executablePath: executable,
@@ -46,6 +50,24 @@ try {
     await road.click();
     await desktop.waitForURL(/\/dashboard/, { timeout: 20000 });
     await fits(desktop, 'Planner');
+
+    // The map takes the keyboard: arrows move it, Enter places the start.
+    const draft = () => desktop.evaluate(() => {
+        const key = Object.keys(localStorage).find((name) => /^traceway\.planner\.v1\.\d+$/.test(name));
+
+        return key ? localStorage.getItem(key) : null;
+    });
+    await desktop.locator('.maplibregl-canvas').waitFor();
+    await desktop.locator('.maplibregl-canvas').focus();
+    await desktop.keyboard.press('ArrowRight');
+    await desktop.waitForTimeout(400);
+    const beforeEnter = await draft();
+    await desktop.keyboard.press('Enter');
+    await desktop.waitForTimeout(300);
+
+    if ((await draft()) === beforeEnter) {
+        throw new Error('Enter on the map did not place the start.');
+    }
 
     await desktop.getByRole('tab', { name: 'Multisport' }).click();
     await desktop.getByRole('button', { name: /^Type\s*\w/ }).click();

@@ -675,3 +675,6 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
 .tw-planner .row.order{cursor:default}
 .tw-planner .row.order .v{gap:4px}
 .tw-planner .ghostbtn:disabled{opacity:.35;cursor:default;background:transparent}
+.tw-planner .pts .pt.on .field{border-color:var(--text)}
+.tw-planner .mapwrap:has(.maplibregl-canvas:focus-visible)::after{content:"";position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;background:linear-gradient(var(--text),var(--text)) center/2px 100% no-repeat,linear-gradient(var(--text),var(--text)) center/100% 2px no-repeat;filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff);pointer-events:none;z-index:2}
+.tw-planner .maplibregl-canvas:focus-visible{outline:3px solid var(--chart);outline-offset:-3px}
