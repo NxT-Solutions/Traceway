@@ -153,7 +153,17 @@ function keepInView(
         screen.y > box.height - area.bottom - margin;
 
     if (outside) {
-        map.easeTo({ center: point, padding: area, duration });
+        // An offset moves the pin to the middle of the open area for this
+        // move only. Padding would stay on the map and squeeze every later
+        // fit of the route.
+        map.easeTo({
+            center: point,
+            offset: [
+                (area.left - area.right) / 2,
+                (area.top - area.bottom) / 2,
+            ],
+            duration,
+        });
     }
 }
 
@@ -176,12 +186,18 @@ export function RoutePlayer({
     mapRef,
     lines,
     coverRef,
+    distanceMetres,
     className,
 }: {
     mapRef: RefObject<maplibregl.Map | null>;
     lines: PlayerLine[];
     /** A panel that floats over the map, such as the plan. */
     coverRef?: RefObject<HTMLElement | null>;
+    /**
+     * The length the plan reports. The player measures the line itself, so
+     * it scales its numbers to this to show the same total.
+     */
+    distanceMetres?: number;
     className?: string;
 }) {
     const cardRef = useRef<HTMLDivElement>(null);
@@ -292,6 +308,11 @@ export function RoutePlayer({
     }
 
     const step = Math.max(1, Math.round(track.total / 1000));
+    const scale =
+        distanceMetres !== undefined && distanceMetres > 0
+            ? distanceMetres / track.total
+            : 1;
+    const km = (along: number) => ((along * scale) / 1000).toFixed(1);
 
     return (
         <div className={className ?? 'player'}>
@@ -381,7 +402,7 @@ export function RoutePlayer({
                         step={step}
                         value={Math.round(metres)}
                         aria-label="Distance along the route"
-                        aria-valuetext={`${(metres / 1000).toFixed(1)} of ${(track.total / 1000).toFixed(1)} km${leg ? `, ${leg.label}` : ''}`}
+                        aria-valuetext={`${km(metres)} of ${km(track.total)} km${leg ? `, ${leg.label}` : ''}`}
                         onChange={(event) => {
                             const next = Number(event.target.value);
                             const map = mapRef.current;
@@ -404,9 +425,9 @@ export function RoutePlayer({
                     />
                 </div>
                 <p className="where">
-                    <b className="tabular-nums">{(metres / 1000).toFixed(1)}</b>
+                    <b className="tabular-nums">{km(metres)}</b>
                     <span className="tabular-nums">
-                        {` / ${(track.total / 1000).toFixed(1)} km`}
+                        {` / ${km(track.total)} km`}
                     </span>
                     {leg && lines.length > 1 ? (
                         <small>
