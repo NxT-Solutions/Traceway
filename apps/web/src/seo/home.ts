@@ -7,11 +7,19 @@ export interface Question {
     answer: string;
 }
 
-const text = (html: string): string =>
-    html
-        .replace(/<[^>]+>/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+/** Plain words from a bit of HTML. Strips until nothing changes, so a tag
+ * split around another tag cannot survive, then drops any stray bracket. */
+const text = (html: string): string => {
+    let words = html;
+    let before: string;
+
+    do {
+        before = words;
+        words = words.replace(/<[^<>]*>/g, '');
+    } while (words !== before);
+
+    return words.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+};
 
 /** The FAQ on the home page, read from the same HTML the page shows. */
 export const questions = (): Question[] =>
