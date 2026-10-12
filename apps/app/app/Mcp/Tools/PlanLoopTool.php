@@ -15,6 +15,7 @@ use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
+use App\Mcp\Apps\RouteMapApp;
 use App\Mcp\RouteLinks;
 use App\Mcp\SportDefaults;
 use App\Mcp\StartPoint;
@@ -30,6 +31,7 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
+use Laravel\Mcp\Server\Attributes\RendersApp;
 use Laravel\Mcp\Server\Attributes\Title;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsOpenWorld;
@@ -39,6 +41,7 @@ use Throwable;
 #[Title(value: 'Plan a loop')]
 #[Description(value: "Plans a loop route that starts and ends at one place, for a run, trail run, walk, hike, road ride, gravel ride, or mountain-bike ride. The route comes from OpenStreetMap roads and paths. It is saved to the person's Traceway library, and the answer has a link to the map and files for a Garmin, COROS, Suunto, Wahoo, or Hammerhead. Never invent coordinates for the route itself.")]
 #[IsOpenWorld]
+#[RendersApp(resource: RouteMapApp::class)]
 final class PlanLoopTool extends Tool
 {
     use ReadsArguments;

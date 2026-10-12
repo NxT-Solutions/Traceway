@@ -17,6 +17,7 @@ use App\Domain\Routing\MultisportRoute;
 use App\Domain\Routing\PlannedLeg;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\SwimLeg;
+use App\Mcp\Apps\RouteMapApp;
 use App\Mcp\RaceDistances;
 use App\Mcp\RouteLinks;
 use App\Mcp\SportDefaults;
@@ -35,6 +36,7 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
+use Laravel\Mcp\Server\Attributes\RendersApp;
 use Laravel\Mcp\Server\Attributes\Title;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsOpenWorld;
@@ -44,6 +46,7 @@ use Throwable;
 #[Title(value: 'Plan a brick, triathlon, duathlon, or aquabike')]
 #[Description(value: "Plans a multisport session from one transition: each land leg is its own loop that starts and ends there. Pick an event and a race distance, or give the legs yourself. A swim cannot be routed on water, so the person draws it in the Traceway planner. The plan is saved to the person's library with a file for each leg.")]
 #[IsOpenWorld]
+#[RendersApp(resource: RouteMapApp::class)]
 final class PlanMultisportTool extends Tool
 {
     use ReadsArguments;

@@ -7,10 +7,12 @@ use App\Domain\Routing\Place;
 use App\Domain\Routing\PlaceFinder;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
+use App\Mcp\Apps\RouteMapApp;
 use App\Mcp\Servers\TracewayServer;
 use App\Mcp\Tools\ListRoutesTool;
 use App\Mcp\Tools\PlanLoopTool;
 use App\Mcp\Tools\PlanMultisportTool;
+use App\Mcp\Tools\RouteDrawingTool;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -299,4 +301,32 @@ it('takes the AI tool access with a deleted account', function (): void {
 
     expect(DB::table('oauth_access_tokens')->count())->toBe(0)
         ->and(DB::table('oauth_refresh_tokens')->count())->toBe(0);
+});
+
+it('draws the plan in the chat with the Traceway map', function (): void {
+    TracewayServer::actingAs(User::factory()->create())
+        ->resource(RouteMapApp::class)
+        ->assertSee(['createMcpApp', 'route_drawing', 'Open the map']);
+
+    expect(new PlanLoopTool()->toArray()['_meta']['ui'] ?? null)->toBe(['resourceUri' => 'ui://traceway/route-map', 'visibility' => ['model', 'app']])
+        ->and(new PlanMultisportTool()->toArray()['_meta']['ui']['resourceUri'] ?? null)->toBe('ui://traceway/route-map')
+        ->and(new RouteDrawingTool()->toArray()['_meta']['ui']['visibility'] ?? null)->toBe(['app']);
+});
+
+it('gives the map the line of a route the rider saved', function (): void {
+    $user = User::factory()->create();
+    $savedRoute = SavedRoute::factory()->for($user)->create(['name' => 'Morning loop']);
+
+    TracewayServer::actingAs($user)
+        ->tool(RouteDrawingTool::class, ['id' => $savedRoute->id])
+        ->assertOk()
+        ->assertSee(['Morning loop', '/share/']);
+});
+
+it("keeps the line of someone else's route from the map", function (): void {
+    $savedRoute = SavedRoute::factory()->create();
+
+    TracewayServer::actingAs(User::factory()->create())
+        ->tool(RouteDrawingTool::class, ['id' => $savedRoute->id])
+        ->assertHasErrors(['That route is not in your library.']);
 });

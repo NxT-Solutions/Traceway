@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Apps\RouteMapApp;
 use App\Mcp\Tools\ListRoutesTool;
 use App\Mcp\Tools\PlanLoopTool;
 use App\Mcp\Tools\PlanMultisportTool;
+use App\Mcp\Tools\RouteDrawingTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -31,5 +33,11 @@ final class TracewayServer extends Server
         PlanLoopTool::class,
         PlanMultisportTool::class,
         ListRoutesTool::class,
+        RouteDrawingTool::class,
+    ];
+
+    #[Override]
+    protected array $resources = [
+        RouteMapApp::class,
     ];
 }
