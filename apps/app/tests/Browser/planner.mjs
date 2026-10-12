@@ -3,7 +3,8 @@ import { chromium } from 'playwright-core';
 
 const base = process.env.BASE_URL || 'https://traceway.ddev.site:8443';
 // A local Chrome for Testing when there is one, else the Chromium that
-// `playwright-core install chromium` puts in Playwright's cache, as CI does.
+// `playwright-core install chromium` puts in Playwright's cache. CI installs
+// only its headless shell, which is what a headless launch runs.
 const local = [
     process.env.HOME,
     'Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',

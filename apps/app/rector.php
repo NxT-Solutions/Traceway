@@ -6,6 +6,7 @@ use Rector\Carbon\Rector\FuncCall\DateFuncCallToCarbonRector;
 use Rector\Carbon\Rector\FuncCall\TimeFuncCallToCarbonRector;
 use Rector\CodingStyle\Rector\PostInc\PostIncDecToPreIncDecRector;
 use Rector\Config\RectorConfig;
+use RectorLaravel\Rector\ArrayDimFetch\ServerVariableToRequestFacadeRector;
 use RectorLaravel\Rector\FuncCall\ThrowIfAndThrowUnlessExceptionsToUseClassStringRector;
 use RectorLaravel\Rector\If_\ThrowIfRector;
 use RectorLaravel\Set\LaravelSetList;
@@ -32,6 +33,8 @@ return RectorConfig::configure()
         DateFuncCallToCarbonRector::class => [__DIR__.'/app/Domain'],
         // Pint's increment style owns ++ and --. Rector would undo it on every run.
         PostIncDecToPreIncDecRector::class,
+        // The router stub runs under php -S with no framework, so it reads $_SERVER itself.
+        ServerVariableToRequestFacadeRector::class => [__DIR__.'/tests/Browser'],
     ])
     ->withCache('/tmp/rector')
     ->withImportNames()
