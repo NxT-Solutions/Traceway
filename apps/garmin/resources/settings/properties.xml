@@ -1,0 +1,3 @@
+<properties>
+    <property id="server" type="string">https://traceway.online</property>
+</properties>

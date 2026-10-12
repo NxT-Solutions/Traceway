@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Queries\Routes;
 
 use App\Domain\Routing\LineSimplifier;
+use App\Domain\Routing\Sport;
 use App\Queries\RowReader;
 use App\Routes\RouteId;
 use App\Routes\SavedLeg;
@@ -55,18 +56,35 @@ final class LibraryQuery
                 $reader->int('distance_metres'),
                 $reader->int('ascent_metres'),
                 SignedRouteLink::share($id),
+                SignedRouteLink::fit($id),
                 $reader->iso('created_at'),
                 // The library draws thumbnails and an overview map, so the
                 // line is thinned. The share page and its files keep it all.
                 LineSimplifier::simplify($reader->line('coordinates'), LineSimplifier::OVERVIEW_METRES),
                 $reader->optionalString('layout'),
-                array_map(fn (SavedLeg $savedLeg): array => [
-                    'discipline' => $savedLeg->discipline(),
-                    'distance_metres' => $savedLeg->distanceMetres,
-                ], $reader->legs('legs')),
+                $this->legs($id, $reader->legs('legs')),
             );
         }
 
         return $routes;
+    }
+
+    /**
+     * @param  list<SavedLeg>  $savedLegs
+     * @return list<array{discipline: string, distance_metres: int, fit_url: string|null}>
+     */
+    private function legs(string $id, array $savedLegs): array
+    {
+        $legs = [];
+
+        foreach ($savedLegs as $index => $savedLeg) {
+            $legs[] = [
+                'discipline' => $savedLeg->discipline(),
+                'distance_metres' => $savedLeg->distanceMetres,
+                'fit_url' => $savedLeg->sport instanceof Sport ? SignedRouteLink::fitLeg($id, $index + 1) : null,
+            ];
+        }
+
+        return $legs;
     }
 }

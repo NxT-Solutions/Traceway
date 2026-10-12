@@ -26,6 +26,14 @@ final readonly class DeviceName
     }
 
     /**
+     * The name a course carries on the device: the route name cut to 15 characters, or "Traceway" when it is blank.
+     */
+    public static function forCourse(string $name): self
+    {
+        return new self(mb_substr(trim($name) === '' ? 'Traceway' : trim($name), 0, 15));
+    }
+
+    /**
      * A name for one leg of a multisport plan, such as "Brick 2 Run". The
      * plan name is shortened so the leg number and sport always fit.
      */

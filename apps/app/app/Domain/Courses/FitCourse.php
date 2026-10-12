@@ -23,7 +23,7 @@ final class FitCourse
             throw new InvalidArgumentException('A course needs at least two points.');
         }
 
-        $deviceName = new DeviceName(mb_substr(trim($name) === '' ? 'Traceway' : trim($name), 0, 15));
+        $deviceName = DeviceName::forCourse($name);
         $points = self::thin($coordinates);
         $started = time() - self::EPOCH;
         $distance = self::distanceCentimetres($points);

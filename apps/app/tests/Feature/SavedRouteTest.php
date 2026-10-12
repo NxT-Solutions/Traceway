@@ -60,6 +60,7 @@ it('saves a route on the rider profile and gives it a public link', function ():
             ->component('saved')
             ->where('routes.0.name', 'Morning loop')
             ->where('routes.0.url', URL::signedRoute('routes.share', $route))
+            ->where('routes.0.fit_url', URL::signedRoute('routes.share.fit', $route))
             ->has('routes.0.coordinates', 3));
 
     $this->actingAs(User::factory()->create())
@@ -174,9 +175,9 @@ it('saves a multisport plan with its legs and shares a course for each land leg'
             ->component('saved')
             ->where('routes.0.layout', 'loops')
             ->where('routes.0.legs', [
-                ['discipline' => 'swim', 'distance_metres' => 750],
-                ['discipline' => 'road', 'distance_metres' => 20_000],
-                ['discipline' => 'run', 'distance_metres' => 5_000],
+                ['discipline' => 'swim', 'distance_metres' => 750, 'fit_url' => null],
+                ['discipline' => 'road', 'distance_metres' => 20_000, 'fit_url' => URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $savedRoute->id, 'leg' => 2])],
+                ['discipline' => 'run', 'distance_metres' => 5_000, 'fit_url' => URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $savedRoute->id, 'leg' => 3])],
             ]));
 
     $this->get($savedRoute->shareUrl())
