@@ -26,7 +26,11 @@
 <br>
 
 <p align="center">
-  <img src=".github/readme/demo.gif" alt="A pin drops near Westerlo. Traceway reads the roads around it, scores every way back, keeps the best of three loops, adds a via, and writes morning-loop.fit." width="100%">
+  <a href=".github/readme/traceway-promo.mp4">
+    <img src=".github/readme/promo.webp" alt="Shoes on, no route yet. A pin drops, Traceway draws four loops and keeps a clean 10 km run on quiet paved roads. The course loads on a watch, the runner leaves the phone at home. Traceway, loops for every sport." width="100%">
+  </a>
+  <br>
+  <sub><a href=".github/readme/traceway-promo.mp4">Watch the film with sound</a> · 24 seconds</sub>
 </p>
 
 Traceway plans a loop for any sport and writes the course file your watch, GPS, or bike computer follows on its own. Drop a pin, name a distance, pick a sport. Traceway reads the roads and paths around the pin, draws the loops that come back without doubling over themselves, and keeps the best one. Then you take the file and leave the phone at home.
@@ -51,6 +55,14 @@ No feed, no followers, no leaderboard. Just the map and the route.
     </td>
   </tr>
 </table>
+
+## How a loop is drawn
+
+<p align="center">
+  <img src=".github/readme/how-it-works.webp" alt="A pin drops near Westerlo. Traceway reads the roads around it, scores every way back, keeps the best of three loops, sets the direction, bends it through a via, and writes morning-loop.fit." width="100%">
+</p>
+
+Traceway reads the roads and paths within reach of the pin and asks the routing engine for the ways back. Every way back gets a score, and each sport scores the map its own way: road, run, and walk mark busy roads down hard, while gravel, mountain bike, and trail care more about surface and climb. The best three come out ahead, with arrows for the way you go. Add a via and the loop bends through it, closed, on roads, and never doubling back along the same stretch.
 
 ## Every sport, one planner
 
