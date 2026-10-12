@@ -20,7 +20,7 @@ RUN apk add --no-cache \
 RUN curl -fsSL https://bun.sh/install | bash -s bun-v1.3.6 \
     && ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
 
-ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/download/2.12.0/install-php-extensions /usr/local/bin/
 
 RUN install-php-extensions pdo_sqlite sqlite3 zip exif pcntl intl opcache bcmath @composer
 
