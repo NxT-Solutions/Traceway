@@ -20,6 +20,9 @@ Route::middleware(['auth'])->group(function (): void {
 
     Route::get('settings/privacy', [PrivacyController::class, 'edit'])->name('privacy.edit');
     Route::get('settings/privacy/export', [PrivacyController::class, 'export'])->name('privacy.export');
+    Route::delete('settings/privacy/apps/{client}', [PrivacyController::class, 'disconnect'])
+        ->whereUuid('client')
+        ->name('privacy.apps.disconnect');
 
     Route::get('settings/devices', [DevicesController::class, 'edit'])->name('devices.edit');
     Route::post('settings/devices', [DevicesController::class, 'store'])

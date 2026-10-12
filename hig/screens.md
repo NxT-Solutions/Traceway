@@ -12,7 +12,6 @@ One header on the content site, on auth, and on settings:
 - How it works
 - Sports
 - Devices
-- Notes
 - Log in, or You when someone is signed in
 
 On Home and the other content pages, the one filled control in that
@@ -30,10 +29,8 @@ a text link.
 
 Purpose: say what Traceway does, then open the planner.
 
-How it works, Sports, Devices, and Notes
-(`how-it-works.astro`, `sports.astro`, `devices.astro`, `notes/`) use
-this same header and the same filled control. They are pages, not a
-second product.
+The content site is this one page. How it works, Sports, Multisport,
+Devices, and FAQ are sections on it, not pages of their own.
 
 - The hero is one idea: draw a loop, export a course file.
 - Copy stays short and physical. No club, no score, no forbidden words.

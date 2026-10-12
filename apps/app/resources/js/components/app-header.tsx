@@ -21,10 +21,9 @@ type Props = {
 };
 
 const contentNav = [
-    { title: 'How it works', href: '/how-it-works' },
-    { title: 'Sports', href: '/sports' },
-    { title: 'Devices', href: '/devices' },
-    { title: 'Notes', href: '/notes' },
+    { title: 'How it works', href: '/#how' },
+    { title: 'Sports', href: '/#sports' },
+    { title: 'Devices', href: '/#devices' },
 ] as const;
 
 const textLinkClass =

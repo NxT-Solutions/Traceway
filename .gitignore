@@ -3,3 +3,7 @@ node_modules
 apps/web/dist
 apps/web/.astro
 persistent
+
+# Keys and certificates never go in the repo, wherever they are made.
+*.key
+*.pem

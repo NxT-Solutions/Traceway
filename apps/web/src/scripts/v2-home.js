@@ -256,7 +256,7 @@ import Lenis from 'lenis';
     var loopLabel = km.toFixed(1) + ' km';
     if (loopLabel !== lastLoop){ lastLoop = loopLabel; vLoop.textContent = loopLabel; }
     hLoop.className = (q > 0 && q < 1) || (vdraw > 0 && vdraw < 1) ? 'hot' : '';
-    var candLabel = q <= 0 ? '—' : (chosen >= 1 ? '3 · 1 kept' : '3');
+    var candLabel = q <= 0 ? '—' : (chosen >= 1 ? '3 · best picked' : '3');
     if (candLabel !== lastCand){ lastCand = candLabel; vCand.textContent = candLabel; }
     hCand.className = q <= 0 ? 'dim' : '';
     var ascLabel = chosen > 0 ? '180 m' : '—';
@@ -270,7 +270,7 @@ import Lenis from 'lenis';
     if (narrow) mapdim.style.opacity = 0.62 * dv;
     setOff(devLoop, 1 - ph(p, 0.88, 0.97));
     var done = p >= 0.955;
-    var courseLabel = done ? 'morning-loop.fit' : 'Drawing…';
+    var courseLabel = done ? 'On your device' : 'Planning…';
     if (courseLabel !== lastCourse){ lastCourse = courseLabel; vCourse.textContent = courseLabel; }
     hCourse.className = done ? 'hot' : '';
 

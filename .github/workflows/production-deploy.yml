@@ -47,6 +47,8 @@ jobs:
         env:
           APP_KEY: ${{ secrets.APP_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          PASSPORT_PRIVATE_KEY: ${{ secrets.PASSPORT_PRIVATE_KEY }}
+          PASSPORT_PUBLIC_KEY: ${{ secrets.PASSPORT_PUBLIC_KEY }}
         run: |
           set -euo pipefail
 
@@ -75,6 +77,17 @@ jobs:
 
           upsert_env "APP_KEY" "$APP_KEY" "$runtime_env"
           upsert_env "RESEND_API_KEY" "${RESEND_API_KEY:-}" "$runtime_env"
+
+          # AI tools sign in with OAuth. Passport signs their tokens with this
+          # key pair. The PEM goes on one line, and the quotes turn \n back
+          # into line breaks.
+          if [ -n "${PASSPORT_PRIVATE_KEY:-}" ] && [ -n "${PASSPORT_PUBLIC_KEY:-}" ]; then
+            printf 'PASSPORT_PRIVATE_KEY="%s"\n' "$(printf '%s' "$PASSPORT_PRIVATE_KEY" | awk 'BEGIN { ORS = "\\n" } { print }')" >> "$runtime_env"
+            printf 'PASSPORT_PUBLIC_KEY="%s"\n' "$(printf '%s' "$PASSPORT_PUBLIC_KEY" | awk 'BEGIN { ORS = "\\n" } { print }')" >> "$runtime_env"
+          else
+            echo "::warning::PASSPORT_PRIVATE_KEY and PASSPORT_PUBLIC_KEY are not set. AI tools cannot sign in until they are."
+          fi
+
           chmod 0600 "$runtime_env"
 
       - name: Set Up Docker Buildx

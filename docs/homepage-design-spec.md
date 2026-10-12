@@ -49,11 +49,10 @@ Header, sticky, paper, hairline under it:
 - How it works → `#generate`
 - Sports → `#sports`
 - Devices → `#devices`
-- Notes → `#notes`
 - Log in, text
 - Open the planner, filled, linking to `/dashboard`
 
-Then four sections, in this order.
+Then three sections, in this order.
 
 ### 1. Generate — `#generate`
 
@@ -143,22 +142,11 @@ Beside the copy, a file card, not a fake phone:
 - Surface Paved
 - Device name Morning loop
 
-### 4. Notes — `#notes`
-
-Headline: Notes from the road.
-
-Lede: Short pieces on planning a line and getting it onto the computer.
-
-Two rows, each a link:
-
-- Onto the computer — The course file goes with you. The phone stays home.
-- From the driveway — A loop starts at the pin you already know, and comes back there.
-
 Footer, one line: Loops for every sport. Map data from OpenStreetMap.
 
 ## Layout by device
 
-Design three frames. Same sections, same copy, same map. Do not hide How it works, Sports, Devices, or Notes.
+Design three frames. Same sections, same copy, same map. Do not hide How it works, Sports, or Devices.
 
 ### Phone, 390 wide
 

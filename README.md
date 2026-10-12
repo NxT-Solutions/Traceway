@@ -14,9 +14,9 @@
 <p align="center">
   <a href="https://traceway.online"><b>Open the planner</b></a>
   &nbsp;·&nbsp;
-  <a href="https://traceway.online/how-it-works">How it works</a>
+  <a href="https://traceway.online/#how">How it works</a>
   &nbsp;·&nbsp;
-  <a href="https://traceway.online/devices">Devices</a>
+  <a href="https://traceway.online/#devices">Devices</a>
   &nbsp;·&nbsp;
   <a href="#run-it-locally">Run it locally</a>
   &nbsp;·&nbsp;

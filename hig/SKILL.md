@@ -61,7 +61,7 @@ Copy and tick:
 Surface: ________
 - [ ] Purpose: the loop or the course file is the point; chrome recedes
 - [ ] One filled control (Open the planner, Draw route, or the auth submit)
-- [ ] Header, when shown: mark, Traceway, How it works, Sports, Devices, Notes, Log in or You
+- [ ] Header, when shown: mark, Traceway, How it works, Sports, Devices, Log in or You
 - [ ] Type: 11 meta, 13 body, 15 title, 22 page, 26 hero
 - [ ] Weights 400 / 500 / 600 only; body tracking 0; Outfit self-hosted
 - [ ] Both stylesheets share the token names and values in traceway.md

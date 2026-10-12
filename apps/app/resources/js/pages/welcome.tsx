@@ -59,7 +59,7 @@ export default function Welcome() {
                             then a course file your watch or GPS can follow with
                             no phone.{' '}
                             <a
-                                href="/how-it-works"
+                                href="/#how"
                                 className="font-medium text-foreground underline underline-offset-4"
                             >
                                 Read the site

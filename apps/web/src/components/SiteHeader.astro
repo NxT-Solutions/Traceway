@@ -4,19 +4,18 @@ import Mark from './Mark.astro';
 interface Props {
     /** On the home page the section links scroll in place. */
     home?: boolean;
-    /** The link to mark as the current page. */
-    current?: 'how' | 'sports' | 'devices' | 'faq' | 'notes';
 }
 
-const { home = false, current } = Astro.props;
+const { home = false } = Astro.props;
 const at = (hash: string): string => (home ? hash : `/${hash}`);
+
+// The site is one page. Each link goes to its section.
 const links = [
-    { key: 'how', href: at('#how'), label: 'How it works' },
-    { key: 'sports', href: at('#sports'), label: 'Sports' },
-    { key: 'multisport', href: at('#multisport'), label: 'Multisport' },
-    { key: 'devices', href: at('#devices'), label: 'Devices' },
-    { key: 'faq', href: at('#faq'), label: 'FAQ' },
-    { key: 'notes', href: '/notes', label: 'Notes' },
+    { href: at('#how'), label: 'How it works' },
+    { href: at('#sports'), label: 'Sports' },
+    { href: at('#multisport'), label: 'Multisport' },
+    { href: at('#devices'), label: 'Devices' },
+    { href: at('#faq'), label: 'FAQ' },
 ];
 ---
 
@@ -33,12 +32,7 @@ const links = [
         <nav class="nav" aria-label="Sections">
             {
                 links.map((link) => (
-                    <a
-                        href={link.href}
-                        aria-current={current === link.key ? 'page' : undefined}
-                    >
-                        {link.label}
-                    </a>
+                    <a href={link.href}>{link.label}</a>
                 ))
             }
         </nav>
@@ -64,10 +58,7 @@ const links = [
         <nav class="wrap" aria-label="Sections">
             {
                 links.map((link) => (
-                    <a
-                        href={link.href}
-                        aria-current={current === link.key ? 'page' : undefined}
-                    >
+                    <a href={link.href}>
                         {link.label}
                         <svg
                             width="18"

@@ -1,4 +1,4 @@
-/* Reading pages: How it works, Sports, Devices, Notes. Same paper, type, and hairlines as the home page. */
+/* Pages beside the home page, like Support. Same paper, type, and hairlines as the home page. */
 body{display:flex;flex-direction:column;min-height:100svh}
 main.page{flex:1 0 auto;width:100%;padding-block:clamp(44px,8vw,104px) clamp(64px,9vw,120px)}
 .page .kicker{display:block}
@@ -40,5 +40,3 @@ main.page{flex:1 0 auto;width:100%;padding-block:clamp(44px,8vw,104px) clamp(64p
 @media (max-width: 899px){
   .rows>li>a,.rows>li>.row{padding:18px 0}
 }
-.page-cta .back{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:500;color:var(--muted)}
-.page-cta .back:hover{color:var(--ink)}
