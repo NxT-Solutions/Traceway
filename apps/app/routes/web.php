@@ -12,6 +12,7 @@ use App\Http\Controllers\SavedRouteLibraryController;
 use App\Http\Controllers\ShowSharedRouteController;
 use App\Http\Controllers\SnapPointController;
 use App\Http\Controllers\StoreSavedRouteController;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -31,8 +32,8 @@ Route::get('share/{savedRoute}/fit', [ExportSharedCourseController::class, 'fit'
     ->middleware('signed')
     ->name('routes.share.fit');
 
-Route::redirect('docs/public', '/docs');
-Route::redirect('docs/account', '/docs');
+Route::get('docs/public', fn (): RedirectResponse => redirect()->to('/docs'));
+Route::get('docs/account', fn (): RedirectResponse => redirect()->to('/docs'));
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('dashboard', fn () => Inertia::render('dashboard'))->name('dashboard');
