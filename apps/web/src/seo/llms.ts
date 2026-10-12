@@ -27,6 +27,7 @@ ${name} plans loop routes from a start pin. You pick a sport, a distance, a surf
 
 ## Optional
 
+- [Support](${absolute(site, '/support.md')}): Traceway is free for good; donations pay for the hosting
 - [Source code](${repository}): open source, MIT licence
 - [Full text for AI tools](${absolute(site, '/llms-full.txt')})
 `;

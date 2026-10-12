@@ -14,7 +14,7 @@ const executable = process.env.CHROMIUM_PATH || (existsSync(local) ? local : und
 // DDEV serves the content site and the planner from one host. CI runs
 // them apart, so the content pages can come from their own address.
 const content = process.env.CONTENT_URL || base;
-const contentPages = ['/'];
+const contentPages = ['/', '/support'];
 const authPages = ['/login', '/register', '/forgot-password'];
 const signedInPages = ['/dashboard', '/saved', '/settings/profile', '/settings/privacy', '/settings/appearance'];
 

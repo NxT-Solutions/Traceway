@@ -1,0 +1,59 @@
+---
+import '@fontsource/outfit/400.css';
+import '@fontsource/outfit/500.css';
+import '@fontsource/outfit/600.css';
+import '../styles/global.css';
+import '../styles/page.css';
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import { absolute } from '../seo/site';
+
+interface Props {
+    title: string;
+    description: string;
+    /** The page as Markdown, for AI tools, when there is one. */
+    markdown?: string;
+}
+
+const { title, description, markdown } = Astro.props;
+const pageTitle = title === 'Traceway' ? title : `${title} · Traceway`;
+const canonical = absolute(Astro.site, Astro.url.pathname.replace(/\/$/, '') || '/');
+---
+
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+        <meta name="theme-color" content="#f6f3ea" />
+        <title>{pageTitle}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonical} />
+        {
+            markdown && (
+                <link
+                    rel="alternate"
+                    type="text/markdown"
+                    href={markdown}
+                    title="This page as Markdown"
+                />
+            )
+        }
+        <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Traceway" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={absolute(Astro.site, '/og.png')} />
+        <meta name="twitter:card" content="summary_large_image" />
+    </head>
+    <body id="top">
+        <SiteHeader />
+        <slot />
+        <SiteFooter />
+    </body>
+</html>

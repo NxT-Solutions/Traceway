@@ -1,0 +1,31 @@
+---
+import Base from '../layouts/Base.astro';
+import { support, supportPage } from '../support';
+---
+
+<Base
+    title={supportPage.title}
+    description={supportPage.description}
+    markdown="/support.md"
+>
+    <main class="wrap page">
+        <p class="kicker">Support</p>
+        <h1>{supportPage.heading}</h1>
+        <div class="prose">
+            {supportPage.paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+        </div>
+        <div class="page-cta">
+            <a class="fill" href={support.paypal} rel="noopener">
+                Donate with PayPal
+            </a>
+            <a class="ghost" href={support.github} rel="noopener">
+                Sponsor on GitHub
+            </a>
+            <small>
+                Or send any amount to <a href={support.paypalMe} rel="noopener"
+                    >paypal.me/noahgillard1</a
+                >.
+            </small>
+        </div>
+    </main>
+</Base>

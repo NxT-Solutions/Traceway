@@ -1,19 +1,31 @@
 ---
 import Mark from './Mark.astro';
 
-// The site is one page. Each link scrolls to its section.
+interface Props {
+    /** On the home page the section links scroll in place. */
+    home?: boolean;
+}
+
+const { home = false } = Astro.props;
+const at = (hash: string): string => (home ? hash : `/${hash}`);
+
+// The site is one page. Each link goes to its section.
 const links = [
-    { href: '#how', label: 'How it works' },
-    { href: '#sports', label: 'Sports' },
-    { href: '#multisport', label: 'Multisport' },
-    { href: '#devices', label: 'Devices' },
-    { href: '#faq', label: 'FAQ' },
+    { href: at('#how'), label: 'How it works' },
+    { href: at('#sports'), label: 'Sports' },
+    { href: at('#multisport'), label: 'Multisport' },
+    { href: at('#devices'), label: 'Devices' },
+    { href: at('#faq'), label: 'FAQ' },
 ];
 ---
 
 <header class="hdr" id="hdr">
     <div class="wrap">
-        <a class="brand" href="#top" aria-label="Traceway, back to top">
+        <a
+            class="brand"
+            href={home ? '#top' : '/'}
+            aria-label={home ? 'Traceway, back to top' : 'Traceway home'}
+        >
             <Mark />
             <span>Traceway</span>
         </a>

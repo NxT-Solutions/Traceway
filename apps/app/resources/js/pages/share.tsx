@@ -277,6 +277,10 @@ export default function Share({ route }: { route: SharedRoute }) {
                         {copied ? 'Copied' : 'Copy link'}
                     </button>
                 </div>
+                <p className="credit">
+                    Planned with Traceway, free and kept running by{' '}
+                    <a href="/support">donations</a>.
+                </p>
             </aside>
         </div>
     );
