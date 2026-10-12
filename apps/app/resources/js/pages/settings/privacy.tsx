@@ -1,5 +1,6 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import Heading from '@/components/heading';
+import { Button } from '@/components/ui/button';
 
 type Account = {
     name: string;
@@ -7,6 +8,12 @@ type Account = {
     email_verified_at: string | null;
     two_factor_enabled: boolean;
     created_at: string | null;
+};
+
+type ConnectedApp = {
+    id: string;
+    name: string;
+    connected_at: string | null;
 };
 
 type StoredRoute = {
@@ -29,9 +36,11 @@ function written(value: string | null): string {
 export default function Privacy({
     account,
     routes,
+    apps,
 }: {
     account: Account;
     routes: StoredRoute[];
+    apps: ConnectedApp[];
 }) {
     return (
         <>
@@ -111,6 +120,63 @@ export default function Privacy({
                     Download your data
                 </a>
             </div>
+
+            <ConnectedApps apps={apps} />
         </>
+    );
+}
+
+function ConnectedApps({ apps }: { apps: ConnectedApp[] }) {
+    const address =
+        typeof window === 'undefined'
+            ? '/mcp'
+            : `${window.location.origin}/mcp`;
+
+    return (
+        <div className="card">
+            <Heading
+                variant="small"
+                title="Connected apps"
+                description="AI tools you let plan routes for you, like ChatGPT or Claude."
+            />
+
+            {apps.length === 0 ? (
+                <p className="desc">No apps connected.</p>
+            ) : (
+                <ul className="overflow-hidden rounded-lg border border-border">
+                    {apps.map((app) => (
+                        <li
+                            key={app.id}
+                            className="flex items-center justify-between gap-4 border-b p-4 last:border-b-0"
+                        >
+                            <div>
+                                <p className="font-medium">{app.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Connected {written(app.connected_at)}
+                                </p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                    router.delete(
+                                        `/settings/privacy/apps/${app.id}`,
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Disconnect
+                            </Button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            <p className="desc">
+                To connect one, add <code>{address}</code> as a connector in the
+                app, then sign in here when it asks. It can plan routes and save
+                them to your library. It never sees your password.
+            </p>
+        </div>
     );
 }

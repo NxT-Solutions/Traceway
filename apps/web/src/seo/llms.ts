@@ -19,6 +19,12 @@ ${name} plans loop routes from a start pin. You pick a sport, a distance, a surf
 - [Open the planner](${absolute(site, '/dashboard')}): plan, save, and export routes (sign-in required)
 - [Create an account](${absolute(site, '/register')})
 
+## For AI agents
+
+- MCP server: ${absolute(site, '/mcp')} (streamable HTTP). People sign in with OAuth 2.1; discovery is at ${absolute(site, '/.well-known/oauth-protected-resource/mcp')}, and clients register themselves.
+- Tools: \`plan_loop\` (start place, sport, distance in km, and optional surface, hills, quiet roads, via), \`plan_multisport\` (a transition and a brick, triathlon, duathlon, or aquabike at a race distance, or up to four legs), and \`list_routes\`.
+- Each plan is saved to the person's library, and the answer links to the map, a Garmin file, and a GPX file. Never invent route coordinates; call a tool.
+
 ## Optional
 
 - [Source code](${repository}): open source, MIT licence

@@ -44,6 +44,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // AI tools sign in through OAuth and call the MCP server with a token.
+        'api' => [
+            'driver' => 'passport',
+            'provider' => 'users',
+        ],
     ],
 
     /*

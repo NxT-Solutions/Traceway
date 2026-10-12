@@ -77,6 +77,12 @@ final readonly class EloquentUserRepository implements UserRepository
         $rider = $this->rider($user);
 
         DB::transaction(function () use ($user): void {
+            $builder = DB::table('oauth_access_tokens')->where('user_id', $user->id);
+
+            DB::table('oauth_refresh_tokens')->whereIn('access_token_id', (clone $builder)->select('id'))->delete();
+            $builder->delete();
+            DB::table('oauth_auth_codes')->where('user_id', $user->id)->delete();
+
             $user->delete();
         });
 

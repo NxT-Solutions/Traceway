@@ -37,6 +37,8 @@ export const privatePaths = [
     '/two-factor-challenge',
     '/reset-password',
     '/email',
+    '/oauth',
+    '/mcp',
 ];
 
 export const absolute = (site: URL | undefined, path: string): string =>

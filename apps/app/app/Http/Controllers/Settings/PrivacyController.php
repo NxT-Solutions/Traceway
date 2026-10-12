@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings;
 
 use App\Account\RiderId;
+use App\Commands\DisconnectAppCommand;
 use App\Commands\ExportPersonalDataCommand;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Queries\Account\ConnectedApp;
+use App\Queries\Account\ConnectedAppsQuery;
 use App\Queries\Account\PersonalDataQuery;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,13 +25,30 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PrivacyController extends Controller
 {
-    public function edit(Request $request, PersonalDataQuery $personalDataQuery): Response
+    public function edit(Request $request, PersonalDataQuery $personalDataQuery, ConnectedAppsQuery $connectedAppsQuery): Response
     {
         $user = $request->user();
 
         abort_unless($user instanceof User, 403);
 
-        return Inertia::render('settings/privacy', $personalDataQuery->page($user->id)->toArray());
+        return Inertia::render('settings/privacy', [
+            ...$personalDataQuery->page($user->id)->toArray(),
+            'apps' => array_map(fn (ConnectedApp $connectedApp): array => $connectedApp->toArray(), $connectedAppsQuery->forRider($user->id)),
+        ]);
+    }
+
+    /**
+     * Take back an AI tool's access. It has to ask again to plan anything.
+     */
+    public function disconnect(Request $request, string $client, DispatchesCommands $dispatchesCommands): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_unless($user instanceof User, 403);
+
+        $dispatchesCommands->dispatch(new DisconnectAppCommand(new RiderId($user->id), $client));
+
+        return back();
     }
 
     #[Get(

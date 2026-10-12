@@ -47,6 +47,11 @@ return [
         'url' => env('OSRM_URL', 'https://router.project-osrm.org'),
     ],
 
+    // Place search for AI tools that name a start instead of dropping a pin.
+    'nominatim' => [
+        'url' => env('NOMINATIM_URL', 'https://nominatim.openstreetmap.org'),
+    ],
+
     'valhalla' => [
         'url' => env('VALHALLA_URL', 'https://valhalla1.openstreetmap.de'),
         // The public server refuses a request whose points span more than
