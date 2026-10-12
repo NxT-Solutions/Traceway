@@ -1,20 +1,28 @@
 import AxeBuilder from '@axe-core/playwright';
+import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const base = process.env.BASE_URL || 'https://traceway.ddev.site:8443';
-const executable = process.env.CHROMIUM_PATH || [
+// A local Chrome for Testing when there is one, else the Chromium that
+// `playwright-core install chromium` puts in Playwright's cache, as CI does.
+const local = [
     process.env.HOME,
     'Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
 ].join('/');
+const executable = process.env.CHROMIUM_PATH || (existsSync(local) ? local : undefined);
 
-const publicPages = ['/', '/sports', '/devices', '/how-it-works', '/notes/onto-the-computer', '/notes/from-the-driveway', '/login', '/register', '/forgot-password'];
+// DDEV serves the content site and the planner from one host. CI runs
+// them apart, so the content pages can come from their own address.
+const content = process.env.CONTENT_URL || base;
+const contentPages = ['/', '/sports', '/devices', '/how-it-works', '/notes/onto-the-computer', '/notes/from-the-driveway'];
+const authPages = ['/login', '/register', '/forgot-password'];
 const signedInPages = ['/dashboard', '/saved', '/settings/profile', '/settings/privacy', '/settings/appearance'];
 
 const browser = await chromium.launch({ executablePath: executable, headless: true });
 const failures = [];
 
-async function scan(page, path) {
-    const response = await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+async function scan(page, path, origin = base) {
+    const response = await page.goto(`${origin}${path}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
 
     if (!response || response.status() >= 400) {
         failures.push(`${path} returned ${response ? response.status() : 'no response'}`);
@@ -50,7 +58,12 @@ try {
     const desktop = await desktopContext.newPage();
     const phone = await phoneContext.newPage();
 
-    for (const path of publicPages) {
+    for (const path of contentPages) {
+        await scan(desktop, path, content);
+        await scan(phone, path, content);
+    }
+
+    for (const path of authPages) {
         await scan(desktop, path);
         await scan(phone, path);
     }

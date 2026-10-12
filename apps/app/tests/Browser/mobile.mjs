@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 // Drives the planner on a phone with real touch input. Chrome turns the
@@ -6,10 +7,13 @@ import { chromium } from 'playwright-core';
 // the same gestures a rider makes.
 
 const base = process.env.BASE_URL || 'https://traceway.ddev.site:8443';
-const executable = process.env.CHROMIUM_PATH || [
+// A local Chrome for Testing when there is one, else the Chromium that
+// `playwright-core install chromium` puts in Playwright's cache, as CI does.
+const local = [
     process.env.HOME,
     'Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
 ].join('/');
+const executable = process.env.CHROMIUM_PATH || (existsSync(local) ? local : undefined);
 const routing = 90_000;
 
 const browser = await chromium.launch({ executablePath: executable, headless: true });
