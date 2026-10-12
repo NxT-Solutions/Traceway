@@ -3,7 +3,14 @@ import '../../css/planner.css';
 import { Bike, Footprints, Mountain, Waves } from 'lucide-react';
 import type { GeoJSONSource, MapMouseEvent } from 'maplibre-gl';
 import * as maplibregl from 'maplibre-gl';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    type ReactNode,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    useSyncExternalStore,
+} from 'react';
 import { MultisportIcon } from '@/components/multisport-icon';
 import {
     LegColourPicker,
@@ -1386,7 +1393,25 @@ function sportIcon(value: string) {
     return Footprints;
 }
 
+/**
+ * From 1024px the sheets float beside the plan panel instead of covering
+ * the screen, so they do not block the panel or the map behind them.
+ */
+function useWideScreen(): boolean {
+    return useSyncExternalStore(
+        (changed) => {
+            const query = window.matchMedia('(min-width: 1024px)');
+            query.addEventListener('change', changed);
+
+            return () => query.removeEventListener('change', changed);
+        },
+        () => window.matchMedia('(min-width: 1024px)').matches,
+        () => false,
+    );
+}
+
 export default function Dashboard() {
+    const wide = useWideScreen();
     const { resolvedAppearance } = useAppearance();
     const mapNode = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
@@ -4622,6 +4647,7 @@ export default function Dashboard() {
             </div>
 
             <Sheet
+                modal={!wide}
                 open={sheet === 'sport'}
                 onOpenChange={(open) => !open && setSheet(null)}
             >
@@ -4663,6 +4689,7 @@ export default function Dashboard() {
             </Sheet>
 
             <Sheet
+                modal={!wide}
                 open={sheet === 'length'}
                 onOpenChange={(open) => !open && setSheet(null)}
             >
@@ -4709,6 +4736,7 @@ export default function Dashboard() {
             </Sheet>
 
             <Sheet
+                modal={!wide}
                 open={sheet === 'roads'}
                 onOpenChange={(open) => !open && setSheet(null)}
             >
@@ -4754,6 +4782,7 @@ export default function Dashboard() {
             </Sheet>
 
             <Sheet
+                modal={!wide}
                 open={sheet === 'elevation'}
                 onOpenChange={(open) => !open && setSheet(null)}
             >
@@ -4780,6 +4809,7 @@ export default function Dashboard() {
             </Sheet>
 
             <Sheet
+                modal={!wide}
                 open={sheet === 'shape'}
                 onOpenChange={(open) => !open && setSheet(null)}
             >
@@ -4806,6 +4836,7 @@ export default function Dashboard() {
             </Sheet>
 
             <Sheet
+                modal={!wide}
                 open={sheet === 'session'}
                 onOpenChange={(open) => !open && setSheet(null)}
             >
@@ -4838,6 +4869,7 @@ export default function Dashboard() {
             </Sheet>
 
             <Sheet
+                modal={!wide}
                 open={sheet === 'race'}
                 onOpenChange={(open) => !open && setSheet(null)}
             >
@@ -4864,6 +4896,7 @@ export default function Dashboard() {
             </Sheet>
 
             <Sheet
+                modal={!wide}
                 open={sheet === 'colour'}
                 onOpenChange={(open) => !open && setSheet(null)}
             >
@@ -4897,6 +4930,7 @@ export default function Dashboard() {
             </Sheet>
 
             <Sheet
+                modal={!wide}
                 open={sheet === 'map'}
                 onOpenChange={(open) => !open && setSheet(null)}
             >
@@ -4923,6 +4957,7 @@ export default function Dashboard() {
             </Sheet>
 
             <Sheet
+                modal={!wide}
                 open={sheet === 'surface'}
                 onOpenChange={(open) => !open && setSheet(null)}
             >
