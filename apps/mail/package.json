@@ -7,6 +7,6 @@
         "build": "maizzle build production"
     },
     "dependencies": {
-        "@maizzle/framework": "^5.5.0"
+        "@maizzle/framework": "^6.2.0"
     }
 }
