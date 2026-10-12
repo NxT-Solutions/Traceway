@@ -164,16 +164,7 @@ Then `ddev restart`. The site URL includes the port. `ddev start` writes that UR
 
 The planner uses SQLite at `apps/app/database/database.sqlite`. Tests use an in-memory SQLite database.
 
-DDEV also starts Postgres 16. To use it, set these in `apps/app/.env` and run `ddev artisan migrate`:
-
-```
-DB_CONNECTION=pgsql
-DB_HOST=db
-DB_PORT=5432
-DB_DATABASE=db
-DB_USERNAME=db
-DB_PASSWORD=db
-```
+Production uses SQLite too, in `storage/database/traceway.sqlite`. DDEV runs no database container.
 
 Queue, cache, and sessions use the same database. Redis is not required.
 
