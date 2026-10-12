@@ -2,7 +2,7 @@
     "$schema": "https://www.schemastore.org/package.json",
     "name": "@traceway/app",
     "private": true,
-    "license": "PolyForm-Noncommercial-1.0.0",
+    "license": "MIT",
     "type": "module",
     "scripts": {
         "build": "vp build",
