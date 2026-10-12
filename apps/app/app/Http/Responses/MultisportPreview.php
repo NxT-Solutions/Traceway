@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Responses;
 
+use App\Domain\Routing\LineSimplifier;
 use App\Domain\Routing\MultisportRoute;
 use App\Domain\Routing\PlannedLeg;
 use OpenApi\Attributes\Items;
@@ -60,7 +61,7 @@ final readonly class MultisportPreview
                     'discipline' => $plannedLeg->discipline(),
                     'distance_metres' => $plannedLeg->distanceMetres,
                     'ascent_metres' => $plannedLeg->ascentMetres,
-                    'coordinates' => $plannedLeg->coordinates,
+                    'coordinates' => LineSimplifier::simplify($plannedLeg->coordinates, LineSimplifier::ROUTE_METRES),
                 ],
                 $this->multisportRoute->legs,
             ),
