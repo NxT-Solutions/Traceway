@@ -2,6 +2,10 @@
 
 Traceway draws a loop for any sport on a map and exports a course file a watch, a GPS, or a bike computer can follow.
 
+Run, trail run, walk, hike, road, gravel, and mountain bike are all first-class. The hosted planner is at https://traceway.online.
+
+[Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [License](LICENSE)
+
 ## Local setup
 
 Install [Docker](https://docs.docker.com/get-docker/) and [DDEV](https://ddev.com/get-started/), then from this directory:
@@ -90,3 +94,19 @@ ddev start --profiles=routing
 ```
 
 Put the map files in `persistent/graphhopper`. The container is `graphhopper` on port 8989, which matches `GRAPHHOPPER_URL` in `.env.example`.
+
+## Contributing
+
+Contributions are welcome: bug reports, device reports, docs, design, and code. Read [CONTRIBUTING.md](CONTRIBUTING.md) to get started. Every contributor signs the [Contributor License Agreement](CLA.md) once, on their first pull request.
+
+## License
+
+Traceway is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+
+You may use, copy, change, and share Traceway for any noncommercial purpose: personal use, hobby projects, study, research, and use by charities, schools, and public bodies. You may run your own copy for yourself, your club, or your friends.
+
+You may not use Traceway, or a changed copy of it, to make money. That includes selling it, charging for a hosted version, or using it inside a paid product or service. For commercial use, ask the maintainer for a separate license.
+
+Because it restricts commercial use, this license is not an OSI-approved open source license.
+
+The name Traceway and its logo are not covered by the license. A fork must use a different name.

@@ -1,0 +1,42 @@
+name: Device report
+description: A watch, GPS, or bike computer does not load or follow an exported course.
+labels: ["device"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Course files have to work on many devices, and we cannot test them all. Your report helps every rider with the same device.
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Make, model, and firmware version.
+      placeholder: Garmin Edge 840, firmware 27.10
+    validations:
+      required: true
+  - type: dropdown
+    id: format
+    attributes:
+      label: File format
+      options:
+        - FIT
+        - GPX
+    validations:
+      required: true
+  - type: input
+    id: transfer
+    attributes:
+      label: How the file got to the device
+      placeholder: USB cable, the maker's phone app, Bluetooth, a third-party sync
+  - type: textarea
+    id: problem
+    attributes:
+      label: What went wrong
+      description: For example, the device rejects the file, the name is cut off, turn prompts are missing, or the line is drawn in the wrong place.
+    validations:
+      required: true
+  - type: textarea
+    id: file
+    attributes:
+      label: The exported file
+      description: Attach the file if you can. A zip works if GitHub rejects the extension. Remove anything personal first.
