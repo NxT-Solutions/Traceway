@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import * as maplibregl from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { streetsMapStyle } from '@/lib/maplibre';
+import { legDeviceName, legPaint } from '@/lib/multisport';
 import {
     ensureDirectionArrows,
     resizeDirectionArrows,
@@ -22,9 +23,18 @@ type SharedRoute = {
     coordinates: Coordinate[];
     gpx_url: string;
     fit_url: string;
+    layout: 'loops' | 'chain' | null;
+    legs: Array<{
+        discipline: string;
+        distance_metres: number;
+        ascent_metres: number;
+        coordinates: Coordinate[];
+        fit_url: string | null;
+    }>;
 };
 
 const sportLabel: Record<string, string> = {
+    swim: 'Swim',
     road: 'Road',
     gravel: 'Gravel',
     mtb: 'Mountain bike',
@@ -64,20 +74,47 @@ export default function Share({ route }: { route: SharedRoute }) {
             new maplibregl.NavigationControl({ showCompass: false }),
             'bottom-right',
         );
+        const arrowLines =
+            route.legs.length > 0
+                ? route.legs
+                      .filter((leg) => leg.discipline !== 'swim')
+                      .map((leg) => leg.coordinates)
+                : [route.coordinates];
         map.on('load', () => {
-            const solid = {
-                type: 'Feature' as const,
-                properties: {},
-                geometry: {
-                    type: 'LineString' as const,
-                    coordinates: route.coordinates,
+            const parts =
+                route.legs.length > 0
+                    ? route.legs.filter((leg) => leg.coordinates.length > 1)
+                    : [
+                          {
+                              discipline: route.sport,
+                              coordinates: route.coordinates,
+                          },
+                      ];
+            map.addSource('route', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: parts.map((part) => ({
+                        type: 'Feature' as const,
+                        properties: {
+                            discipline: part.discipline,
+                            color:
+                                route.legs.length > 0
+                                    ? legPaint(part.discipline).line
+                                    : '#16303a',
+                        },
+                        geometry: {
+                            type: 'LineString' as const,
+                            coordinates: part.coordinates,
+                        },
+                    })),
                 },
-            };
-            map.addSource('route', { type: 'geojson', data: solid });
+            });
             map.addLayer({
                 id: 'route-casing',
                 type: 'line',
                 source: 'route',
+                filter: ['!=', ['get', 'discipline'], 'swim'],
                 layout: { 'line-cap': 'round', 'line-join': 'round' },
                 paint: { 'line-color': '#ffffff', 'line-width': 10 },
             });
@@ -85,10 +122,23 @@ export default function Share({ route }: { route: SharedRoute }) {
                 id: 'route',
                 type: 'line',
                 source: 'route',
+                filter: ['!=', ['get', 'discipline'], 'swim'],
                 layout: { 'line-cap': 'round', 'line-join': 'round' },
-                paint: { 'line-color': '#16303a', 'line-width': 4 },
+                paint: { 'line-color': ['get', 'color'], 'line-width': 4 },
             });
-            ensureDirectionArrows(map, [route.coordinates]);
+            map.addLayer({
+                id: 'route-swim',
+                type: 'line',
+                source: 'route',
+                filter: ['==', ['get', 'discipline'], 'swim'],
+                layout: { 'line-cap': 'round', 'line-join': 'round' },
+                paint: {
+                    'line-color': ['get', 'color'],
+                    'line-width': 4,
+                    'line-dasharray': [1, 1.2],
+                },
+            });
+            ensureDirectionArrows(map, arrowLines);
 
             const bounds = route.coordinates.reduce(
                 (box, coordinate) => box.extend(coordinate),
@@ -101,7 +151,7 @@ export default function Share({ route }: { route: SharedRoute }) {
                 return;
             }
 
-            ensureDirectionArrows(map, [route.coordinates]);
+            ensureDirectionArrows(map, arrowLines);
         };
         const resizeArrows = () => resizeDirectionArrows(map);
         map.on('zoomend', refreshArrows);
@@ -126,13 +176,59 @@ export default function Share({ route }: { route: SharedRoute }) {
                     {route.ascent_metres > 0
                         ? ` · ${route.ascent_metres} m`
                         : ''}
-                    {` · ${sportLabel[route.sport] ?? route.sport}`}
-                    {` · ${surfaceLabel[route.surface] ?? route.surface}`}
-                    {route.roads === 'quiet' ? ' · Quiet roads' : ''}
+                    {route.legs.length > 0
+                        ? ` · Multisport · ${route.legs.length} legs`
+                        : ` · ${sportLabel[route.sport] ?? route.sport}`}
+                    {route.legs.length > 0
+                        ? ''
+                        : ` · ${surfaceLabel[route.surface] ?? route.surface}`}
+                    {route.legs.length === 0 && route.roads === 'quiet'
+                        ? ' · Quiet roads'
+                        : ''}
                 </p>
+                {route.legs.length > 0 ? (
+                    <ol className="legs">
+                        {route.legs.map((leg, index) => (
+                            <li key={`${leg.discipline}-${index}`}>
+                                <i
+                                    aria-hidden="true"
+                                    style={{
+                                        background: legPaint(leg.discipline)
+                                            .line,
+                                    }}
+                                />
+                                <b>
+                                    {sportLabel[leg.discipline] ??
+                                        leg.discipline}
+                                </b>
+                                <span>
+                                    {(leg.distance_metres / 1000).toFixed(1)} km
+                                </span>
+                            </li>
+                        ))}
+                    </ol>
+                ) : null}
                 <div className="exports">
                     <a href={route.gpx_url}>GPX</a>
-                    <a href={route.fit_url}>FIT</a>
+                    {route.legs.length > 0 ? (
+                        route.legs.map((leg, index) =>
+                            leg.fit_url === null ? null : (
+                                <a
+                                    key={`${leg.discipline}-${index}`}
+                                    href={leg.fit_url}
+                                    title={legDeviceName(
+                                        route.name,
+                                        index + 1,
+                                        leg.discipline,
+                                    )}
+                                >
+                                    {`FIT ${index + 1} ${sportLabel[leg.discipline] ?? leg.discipline}`}
+                                </a>
+                            ),
+                        )
+                    ) : (
+                        <a href={route.fit_url}>FIT</a>
+                    )}
                     <button
                         type="button"
                         onClick={() => {

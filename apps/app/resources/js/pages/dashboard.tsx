@@ -13,6 +13,11 @@ import {
     useState,
 } from 'react';
 import {
+    type LegSheet,
+    MultisportLegs,
+    type Placing,
+} from '@/components/multisport-legs';
+import {
     Sheet,
     SheetContent,
     SheetHeader,
@@ -26,8 +31,26 @@ import {
     themedMapStyle,
 } from '@/lib/maplibre';
 import {
+    isLandLeg,
+    isCoordinate as isLegCoordinate,
+    isPlan,
+    joinedLine,
+    type LandLeg,
+    type Layout,
+    legDeviceName,
+    legPaint,
+    type MultisportPlan,
+    mostLandLegs,
+    mostSwimPoints,
+    multisportGpx,
+    newLeg,
+    presets,
+    withIds,
+} from '@/lib/multisport';
+import {
     arrowIconSize,
     directionArrows,
+    directionArrowsForLines,
     metresBetween,
     routeBadge,
 } from '@/lib/route-arrows';
@@ -409,6 +432,50 @@ function addRouteLayers(map: maplibregl.Map, coordinates: Coordinate[]): void {
         });
     }
 
+    if (map.getSource('multisport') === undefined) {
+        map.addSource('multisport', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+        });
+    }
+
+    if (map.getLayer('multisport-casing') === undefined) {
+        map.addLayer({
+            id: 'multisport-casing',
+            type: 'line',
+            source: 'multisport',
+            filter: ['!=', ['get', 'discipline'], 'swim'],
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: { 'line-color': '#ffffff', 'line-width': 11 },
+        });
+    }
+
+    if (map.getLayer('multisport') === undefined) {
+        map.addLayer({
+            id: 'multisport',
+            type: 'line',
+            source: 'multisport',
+            filter: ['!=', ['get', 'discipline'], 'swim'],
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: { 'line-color': ['get', 'color'], 'line-width': 5 },
+        });
+    }
+
+    if (map.getLayer('multisport-swim') === undefined) {
+        map.addLayer({
+            id: 'multisport-swim',
+            type: 'line',
+            source: 'multisport',
+            filter: ['==', ['get', 'discipline'], 'swim'],
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+                'line-color': ['get', 'color'],
+                'line-width': 4,
+                'line-dasharray': [1, 1.2],
+            },
+        });
+    }
+
     if (map.getSource('route-faint') === undefined) {
         map.addSource('route-faint', {
             type: 'geojson',
@@ -509,6 +576,62 @@ function addRouteLayers(map: maplibregl.Map, coordinates: Coordinate[]): void {
             },
         });
     }
+}
+
+/**
+ * Draws each leg of a multisport plan in its own colour. Before a plan is
+ * drawn, the swim the athlete is drawing shows on its own.
+ */
+function syncMultisport(
+    map: maplibregl.Map,
+    plan: MultisportPlan | null,
+    swim: Coordinate[] | null,
+): void {
+    const source = map.getSource('multisport');
+
+    if (source === undefined || source.type !== 'geojson') {
+        return;
+    }
+
+    const legs =
+        plan?.legs ??
+        (swim !== null && swim.length > 1
+            ? [{ discipline: 'swim', coordinates: swim }]
+            : []);
+
+    (source as GeoJSONSource).setData({
+        type: 'FeatureCollection',
+        features: legs.flatMap((leg, index) =>
+            leg.coordinates.length < 2
+                ? []
+                : [
+                      {
+                          type: 'Feature' as const,
+                          id: index,
+                          properties: {
+                              discipline: leg.discipline,
+                              color: legPaint(leg.discipline).line,
+                          },
+                          geometry: {
+                              type: 'LineString' as const,
+                              coordinates: leg.coordinates,
+                          },
+                      },
+                  ],
+        ),
+    });
+}
+
+function paintArrowLines(map: maplibregl.Map, lines: Coordinate[][]): void {
+    const arrows = map.getSource('route-arrows');
+
+    if (arrows === undefined || arrows.type !== 'geojson') {
+        return;
+    }
+
+    (arrows as GeoJSONSource).setData(
+        directionArrowsForLines(lines, map.getZoom()),
+    );
 }
 
 const emptyLine = {
@@ -815,7 +938,41 @@ type SavedPlanner = {
     via: Coordinate | null;
     routes: Preview[];
     routeIndex: number;
+    multisport?: SavedMultisport;
 };
+
+type SavedMultisport = {
+    legs: LandLeg[];
+    layout: Layout;
+    swim: Coordinate[] | null;
+    plan: MultisportPlan | null;
+};
+
+function savedMultisport(saved: SavedPlanner | null): SavedMultisport | null {
+    const value: unknown = saved?.multisport;
+
+    if (typeof value !== 'object' || value === null) {
+        return null;
+    }
+
+    const record = value as Record<string, unknown>;
+
+    if (
+        !Array.isArray(record.legs) ||
+        record.legs.length === 0 ||
+        !record.legs.every(isLandLeg) ||
+        (record.layout !== 'loops' && record.layout !== 'chain') ||
+        !(
+            record.swim === null ||
+            (Array.isArray(record.swim) && record.swim.every(isLegCoordinate))
+        ) ||
+        !(record.plan === null || isPlan(record.plan))
+    ) {
+        return null;
+    }
+
+    return record as SavedMultisport;
+}
 
 function isSaved(value: unknown): value is SavedPlanner {
     if (typeof value !== 'object' || value === null) {
@@ -1222,7 +1379,7 @@ export default function Dashboard() {
     const placingViaRef = useRef(false);
     const onMapClickRef = useRef<(lng: number, lat: number) => void>(() => {});
     const selectLoopRef = useRef<(index: number) => void>(() => {});
-    const modeRef = useRef<'generate' | 'build'>('generate');
+    const modeRef = useRef<'generate' | 'build' | 'multisport'>('generate');
     const snapMarkerRef = useRef<maplibregl.Marker | null>(null);
     const hoverSnapRef = useRef<{
         queryLng: number;
@@ -1247,7 +1404,28 @@ export default function Dashboard() {
     const [roads, setRoads] = useState<'quiet' | 'any'>(
         saved?.roads === 'any' ? 'any' : 'quiet',
     );
-    const [mode, setMode] = useState<'generate' | 'build'>('generate');
+    const [mode, setMode] = useState<'generate' | 'build' | 'multisport'>(
+        'generate',
+    );
+    const savedPlan = useRef(savedMultisport(saved)).current;
+    const [legs, setLegs] = useState<LandLeg[]>(
+        () => savedPlan?.legs ?? withIds(presets[0].legs),
+    );
+    const [layout, setLayout] = useState<Layout>(savedPlan?.layout ?? 'loops');
+    const [swim, setSwim] = useState<Coordinate[] | null>(
+        savedPlan?.swim ?? null,
+    );
+    const [activeLeg, setActiveLeg] = useState(0);
+    const [placing, setPlacing] = useState<Placing>(null);
+    const [plan, setPlan] = useState<MultisportPlan | null>(
+        savedPlan?.plan ?? null,
+    );
+    const multisportMarkersRef = useRef<maplibregl.Marker[]>([]);
+    const multisportRef = useRef<{
+        plan: MultisportPlan | null;
+        swim: Coordinate[] | null;
+    }>({ plan: null, swim: null });
+    const arrowLinesRef = useRef<Coordinate[][]>([]);
     const [routeSaved, setRouteSaved] = useState(false);
     const [saving, setSaving] = useState(false);
     modeRef.current = mode;
@@ -1448,16 +1626,34 @@ export default function Dashboard() {
         .slice(0, 2)
         .toUpperCase();
     const preview = routes[routeIndex] ?? routes[0] ?? null;
+    const multisport = mode === 'multisport';
+    const planLine: Preview | null =
+        plan === null
+            ? null
+            : {
+                  distance_metres: plan.distance_metres,
+                  ascent_metres: plan.ascent_metres,
+                  coordinates: joinedLine(plan),
+              };
+    const shown = multisport ? planLine : preview;
+    multisportRef.current = { plan: multisport ? plan : null, swim };
+    arrowLinesRef.current = multisport
+        ? (plan?.legs ?? [])
+              .filter((leg) => leg.discipline !== 'swim')
+              .map((leg) => leg.coordinates)
+        : [preview?.coordinates ?? []];
     const peekLabel = [
         panelOpen ? 'open' : 'closed',
-        preview
-            ? (preview.distance_metres / 1000).toFixed(1)
-            : String(distanceKm),
-        routes.length > 0 ? `${routeIndex + 1}/${routes.length}` : shape,
+        shown ? (shown.distance_metres / 1000).toFixed(1) : String(distanceKm),
+        multisport
+            ? `${legs.length + (swim === null ? 0 : 1)} legs`
+            : routes.length > 0
+              ? `${routeIndex + 1}/${routes.length}`
+              : shape,
         surface,
     ].join(' ');
 
-    previewRef.current = preview;
+    previewRef.current = multisport ? null : preview;
 
     useEffect(() => {
         const node = panelRef.current;
@@ -1509,7 +1705,13 @@ export default function Dashboard() {
     const roadsLabel =
         roadsOptions.find((item) => item.value === roads)?.label ??
         'Quiet first';
-    const SportIcon = sportIcon(sport);
+    const editing = multisport ? (legs[activeLeg] ?? legs[0]) : undefined;
+    const sheetSport = editing?.sport ?? sport;
+    const sheetSurface = editing?.surface ?? surface;
+    const sheetElevation = editing?.elevation ?? elevation;
+    const sheetRoads = editing?.roads ?? roads;
+    const sheetKm = editing?.distanceKm ?? distanceKm;
+    const SportIcon = sportIcon(multisport ? (legs[0]?.sport ?? sport) : sport);
     const visibleSports = useMemo(
         () =>
             sports.filter((item) =>
@@ -1565,6 +1767,7 @@ export default function Dashboard() {
                 setLongitude(event.coords.longitude);
                 setRoutes([]);
                 setRouteIndex(0);
+                setPlan(null);
                 setMessage(
                     'Start is your location. Draw a route when you are ready.',
                 );
@@ -1601,10 +1804,16 @@ export default function Dashboard() {
             addRouteLayers(map, previewRef.current?.coordinates ?? []);
             syncRouteLines(
                 map,
-                routesRef.current,
+                modeRef.current === 'multisport' ? [] : routesRef.current,
                 routeIndexRef.current,
                 previewRef.current,
             );
+            syncMultisport(
+                map,
+                multisportRef.current.plan,
+                multisportRef.current.swim,
+            );
+            paintArrowLines(map, arrowLinesRef.current);
         };
 
         map.on('style.load', paintLoadedStyle);
@@ -1705,10 +1914,7 @@ export default function Dashboard() {
             }
 
             (arrows as GeoJSONSource).setData(
-                directionArrows(
-                    previewRef.current?.coordinates ?? [],
-                    map.getZoom(),
-                ),
+                directionArrowsForLines(arrowLinesRef.current, map.getZoom()),
             );
         });
 
@@ -1839,14 +2045,17 @@ export default function Dashboard() {
             return;
         }
 
-        const cursor = mode === 'build' ? 'crosshair' : '';
+        const cursor =
+            mode === 'build' || (mode === 'multisport' && placing !== null)
+                ? 'crosshair'
+                : '';
         map.getCanvas().style.cursor = cursor;
         map.getCanvasContainer().style.cursor = cursor;
 
         if (mode !== 'build') {
             hideSnapRef.current();
         }
-    }, [mode]);
+    }, [mode, placing]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -1856,7 +2065,18 @@ export default function Dashboard() {
         }
 
         const paint = (): void => {
-            syncRouteLines(map, routes, routeIndex, preview);
+            syncRouteLines(
+                map,
+                multisport ? [] : routes,
+                routeIndex,
+                multisport ? null : preview,
+            );
+            syncMultisport(
+                map,
+                multisport ? plan : null,
+                multisport ? swim : null,
+            );
+            paintArrowLines(map, arrowLinesRef.current);
         };
 
         if (map.getSource('route-faint') !== undefined) {
@@ -1866,7 +2086,50 @@ export default function Dashboard() {
         }
 
         map.once('idle', paint);
-    }, [preview, routes, routeIndex]);
+    }, [preview, routes, routeIndex, multisport, plan, swim]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+
+        for (const marker of multisportMarkersRef.current) {
+            marker.remove();
+        }
+
+        multisportMarkersRef.current = [];
+
+        if (map === null || !multisport) {
+            return;
+        }
+
+        const offset = swim === null ? 1 : 2;
+
+        if (layout === 'chain') {
+            legs.forEach((leg, index) => {
+                if (leg.finish === null) {
+                    return;
+                }
+
+                const element = document.createElement('div');
+                element.className = 'finish-pin';
+                element.textContent = String(index + offset);
+                multisportMarkersRef.current.push(
+                    new maplibregl.Marker({ element, anchor: 'center' })
+                        .setLngLat(leg.finish)
+                        .addTo(map),
+                );
+            });
+        }
+
+        for (const point of swim ?? []) {
+            const element = document.createElement('div');
+            element.className = 'swim-pin';
+            multisportMarkersRef.current.push(
+                new maplibregl.Marker({ element, anchor: 'center' })
+                    .setLngLat(point)
+                    .addTo(map),
+            );
+        }
+    }, [multisport, layout, legs, swim]);
 
     useEffect(() => {
         if (!dirty.current) {
@@ -1889,6 +2152,7 @@ export default function Dashboard() {
             via,
             routes,
             routeIndex,
+            multisport: { legs, layout, swim, plan },
         };
         window.localStorage.setItem(storageKey, JSON.stringify(payload));
     }, [
@@ -1905,6 +2169,10 @@ export default function Dashboard() {
         via,
         routes,
         routeIndex,
+        legs,
+        layout,
+        swim,
+        plan,
     ]);
 
     useEffect(() => {
@@ -1994,7 +2262,7 @@ export default function Dashboard() {
         });
     }, [buildPoints, mode, longitude, latitude, preview]);
 
-    function paintArrows(coordinates: Coordinate[]): void {
+    function paintArrows(lines: Coordinate[][]): void {
         const map = mapRef.current;
         const arrows = map?.getSource('route-arrows');
 
@@ -2003,7 +2271,7 @@ export default function Dashboard() {
         }
 
         (arrows as GeoJSONSource).setData(
-            directionArrows(coordinates, map.getZoom()),
+            directionArrowsForLines(lines, map.getZoom()),
         );
     }
 
@@ -2085,7 +2353,11 @@ export default function Dashboard() {
 
     locateRef.current = locateMe;
 
-    function fitLine(line: Preview, duration = 180): void {
+    function fitLine(
+        line: Preview,
+        duration = 180,
+        arrowLines: Coordinate[][] = [line.coordinates],
+    ): void {
         const map = mapRef.current;
         const first = line.coordinates[0];
 
@@ -2100,7 +2372,7 @@ export default function Dashboard() {
 
         if (duration > 0) {
             map.once('moveend', () => {
-                paintArrows(line.coordinates);
+                paintArrows(arrowLines);
             });
         }
 
@@ -2113,15 +2385,16 @@ export default function Dashboard() {
         );
 
         if (duration === 0) {
-            paintArrows(line.coordinates);
+            paintArrows(arrowLines);
         }
     }
 
     fitRouteRef.current = (duration: number) => {
-        const line = previewRef.current;
+        const line =
+            modeRef.current === 'multisport' ? planLine : previewRef.current;
 
         if (line !== null) {
-            fitLine(line, duration);
+            fitLine(line, duration, arrowLinesRef.current);
         }
     };
 
@@ -2250,7 +2523,29 @@ export default function Dashboard() {
         }
     }
 
+    function saveFile(blob: Blob, filename: string): void {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+    }
+
     function download(): void {
+        if (multisport) {
+            if (plan !== null) {
+                saveFile(
+                    new Blob([multisportGpx(name, plan)], {
+                        type: 'application/gpx+xml',
+                    }),
+                    'traceway.gpx',
+                );
+            }
+
+            return;
+        }
+
         if (preview === null) {
             return;
         }
@@ -2266,7 +2561,55 @@ export default function Dashboard() {
         URL.revokeObjectURL(url);
     }
 
+    async function downloadLegFits(chosen: MultisportPlan): Promise<void> {
+        for (const [index, leg] of chosen.legs.entries()) {
+            if (leg.discipline === 'swim' || leg.coordinates.length < 2) {
+                continue;
+            }
+
+            const response = await fetch('/routes/fit', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/octet-stream',
+                    'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': csrfToken(),
+                },
+                body: JSON.stringify({
+                    name: name || 'Traceway',
+                    sport: leg.discipline,
+                    leg: index + 1,
+                    coordinates: leg.coordinates,
+                }),
+            });
+
+            if (!response.ok) {
+                setMessage(
+                    `The course file for leg ${index + 1} could not be built.`,
+                );
+
+                return;
+            }
+
+            saveFile(
+                await response.blob(),
+                `traceway-${index + 1}-${leg.discipline}.fit`,
+            );
+        }
+
+        setMessage(
+            'One FIT course per leg. Load each into its leg of a multisport activity.',
+        );
+    }
+
     async function downloadFit(): Promise<void> {
+        if (multisport) {
+            if (plan !== null) {
+                await downloadLegFits(plan);
+            }
+
+            return;
+        }
+
         if (preview === null) {
             return;
         }
@@ -2300,8 +2643,48 @@ export default function Dashboard() {
         URL.revokeObjectURL(url);
     }
 
+    function savePayload(): Record<string, unknown> | null {
+        if (!multisport) {
+            return preview === null
+                ? null
+                : {
+                      name: name.trim() || 'Traceway route',
+                      sport,
+                      surface,
+                      elevation,
+                      roads,
+                      distance_metres: preview.distance_metres,
+                      ascent_metres: preview.ascent_metres,
+                      coordinates: preview.coordinates,
+                      user_coordinates: preview.user_coordinates ?? null,
+                      finish_coordinates: preview.finish_coordinates ?? null,
+                  };
+        }
+
+        const first = legs[0];
+
+        if (plan === null || first === undefined) {
+            return null;
+        }
+
+        return {
+            name: name.trim() || 'Traceway session',
+            sport: first.sport,
+            surface: first.surface,
+            elevation: first.elevation,
+            roads: first.roads,
+            distance_metres: plan.distance_metres,
+            ascent_metres: plan.ascent_metres,
+            coordinates: joinedLine(plan),
+            layout: plan.layout,
+            legs: plan.legs,
+        };
+    }
+
     async function saveRoute(): Promise<void> {
-        if (preview === null || saving || routeSaved) {
+        const payload = savePayload();
+
+        if (payload === null || saving || routeSaved) {
             return;
         }
 
@@ -2315,18 +2698,7 @@ export default function Dashboard() {
                     'Content-Type': 'application/json',
                     'X-XSRF-TOKEN': csrfToken(),
                 },
-                body: JSON.stringify({
-                    name: name.trim() || 'Traceway route',
-                    sport,
-                    surface,
-                    elevation,
-                    roads,
-                    distance_metres: preview.distance_metres,
-                    ascent_metres: preview.ascent_metres,
-                    coordinates: preview.coordinates,
-                    user_coordinates: preview.user_coordinates ?? null,
-                    finish_coordinates: preview.finish_coordinates ?? null,
-                }),
+                body: JSON.stringify(payload),
             });
             const body: unknown = await response.json().catch(() => null);
             const url =
@@ -2435,6 +2807,307 @@ export default function Dashboard() {
         fitLine(record);
     }
 
+    function planLegs(plan: MultisportPlan): Coordinate[][] {
+        return plan.legs
+            .filter((leg) => leg.discipline !== 'swim')
+            .map((leg) => leg.coordinates);
+    }
+
+    async function drawMultisport(next?: {
+        legs?: LandLeg[];
+        layout?: Layout;
+        swim?: Coordinate[] | null;
+    }): Promise<void> {
+        const chosenLegs = next?.legs ?? legs;
+        const chosenLayout = next?.layout ?? layout;
+        const chosenSwim = next?.swim === undefined ? swim : next.swim;
+        const missing = chosenLegs.findIndex((leg) => leg.finish === null);
+
+        if (chosenLayout === 'chain' && missing >= 0) {
+            setActiveLeg(missing);
+            setPlacing({ kind: 'finish', leg: missing });
+            setMessage(
+                `Tap the map where leg ${missing + (chosenSwim === null ? 1 : 2)} ends.`,
+            );
+
+            return;
+        }
+
+        setRouteSaved(false);
+        setPlacing(null);
+        dirty.current = true;
+        setBusy(true);
+        setMessage('Drawing every leg…');
+
+        try {
+            const response = await fetch('/routes/multisport', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': csrfToken(),
+                },
+                body: JSON.stringify({
+                    layout: chosenLayout,
+                    latitude,
+                    longitude,
+                    ...(chosenSwim === null || chosenSwim.length === 0
+                        ? {}
+                        : { swim: { coordinates: chosenSwim } }),
+                    legs: chosenLegs.map((leg) => ({
+                        sport: leg.sport,
+                        surface: leg.surface,
+                        elevation: leg.elevation,
+                        roads: leg.roads,
+                        distance_metres: Math.round(leg.distanceKm * 1000),
+                        ...(chosenLayout === 'chain' && leg.finish !== null
+                            ? {
+                                  finish_latitude: leg.finish[1],
+                                  finish_longitude: leg.finish[0],
+                              }
+                            : {}),
+                    })),
+                }),
+            });
+            const body: unknown = await response.json().catch(() => null);
+
+            if (!response.ok || !isPlan(body)) {
+                const record =
+                    typeof body === 'object' && body !== null
+                        ? (body as Record<string, unknown>)
+                        : {};
+                setMessage(
+                    typeof record.message === 'string'
+                        ? record.message
+                        : 'One of the legs did not come back.',
+                );
+
+                return;
+            }
+
+            setPlan(body);
+            setMessage(
+                chosenLayout === 'loops'
+                    ? 'Every leg leaves the transition and comes back to it. Arrows point the way you travel.'
+                    : 'Each leg ends where the next one starts. Arrows point the way you travel.',
+            );
+            fitLine(
+                {
+                    distance_metres: body.distance_metres,
+                    ascent_metres: body.ascent_metres,
+                    coordinates: joinedLine(body),
+                },
+                180,
+                planLegs(body),
+            );
+        } catch {
+            setMessage('One of the legs did not come back.');
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    function changeLegs(nextLegs: LandLeg[]): void {
+        dirty.current = true;
+        setLegs(nextLegs);
+        setActiveLeg((current) => Math.min(current, nextLegs.length - 1));
+
+        if (plan !== null) {
+            void drawMultisport({ legs: nextLegs });
+        }
+    }
+
+    function updateLeg(patch: Partial<Omit<LandLeg, 'id'>>): void {
+        setSheet(null);
+        changeLegs(
+            legs.map((leg, index) =>
+                index === activeLeg ? { ...leg, ...patch } : leg,
+            ),
+        );
+    }
+
+    function choosePreset(value: (typeof presets)[number]['value']): void {
+        const preset = presets.find((item) => item.value === value);
+
+        if (preset === undefined) {
+            return;
+        }
+
+        const nextLegs = withIds(preset.legs);
+        const nextSwim = preset.swim ? (swim ?? []) : null;
+        dirty.current = true;
+        setLegs(nextLegs);
+        setSwim(nextSwim);
+        setActiveLeg(0);
+        setPlan(null);
+        setPlacing(
+            nextSwim !== null && nextSwim.length === 0
+                ? { kind: 'swim' }
+                : null,
+        );
+        setName(preset.label);
+        setMessage(
+            nextSwim !== null && nextSwim.length === 0
+                ? 'Tap the water to draw the swim, then draw the route.'
+                : `${preset.label}. Draw the route when you are ready.`,
+        );
+    }
+
+    function chooseLayout(value: Layout): void {
+        if (value === layout) {
+            return;
+        }
+
+        dirty.current = true;
+        setLayout(value);
+        setPlan(null);
+
+        if (value === 'chain') {
+            const missing = legs.findIndex((leg) => leg.finish === null);
+
+            if (missing >= 0) {
+                setActiveLeg(missing);
+                setPlacing({ kind: 'finish', leg: missing });
+                setMessage(
+                    `Tap the map where leg ${missing + (swim === null ? 1 : 2)} ends.`,
+                );
+
+                return;
+            }
+        }
+
+        setPlacing(null);
+        setMessage('Draw the route when you are ready.');
+    }
+
+    function toggleSwim(enabled: boolean): void {
+        dirty.current = true;
+        setSwim(enabled ? [] : null);
+        setPlan(null);
+        setPlacing(enabled ? { kind: 'swim' } : null);
+        setMessage(
+            enabled
+                ? 'Tap the water to draw the swim. Tap once for a pin.'
+                : 'Swim removed.',
+        );
+    }
+
+    function drawSwim(): void {
+        if (placing?.kind === 'swim') {
+            setPlacing(null);
+            setMessage('Swim kept. Draw the route when you are ready.');
+
+            return;
+        }
+
+        dirty.current = true;
+        setSwim([]);
+        setPlan(null);
+        setPlacing({ kind: 'swim' });
+        setMessage('Tap the water to draw the swim. Tap once for a pin.');
+    }
+
+    function addLeg(): void {
+        if (legs.length >= mostLandLegs) {
+            return;
+        }
+
+        const last = legs[legs.length - 1];
+        const nextLegs = [
+            ...legs,
+            newLeg(last !== undefined && last.sport === 'run' ? 'road' : 'run'),
+        ];
+        dirty.current = true;
+        setLegs(nextLegs);
+        setActiveLeg(nextLegs.length - 1);
+        setPlan(null);
+
+        if (layout === 'chain') {
+            setPlacing({ kind: 'finish', leg: nextLegs.length - 1 });
+        }
+    }
+
+    function removeLeg(index: number): void {
+        if (legs.length < 2) {
+            return;
+        }
+
+        setPlacing(null);
+        changeLegs(legs.filter((_, item) => item !== index));
+    }
+
+    function moveLeg(from: number, to: number): void {
+        if (to < 0 || to >= legs.length || from === to) {
+            return;
+        }
+
+        const nextLegs = [...legs];
+        const [item] = nextLegs.splice(from, 1);
+
+        if (item === undefined) {
+            return;
+        }
+
+        nextLegs.splice(to, 0, item);
+        setActiveLeg(to);
+        changeLegs(nextLegs);
+    }
+
+    function placeFinish(index: number): void {
+        setActiveLeg(index);
+        setPlacing({ kind: 'finish', leg: index });
+        setMessage(
+            `Tap the map where leg ${index + (swim === null ? 1 : 2)} ends.`,
+        );
+    }
+
+    function clickMultisport(lng: number, lat: number): void {
+        const point: Coordinate = [lng, lat];
+        dirty.current = true;
+
+        if (placing?.kind === 'swim') {
+            const nextSwim = [...(swim ?? []), point].slice(0, mostSwimPoints);
+            setSwim(nextSwim);
+            setPlan(null);
+            setMessage(
+                nextSwim.length >= mostSwimPoints
+                    ? 'That is the most points a swim can have.'
+                    : 'Keep tapping to draw the swim. Tap the swim row when it is done.',
+            );
+
+            return;
+        }
+
+        if (placing?.kind === 'finish') {
+            const nextLegs = legs.map((leg, index) =>
+                index === placing.leg ? { ...leg, finish: point } : leg,
+            );
+            const missing = nextLegs.findIndex((leg) => leg.finish === null);
+            setLegs(nextLegs);
+            setPlan(null);
+
+            if (missing >= 0) {
+                setActiveLeg(missing);
+                setPlacing({ kind: 'finish', leg: missing });
+                setMessage(
+                    `Tap the map where leg ${missing + (swim === null ? 1 : 2)} ends.`,
+                );
+
+                return;
+            }
+
+            setPlacing(null);
+            void drawMultisport({ legs: nextLegs });
+
+            return;
+        }
+
+        setLongitude(lng);
+        setLatitude(lat);
+        setPlan(null);
+        setMessage('Transition moved. Draw the route when you are ready.');
+    }
+
     function showSnapRing(point: RoadSnap | null): void {
         const map = mapRef.current;
 
@@ -2532,6 +3205,12 @@ export default function Dashboard() {
     }
 
     onMapClickRef.current = (lng, lat) => {
+        if (mode === 'multisport') {
+            clickMultisport(lng, lat);
+
+            return;
+        }
+
         if (mode === 'build') {
             placeBuildPoint(lng, lat);
 
@@ -2723,18 +3402,36 @@ export default function Dashboard() {
     }
 
     function chooseSport(value: string): void {
+        if (multisport) {
+            updateLeg({ sport: value });
+
+            return;
+        }
+
         setSport(value);
         setSheet(null);
         redraw({ sport: value });
     }
 
     function chooseSurface(value: string): void {
+        if (multisport) {
+            updateLeg({ surface: value });
+
+            return;
+        }
+
         setSurface(value);
         setSheet(null);
         redraw({ surface: value });
     }
 
     function chooseElevation(value: string): void {
+        if (multisport) {
+            updateLeg({ elevation: value });
+
+            return;
+        }
+
         setElevation(value);
         setSheet(null);
         redraw({ elevation: value });
@@ -2871,11 +3568,7 @@ export default function Dashboard() {
                                 <button
                                     type="button"
                                     aria-label="Fit the route"
-                                    onClick={() => {
-                                        if (preview) {
-                                            fitLine(preview);
-                                        }
-                                    }}
+                                    onClick={() => fitRouteRef.current(180)}
                                 >
                                     <svg
                                         width="16"
@@ -2927,6 +3620,14 @@ export default function Dashboard() {
                                 path
                             </p>
                         ) : null}
+                        {multisport && placing !== null ? (
+                            <p className="maphint">
+                                <b>+</b>{' '}
+                                {placing.kind === 'swim'
+                                    ? 'Tap the water to draw the swim'
+                                    : 'Tap where this leg ends'}
+                            </p>
+                        ) : null}
                         <p className="attr">
                             MapLibre · OpenFreeMap · © OpenMapTiles · Data from
                             OpenStreetMap
@@ -2966,14 +3667,18 @@ export default function Dashboard() {
                             >
                                 <span>
                                     <b>
-                                        {preview
-                                            ? `${(preview.distance_metres / 1000).toFixed(1)} km`
-                                            : `${distanceKm} km`}
+                                        {shown
+                                            ? `${(shown.distance_metres / 1000).toFixed(1)} km`
+                                            : multisport
+                                              ? `${legs.reduce((total, leg) => total + leg.distanceKm, 0)} km`
+                                              : `${distanceKm} km`}
                                     </b>
-                                    {routes.length > 0
-                                        ? ` · Loop ${routeIndex + 1} of ${routes.length}`
-                                        : ` · ${shapeLabel}`}
-                                    {` · ${surfaceLabel}`}
+                                    {multisport
+                                        ? ` · ${legs.length + (swim === null ? 0 : 1)} legs · ${layout === 'loops' ? 'Loops from T' : 'Chain'}`
+                                        : routes.length > 0
+                                          ? ` · Loop ${routeIndex + 1} of ${routes.length}`
+                                          : ` · ${shapeLabel}`}
+                                    {multisport ? '' : ` · ${surfaceLabel}`}
                                 </span>
                             </button>
                             <div className="title-row">
@@ -3080,7 +3785,10 @@ export default function Dashboard() {
                                     type="button"
                                     role="tab"
                                     aria-selected={mode === 'generate'}
-                                    onClick={() => setMode('generate')}
+                                    onClick={() => {
+                                        setPlacing(null);
+                                        setMode('generate');
+                                    }}
                                 >
                                     Generate
                                 </button>
@@ -3088,14 +3796,80 @@ export default function Dashboard() {
                                     type="button"
                                     role="tab"
                                     aria-selected={mode === 'build'}
-                                    onClick={() => setMode('build')}
+                                    onClick={() => {
+                                        setPlacing(null);
+                                        setMode('build');
+                                    }}
                                 >
                                     Build
+                                </button>
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={mode === 'multisport'}
+                                    onClick={() => {
+                                        setMode('multisport');
+                                        setMessage(
+                                            plan === null
+                                                ? 'Pick a session, set the transition, then draw.'
+                                                : 'Every leg, in order.',
+                                        );
+                                    }}
+                                >
+                                    Multisport
                                 </button>
                             </div>
                         </div>
                         <div className="pbody">
-                            {mode === 'generate' ? (
+                            {multisport ? (
+                                <MultisportLegs
+                                    legs={legs}
+                                    layout={layout}
+                                    swim={swim}
+                                    activeLeg={activeLeg}
+                                    placing={placing}
+                                    labels={{
+                                        sport: (value) =>
+                                            sports.find(
+                                                (item) => item.value === value,
+                                            )?.label ?? value,
+                                        surface: (value) =>
+                                            surfaces.find(
+                                                (item) => item.value === value,
+                                            )?.label ?? value,
+                                        elevation: (value) =>
+                                            elevations.find(
+                                                (item) => item.value === value,
+                                            )?.label ?? value,
+                                        roads: (value) =>
+                                            roadsOptions.find(
+                                                (item) => item.value === value,
+                                            )?.label ?? value,
+                                    }}
+                                    onPreset={choosePreset}
+                                    onLayout={chooseLayout}
+                                    onSwim={toggleSwim}
+                                    onDrawSwim={drawSwim}
+                                    onSelect={(index) => {
+                                        setActiveLeg(index);
+
+                                        if (
+                                            layout === 'chain' &&
+                                            placing?.kind === 'finish'
+                                        ) {
+                                            setPlacing({
+                                                kind: 'finish',
+                                                leg: index,
+                                            });
+                                        }
+                                    }}
+                                    onOpen={(next: LegSheet) => setSheet(next)}
+                                    onAdd={addLeg}
+                                    onRemove={removeLeg}
+                                    onMove={moveLeg}
+                                    onPlaceFinish={placeFinish}
+                                />
+                            ) : mode === 'generate' ? (
                                 <section aria-label="Ask">
                                     <p className="sec-label">Ask</p>
                                     <button
@@ -3579,14 +4353,16 @@ export default function Dashboard() {
                                 className="fill"
                                 disabled={busy}
                                 onClick={() =>
-                                    void (mode === 'build'
-                                        ? drawBuild()
-                                        : generate())
+                                    void (multisport
+                                        ? drawMultisport()
+                                        : mode === 'build'
+                                          ? drawBuild()
+                                          : generate())
                                 }
                             >
                                 {busy
                                     ? 'Drawing…'
-                                    : preview
+                                    : shown
                                       ? 'Draw again'
                                       : 'Draw route'}
                             </button>
@@ -3643,16 +4419,61 @@ export default function Dashboard() {
                                 </div>
                                 <div className="big">
                                     <b>
-                                        {preview
-                                            ? `${(preview.distance_metres / 1000).toFixed(1)} km`
+                                        {shown
+                                            ? `${(shown.distance_metres / 1000).toFixed(1)} km`
                                             : '0.0 km'}
                                     </b>
                                     <span>
-                                        {preview
-                                            ? `${preview.ascent_metres > 0 ? `${preview.ascent_metres} m ascent · ` : ''}${surfaceLabel} · ${elevationLabel === 'Any' ? 'any hills' : elevationLabel}`
-                                            : 'Set your ask, then draw.'}
+                                        {multisport
+                                            ? plan === null
+                                                ? 'Set the session, then draw.'
+                                                : `${plan.ascent_metres > 0 ? `${plan.ascent_metres} m ascent · ` : ''}${plan.legs.length} legs`
+                                            : preview
+                                              ? `${preview.ascent_metres > 0 ? `${preview.ascent_metres} m ascent · ` : ''}${surfaceLabel} · ${elevationLabel === 'Any' ? 'any hills' : elevationLabel}`
+                                              : 'Set your ask, then draw.'}
                                     </span>
                                 </div>
+                                {multisport && plan !== null ? (
+                                    <ol className="leg-list">
+                                        {plan.legs.map((leg, index) => (
+                                            <li key={index}>
+                                                <i
+                                                    aria-hidden="true"
+                                                    className={
+                                                        leg.discipline ===
+                                                        'swim'
+                                                            ? 'dotted'
+                                                            : undefined
+                                                    }
+                                                    style={{
+                                                        background: legPaint(
+                                                            leg.discipline,
+                                                        ).line,
+                                                        color: legPaint(
+                                                            leg.discipline,
+                                                        ).line,
+                                                    }}
+                                                />
+                                                <b>
+                                                    {leg.discipline === 'swim'
+                                                        ? 'Swim'
+                                                        : (sports.find(
+                                                              (item) =>
+                                                                  item.value ===
+                                                                  leg.discipline,
+                                                          )?.label ??
+                                                          leg.discipline)}
+                                                </b>
+                                                <span>
+                                                    {`${(leg.distance_metres / 1000).toFixed(1)} km`}
+                                                    {leg.ascent_metres > 0
+                                                        ? ` · ${leg.ascent_metres} m`
+                                                        : ''}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                ) : null}
                                 {mode === 'build' && preview ? (
                                     <div className="legend">
                                         <span>
@@ -3685,7 +4506,7 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="outline"
-                                        disabled={preview === null}
+                                        disabled={shown === null}
                                         onClick={download}
                                     >
                                         Export GPX
@@ -3693,7 +4514,7 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="outline"
-                                        disabled={preview === null}
+                                        disabled={shown === null}
                                         onClick={() => void downloadFit()}
                                     >
                                         Export FIT
@@ -3704,7 +4525,7 @@ export default function Dashboard() {
                                         type="button"
                                         className="outline"
                                         disabled={
-                                            preview === null ||
+                                            shown === null ||
                                             saving ||
                                             routeSaved
                                         }
@@ -3717,22 +4538,39 @@ export default function Dashboard() {
                                               : 'Save to profile'}
                                     </button>
                                 </div>
-                                <p className="small">
-                                    FIT for Garmin. GPX for Wahoo, Hammerhead,
-                                    Bryton and COROS. Device name{' '}
-                                    <b>
-                                        {(name.trim() || 'Traceway').slice(
-                                            0,
+                                {multisport ? (
+                                    <p className="small">
+                                        One FIT course for each land leg, named
+                                        like{' '}
+                                        <b>
+                                            {legDeviceName(
+                                                name,
+                                                swim === null ? 1 : 2,
+                                                legs[0]?.sport ?? 'road',
+                                            )}
+                                        </b>
+                                        . The GPX holds every leg as its own
+                                        track. The swim has no course.
+                                    </p>
+                                ) : (
+                                    <p className="small">
+                                        FIT for Garmin. GPX for Wahoo,
+                                        Hammerhead, Bryton and COROS. Device
+                                        name{' '}
+                                        <b>
+                                            {(name.trim() || 'Traceway').slice(
+                                                0,
+                                                15,
+                                            )}
+                                        </b>
+                                        ,{' '}
+                                        {Math.min(
                                             15,
-                                        )}
-                                    </b>
-                                    ,{' '}
-                                    {Math.min(
-                                        15,
-                                        (name.trim() || 'Traceway').length,
-                                    )}{' '}
-                                    of 15 characters.
-                                </p>
+                                            (name.trim() || 'Traceway').length,
+                                        )}{' '}
+                                        of 15 characters.
+                                    </p>
+                                )}
                             </section>
                         </div>
                     </aside>
@@ -3766,7 +4604,7 @@ export default function Dashboard() {
                         options={visibleSports.filter(
                             (item) => item.group === 'Foot',
                         )}
-                        selected={sport}
+                        selected={sheetSport}
                         onSelect={chooseSport}
                     />
                     <OptionGroup
@@ -3774,7 +4612,7 @@ export default function Dashboard() {
                         options={visibleSports.filter(
                             (item) => item.group === 'Bike',
                         )}
-                        selected={sport}
+                        selected={sheetSport}
                         onSelect={chooseSport}
                     />
                 </SheetContent>
@@ -3799,8 +4637,14 @@ export default function Dashboard() {
                     </SheetHeader>
                     {sheet === 'length' ? (
                         <LengthEditor
-                            initialKm={distanceKm}
+                            initialKm={sheetKm}
                             onApply={(kilometres) => {
+                                if (multisport) {
+                                    updateLeg({ distanceKm: kilometres });
+
+                                    return;
+                                }
+
                                 setDistanceKm(kilometres);
                                 setSheet(null);
                                 redraw({ distanceKm: kilometres });
@@ -3824,8 +4668,14 @@ export default function Dashboard() {
                                 key={option.value}
                                 label={option.label}
                                 copy={option.copy}
-                                selected={roads === option.value}
+                                selected={sheetRoads === option.value}
                                 onSelect={() => {
+                                    if (multisport) {
+                                        updateLeg({ roads: option.value });
+
+                                        return;
+                                    }
+
                                     setRoads(option.value);
                                     setSheet(null);
 
@@ -3867,7 +4717,7 @@ export default function Dashboard() {
                                 key={option.value}
                                 label={option.label}
                                 copy={option.copy}
-                                selected={elevation === option.value}
+                                selected={sheetElevation === option.value}
                                 onSelect={() => chooseElevation(option.value)}
                             />
                         ))}
@@ -3945,7 +4795,7 @@ export default function Dashboard() {
                                 key={option.value}
                                 label={option.label}
                                 copy={option.copy}
-                                selected={surface === option.value}
+                                selected={sheetSurface === option.value}
                                 onSelect={() => chooseSurface(option.value)}
                             />
                         ))}
