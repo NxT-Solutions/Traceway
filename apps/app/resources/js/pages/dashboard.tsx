@@ -30,7 +30,6 @@ import {
     streetsMapStyle,
     themedMapStyle,
 } from '@/lib/maplibre';
-import { forgetSharedPlannerDraft, plannerDraftKey } from '@/lib/planner-draft';
 import {
     isLandLeg,
     isCoordinate as isLegCoordinate,
@@ -48,6 +47,7 @@ import {
     presets,
     withIds,
 } from '@/lib/multisport';
+import { forgetSharedPlannerDraft, plannerDraftKey } from '@/lib/planner-draft';
 import {
     arrowIconSize,
     directionArrows,
