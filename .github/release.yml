@@ -1,0 +1,17 @@
+# Groups the notes GitHub writes when you click "Generate release notes".
+changelog:
+  exclude:
+    labels: [duplicate, invalid, wontfix]
+  categories:
+    - title: New
+      labels: [enhancement]
+    - title: Fixes
+      labels: [bug]
+    - title: Devices
+      labels: [device]
+    - title: Docs
+      labels: [documentation]
+    - title: Dependencies
+      labels: [dependencies]
+    - title: Other changes
+      labels: ["*"]
