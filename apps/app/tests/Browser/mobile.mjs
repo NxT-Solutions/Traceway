@@ -95,6 +95,27 @@ try {
         });
     }
 
+    // After the map frames the route, every pin sits between the player
+    // card and the drawer.
+    async function framed(selector, label) {
+        await page.waitForTimeout(800);
+        const card = await page.locator('.player-card').boundingBox();
+        const panel = await page.locator('.panel').boundingBox();
+        const pins = await page.locator(selector).evaluateAll((nodes) =>
+            nodes.map((node) => {
+                const box = node.getBoundingClientRect();
+
+                return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+            }),
+        );
+        const top = card ? card.y + card.height : 0;
+        const bottom = panel ? panel.y : 844;
+
+        if (pins.length === 0 || pins.some((pin) => pin.y < top || pin.y > bottom || pin.x < 0 || pin.x > 390)) {
+            throw new Error(`${label}: the route is not framed in the open map (${JSON.stringify(pins)} between ${top} and ${bottom})`);
+        }
+    }
+
     async function legNames() {
         return page.locator('section[aria-label="Legs"] button.field').evaluateAll((fields) =>
             fields.map((field) => field.querySelector('span')?.textContent ?? ''),
@@ -233,6 +254,7 @@ try {
     await closeDrawer();
     const player = page.locator('.player-card');
     await player.waitFor();
+    await framed('.tw-start-pin', 'The brick');
     const track = await page.locator('.player-card input[type="range"]').boundingBox();
 
     if (!track) {
@@ -297,7 +319,9 @@ try {
 
     await openDrawer();
     await drawn();
-    step('dragged a finish pin and the chain drew again');
+    await closeDrawer();
+    await framed('.tw-start-pin, .finish-pin', 'The chain');
+    step('dragged a finish pin and the chain drew again, framed in the open map');
 
     await fits(page, 'Planner after every gesture');
     console.log(`mobile gestures passed (${steps.length} steps)`);

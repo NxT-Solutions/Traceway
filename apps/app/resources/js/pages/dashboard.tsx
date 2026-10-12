@@ -2484,12 +2484,30 @@ export default function Dashboard() {
         const map = mapRef.current;
         const first = line.coordinates[0];
 
+        // Tiles may still be loading. fitBounds does not need them, and a
+        // fit skipped for them would leave the map where it was.
         if (
             first === undefined ||
             map === null ||
-            !map.isStyleLoaded() ||
             map.getContainer().clientHeight < 50
         ) {
+            return;
+        }
+
+        const padding = framePadding();
+        const open =
+            typeof padding === 'number'
+                ? map.getContainer().clientHeight - padding * 2
+                : map.getContainer().clientHeight -
+                  (padding.top ?? 0) -
+                  (padding.bottom ?? 0);
+
+        // With the drawer open on a phone only a sliver of map shows. Fitting
+        // the route into it would zoom out to half a continent, so the map
+        // waits and fits when the drawer closes.
+        if (open < 120) {
+            paintArrows(arrowLines);
+
             return;
         }
 
@@ -2504,7 +2522,7 @@ export default function Dashboard() {
                 (bounds, coordinate) => bounds.extend(coordinate),
                 new maplibregl.LngLatBounds(first, first),
             ),
-            { padding: framePadding(), duration, maxZoom: 16 },
+            { padding, duration, maxZoom: 16 },
         );
 
         if (duration === 0) {
