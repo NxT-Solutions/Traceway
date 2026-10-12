@@ -102,7 +102,8 @@ export default function Privacy({
 
                 <p className="desc">
                     The download includes your account and the full geometry of
-                    each saved route. Your password and sign-in secrets stay
+                    each saved route, with every leg of a multisport plan and
+                    the swim you drew. Your password and sign-in secrets stay
                     here. A copy of the file is also sent to {account.email}.
                 </p>
 

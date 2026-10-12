@@ -604,7 +604,7 @@ body:has(.tw-planner) .tw-pop .check svg{display:none}
 body:has(.tw-planner) .tw-pop button.choice.on .check svg{display:block}
 body:has(.tw-planner) .tw-pop .group-label{margin:4px 0 0;font-size:13px;color:var(--muted, oklch(0.45 0.02 200))}
 .tw-planner .mark.leg{color:#fff}
-.tw-planner .mark.swim{background:transparent;border:1.5px dashed #1d4ed8;color:#1d4ed8}
+.tw-planner .mark.swim{background:transparent;border:1.5px dashed #1d4ed8;color:var(--text)}
 .tw-planner .legs .pt.on .field{border-color:var(--text)}
 .tw-planner .leg-list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
 .tw-planner .leg-list li{display:flex;align-items:center;gap:10px;font-size:14px}
@@ -672,3 +672,6 @@ body:has(.tw-planner) .tw-pop .swatch:focus-visible{outline:2px solid var(--text
 body:has(.tw-planner) .tw-pop [data-slot="sheet-header"] + :is(.choices, .colour-picker, .slider){margin-top:14px}
 body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child{cursor:pointer;color:var(--text, oklch(0.22 0.03 200));opacity:.7}
 body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{background:var(--hover, oklch(0.94 0.012 95));opacity:1}
+.tw-planner .row.order{cursor:default}
+.tw-planner .row.order .v{gap:4px}
+.tw-planner .ghostbtn:disabled{opacity:.35;cursor:default;background:transparent}

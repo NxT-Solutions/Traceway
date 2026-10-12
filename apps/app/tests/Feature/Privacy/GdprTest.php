@@ -139,3 +139,48 @@ it('does not put the new password in the welcome message', function (): void {
             && ! str_contains($encoded, 'a-secret-password');
     });
 })->group('gdpr');
+
+it('puts every leg of a multisport plan, swim included, in the download', function (): void {
+    Mail::fake();
+
+    $user = User::factory()->create();
+    SavedRoute::factory()->create([
+        'user_id' => $user->id,
+        'name' => 'Sunday triathlon',
+        'layout' => 'chain',
+        'legs' => [
+            ['discipline' => 'swim', 'distance_metres' => 750, 'ascent_metres' => 0, 'coordinates' => [[4.891, 51.101], [4.895, 51.103]], 'color' => null],
+            ['discipline' => 'road', 'distance_metres' => 20_000, 'ascent_metres' => 40, 'coordinates' => [[4.9, 51.1], [4.93, 51.12]], 'color' => '#db2777'],
+        ],
+    ]);
+
+    $document = json_decode($this->actingAs($user)->get(route('privacy.export'))->assertOk()->streamedContent(), associative: true);
+    $route = $document['saved_routes'][0];
+
+    expect($route['layout'])->toBe('chain')
+        ->and($route['legs'])->toHaveCount(2)
+        ->and($route['legs'][0]['discipline'])->toBe('swim')
+        ->and($route['legs'][0]['coordinates'])->toBe([[4.891, 51.101], [4.895, 51.103]])
+        ->and($route['legs'][1]['color'])->toBe('#db2777');
+})->group('gdpr');
+
+it('does not put the owner on a shared multisport course or its leg files', function (): void {
+    $user = User::factory()->create(['email' => 'owner-private@traceway.test', 'name' => 'Owner']);
+    $route = SavedRoute::factory()->create([
+        'user_id' => $user->id,
+        'layout' => 'loops',
+        'legs' => [
+            ['discipline' => 'road', 'distance_metres' => 20_000, 'ascent_metres' => 40, 'coordinates' => [[4.9, 51.1], [4.93, 51.12], [4.9, 51.1]]],
+            ['discipline' => 'run', 'distance_metres' => 5_000, 'ascent_metres' => 10, 'coordinates' => [[4.9, 51.1], [4.91, 51.11], [4.9, 51.1]]],
+        ],
+    ]);
+
+    $this->get(URL::signedRoute('routes.share', $route))
+        ->assertOk()
+        ->assertDontSee('owner-private@traceway.test', false)
+        ->assertDontSee('Owner', false);
+
+    expect($this->get(URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $route->id, 'leg' => 2]))->getContent())
+        ->not->toContain('owner-private@traceway.test')
+        ->not->toContain('Owner');
+})->group('gdpr');
