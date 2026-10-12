@@ -44,6 +44,8 @@ import {
     multisportGpx,
     newLeg,
     presets,
+    type RaceDistance,
+    sessionOf,
     withIds,
 } from '@/lib/multisport';
 import { forgetSharedPlannerDraft, plannerDraftKey } from '@/lib/planner-draft';
@@ -948,6 +950,7 @@ type SavedMultisport = {
     plan: MultisportPlan | null;
     colourSet?: ColourSet;
     swimColour?: string | null;
+    swimTargetKm?: number | null;
 };
 
 function savedMultisport(saved: SavedPlanner | null): SavedMultisport | null {
@@ -1444,6 +1447,11 @@ export default function Dashboard() {
     );
     const [swimColour, setSwimColour] = useState<string | null>(
         savedPlan?.swimColour ?? null,
+    );
+    const [swimTargetKm, setSwimTargetKm] = useState<number | null>(
+        typeof savedPlan?.swimTargetKm === 'number'
+            ? savedPlan.swimTargetKm
+            : null,
     );
     const multisportMarkersRef = useRef<maplibregl.Marker[]>([]);
     const moveFinishRef = useRef<(index: number, point: Coordinate) => void>(
@@ -2214,7 +2222,15 @@ export default function Dashboard() {
             via,
             routes,
             routeIndex,
-            multisport: { legs, layout, swim, plan, colourSet, swimColour },
+            multisport: {
+                legs,
+                layout,
+                swim,
+                plan,
+                colourSet,
+                swimColour,
+                swimTargetKm,
+            },
         };
         window.localStorage.setItem(storageKey, JSON.stringify(payload));
     }, [
@@ -2238,6 +2254,7 @@ export default function Dashboard() {
         plan,
         colourSet,
         swimColour,
+        swimTargetKm,
     ]);
 
     useEffect(() => {
@@ -3002,11 +3019,15 @@ export default function Dashboard() {
             return;
         }
 
-        const nextLegs = withIds(preset.legs);
+        const nextLegs = withIds(preset.legs).map((leg) => ({
+            ...leg,
+            stretch: true,
+        }));
         const nextSwim = preset.swim ? (swim ?? []) : null;
         dirty.current = true;
         setLegs(nextLegs);
         setSwim(nextSwim);
+        setSwimTargetKm(preset.swim ? 1.5 : null);
         setActiveLeg(0);
         setPlan(null);
         setPlacing(
@@ -3019,6 +3040,26 @@ export default function Dashboard() {
             nextSwim !== null && nextSwim.length === 0
                 ? 'Tap the water to draw the swim, then draw the route.'
                 : `${preset.label}. Draw the route when you are ready.`,
+        );
+    }
+
+    function chooseRace(race: RaceDistance): void {
+        const session = sessionOf(legs, swim !== null);
+        const label =
+            presets.find((item) => item.value === session)?.label ?? '';
+        setSwimTargetKm(race.swimKm);
+        setName(`${race.label} ${label.toLowerCase()}`.trim());
+        setMessage(
+            race.swimKm === null
+                ? `${race.copy} Draw the route when you are ready.`
+                : `${race.copy} Draw about ${race.swimKm} km of swim on the water, then draw the route.`,
+        );
+        changeLegs(
+            legs.map((leg, index) => ({
+                ...leg,
+                distanceKm: race.legs[index] ?? leg.distanceKm,
+                stretch: true,
+            })),
         );
     }
 
@@ -3819,6 +3860,8 @@ export default function Dashboard() {
                                     }}
                                     colours={legColours}
                                     colourSet={colourSet}
+                                    swimTargetKm={swimTargetKm}
+                                    onRace={chooseRace}
                                     onPreset={choosePreset}
                                     onLayout={chooseLayout}
                                     onSwim={toggleSwim}

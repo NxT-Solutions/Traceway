@@ -135,6 +135,113 @@ export function sessionOf(legs: LandLeg[], hasSwim: boolean): SessionKind {
     return 'custom';
 }
 
+/**
+ * The standard race distances, so a session can rehearse a whole race.
+ * Leg lengths follow the leg order of the session. Formats are named by
+ * their distance, not by the brands that run them.
+ */
+export const raceDistances = {
+    triathlon: [
+        {
+            value: 'sprint',
+            label: 'Sprint',
+            copy: '750 m swim, 20 km ride, 5 km run.',
+            swimKm: 0.75,
+            legs: [20, 5],
+        },
+        {
+            value: 'olympic',
+            label: 'Olympic',
+            copy: '1.5 km swim, 40 km ride, 10 km run.',
+            swimKm: 1.5,
+            legs: [40, 10],
+        },
+        {
+            value: 'middle',
+            label: '70.3',
+            copy: 'Middle distance: 1.9 km swim, 90 km ride, 21.1 km run.',
+            swimKm: 1.9,
+            legs: [90, 21.1],
+        },
+        {
+            value: 'pro',
+            label: '100',
+            copy: 'The 100 km pro format: 2 km swim, 80 km ride, 18 km run.',
+            swimKm: 2,
+            legs: [80, 18],
+        },
+        {
+            value: 'full',
+            label: '140.6',
+            copy: 'Full distance: 3.8 km swim, 180 km ride, 42.2 km run.',
+            swimKm: 3.8,
+            legs: [180, 42.2],
+        },
+    ],
+    duathlon: [
+        {
+            value: 'sprint',
+            label: 'Sprint',
+            copy: '5 km run, 20 km ride, 2.5 km run.',
+            swimKm: null,
+            legs: [5, 20, 2.5],
+        },
+        {
+            value: 'standard',
+            label: 'Standard',
+            copy: '10 km run, 40 km ride, 5 km run.',
+            swimKm: null,
+            legs: [10, 40, 5],
+        },
+        {
+            value: 'long',
+            label: 'Long',
+            copy: 'Long distance: 10 km run, 150 km ride, 30 km run.',
+            swimKm: null,
+            legs: [10, 150, 30],
+        },
+    ],
+} as const;
+
+export type RaceDistance = {
+    value: string;
+    label: string;
+    copy: string;
+    swimKm: number | null;
+    legs: readonly number[];
+};
+
+export function raceDistancesFor(
+    session: SessionKind,
+): readonly RaceDistance[] {
+    return session === 'triathlon' || session === 'duathlon'
+        ? raceDistances[session]
+        : [];
+}
+
+/**
+ * The race whose distances the legs match, if any.
+ */
+export function raceOf(
+    session: SessionKind,
+    legs: LandLeg[],
+    swimTargetKm: number | null,
+): RaceDistance | null {
+    const near = (left: number, right: number) => Math.abs(left - right) < 0.05;
+
+    return (
+        raceDistancesFor(session).find(
+            (race) =>
+                race.legs.length === legs.length &&
+                race.legs.every((km, index) =>
+                    near(km, legs[index]?.distanceKm ?? -1),
+                ) &&
+                (race.swimKm === null ||
+                    (swimTargetKm !== null && near(race.swimKm, swimTargetKm))),
+        ) ?? null
+    );
+}
+
 export function withIds(legs: ReadonlyArray<Omit<LandLeg, 'id'>>): LandLeg[] {
     return legs.map((item) => ({
         ...item,
