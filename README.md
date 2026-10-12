@@ -56,12 +56,8 @@ No feed, no followers, no leaderboard. Just the map and the route.
 
 Foot and bike are equal in Traceway. Foot sports route the way a walker or runner moves, and bikes route by bike type: road, gravel, or mountain. The surface you pick, paved, mixed, or dirt, decides how much tarmac the loop takes.
 
-| On foot | On a bike |
-|---|---|
-| Run | Road |
-| Trail run | Gravel |
-| Walk | Mountain bike |
-| Hike | |
+- **On foot:** run, trail run, walk, hike.
+- **On a bike:** road, gravel, mountain bike.
 
 ## On your device
 
