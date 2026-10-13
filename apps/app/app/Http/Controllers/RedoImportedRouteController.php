@@ -19,6 +19,16 @@ use Throwable;
 
 class RedoImportedRouteController extends Controller
 {
+    /**
+     * Valhalla is both the follower and the engine. As two arguments of the
+     * action, Laravel would hand the one object over once and drop the
+     * second, so the constructor takes them.
+     */
+    public function __construct(
+        private readonly LineFollower $lineFollower,
+        private readonly RoutingEngine $routingEngine,
+    ) {}
+
     #[Post(
         path: '/routes/import/redo',
         operationId: 'redoImportedRoute',
@@ -52,7 +62,7 @@ class RedoImportedRouteController extends Controller
         description: 'The roads did not join up.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
-    public function __invoke(RedoImportedRouteRequest $redoImportedRouteRequest, LineFollower $lineFollower, RoutingEngine $routingEngine): JsonResponse
+    public function __invoke(RedoImportedRouteRequest $redoImportedRouteRequest): JsonResponse
     {
         $line = $redoImportedRouteRequest->coordinates();
         $name = $redoImportedRouteRequest->courseName();
@@ -65,7 +75,7 @@ class RedoImportedRouteController extends Controller
         $followed = $start === null ? array_reverse($line) : ImportedLine::fromNearest($line, $start);
 
         try {
-            $generatedRoute = ImportedLine::ride($lineFollower, $routingEngine, $redoImportedRouteRequest->toQuery(), $followed, $start);
+            $generatedRoute = ImportedLine::ride($this->lineFollower, $this->routingEngine, $redoImportedRouteRequest->toQuery(), $followed, $start);
         } catch (Throwable $throwable) {
             report($throwable);
 

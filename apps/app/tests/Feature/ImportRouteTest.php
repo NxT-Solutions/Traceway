@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\Distance;
 use App\Domain\Routing\GeneratedRoute;
+use App\Domain\Routing\LineFollower;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
 use App\Models\User;
@@ -154,4 +156,44 @@ it('says so when the roads do not join up', function (): void {
     $this->actingAs(User::factory()->create())
         ->postJson(route('routes.import.redo'), redoPayload('reverse'))
         ->assertStatus(502);
+});
+
+it('rides a file again with an engine that also follows lines, as Valhalla does', function (): void {
+    $this->app->instance(RoutingEngine::class, new class implements LineFollower, RoutingEngine
+    {
+        public function route(RouteQuery $routeQuery): GeneratedRoute
+        {
+            throw new LogicException('Not used.');
+        }
+
+        public function candidates(RouteQuery $routeQuery): array
+        {
+            throw new LogicException('Not used.');
+        }
+
+        public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
+        {
+            return new GeneratedRoute($routeQuery, $waypoints, 1_000, 0);
+        }
+
+        public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
+        {
+            return new GeneratedRoute($routeQuery, [$from, $to], 1_000, 0);
+        }
+
+        public function match(RouteQuery $routeQuery, array $line): GeneratedRoute
+        {
+            return new GeneratedRoute($routeQuery, $line, (int) round(Distance::along($line)), 0);
+        }
+
+        public function follow(RouteQuery $routeQuery, array $points): GeneratedRoute
+        {
+            throw new LogicException('A snapped line covers the file, so no points are needed.');
+        }
+    });
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.import.redo'), [...redoPayload('from_start'), 'latitude' => 51.02, 'longitude' => 4.03])
+        ->assertOk()
+        ->assertJsonPath('coordinates.0', [4.03, 51.02]);
 });
