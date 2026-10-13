@@ -1,10 +1,15 @@
 # Optional. Not started by `ddev start`.
-# ddev start --profiles=valhalla
-# Routes Belgium on this machine, so the planner and the browser tests are
-# never turned away by the public server. The first start downloads the map
-# from Geofabrik and builds the tiles, heights included, which takes a while.
-# Then set VALHALLA_URL=http://valhalla:8002 in apps/app/.env. From the host,
-# the same server answers on http://127.0.0.1:8002.
+#
+#   ddev valhalla regions france       find a Geofabrik region
+#   ddev valhalla use france           pick it, then build it
+#   ddev valhalla start                start the routing server
+#   ddev valhalla planner local        send the planner to it
+#
+# The map, the heights, and the built tiles live in persistent/valhalla, so
+# they survive `ddev stop` and `ddev delete`. The region and the limits come
+# from .ddev/.env.valhalla.local, which stays on this machine. Without it the
+# server builds Belgium with 2 CPUs and 3 GB of memory. See
+# docs/local-routing.md for what a region needs from the machine.
 services:
     valhalla:
         container_name: ddev-${DDEV_SITENAME}-valhalla
@@ -12,25 +17,25 @@ services:
         profiles:
             - valhalla
         restart: "no"
+        cpus: ${VALHALLA_CPUS:-2}
+        mem_limit: ${VALHALLA_MEMORY:-3g}
+        memswap_limit: ${VALHALLA_MEMORY:-3g}
         environment:
-            tile_urls: "https://download.geofabrik.de/europe/belgium-latest.osm.pbf"
+            tile_urls: ${VALHALLA_TILE_URLS:-https://download.geofabrik.de/europe/belgium-latest.osm.pbf}
             use_tiles_ignore_pbf: "True"
             build_elevation: "True"
             build_admins: "True"
             build_time_zones: "True"
             serve_tiles: "True"
-            server_threads: "4"
+            server_threads: ${VALHALLA_THREADS:-2}
         volumes:
-            - valhalla-tiles:/custom_files
+            - ../persistent/valhalla:/custom_files
         expose:
             - "8002"
         ports:
-            - "127.0.0.1:8002:8002"
+            - "127.0.0.1:${VALHALLA_HOST_PORT:-8002}:8002"
         labels:
             com.ddev.site-name: ${DDEV_SITENAME}
             com.ddev.approot: ${DDEV_APPROOT}
         x-ddev:
-            describe-info: "Optional. Start with ddev start --profiles=valhalla"
-
-volumes:
-    valhalla-tiles:
+            describe-info: "Optional. ddev valhalla help"
