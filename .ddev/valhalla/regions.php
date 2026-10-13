@@ -97,7 +97,7 @@ if ($command === 'urls') {
     $regions = regions();
     $urls = [];
 
-    foreach ($arguments as $id) {
+    foreach (preg_split('/\s+/', trim(implode(' ', $arguments))) ?: [] as $id) {
         if (! isset($regions[$id])) {
             fwrite(STDERR, "There is no region \"{$id}\". Find its id with `ddev valhalla regions {$id}`.\n");
             exit(1);
@@ -111,7 +111,8 @@ if ($command === 'urls') {
 }
 
 if ($command === 'sizes') {
-    foreach ($arguments as $url) {
+    // `ddev exec` can hand every link over as one argument.
+    foreach (preg_split('/\s+/', trim(implode(' ', $arguments))) ?: [] as $url) {
         printf("  %s  %s\n", size($url), $url);
     }
 
