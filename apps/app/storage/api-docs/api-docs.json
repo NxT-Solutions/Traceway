@@ -1095,7 +1095,7 @@
                     "Routes"
                 ],
                 "summary": "Ride an imported line again",
-                "description": "Keeps an imported line, rides it the other way, or rides it from the start pin and back. A new line follows the roads for the sport.",
+                "description": "Keeps an imported line, rides it the other way, or rides it from the start pin and back. A new line follows the roads for the sport, the way the file goes, without turning back on itself.",
                 "operationId": "redoImportedRoute",
                 "requestBody": {
                     "$ref": "#/components/requestBodies/RedoImportedRouteRequest"

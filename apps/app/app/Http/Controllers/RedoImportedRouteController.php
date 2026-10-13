@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Courses\ImportedLine;
+use App\Domain\Routing\LineFollower;
 use App\Domain\Routing\RoutingEngine;
 use App\Http\Requests\RedoImportedRouteRequest;
 use App\Http\Responses\ImportedRoute;
@@ -21,7 +22,7 @@ class RedoImportedRouteController extends Controller
     #[Post(
         path: '/routes/import/redo',
         operationId: 'redoImportedRoute',
-        description: 'Keeps an imported line, rides it the other way, or rides it from the start pin and back. A new line follows the roads for the sport.',
+        description: 'Keeps an imported line, rides it the other way, or rides it from the start pin and back. A new line follows the roads for the sport, the way the file goes, without turning back on itself.',
         summary: 'Ride an imported line again',
         security: [['session' => []]],
         tags: ['Routes'],
@@ -51,7 +52,7 @@ class RedoImportedRouteController extends Controller
         description: 'The roads did not join up.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
-    public function __invoke(RedoImportedRouteRequest $redoImportedRouteRequest, RoutingEngine $routingEngine): JsonResponse
+    public function __invoke(RedoImportedRouteRequest $redoImportedRouteRequest, LineFollower $lineFollower, RoutingEngine $routingEngine): JsonResponse
     {
         $line = $redoImportedRouteRequest->coordinates();
         $name = $redoImportedRouteRequest->courseName();
@@ -60,12 +61,11 @@ class RedoImportedRouteController extends Controller
             return response()->json(new ImportedRoute($name, $line)->toArray());
         }
 
-        $waypoints = $redoImportedRouteRequest->mode() === 'reverse'
-            ? ImportedLine::reversed($line)
-            : ImportedLine::fromStart($line, $redoImportedRouteRequest->start());
+        $start = $redoImportedRouteRequest->mode() === 'reverse' ? null : $redoImportedRouteRequest->start();
+        $followed = $start === null ? array_reverse($line) : ImportedLine::fromNearest($line, $start);
 
         try {
-            $generatedRoute = ImportedLine::trace($routingEngine, $redoImportedRouteRequest->toQuery(), $waypoints);
+            $generatedRoute = ImportedLine::ride($lineFollower, $routingEngine, $redoImportedRouteRequest->toQuery(), $followed, $start);
         } catch (Throwable $throwable) {
             report($throwable);
 

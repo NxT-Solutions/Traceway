@@ -77,6 +77,39 @@ final class LineSimplifier
     }
 
     /**
+     * Adds points along every hop longer than the gap, on the straight line
+     * between its ends. A simplified line can skip a long straight road in
+     * one hop. A router that reads the line point by point needs them back.
+     *
+     * @param  list<array{0: float, 1: float}>  $line
+     * @return list<array{0: float, 1: float}>
+     */
+    public static function densify(array $line, float $maxGapMetres): array
+    {
+        $dense = [];
+        $previous = null;
+
+        foreach ($line as $point) {
+            if ($previous !== null) {
+                $parts = (int) ceil(Distance::metres($previous, $point) / max(1.0, $maxGapMetres));
+
+                for ($part = 1; $part < $parts; $part++) {
+                    $share = $part / $parts;
+                    $dense[] = [
+                        $previous[0] + ($point[0] - $previous[0]) * $share,
+                        $previous[1] + ($point[1] - $previous[1]) * $share,
+                    ];
+                }
+            }
+
+            $dense[] = $point;
+            $previous = $point;
+        }
+
+        return $dense;
+    }
+
+    /**
      * Metres from a point to the stretch between two others, on a flat
      * projection, which holds within a stretch of a route.
      *

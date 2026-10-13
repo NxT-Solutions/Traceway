@@ -29,8 +29,10 @@ use App\Contracts\Mail\AccountMailer;
 use App\Contracts\Routes\SavedRouteRepository;
 use App\Domain\Routing\Details\RouteDetailer;
 use App\Domain\Routing\Details\RouteDetailsSource;
+use App\Domain\Routing\LineFollower;
 use App\Domain\Routing\PlaceFinder;
 use App\Domain\Routing\RoutingEngine;
+use App\Domain\Routing\TracingLineFollower;
 use App\Handlers\ChangePasswordHandler;
 use App\Handlers\ClaimDevicePairingHandler;
 use App\Handlers\DeleteAccountHandler;
@@ -138,6 +140,8 @@ class AppServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->bind(fn (): LineFollower => $this->lineFollower($this->app->make(RoutingEngine::class)));
+
         $this->app->bind(function (): PlaceFinder {
             $url = config('services.nominatim.url');
 
@@ -166,6 +170,15 @@ class AppServiceProvider extends ServiceProvider
                 is_string($url) && $url !== '' ? $url : 'https://valhalla1.openstreetmap.de',
             );
         });
+    }
+
+    /**
+     * An engine that can snap a line and hold a heading follows lines
+     * itself. Any other engine follows them through points.
+     */
+    private function lineFollower(RoutingEngine $routingEngine): LineFollower
+    {
+        return $routingEngine instanceof LineFollower ? $routingEngine : new TracingLineFollower($routingEngine);
     }
 
     /**

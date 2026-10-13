@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Integrations\Valhalla;
 
+use App\Domain\Routing\Distance;
+use App\Domain\Routing\FollowPoint;
 use App\Domain\Routing\GeneratedRoute;
+use App\Domain\Routing\LineFollower;
+use App\Domain\Routing\LineSimplifier;
 use App\Domain\Routing\LoopClosure;
 use App\Domain\Routing\LoopWaypoints;
 use App\Domain\Routing\RouteCleanliness;
@@ -14,11 +18,15 @@ use App\Domain\Routing\Shape;
 use App\Domain\Routing\ValhallaCosting;
 use App\Domain\Routing\WaypointPieces;
 use App\Integrations\Valhalla\Requests\RouteRequest;
+use App\Integrations\Valhalla\Requests\TraceRouteRequest;
 use RuntimeException;
 use Saloon\Http\Response;
 
-final readonly class ValhallaRoutingEngine implements RoutingEngine
+final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngine
 {
+    /** The public server matches at most about this much of a line at once. */
+    private const int MAX_MATCH_METRES = 150_000;
+
     /**
      * @param  int  $maxRequestMetres  The straight-line span one request may cover. The public
      *                                 server refuses more than 150 km, so a longer route is
@@ -125,6 +133,50 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
         ), $waypoints, mustVisit: true);
     }
 
+    public function match(RouteQuery $routeQuery, array $line): ?GeneratedRoute
+    {
+        if (count($line) < 2 || Distance::along($line) > self::MAX_MATCH_METRES) {
+            return null;
+        }
+
+        $response = $this->valhallaConnector->send(new TraceRouteRequest([
+            'encoded_polyline' => Polyline::encode(LineSimplifier::densify($line, 100.0)),
+            'shape_format' => 'polyline6',
+            'shape_match' => 'map_snap',
+            'trace_options' => ['search_radius' => 25, 'breakage_distance' => 2000],
+            'directions_options' => ['directions_type' => 'none'],
+        ] + ValhallaCosting::trace($routeQuery->sport)));
+        $legs = $response->json('trip.legs');
+        $length = $response->json('trip.summary.length');
+
+        // A line matched in parts has gaps between them. Points do better.
+        if (! $response->successful() || ! is_array($legs) || count($legs) !== 1 || ! is_numeric($length)) {
+            return null;
+        }
+
+        $leg = $legs[0] ?? null;
+        $shape = is_array($leg) ? ($leg['shape'] ?? null) : null;
+
+        if (! is_string($shape) || $shape === '') {
+            return null;
+        }
+
+        return new GeneratedRoute($routeQuery, Polyline::decode($shape), (int) round(((float) $length) * 1000), 0);
+    }
+
+    public function follow(RouteQuery $routeQuery, array $points): GeneratedRoute
+    {
+        throw_if(count($points) < 2, RuntimeException::class, 'A followed line needs a start and another point.');
+
+        $line = $this->routeAll($this->pointToPoint($routeQuery), [[
+            'waypoints' => array_map(fn (FollowPoint $followPoint): array => $followPoint->point, $points),
+            'headings' => array_map(fn (FollowPoint $followPoint): ?int => $followPoint->heading, $points),
+            'mustVisit' => true,
+        ]])[0] ?? null;
+
+        return $line ?? throw new RuntimeException('The roads along that line did not join up.');
+    }
+
     public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
     {
         $plans = [];
@@ -158,7 +210,7 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
      * goes out in pieces, and its pieces are joined back into one route. A
      * plan with a piece that does not route comes back as null.
      *
-     * @param  list<array{waypoints: list<array{0: float, 1: float}>, heading?: int|null, mustVisit?: bool, viaRadius?: int|null}>  $plans
+     * @param  list<array{waypoints: list<array{0: float, 1: float}>, heading?: int|null, mustVisit?: bool, viaRadius?: int|null, headings?: list<int|null>}>  $plans
      * @return list<GeneratedRoute|null>
      */
     private function routeAll(RouteQuery $routeQuery, array $plans): array
@@ -172,6 +224,8 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
             $pieceQuery = count($pieces) > 1 ? $this->pointToPoint($routeQuery) : $routeQuery;
             $pieceCounts[$planIndex] = count($pieces);
 
+            $headings = $this->headingsByPoint($plan['waypoints'], $plan['headings'] ?? null);
+
             foreach ($pieces as $pieceIndex => $piece) {
                 $requests[$planIndex.':'.$pieceIndex] = new RouteRequest(ValhallaCosting::payload(
                     $pieceQuery,
@@ -179,6 +233,10 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
                     $pieceIndex === 0 ? ($plan['heading'] ?? null) : null,
                     mustVisit: $plan['mustVisit'] ?? false,
                     viaRadius: $plan['viaRadius'] ?? null,
+                    headings: $headings === null ? null : array_map(
+                        fn (array $point): ?int => $headings[$this->pointKey($point)] ?? null,
+                        $piece,
+                    ),
                 ));
             }
         }
@@ -226,6 +284,37 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
         }
 
         return $routes;
+    }
+
+    /**
+     * The heading at each point, found again after the points are cut into
+     * pieces. A point added along a long hop has none.
+     *
+     * @param  list<array{0: float, 1: float}>  $waypoints
+     * @param  list<int|null>|null  $headings
+     * @return array<string, int|null>|null
+     */
+    private function headingsByPoint(array $waypoints, ?array $headings): ?array
+    {
+        if ($headings === null) {
+            return null;
+        }
+
+        $byPoint = [];
+
+        foreach ($waypoints as $index => $point) {
+            $byPoint[$this->pointKey($point)] = $headings[$index] ?? null;
+        }
+
+        return $byPoint;
+    }
+
+    /**
+     * @param  array{0: float, 1: float}  $point
+     */
+    private function pointKey(array $point): string
+    {
+        return sprintf('%.7f,%.7f', $point[0], $point[1]);
     }
 
     private function pointToPoint(RouteQuery $routeQuery): RouteQuery

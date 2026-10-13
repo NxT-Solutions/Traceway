@@ -245,7 +245,7 @@ it('shows the climb of each land leg on a shared multisport plan', function (): 
     $this->get(URL::signedRoute('routes.share', $savedRoute))
         ->assertOk()
         ->assertInertia(fn (Assert $assert): Assert => $assert
-            ->where('route.legs.0.details', null)
+            ->where('route.legs.0.details', expected: null)
             ->where('route.legs.1.details.ascent_metres', 40)
             ->has('route.legs.1.details.cues', 1));
 });
