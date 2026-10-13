@@ -10,7 +10,7 @@ use OpenApi\Attributes\Schema;
 
 #[Schema(
     schema: 'SharedRoute',
-    required: ['name', 'sport', 'surface', 'elevation', 'roads', 'distance_metres', 'ascent_metres', 'coordinates', 'gpx_url', 'fit_url', 'layout', 'legs'],
+    required: ['name', 'sport', 'surface', 'elevation', 'roads', 'distance_metres', 'ascent_metres', 'coordinates', 'gpx_url', 'fit_url', 'layout', 'legs', 'details'],
     properties: [
         new Property(property: 'name', type: 'string'),
         new Property(property: 'sport', type: 'string'),
@@ -23,6 +23,7 @@ use OpenApi\Attributes\Schema;
         new Property(property: 'gpx_url', type: 'string'),
         new Property(property: 'fit_url', type: 'string'),
         new Property(property: 'layout', type: 'string', nullable: true, enum: ['loops', 'chain']),
+        new Property(property: 'details', ref: '#/components/schemas/RouteDetails', description: 'The climb, surfaces, turns, and stops. Null for a multisport plan or a route saved before they were read.', nullable: true),
         new Property(
             property: 'legs',
             description: 'The legs of a multisport plan, in order. Empty for a single sport.',
@@ -46,6 +47,7 @@ final readonly class SharedRoute
     /**
      * @param  list<array{0: float, 1: float}>  $coordinates
      * @param  list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null}>  $legs
+     * @param  array<string, mixed>|null  $details
      */
     public function __construct(
         public string $name,
@@ -60,6 +62,7 @@ final readonly class SharedRoute
         public string $fitUrl,
         public ?string $layout = null,
         public array $legs = [],
+        public ?array $details = null,
     ) {}
 
     /**
@@ -75,7 +78,8 @@ final readonly class SharedRoute
      *     gpx_url: string,
      *     fit_url: string,
      *     layout: string|null,
-     *     legs: list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null}>
+     *     legs: list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null}>,
+     *     details: array<string, mixed>|null
      * }
      */
     public function toArray(): array
@@ -93,6 +97,7 @@ final readonly class SharedRoute
             'fit_url' => $this->fitUrl,
             'layout' => $this->layout,
             'legs' => $this->legs,
+            'details' => $this->details,
         ];
     }
 }

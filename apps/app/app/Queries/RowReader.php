@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries;
 
+use App\Domain\Routing\Details\RouteDetails;
 use App\Routes\SavedLeg;
 use Carbon\CarbonImmutable;
 use RuntimeException;
@@ -89,6 +90,11 @@ final readonly class RowReader
     public function legs(string $key): array
     {
         return JsonColumn::legs($this->value($key));
+    }
+
+    public function details(string $key): ?RouteDetails
+    {
+        return JsonColumn::details($this->value($key));
     }
 
     public function mixed(string $key): mixed

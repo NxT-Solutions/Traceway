@@ -24,14 +24,15 @@ final class CourseDownload
         $name = self::name($sharedCourse->name);
 
         $bytes = match ($courseFormat) {
-            CourseFormat::Fit => FitCourse::encode($name, $sharedCourse->sport, $sharedCourse->coordinates),
+            CourseFormat::Fit => FitCourse::encode($name, $sharedCourse->sport, $sharedCourse->coordinates, $sharedCourse->details),
             CourseFormat::Gpx => $sharedCourse->legs === []
-                ? GpxCourse::encode($name, $sharedCourse->coordinates)
+                ? GpxCourse::encode($name, $sharedCourse->coordinates, $sharedCourse->details)
                 : GpxCourse::encodeLegs($name, array_map(
                     fn (SavedLeg $savedLeg, int $index): array => [
                         'name' => $savedLeg->sport instanceof Sport ? DeviceName::forLeg($name, $index + 1, $savedLeg->sport)->value : 'Swim',
                         'type' => $savedLeg->discipline(),
                         'coordinates' => $savedLeg->coordinates,
+                        'details' => $savedLeg->details,
                     ],
                     $sharedCourse->legs,
                     array_keys($sharedCourse->legs),
@@ -50,8 +51,8 @@ final class CourseDownload
         $name = DeviceName::forLeg(self::name($sharedCourse->name), $leg, $savedLeg->sport)->value;
 
         $bytes = match ($courseFormat) {
-            CourseFormat::Fit => FitCourse::encode($name, $savedLeg->sport, $savedLeg->coordinates),
-            CourseFormat::Gpx => GpxCourse::encode($name, $savedLeg->coordinates),
+            CourseFormat::Fit => FitCourse::encode($name, $savedLeg->sport, $savedLeg->coordinates, $savedLeg->details),
+            CourseFormat::Gpx => GpxCourse::encode($name, $savedLeg->coordinates, $savedLeg->details),
         };
 
         return self::response($bytes, $name, $courseFormat);

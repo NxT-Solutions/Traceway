@@ -7,9 +7,9 @@ namespace App\Domain\Routing;
 /**
  * Splits the waypoints of one route into pieces a routing server will
  * take. A server can refuse a request whose points span more than its
- * limit in a straight line, such as a 180 km ride. Each piece stays under
- * the limit, and each one starts where the last one ended, so the pieces
- * join into the same route.
+ * limit in a straight line, such as a 180 km ride, or one with more points
+ * than it takes at once. Each piece stays under both limits, and each one
+ * starts where the last one ended, so the pieces join into the same route.
  */
 final class WaypointPieces
 {
@@ -17,8 +17,10 @@ final class WaypointPieces
      * @param  list<array{0: float, 1: float}>  $waypoints
      * @return list<list<array{0: float, 1: float}>>
      */
-    public static function split(array $waypoints, float $maxMetres): array
+    public static function split(array $waypoints, float $maxMetres, int $maxPoints = PHP_INT_MAX): array
     {
+        $maxPoints = max(2, $maxPoints);
+
         $points = self::withShortHops($waypoints, $maxMetres * 0.9);
         $first = $points[0] ?? null;
 
@@ -34,7 +36,7 @@ final class WaypointPieces
             $last = $piece[count($piece) - 1] ?? $first;
             $hop = Distance::metres($last, $point);
 
-            if ($span + $hop > $maxMetres && count($piece) >= 2) {
+            if (count($piece) >= 2 && ($span + $hop > $maxMetres || count($piece) >= $maxPoints)) {
                 $pieces[] = $piece;
                 $piece = [$last];
                 $span = 0.0;

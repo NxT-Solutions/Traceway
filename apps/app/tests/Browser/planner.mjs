@@ -69,6 +69,18 @@ try {
         throw new Error('Enter on the map did not place the start.');
     }
 
+    // A GPX file opens in the planner with three ways to ride it.
+    await desktop.locator('input[type=file][accept*=".gpx"]').setInputFiles({
+        name: 'club-loop.gpx',
+        mimeType: 'application/gpx+xml',
+        buffer: Buffer.from(
+            '<gpx><trk><name>Club loop</name><trkseg><trkpt lat="51.05" lon="3.72"/><trkpt lat="51.06" lon="3.73"/><trkpt lat="51.05" lon="3.74"/></trkseg></trk></gpx>',
+        ),
+    });
+    await desktop.getByRole('radio', { name: /^Start from my pin\b/ }).waitFor({ timeout: 10000 });
+    await desktop.getByRole('radio', { name: /^Reverse it\b/ }).waitFor();
+    await desktop.keyboard.press('Escape');
+
     await desktop.getByRole('tab', { name: 'Multisport' }).click();
     await desktop.getByRole('button', { name: /^Type\s*\w/ }).click();
     await desktop.getByRole('radio', { name: /^Triathlon\b/ }).click();

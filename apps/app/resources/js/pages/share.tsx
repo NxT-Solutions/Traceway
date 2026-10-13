@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import * as maplibregl from 'maplibre-gl';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { RouteProfile, SurfaceBar } from '@/components/route-details';
 import { type PlayerLine, RoutePlayer } from '@/components/route-player';
 import { streetsMapStyle } from '@/lib/maplibre';
 import { legColour, legDeviceName } from '@/lib/multisport';
@@ -8,6 +9,13 @@ import {
     ensureDirectionArrows,
     resizeDirectionArrows,
 } from '@/lib/route-arrows';
+import {
+    addDetailLayers,
+    pointAlong,
+    type RouteDetails,
+    syncDetailLayers,
+    syncHoverPoint,
+} from '@/lib/route-details';
 import '../../css/planner.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -33,6 +41,7 @@ type SharedRoute = {
         fit_url: string | null;
         color?: string | null;
     }>;
+    details: RouteDetails | null;
 };
 
 const sportLabel: Record<string, string> = {
@@ -170,6 +179,8 @@ export default function Share({ route }: { route: SharedRoute }) {
                 },
             });
             ensureDirectionArrows(map, arrowLines);
+            addDetailLayers(map);
+            syncDetailLayers(map, route.coordinates, route.details, false);
 
             const bounds = route.coordinates.reduce(
                 (box, coordinate) => box.extend(coordinate),
@@ -245,6 +256,29 @@ export default function Share({ route }: { route: SharedRoute }) {
                         ))}
                     </ol>
                 ) : null}
+                {route.details === null ? null : (
+                    <div className="tw-details">
+                        <RouteProfile
+                            details={route.details}
+                            onHover={(metres) => {
+                                const map = mapRef.current;
+
+                                if (map !== null) {
+                                    syncHoverPoint(
+                                        map,
+                                        metres === null
+                                            ? null
+                                            : pointAlong(
+                                                  route.coordinates,
+                                                  metres,
+                                              ),
+                                    );
+                                }
+                            }}
+                        />
+                        <SurfaceBar details={route.details} />
+                    </div>
+                )}
                 <div className="exports">
                     <a href={route.gpx_url}>GPX</a>
                     {route.legs.length > 0 ? (

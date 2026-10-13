@@ -32,6 +32,7 @@ final class SharedRouteQuery
             fitUrl: SignedRouteLink::fit($routeId->value),
             layout: $rowReader->optionalString('layout'),
             legs: $this->legs($routeId, $rowReader->legs('legs')),
+            details: $rowReader->details('details')?->toArray(),
         );
     }
 

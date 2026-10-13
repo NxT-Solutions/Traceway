@@ -681,3 +681,42 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
 .tw-planner .pts .pt.on .field{border-color:var(--text)}
 .tw-planner .mapwrap:has(.maplibregl-canvas:focus-visible)::after{content:"";position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;background:linear-gradient(var(--text),var(--text)) center/2px 100% no-repeat,linear-gradient(var(--text),var(--text)) center/100% 2px no-repeat;filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff);pointer-events:none;z-index:2}
 .tw-planner .maplibregl-canvas:focus-visible{outline:3px solid var(--chart);outline-offset:-3px}
+
+/* route details: climb chart, surfaces, turns, and stops */
+.tw-details{display:flex;flex-direction:column;gap:12px;color:var(--text,#16303a)}
+.tw-details-profile{display:flex;flex-direction:column;gap:6px}
+.tw-details-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.tw-details-head p{margin:0;font-size:13px;color:var(--muted,#5d6b62)}
+.tw-details-head b{font-weight:600;color:var(--text,#16303a)}
+.tw-details-toggle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted,#5d6b62);cursor:pointer}
+.tw-details-toggle input{width:16px;height:16px;accent-color:var(--text,#16303a)}
+.tw-details-chart{position:relative;height:88px;border-radius:8px;background:color-mix(in oklab, var(--hair,#e4e0d4) 40%, transparent);touch-action:pan-y;cursor:crosshair}
+.tw-details-chart:focus{outline:none;box-shadow:0 0 0 2px var(--text,#16303a)}
+.tw-details-chart svg{display:block;width:100%;height:100%;color:var(--text,#16303a)}
+.tw-details-tip{position:absolute;top:4px;padding:2px 6px;border-radius:6px;background:var(--panel,#fbfaf4);border:1px solid var(--hair,#e4e0d4);font-size:12px;white-space:nowrap;pointer-events:none}
+.tw-details-axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted,#5d6b62)}
+.tw-details-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0;padding:0;list-style:none;font-size:12px;color:var(--muted,#5d6b62)}
+.tw-details-legend li{display:inline-flex;align-items:center;gap:5px}
+.tw-details-legend i{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.tw-details-surface{display:flex;flex-direction:column;gap:6px}
+.tw-details-bar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--hair,#e4e0d4)}
+.tw-details-bar i{display:block;height:100%}
+.tw-details-lists{display:flex;flex-direction:column;gap:4px}
+.tw-details-lists details{border-top:1px solid var(--hair,#e4e0d4)}
+.tw-details-lists details:last-child{border-bottom:1px solid var(--hair,#e4e0d4)}
+.tw-details-lists summary{display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:500;cursor:pointer;list-style-position:inside}
+.tw-details-lists ol{max-height:220px;overflow:auto;margin:0 0 8px;padding:0;list-style:none}
+.tw-details-lists li button{display:flex;align-items:center;gap:8px;width:100%;min-height:32px;padding:0 4px;border:0;border-radius:6px;background:transparent;color:inherit;font:inherit;font-size:13px;text-align:left;cursor:default}
+.tw-details-lists li button:hover,.tw-details-lists li button:focus-visible{background:var(--hover,#efece2)}
+.tw-details-lists li button:focus-visible{outline:2px solid var(--text,#16303a);outline-offset:-2px}
+.tw-details-lists li svg{flex:0 0 auto}
+.tw-details-lists li span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tw-details-lists li em{flex:0 0 auto;font-style:normal;color:var(--muted,#5d6b62)}
+.tw-details-loading{height:88px;border-radius:8px;background:var(--hair,#e4e0d4);animation:tw-details-pulse 1.4s ease-in-out infinite}
+@keyframes tw-details-pulse{50%{opacity:.5}}
+@media (prefers-reduced-motion: reduce){.tw-details-loading{animation:none}}
+.tw-planner .import-file{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:42px;border:1px dashed var(--outline);border-radius:10px;background:transparent;color:var(--text);font:inherit;font-size:14px;font-weight:500;cursor:pointer}
+.tw-planner .import-file:hover{background:var(--hover)}
+.tw-planner .import-file:disabled{opacity:.6;cursor:default}
+.tw-share .tw-details{--text:#16303a;--muted:#5d6b62;--hair:#e4e0d4;--panel:#fbfaf4;--hover:#efece2;margin:0 0 14px}
+.tw-library .tw-details{margin:0 0 12px}

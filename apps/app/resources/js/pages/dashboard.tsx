@@ -1,6 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import '../../css/planner.css';
-import { Bike, Footprints, Mountain, Waves } from 'lucide-react';
+import { Bike, FileUp, Footprints, Mountain, Waves } from 'lucide-react';
 import type { GeoJSONSource, MapMouseEvent } from 'maplibre-gl';
 import * as maplibregl from 'maplibre-gl';
 import {
@@ -18,6 +18,11 @@ import {
     MultisportLegs,
     type Placing,
 } from '@/components/multisport-legs';
+import {
+    RouteCues,
+    RouteProfile,
+    SurfaceBar,
+} from '@/components/route-details';
 import { type PlayerLine, RoutePlayer } from '@/components/route-player';
 import { SendToDevice } from '@/components/send-to-device';
 import { Button } from '@/components/ui/button';
@@ -67,6 +72,17 @@ import {
     metresBetween,
     routeBadge,
 } from '@/lib/route-arrows';
+import {
+    addDetailLayers,
+    fetchDetails,
+    fetchStops,
+    pointAlong,
+    type RouteDetails,
+    routeGpx,
+    type Stop,
+    syncDetailLayers,
+    syncHoverPoint,
+} from '@/lib/route-details';
 import { support } from '@/lib/support';
 import { cn } from '@/lib/utils';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -83,6 +99,7 @@ type SheetName =
     | 'colour'
     | 'race'
     | 'session'
+    | 'import'
     | null;
 
 type Preview = {
@@ -112,6 +129,24 @@ const roadsOptions = [
         value: 'any',
         label: 'Any road',
         copy: 'Let the shortest line win.',
+    },
+] as const;
+
+const importModes = [
+    {
+        value: 'from_start',
+        label: 'Start from my pin',
+        copy: 'Ride out to it, follow it, and come home.',
+    },
+    {
+        value: 'reverse',
+        label: 'Reverse it',
+        copy: 'The same roads, the other way round.',
+    },
+    {
+        value: 'keep',
+        label: 'Keep it as it is',
+        copy: 'Use the line from the file.',
     },
 ] as const;
 
@@ -1373,17 +1408,6 @@ const choiceSheet =
 
 const sheetHeading = 'gap-0 p-0';
 
-function gpx(name: string, coordinates: Coordinate[]): string {
-    const points = coordinates
-        .map(
-            ([longitude, latitude]) =>
-                `<trkpt lat="${latitude}" lon="${longitude}"></trkpt>`,
-        )
-        .join('');
-
-    return `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Traceway"><trk><name>${name}</name><trkseg>${points}</trkseg></trk></gpx>`;
-}
-
 function sportIcon(value: string) {
     if (value === 'mtb') {
         return Mountain;
@@ -1725,6 +1749,28 @@ export default function Dashboard() {
                   coordinates: joinedLine(plan),
               };
     const shown = multisport ? planLine : preview;
+    const [roadDetails, setRoadDetails] = useState<RouteDetails | null>(null);
+    const [stops, setStops] = useState<Stop[]>([]);
+    const details = useMemo(
+        () => (roadDetails === null ? null : { ...roadDetails, stops }),
+        [roadDetails, stops],
+    );
+    const [detailsLoading, setDetailsLoading] = useState(false);
+    const [steepness, setSteepness] = useState(false);
+    const detailsRef = useRef<{
+        line: Coordinate[];
+        details: RouteDetails | null;
+        steepness: boolean;
+    }>({ line: [], details: null, steepness: false });
+    const detailLine = multisport ? null : (preview?.coordinates ?? null);
+    const ascentMetres =
+        details?.ascent_metres ?? (shown === null ? 0 : shown.ascent_metres);
+    const importInputRef = useRef<HTMLInputElement>(null);
+    const [imported, setImported] = useState<{
+        name: string;
+        coordinates: Coordinate[];
+    } | null>(null);
+    const [importing, setImporting] = useState(false);
     const hasSwim = swim !== null;
     const legColours = useMemo(
         () => [
@@ -1985,6 +2031,13 @@ export default function Dashboard() {
 
         const paintLoadedStyle = (): void => {
             addRouteLayers(map, previewRef.current?.coordinates ?? []);
+            addDetailLayers(map);
+            syncDetailLayers(
+                map,
+                detailsRef.current.line,
+                detailsRef.current.details,
+                detailsRef.current.steepness,
+            );
             syncRouteLines(
                 map,
                 modeRef.current === 'multisport' ? [] : routesRef.current,
@@ -2214,6 +2267,56 @@ export default function Dashboard() {
 
         map.once('idle', paint);
     }, [preview, routes, routeIndex, multisport, plan, swim, mapColours]);
+
+    useEffect(() => {
+        setRoadDetails(null);
+        setStops([]);
+
+        if (detailLine === null || detailLine.length < 2) {
+            setDetailsLoading(false);
+
+            return;
+        }
+
+        const controller = new AbortController();
+        setDetailsLoading(true);
+        const timer = window.setTimeout(() => {
+            fetchDetails(sport, detailLine, controller.signal)
+                .then((found) => {
+                    setRoadDetails(found);
+                    setDetailsLoading(false);
+                })
+                .catch(() => {
+                    if (!controller.signal.aborted) {
+                        setDetailsLoading(false);
+                    }
+                });
+            fetchStops(sport, detailLine, controller.signal)
+                .then((found) => setStops(found ?? []))
+                .catch(() => {});
+        }, 250);
+
+        return () => {
+            window.clearTimeout(timer);
+            controller.abort();
+        };
+    }, [detailLine, sport]);
+
+    useEffect(() => {
+        detailsRef.current = {
+            line: detailLine ?? [],
+            details,
+            steepness,
+        };
+        const map = mapRef.current;
+
+        if (map === null) {
+            return;
+        }
+
+        syncDetailLayers(map, detailLine ?? [], details, steepness);
+        syncHoverPoint(map, null);
+    }, [detailLine, details, steepness]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -2697,6 +2800,134 @@ export default function Dashboard() {
         }
     }
 
+    /**
+     * Marks a place on the map from the profile chart or the turn list.
+     */
+    function showOnMap(point: Coordinate | null): void {
+        const map = mapRef.current;
+
+        if (map !== null) {
+            syncHoverPoint(map, point);
+        }
+    }
+
+    async function openGpx(file: File): Promise<void> {
+        setImporting(true);
+        const form = new FormData();
+        form.append('file', file);
+
+        try {
+            const response = await fetch('/routes/import', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-XSRF-TOKEN': csrfToken(),
+                },
+                body: form,
+            });
+            const body: unknown = await response.json().catch(() => null);
+            const record =
+                typeof body === 'object' && body !== null
+                    ? (body as Record<string, unknown>)
+                    : {};
+
+            if (
+                !response.ok ||
+                typeof record.name !== 'string' ||
+                !Array.isArray(record.coordinates)
+            ) {
+                setMessage(
+                    typeof record.message === 'string'
+                        ? record.message
+                        : 'That file could not be opened. Try a .gpx file.',
+                );
+
+                return;
+            }
+
+            setImported({
+                name: record.name,
+                coordinates: record.coordinates as Coordinate[],
+            });
+            setSheet('import');
+        } catch {
+            setMessage('That file could not be opened. Try a .gpx file.');
+        } finally {
+            setImporting(false);
+        }
+    }
+
+    async function redoImport(
+        chosen: (typeof importModes)[number]['value'],
+    ): Promise<void> {
+        if (imported === null) {
+            return;
+        }
+
+        setSheet(null);
+        setRouteSaved(false);
+        dirty.current = true;
+        setBusy(true);
+        setMessage(
+            chosen === 'keep' ? 'Opening the route…' : 'Drawing the route…',
+        );
+
+        const response = await fetch('/routes/import/redo', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-XSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({
+                sport,
+                surface,
+                elevation,
+                roads,
+                name: imported.name,
+                coordinates: imported.coordinates,
+                mode: chosen,
+                latitude,
+                longitude,
+            }),
+        }).catch(() => null);
+        const body: unknown = await response?.json().catch(() => null);
+        setBusy(false);
+
+        if (
+            response === null ||
+            !response.ok ||
+            typeof body !== 'object' ||
+            body === null ||
+            !isPreview(body)
+        ) {
+            const record =
+                typeof body === 'object' && body !== null
+                    ? (body as Record<string, unknown>)
+                    : {};
+            setMessage(
+                typeof record.message === 'string'
+                    ? record.message
+                    : 'That route could not be drawn.',
+            );
+
+            return;
+        }
+
+        const line = body as Preview;
+        setRoutes([line]);
+        setRouteIndex(0);
+        setName(imported.name.slice(0, 80));
+        setMessage(
+            chosen === 'from_start'
+                ? 'From your pin, along the file, and home.'
+                : chosen === 'reverse'
+                  ? 'The file, the other way round.'
+                  : 'The file as it is.',
+        );
+        fitLine(line);
+    }
+
     function saveFile(blob: Blob, filename: string): void {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -2725,9 +2956,12 @@ export default function Dashboard() {
             return;
         }
 
-        const blob = new Blob([gpx(name || 'Traceway', preview.coordinates)], {
-            type: 'application/gpx+xml',
-        });
+        const blob = new Blob(
+            [routeGpx(name || 'Traceway', preview.coordinates, details)],
+            {
+                type: 'application/gpx+xml',
+            },
+        );
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -2832,7 +3066,7 @@ export default function Dashboard() {
                       elevation,
                       roads,
                       distance_metres: preview.distance_metres,
-                      ascent_metres: preview.ascent_metres,
+                      ascent_metres: details?.ascent_metres ?? 0,
                       coordinates: preview.coordinates,
                       user_coordinates: preview.user_coordinates ?? null,
                       finish_coordinates: preview.finish_coordinates ?? null,
@@ -4594,6 +4828,38 @@ export default function Dashboard() {
                                     'Draw route'
                                 )}
                             </button>
+                            {multisport ? null : (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="import-file"
+                                        disabled={busy || importing}
+                                        onClick={() =>
+                                            importInputRef.current?.click()
+                                        }
+                                    >
+                                        <FileUp size={16} aria-hidden="true" />
+                                        {importing
+                                            ? 'Opening the file…'
+                                            : 'Open a GPX file'}
+                                    </button>
+                                    <input
+                                        ref={importInputRef}
+                                        type="file"
+                                        accept=".gpx,application/gpx+xml"
+                                        hidden
+                                        onChange={(event) => {
+                                            const file =
+                                                event.target.files?.[0] ?? null;
+                                            event.target.value = '';
+
+                                            if (file !== null) {
+                                                void openGpx(file);
+                                            }
+                                        }}
+                                    />
+                                </>
+                            )}
                             <section className="result" aria-label="Result">
                                 <div className="top">
                                     <p
@@ -4657,7 +4923,7 @@ export default function Dashboard() {
                                                 ? 'Set the session, then draw.'
                                                 : `${plan.ascent_metres > 0 ? `${plan.ascent_metres} m ascent · ` : ''}${plan.legs.length} legs`
                                             : preview
-                                              ? `${preview.ascent_metres > 0 ? `${preview.ascent_metres} m ascent · ` : ''}${surfaceLabel} · ${elevationLabel === 'Any' ? 'any hills' : elevationLabel}`
+                                              ? `${ascentMetres > 0 ? `${ascentMetres} m ascent · ` : ''}${surfaceLabel} · ${elevationLabel === 'Any' ? 'any hills' : elevationLabel}`
                                               : 'Set your ask, then draw.'}
                                     </span>
                                 </div>
@@ -4725,6 +4991,37 @@ export default function Dashboard() {
                                             </span>
                                         ) : null}
                                     </div>
+                                ) : null}
+                                {!multisport && details !== null ? (
+                                    <div className="tw-details">
+                                        <RouteProfile
+                                            details={details}
+                                            steepness={steepness}
+                                            onSteepness={setSteepness}
+                                            onHover={(metres) =>
+                                                showOnMap(
+                                                    metres === null ||
+                                                        preview === null
+                                                        ? null
+                                                        : pointAlong(
+                                                              preview.coordinates,
+                                                              metres,
+                                                          ),
+                                                )
+                                            }
+                                        />
+                                        <SurfaceBar details={details} />
+                                        <RouteCues
+                                            details={details}
+                                            onFocusPoint={showOnMap}
+                                        />
+                                    </div>
+                                ) : !multisport && detailsLoading ? (
+                                    <div
+                                        className="tw-details-loading"
+                                        role="status"
+                                        aria-label="Reading the climb and the turns"
+                                    />
                                 ) : null}
                                 <p className="note" role="status">
                                     {settledStatus.current}
@@ -4916,6 +5213,31 @@ export default function Dashboard() {
                             }}
                         />
                     ) : null}
+                </SheetContent>
+            </Sheet>
+
+            <Sheet
+                modal={!wide}
+                open={sheet === 'import'}
+                onOpenChange={(open) => !open && setSheet(null)}
+            >
+                <SheetContent side="bottom" className={choiceSheet}>
+                    <SheetHeader className={sheetHeading}>
+                        <SheetTitle className="pr-6">
+                            {imported?.name ?? 'Your file'}
+                        </SheetTitle>
+                    </SheetHeader>
+                    <ChoiceList label="How to ride it">
+                        {importModes.map((option) => (
+                            <RadioRow
+                                key={option.value}
+                                label={option.label}
+                                copy={option.copy}
+                                selected={false}
+                                onSelect={() => void redoImport(option.value)}
+                            />
+                        ))}
+                    </ChoiceList>
                 </SheetContent>
             </Sheet>
 

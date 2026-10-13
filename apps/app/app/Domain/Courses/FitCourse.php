@@ -4,20 +4,32 @@ declare(strict_types=1);
 
 namespace App\Domain\Courses;
 
+use App\Domain\Routing\Details\Cue;
+use App\Domain\Routing\Details\RouteDetails;
+use App\Domain\Routing\Details\Stop;
+use App\Domain\Routing\Details\StopKind;
+use App\Domain\Routing\Details\Turn;
+use App\Domain\Routing\Distance;
 use App\Domain\Routing\Sport;
 use InvalidArgumentException;
 
 /**
- * A Garmin course file. The watch or bike computer follows the positions on its own map.
+ * A Garmin course file. The watch or bike computer follows the positions on
+ * its own map. With route details, each position carries its height, so the
+ * device can show the climbs ahead, and the turns and stops are course
+ * points the device warns about before the rider reaches them.
  */
 final class FitCourse
 {
     private const int EPOCH = 631_065_600;
 
+    /** Most watches keep about this many course points. More are dropped on the device. */
+    public const int MAX_COURSE_POINTS = 200;
+
     /**
      * @param  list<array{0: float, 1: float}>  $coordinates
      */
-    public static function encode(string $name, Sport $sport, array $coordinates): string
+    public static function encode(string $name, Sport $sport, array $coordinates, ?RouteDetails $routeDetails = null): string
     {
         if (count($coordinates) < 2) {
             throw new InvalidArgumentException('A course needs at least two points.');
@@ -29,12 +41,17 @@ final class FitCourse
         $distance = self::distanceCentimetres($points);
         $seconds = max(1, (int) round(($distance / 100) / 5.5));
 
+        // Details are measured along the full line. The thinned line is a
+        // little shorter, so their distances shrink to match it.
+        $scale = $routeDetails instanceof RouteDetails ? ($distance / 100) / max(1.0, Distance::along($coordinates)) : 1.0;
+
         $data = self::fileId($started)
             .self::courseMessage($deviceName->value, self::sportCode($sport))
-            .self::lapMessage($points, $started, $seconds, $distance)
+            .self::lapMessage($points, $started, $seconds, $distance, $routeDetails)
             .self::eventMessage($started, 0)
-            .self::records($points, $started, $seconds, $distance)
-            .self::eventMessage($started + $seconds, 4);
+            .self::records($points, $started, $seconds, $distance, $routeDetails, $scale)
+            .self::eventMessage($started + $seconds, 4)
+            .self::coursePoints($routeDetails, $started, $seconds, $distance, $scale);
 
         $header = self::header(strlen($data));
 
@@ -109,9 +126,9 @@ final class FitCourse
     /**
      * @param  list<array{0: float, 1: float}>  $points
      */
-    private static function lapMessage(array $points, int $started, int $seconds, int $distance): string
+    private static function lapMessage(array $points, int $started, int $seconds, int $distance, ?RouteDetails $routeDetails): string
     {
-        $definition = self::definition(2, 19, [
+        $fields = [
             [254, 2, 132],
             [253, 4, 134],
             [2, 4, 134],
@@ -122,7 +139,14 @@ final class FitCourse
             [7, 4, 134],
             [8, 4, 134],
             [9, 4, 134],
-        ]);
+        ];
+
+        if ($routeDetails instanceof RouteDetails) {
+            $fields[] = [21, 2, 132];
+            $fields[] = [22, 2, 132];
+        }
+
+        $definition = self::definition(2, 19, $fields);
         $first = $points[0] ?? [0.0, 0.0];
         $last = array_last($points) ?? $first;
         $elapsed = $seconds * 1000;
@@ -137,6 +161,10 @@ final class FitCourse
             .pack('V', $elapsed)
             .pack('V', $elapsed)
             .pack('V', $distance);
+
+        if ($routeDetails instanceof RouteDetails) {
+            $data .= pack('v', min(0xFFFE, $routeDetails->ascentMetres)).pack('v', min(0xFFFE, $routeDetails->descentMetres));
+        }
 
         return $definition.$data;
     }
@@ -155,14 +183,21 @@ final class FitCourse
     /**
      * @param  list<array{0: float, 1: float}>  $points
      */
-    private static function records(array $points, int $started, int $seconds, int $distance): string
+    private static function records(array $points, int $started, int $seconds, int $distance, ?RouteDetails $routeDetails, float $scale): string
     {
-        $definition = self::definition(4, 20, [
+        $heights = $routeDetails instanceof RouteDetails && $routeDetails->profile !== [];
+        $fields = [
             [253, 4, 134],
             [0, 4, 133],
             [1, 4, 133],
             [5, 4, 134],
-        ]);
+        ];
+
+        if ($heights) {
+            $fields[] = [2, 2, 132];
+        }
+
+        $definition = self::definition(4, 20, $fields);
         $bytes = $definition;
         $count = max(1, count($points) - 1);
         $travelled = 0.0;
@@ -170,7 +205,7 @@ final class FitCourse
 
         foreach ($points as $index => $point) {
             if ($previous !== null) {
-                $travelled += self::metres($previous, $point);
+                $travelled += Distance::metres($previous, $point);
             }
 
             $previous = $point;
@@ -181,9 +216,121 @@ final class FitCourse
                 .self::semicircle($point[1])
                 .self::semicircle($point[0])
                 .pack('V', min($distance, $along));
+
+            if ($heights) {
+                $bytes .= self::altitude($routeDetails->elevationAt($travelled / max(0.0001, $scale)));
+            }
         }
 
         return $bytes;
+    }
+
+    /**
+     * Height as a FIT altitude: metres above 500 m below sea level, in fifths.
+     */
+    private static function altitude(?float $metres): string
+    {
+        if ($metres === null) {
+            return pack('v', 0xFFFF);
+        }
+
+        return pack('v', max(0, min(0xFFFE, (int) round(($metres + 500) * 5))));
+    }
+
+    /**
+     * The turns and the stops, in order along the course. A long route with
+     * more than a watch keeps drops slight bends first, then the latest turns,
+     * and keeps every stop.
+     */
+    private static function coursePoints(?RouteDetails $routeDetails, int $started, int $seconds, int $distance, float $scale): string
+    {
+        if (! $routeDetails instanceof RouteDetails || ($routeDetails->cues === [] && $routeDetails->stops === [])) {
+            return '';
+        }
+
+        $points = [];
+
+        foreach ($routeDetails->stops as $stop) {
+            $points[] = [
+                'metres' => $stop->distanceMetres,
+                'longitude' => $stop->longitude,
+                'latitude' => $stop->latitude,
+                'type' => self::stopCode($stop),
+                'name' => $stop->name ?? $stop->kind->label(),
+                'rank' => 0,
+            ];
+        }
+
+        foreach ($routeDetails->cues as $cue) {
+            $points[] = [
+                'metres' => $cue->distanceMetres,
+                'longitude' => $cue->longitude,
+                'latitude' => $cue->latitude,
+                'type' => self::turnCode($cue->turn),
+                'name' => self::cueName($cue),
+                'rank' => in_array($cue->turn, [Turn::SlightLeft, Turn::SlightRight, Turn::Straight], strict: true) ? 2 : 1,
+            ];
+        }
+
+        if (count($points) > self::MAX_COURSE_POINTS) {
+            usort($points, fn (array $a, array $b): int => [$a['rank'], $a['metres']] <=> [$b['rank'], $b['metres']]);
+            $points = array_slice($points, 0, self::MAX_COURSE_POINTS);
+        }
+
+        usort($points, fn (array $a, array $b): int => $a['metres'] <=> $b['metres']);
+
+        $bytes = self::definition(5, 32, [
+            [254, 2, 132],
+            [1, 4, 134],
+            [2, 4, 133],
+            [3, 4, 133],
+            [4, 4, 134],
+            [5, 1, 0],
+            [6, 16, 7],
+        ]);
+
+        foreach ($points as $index => $point) {
+            $along = min($distance, (int) round($point['metres'] * $scale * 100));
+            $timestamp = $started + (int) round($seconds * ($distance > 0 ? $along / $distance : 0.0));
+            $bytes .= chr(5)
+                .pack('v', $index)
+                .pack('V', $timestamp)
+                .self::semicircle($point['latitude'])
+                .self::semicircle($point['longitude'])
+                .pack('V', $along)
+                .self::byte($point['type'])
+                .pack('a16', mb_strcut($point['name'], 0, 15, 'UTF-8'));
+        }
+
+        return $bytes;
+    }
+
+    private static function cueName(Cue $cue): string
+    {
+        return $cue->street ?? $cue->turn->label();
+    }
+
+    private static function turnCode(Turn $turn): int
+    {
+        return match ($turn) {
+            Turn::Left => 6,
+            Turn::Right => 7,
+            Turn::Straight => 8,
+            Turn::SlightLeft => 19,
+            Turn::SharpLeft => 20,
+            Turn::SlightRight => 21,
+            Turn::SharpRight => 22,
+            Turn::UTurn => 23,
+        };
+    }
+
+    private static function stopCode(Stop $stop): int
+    {
+        return match ($stop->kind) {
+            StopKind::Water => 3,
+            StopKind::Cafe => 4,
+            StopKind::Toilet => 39,
+        };
     }
 
     private static function header(int $dataSize): string
@@ -224,33 +371,7 @@ final class FitCourse
      */
     private static function distanceCentimetres(array $points): int
     {
-        $metres = 0.0;
-        $previous = null;
-
-        foreach ($points as $point) {
-            if ($previous !== null) {
-                $metres += self::metres($previous, $point);
-            }
-
-            $previous = $point;
-        }
-
-        return (int) round($metres * 100);
-    }
-
-    /**
-     * @param  array{0: float, 1: float}  $from
-     * @param  array{0: float, 1: float}  $to
-     */
-    private static function metres(array $from, array $to): float
-    {
-        $lat1 = deg2rad($from[1]);
-        $lat2 = deg2rad($to[1]);
-        $dLat = $lat2 - $lat1;
-        $dLon = deg2rad($to[0] - $from[0]);
-        $a = sin($dLat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($dLon / 2) ** 2;
-
-        return 2 * 6_371_000 * asin(min(1.0, sqrt($a)));
+        return (int) round(Distance::along($points) * 100);
     }
 
     private static function crc16(string $bytes): string

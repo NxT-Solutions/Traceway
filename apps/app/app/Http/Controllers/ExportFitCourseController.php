@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Courses\FitCourse;
+use App\Domain\Routing\Details\RouteDetailsSource;
 use App\Http\Requests\ExportFitCourseRequest;
 use OpenApi\Attributes\JsonContent;
 use OpenApi\Attributes\MediaType;
@@ -13,6 +14,7 @@ use OpenApi\Attributes\RequestBody;
 use OpenApi\Attributes\Response;
 use OpenApi\Attributes\Schema;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Throwable;
 
 class ExportFitCourseController extends Controller
 {
@@ -46,12 +48,22 @@ class ExportFitCourseController extends Controller
         description: 'The course is not valid.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
-    public function __invoke(ExportFitCourseRequest $exportFitCourseRequest): HttpResponse
+    public function __invoke(ExportFitCourseRequest $exportFitCourseRequest, RouteDetailsSource $routeDetailsSource): HttpResponse
     {
+        $coordinates = $exportFitCourseRequest->coordinates();
+
+        try {
+            $routeDetails = $routeDetailsSource->for($exportFitCourseRequest->sport(), $coordinates);
+        } catch (Throwable) {
+            // Without the map, the course still follows the line.
+            $routeDetails = null;
+        }
+
         $bytes = FitCourse::encode(
             $exportFitCourseRequest->courseName(),
             $exportFitCourseRequest->sport(),
-            $exportFitCourseRequest->coordinates(),
+            $coordinates,
+            $routeDetails,
         );
 
         return response($bytes, 200, [
