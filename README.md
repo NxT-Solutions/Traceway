@@ -149,6 +149,17 @@ ddev exec -d /var/www/html/apps/mail npm run build
 
 Local mail goes to Mailpit. `ddev mailpit` opens it.
 
+### Route on your own machine
+
+The planner uses the public Valhalla server by default. It is shared, so it is slow at busy times and can turn your machine away for an hour. To route locally instead, with Belgium as the default region:
+
+```bash
+ddev valhalla start
+ddev valhalla planner local
+```
+
+`ddev valhalla regions france` lists other regions, and `ddev valhalla use france` builds one. [docs/local-routing.md](docs/local-routing.md) covers the memory, disk, and time each region needs.
+
 ### If port 80 or 443 is already taken
 
 Add `.ddev/config.local.yaml` (this file stays on your machine):
