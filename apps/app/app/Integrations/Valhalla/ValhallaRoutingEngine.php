@@ -23,10 +23,12 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
      * @param  int  $maxRequestMetres  The straight-line span one request may cover. The public
      *                                 server refuses more than 150 km, so a longer route is
      *                                 asked for in pieces.
+     * @param  int  $maxRequestPoints  The points one request may hold. The public server takes ten.
      */
     public function __construct(
         private ValhallaConnector $valhallaConnector,
         private int $maxRequestMetres = 140_000,
+        private int $maxRequestPoints = 10,
     ) {}
 
     public function route(RouteQuery $routeQuery): GeneratedRoute
@@ -165,7 +167,7 @@ final readonly class ValhallaRoutingEngine implements RoutingEngine
         $pieceCounts = [];
 
         foreach ($plans as $planIndex => $plan) {
-            $pieces = WaypointPieces::split($plan['waypoints'], $this->maxRequestMetres);
+            $pieces = WaypointPieces::split($plan['waypoints'], $this->maxRequestMetres, $this->maxRequestPoints);
             // Loop headings hold the start and the finish of a whole loop, not of a piece.
             $pieceQuery = count($pieces) > 1 ? $this->pointToPoint($routeQuery) : $routeQuery;
             $pieceCounts[$planIndex] = count($pieces);

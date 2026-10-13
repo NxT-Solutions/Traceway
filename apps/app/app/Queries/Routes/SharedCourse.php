@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries\Routes;
 
+use App\Domain\Routing\Details\RouteDetails;
 use App\Domain\Routing\Sport;
 use App\Routes\SavedLeg;
 
@@ -18,5 +19,6 @@ final readonly class SharedCourse
         public Sport $sport,
         public array $coordinates,
         public array $legs = [],
+        public ?RouteDetails $details = null,
     ) {}
 }

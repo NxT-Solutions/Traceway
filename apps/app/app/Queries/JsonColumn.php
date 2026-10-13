@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Queries;
 
+use App\Domain\Routing\Details\RouteDetails;
 use App\Routes\SavedLeg;
+use InvalidArgumentException;
 use RuntimeException;
+use ValueError;
 
 /**
  * The query builder returns JSON columns as text. Screens need the list.
@@ -70,10 +73,31 @@ final class JsonColumn
 
             $color = $leg['color'] ?? null;
 
-            $legs[] = SavedLeg::from($discipline, (int) $distance, (int) $ascent, self::line($leg['coordinates'] ?? null), is_string($color) ? $color : null);
+            $legs[] = SavedLeg::from($discipline, (int) $distance, (int) $ascent, self::line($leg['coordinates'] ?? null), is_string($color) ? $color : null, self::details($leg['details'] ?? null));
         }
 
         return $legs;
+    }
+
+    /**
+     * The climb, surfaces, turns, and stops of a line. A route saved before
+     * they were read, or with details in an older shape, has none.
+     */
+    public static function details(mixed $value): ?RouteDetails
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, associative: true);
+        }
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        try {
+            return RouteDetails::fromArray($value);
+        } catch (InvalidArgumentException|ValueError) {
+            return null;
+        }
     }
 
     /**

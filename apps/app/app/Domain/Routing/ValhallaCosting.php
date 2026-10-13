@@ -77,6 +77,30 @@ final class ValhallaCosting
     }
 
     /**
+     * The costing that matches a finished line to the roads under it. The
+     * line is already chosen, so only the sport decides which roads fit.
+     *
+     * @return array{costing: string, costing_options: array<string, array<string, float|string>>}
+     */
+    public static function trace(Sport $sport): array
+    {
+        return match ($sport) {
+            Sport::Run, Sport::TrailRun, Sport::Walk, Sport::Hike => [
+                'costing' => 'pedestrian',
+                'costing_options' => ['pedestrian' => ['walking_speed' => $sport === Sport::Walk ? 5.0 : 6.0]],
+            ],
+            Sport::Road, Sport::Gravel, Sport::Mtb => [
+                'costing' => 'bicycle',
+                'costing_options' => ['bicycle' => ['bicycle_type' => match ($sport) {
+                    Sport::Mtb => 'Mountain',
+                    Sport::Gravel => 'Cross',
+                    default => 'Road',
+                }]],
+            ],
+        };
+    }
+
+    /**
      * A shaped loop uses via points, so the line can pass them without a stop.
      * A built point has to be ridden through on its own street. A wide search
      * would let the line take the next road over, so the search stays tight

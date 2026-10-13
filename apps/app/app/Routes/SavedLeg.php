@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Routes;
 
+use App\Domain\Routing\Details\RouteDetails;
 use App\Domain\Routing\Sport;
 use InvalidArgumentException;
 
@@ -21,6 +22,7 @@ final readonly class SavedLeg
         public int $ascentMetres,
         public array $coordinates,
         public ?string $color = null,
+        public ?RouteDetails $details = null,
     ) {
         throw_if($this->distanceMetres < 0 || $this->ascentMetres < 0, InvalidArgumentException::class, 'A leg cannot be shorter than nothing.');
         throw_if($this->sport instanceof Sport && count($this->coordinates) < 2, InvalidArgumentException::class, 'A land leg needs at least two points.');
@@ -31,7 +33,7 @@ final readonly class SavedLeg
     /**
      * @param  list<array{0: float, 1: float}>  $coordinates
      */
-    public static function from(string $discipline, int $distanceMetres, int $ascentMetres, array $coordinates, ?string $color = null): self
+    public static function from(string $discipline, int $distanceMetres, int $ascentMetres, array $coordinates, ?string $color = null, ?RouteDetails $routeDetails = null): self
     {
         return new self(
             $discipline === 'swim' ? null : Sport::from($discipline),
@@ -39,7 +41,17 @@ final readonly class SavedLeg
             $ascentMetres,
             $coordinates,
             $color === null ? null : strtolower($color),
+            $routeDetails,
         );
+    }
+
+    /**
+     * The same leg with its climb, surfaces, turns, and stops. The climb
+     * read from the ground replaces the one the planner sent.
+     */
+    public function withDetails(RouteDetails $routeDetails): self
+    {
+        return new self($this->sport, $this->distanceMetres, $routeDetails->ascentMetres, $this->coordinates, $this->color, $routeDetails);
     }
 
     public function discipline(): string
@@ -59,5 +71,15 @@ final readonly class SavedLeg
             'coordinates' => $this->coordinates,
             'color' => $this->color,
         ];
+    }
+
+    /**
+     * The leg as the legs column keeps it, with its details.
+     *
+     * @return array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, details: array<string, mixed>|null}
+     */
+    public function toStored(): array
+    {
+        return [...$this->toArray(), 'details' => $this->details?->toArray()];
     }
 }

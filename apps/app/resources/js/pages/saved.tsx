@@ -11,6 +11,7 @@ import {
     useState,
 } from 'react';
 import { MultisportIcon } from '@/components/multisport-icon';
+import { RouteProfile, SurfaceBar } from '@/components/route-details';
 import { SendToDevice } from '@/components/send-to-device';
 import { Button } from '@/components/ui/button';
 import { useAppearance } from '@/hooks/use-appearance';
@@ -19,6 +20,7 @@ import {
     ensureDirectionArrows,
     resizeDirectionArrows,
 } from '@/lib/route-arrows';
+import { isRouteDetails, type RouteDetails } from '@/lib/route-details';
 import '../../css/planner.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -1544,6 +1546,37 @@ function RouteDetail({
     onCopy: () => void;
 }) {
     const [sending, setSending] = useState(false);
+    const [details, setDetails] = useState<RouteDetails | null>(null);
+    const multisport = route.legs.length > 0;
+
+    useEffect(() => {
+        setDetails(null);
+
+        if (multisport) {
+            return;
+        }
+
+        const controller = new AbortController();
+
+        fetch(`/routes/saved/${route.id}/details`, {
+            headers: { Accept: 'application/json' },
+            signal: controller.signal,
+        })
+            .then((response) => (response.ok ? response.json() : null))
+            .then((body: unknown) => {
+                const found =
+                    typeof body === 'object' &&
+                    body !== null &&
+                    'details' in body
+                        ? body.details
+                        : null;
+                setDetails(isRouteDetails(found) ? found : null);
+            })
+            .catch(() => {});
+
+        return () => controller.abort();
+    }, [route.id, multisport]);
+
     const legFits = route.legs.flatMap((leg, index) =>
         leg.fit_url === null
             ? []
@@ -1592,6 +1625,12 @@ function RouteDetail({
                     </p>
                 ) : null}
             </div>
+            {details === null ? null : (
+                <div className="tw-details">
+                    <RouteProfile details={details} />
+                    <SurfaceBar details={details} />
+                </div>
+            )}
             <div className="quiet">
                 <button type="button" onClick={onCopy}>
                     {copied ? 'Copied' : 'Copy link'}

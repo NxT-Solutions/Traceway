@@ -52,11 +52,18 @@ return [
         'url' => env('NOMINATIM_URL', 'https://nominatim.openstreetmap.org'),
     ],
 
+    // Water, toilets, and cafés along a route, from OpenStreetMap.
+    'overpass' => [
+        'url' => env('OVERPASS_URL', 'https://overpass-api.de/api'),
+    ],
+
     'valhalla' => [
         'url' => env('VALHALLA_URL', 'https://valhalla1.openstreetmap.de'),
         // The public server refuses a request whose points span more than
         // 150 km, so longer routes go out in pieces under this span.
         'max_request_metres' => (int) env('VALHALLA_MAX_REQUEST_METRES', 140000),
+        // The public server takes at most ten points in one request.
+        'max_request_points' => (int) env('VALHALLA_MAX_REQUEST_POINTS', 10),
     ],
 
 ];

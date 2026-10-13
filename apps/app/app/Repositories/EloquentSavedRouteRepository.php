@@ -35,7 +35,8 @@ final readonly class EloquentSavedRouteRepository implements SavedRouteRepositor
             $savedRoute->layout = $saveRouteCommand->layout?->value;
             $savedRoute->legs = $saveRouteCommand->legs === []
                 ? null
-                : array_map(fn (SavedLeg $savedLeg): array => $savedLeg->toArray(), $saveRouteCommand->legs);
+                : array_map(fn (SavedLeg $savedLeg): array => $savedLeg->toStored(), $saveRouteCommand->legs);
+            $savedRoute->details = $saveRouteCommand->details?->toArray();
             $savedRoute->save();
 
             return $savedRoute->id;

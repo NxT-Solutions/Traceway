@@ -27,6 +27,8 @@ use App\Contracts\Auth\CurrentRider;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Contracts\Mail\AccountMailer;
 use App\Contracts\Routes\SavedRouteRepository;
+use App\Domain\Routing\Details\RouteDetailer;
+use App\Domain\Routing\Details\RouteDetailsSource;
 use App\Domain\Routing\PlaceFinder;
 use App\Domain\Routing\RoutingEngine;
 use App\Handlers\ChangePasswordHandler;
@@ -48,7 +50,10 @@ use App\Integrations\Nominatim\NominatimConnector;
 use App\Integrations\Nominatim\NominatimPlaceFinder;
 use App\Integrations\Osrm\OsrmConnector;
 use App\Integrations\Osrm\OsrmRoutingEngine;
+use App\Integrations\Overpass\OverpassConnector;
+use App\Integrations\Overpass\OverpassStopFinder;
 use App\Integrations\Valhalla\ValhallaConnector;
+use App\Integrations\Valhalla\ValhallaRoadDescriber;
 use App\Integrations\Valhalla\ValhallaRoutingEngine;
 use App\Mail\TracewayAccountMailer;
 use App\Models\PreventLazyLoading;
@@ -57,9 +62,11 @@ use App\Repositories\EloquentConnectedAppRepository;
 use App\Repositories\EloquentDeviceLinkRepository;
 use App\Repositories\EloquentSavedRouteRepository;
 use App\Repositories\EloquentUserRepository;
+use App\Routes\CachedRouteDetails;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -122,10 +129,12 @@ class AppServiceProvider extends ServiceProvider
 
             $url = config('services.valhalla.url');
             $span = config('services.valhalla.max_request_metres');
+            $points = config('services.valhalla.max_request_points');
 
             return new ValhallaRoutingEngine(
                 new ValhallaConnector(is_string($url) && $url !== '' ? $url : 'https://valhalla1.openstreetmap.de'),
                 is_int($span) && $span >= 10_000 ? $span : 140_000,
+                is_int($points) && $points >= 2 ? $points : 10,
             );
         });
 
@@ -135,6 +144,19 @@ class AppServiceProvider extends ServiceProvider
             return new NominatimPlaceFinder(new NominatimConnector(
                 is_string($url) && $url !== '' ? $url : 'https://nominatim.openstreetmap.org',
             ));
+        });
+
+        $this->app->bind(function (): RouteDetailsSource {
+            $valhalla = config('services.valhalla.url');
+            $overpass = config('services.overpass.url');
+
+            return new CachedRouteDetails(
+                new RouteDetailer(
+                    new ValhallaRoadDescriber(new ValhallaConnector(is_string($valhalla) && $valhalla !== '' ? $valhalla : 'https://valhalla1.openstreetmap.de')),
+                    new OverpassStopFinder(new OverpassConnector(is_string($overpass) && $overpass !== '' ? $overpass : 'https://overpass-api.de/api')),
+                ),
+                $this->app->make(CacheRepository::class),
+            );
         });
 
         $this->app->bind(function (): ValhallaConnector {

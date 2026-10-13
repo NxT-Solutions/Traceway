@@ -62,3 +62,18 @@ it('adds points along one hop longer than the limit', function (): void {
 it('has no pieces for no points', function (): void {
     expect(WaypointPieces::split([], 140_000))->toBe([]);
 });
+
+it('splits a route with more points than a server takes at once', function (): void {
+    $waypoints = [];
+
+    for ($index = 0; $index < 25; $index++) {
+        $waypoints[] = [4.0 + $index * 0.001, 51.0];
+    }
+
+    $pieces = WaypointPieces::split($waypoints, 140_000, 10);
+
+    expect(array_map(count(...), $pieces))->toBe([10, 10, 7])
+        ->and($pieces[1][0])->toBe($pieces[0][9])
+        ->and($pieces[2][0])->toBe($pieces[1][9])
+        ->and(array_last($pieces[2]))->toBe(array_last($waypoints));
+});

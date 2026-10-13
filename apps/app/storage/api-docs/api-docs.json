@@ -885,6 +885,56 @@
                 "security": []
             }
         },
+        "/routes/import": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Open a GPX file in the planner",
+                "description": "Reads the line out of a GPX file. Nothing is saved.",
+                "operationId": "importRoute",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/ImportRouteRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The line in the file.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportedRoute"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The file is not a GPX file with a route in it.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
         "/.well-known/passkey-endpoints": {
             "get": {
                 "tags": [
@@ -1023,6 +1073,196 @@
                     },
                     "502": {
                         "description": "No loop came back.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/routes/import/redo": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Ride an imported line again",
+                "description": "Keeps an imported line, rides it the other way, or rides it from the start pin and back. A new line follows the roads for the sport.",
+                "operationId": "redoImportedRoute",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/RedoImportedRouteRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The line to ride.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportedRoute"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The line or the mode is not valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "The roads did not join up.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/routes/details": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Read the climb, surfaces, and turns of a finished line",
+                "description": "Stops come from POST /routes/stops, since they can take longer.",
+                "operationId": "routeDetails",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/RouteDetailsRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The details of the line.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RouteDetails"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The line is not valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "The map server did not answer.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/routes/stops": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Find water, toilets, and cafés along a finished line",
+                "operationId": "routeStops",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/RouteDetailsRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The stops, in order along the line.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "stops"
+                                    ],
+                                    "properties": {
+                                        "stops": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/RouteStop"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The line is not valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "The map server did not answer.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1276,6 +1516,88 @@
                 ]
             }
         },
+        "/routes/saved/{savedRoute}/details": {
+            "get": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "The climb, surfaces, turns, and stops kept with a saved route",
+                "operationId": "savedRouteDetails",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "leg",
+                        "in": "query",
+                        "description": "A land leg of a multisport plan, counted from 1.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 5,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The details, or null for a route saved before they were read.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "details"
+                                    ],
+                                    "properties": {
+                                        "details": {
+                                            "oneOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/RouteDetails"
+                                                }
+                                            ],
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The rider has no such route or land leg.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
         "/share/{savedRoute}": {
             "get": {
                 "tags": [
@@ -1493,6 +1815,29 @@
                 },
                 "type": "object"
             },
+            "ImportedRoute": {
+                "required": [
+                    "name",
+                    "distance_metres",
+                    "ascent_metres",
+                    "coordinates"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "distance_metres": {
+                        "type": "integer"
+                    },
+                    "ascent_metres": {
+                        "type": "integer"
+                    },
+                    "coordinates": {
+                        "$ref": "#/components/schemas/CoordinateLine"
+                    }
+                },
+                "type": "object"
+            },
             "MultisportPreview": {
                 "required": [
                     "layout",
@@ -1548,6 +1893,142 @@
                                 }
                             },
                             "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "RouteStop": {
+                "required": [
+                    "distance_metres",
+                    "longitude",
+                    "latitude",
+                    "kind",
+                    "name"
+                ],
+                "properties": {
+                    "distance_metres": {
+                        "type": "integer"
+                    },
+                    "longitude": {
+                        "type": "number"
+                    },
+                    "latitude": {
+                        "type": "number"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "water",
+                            "toilet",
+                            "cafe"
+                        ]
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "RouteDetails": {
+                "description": "How a route climbs, what it runs on, where it turns, and where to stop.",
+                "required": [
+                    "profile",
+                    "ascent_metres",
+                    "descent_metres",
+                    "surfaces",
+                    "cues",
+                    "stops"
+                ],
+                "properties": {
+                    "profile": {
+                        "description": "Pairs of metres from the start and the height of the ground in metres.",
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "number"
+                            },
+                            "maxItems": 2,
+                            "minItems": 2
+                        }
+                    },
+                    "ascent_metres": {
+                        "type": "integer"
+                    },
+                    "descent_metres": {
+                        "type": "integer"
+                    },
+                    "surfaces": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "surface",
+                                "metres"
+                            ],
+                            "properties": {
+                                "surface": {
+                                    "type": "string",
+                                    "enum": [
+                                        "paved",
+                                        "gravel",
+                                        "dirt",
+                                        "unknown"
+                                    ]
+                                },
+                                "metres": {
+                                    "type": "integer"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "cues": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "distance_metres",
+                                "longitude",
+                                "latitude",
+                                "turn",
+                                "street"
+                            ],
+                            "properties": {
+                                "distance_metres": {
+                                    "type": "integer"
+                                },
+                                "longitude": {
+                                    "type": "number"
+                                },
+                                "latitude": {
+                                    "type": "number"
+                                },
+                                "turn": {
+                                    "type": "string",
+                                    "enum": [
+                                        "left",
+                                        "right",
+                                        "slight_left",
+                                        "slight_right",
+                                        "sharp_left",
+                                        "sharp_right",
+                                        "u_turn",
+                                        "straight"
+                                    ]
+                                },
+                                "street": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "stops": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RouteStop"
                         }
                     }
                 },
@@ -1718,7 +2199,8 @@
                     "gpx_url",
                     "fit_url",
                     "layout",
-                    "legs"
+                    "legs",
+                    "details"
                 ],
                 "properties": {
                     "name": {
@@ -1758,6 +2240,15 @@
                             "loops",
                             "chain"
                         ]
+                    },
+                    "details": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/RouteDetails"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The climb, surfaces, turns, and stops. Null for a multisport plan or a route saved before they were read."
                     },
                     "legs": {
                         "description": "The legs of a multisport plan, in order. Empty for a single sport.",
@@ -2001,6 +2492,27 @@
                     }
                 }
             },
+            "ImportRouteRequest": {
+                "description": "A GPX file to plan from.",
+                "required": true,
+                "content": {
+                    "multipart/form-data": {
+                        "schema": {
+                            "required": [
+                                "file"
+                            ],
+                            "properties": {
+                                "file": {
+                                    "description": "A .gpx file of at most 5 MB.",
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
             "PreviewMultisportRequest": {
                 "description": "The transition, an optional swim, and the land legs in order.",
                 "required": true,
@@ -2193,6 +2705,118 @@
                                         "quiet",
                                         "any"
                                     ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "RedoImportedRouteRequest": {
+                "description": "An imported line and how to ride it again.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "sport",
+                                "surface",
+                                "elevation",
+                                "coordinates",
+                                "mode"
+                            ],
+                            "properties": {
+                                "sport": {
+                                    "type": "string",
+                                    "enum": [
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                },
+                                "surface": {
+                                    "type": "string",
+                                    "enum": [
+                                        "paved",
+                                        "mixed",
+                                        "dirt"
+                                    ]
+                                },
+                                "elevation": {
+                                    "type": "string",
+                                    "enum": [
+                                        "minimize",
+                                        "neutral",
+                                        "maximize"
+                                    ]
+                                },
+                                "roads": {
+                                    "type": "string",
+                                    "enum": [
+                                        "quiet",
+                                        "any"
+                                    ]
+                                },
+                                "coordinates": {
+                                    "$ref": "#/components/schemas/CoordinateLine"
+                                },
+                                "mode": {
+                                    "description": "keep the line, reverse it, or start it from the pin.",
+                                    "type": "string",
+                                    "enum": [
+                                        "keep",
+                                        "reverse",
+                                        "from_start"
+                                    ]
+                                },
+                                "name": {
+                                    "description": "The name read from the file.",
+                                    "type": "string",
+                                    "maxLength": 80
+                                },
+                                "latitude": {
+                                    "description": "The start pin, for from_start.",
+                                    "type": "number"
+                                },
+                                "longitude": {
+                                    "description": "The start pin, for from_start.",
+                                    "type": "number"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "RouteDetailsRequest": {
+                "description": "A finished line to describe.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "sport",
+                                "coordinates"
+                            ],
+                            "properties": {
+                                "sport": {
+                                    "type": "string",
+                                    "enum": [
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                },
+                                "coordinates": {
+                                    "$ref": "#/components/schemas/CoordinateLine"
                                 }
                             },
                             "type": "object"
