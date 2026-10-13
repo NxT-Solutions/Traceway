@@ -10,12 +10,22 @@ namespace App\Domain\Routing;
  */
 final class ValhallaCosting
 {
+    /** How far a followed line may turn from its heading at a point. */
+    public const int FOLLOW_HEADING_TOLERANCE = 45;
+
     /**
      * @param  list<array{0: float, 1: float}>  $waypoints
+     * @param  list<int|null>|null  $headings  The way a followed line goes at each point, in the same order.
      * @return array<string, mixed>
      */
-    public static function payload(RouteQuery $routeQuery, array $waypoints, ?int $departHeading = null, bool $mustVisit = false, ?int $viaRadius = null): array
+    public static function payload(RouteQuery $routeQuery, array $waypoints, ?int $departHeading = null, bool $mustVisit = false, ?int $viaRadius = null, ?array $headings = null): array
     {
+        // A followed line already chose its roads. The rider's surface, hill,
+        // and road filters would only pull it off them and back again.
+        if ($headings !== null) {
+            return ['locations' => self::locations($waypoints, $routeQuery->shape, $departHeading, $mustVisit, $viaRadius, $headings)] + self::trace($routeQuery->sport);
+        }
+
         $useHills = match ($routeQuery->elevation) {
             ElevationBias::Minimize => 0.0,
             ElevationBias::Neutral => 0.5,
@@ -34,7 +44,7 @@ final class ValhallaCosting
 
         if ($onFoot) {
             return [
-                'locations' => self::locations($waypoints, $routeQuery->shape, $departHeading, $mustVisit, $viaRadius),
+                'locations' => self::locations($waypoints, $routeQuery->shape, $departHeading, $mustVisit, $viaRadius, $headings),
                 'costing' => 'pedestrian',
                 'costing_options' => [
                     'pedestrian' => [
@@ -63,7 +73,7 @@ final class ValhallaCosting
         }
 
         return [
-            'locations' => self::locations($waypoints, $routeQuery->shape, $departHeading, $mustVisit, $viaRadius),
+            'locations' => self::locations($waypoints, $routeQuery->shape, $departHeading, $mustVisit, $viaRadius, $headings),
             'costing' => 'bicycle',
             'costing_options' => [
                 'bicycle' => [
@@ -109,10 +119,15 @@ final class ValhallaCosting
      * On a loop the start and finish share one heading, so the line crosses
      * the pin instead of riding the same road back.
      *
+     * A followed line holds its heading at each point, so a point on a road
+     * with a lane each way is met going the right way, and the line does not
+     * ride past it, turn, and come back.
+     *
      * @param  list<array{0: float, 1: float}>  $waypoints
+     * @param  list<int|null>|null  $headings
      * @return list<array<string, float|int|string>>
      */
-    private static function locations(array $waypoints, Shape $shape, ?int $departHeading = null, bool $mustVisit = false, ?int $viaRadius = null): array
+    private static function locations(array $waypoints, Shape $shape, ?int $departHeading = null, bool $mustVisit = false, ?int $viaRadius = null, ?array $headings = null): array
     {
         $last = count($waypoints) - 1;
         $outbound = null;
@@ -153,6 +168,13 @@ final class ValhallaCosting
             } elseif ($outbound !== null && ($index === 0 || $index === $last)) {
                 $location['heading'] = $outbound;
                 $location['heading_tolerance'] = 120;
+            }
+
+            $heading = $headings[$index] ?? null;
+
+            if ($heading !== null) {
+                $location['heading'] = $heading;
+                $location['heading_tolerance'] = self::FOLLOW_HEADING_TOLERANCE;
             }
 
             $locations[] = $location;

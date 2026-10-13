@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 use App\Domain\Routing\Distance;
 use App\Domain\Routing\ElevationBias;
+use App\Domain\Routing\FollowPoint;
+use App\Domain\Routing\GeneratedRoute;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 use App\Integrations\Valhalla\Polyline;
 use App\Integrations\Valhalla\Requests\RouteRequest;
+use App\Integrations\Valhalla\Requests\TraceRouteRequest;
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Integrations\Valhalla\ValhallaRoutingEngine;
 use Saloon\Http\Faking\MockClient;
@@ -94,3 +97,78 @@ it('asks for a loop longer than one request in pieces and joins them', function 
         expect(Distance::along($points))->toBeLessThanOrEqual(100_000);
     }
 });
+
+it('follows a line through points held to the way it goes, with no rider filters to pull it off', function (): void {
+    $bodies = [];
+    $mock = new MockClient([
+        RouteRequest::class => function (PendingRequest $pendingRequest) use (&$bodies): MockResponse {
+            /** @var array{locations: list<array{lon: float, lat: float}>} $body */
+            $body = $pendingRequest->body()?->all();
+            $bodies[] = $body;
+            $line = array_map(fn (array $location): array => [$location['lon'], $location['lat']], $body['locations']);
+
+            return MockResponse::make(['trip' => ['summary' => ['length' => 1.0], 'legs' => [['shape' => Polyline::encode($line)]]]], 200);
+        },
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    $points = [];
+
+    for ($index = 0; $index < 12; $index++) {
+        $points[] = new FollowPoint([4.0 + $index * 0.01, 51.0], $index === 11 ? null : 90);
+    }
+
+    $generatedRoute = new ValhallaRoutingEngine($connector)->follow(new RouteQuery(
+        sport: Sport::Gravel,
+        shape: Shape::PointToPoint,
+        distanceMetres: 5_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Maximize,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+        preferQuiet: true,
+    ), $points);
+
+    $first = $bodies[0] ?? [];
+
+    expect($bodies)->toHaveCount(2)
+        ->and($first['locations'][1]['heading'] ?? null)->toBe(90)
+        ->and($first['locations'][1]['heading_tolerance'] ?? null)->toBe(45)
+        ->and($first['locations'][1]['type'] ?? null)->toBe('through')
+        ->and($first['costing_options'] ?? null)->toBe(['bicycle' => ['bicycle_type' => 'Cross']])
+        ->and(array_last($bodies[1]['locations'] ?? []))->not->toHaveKey('heading')
+        ->and($generatedRoute->coordinates)->toHaveCount(12);
+});
+
+it('snaps a whole line onto the roads, and gives up on one matched in parts', function (int $legs, bool $snapped): void {
+    $line = [[4.0, 51.0], [4.01, 51.0], [4.02, 51.0]];
+    $mock = new MockClient([
+        TraceRouteRequest::class => MockResponse::make(['trip' => [
+            'summary' => ['length' => 1.4],
+            'legs' => array_fill(0, $legs, ['shape' => Polyline::encode($line)]),
+        ]], 200),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    $route = new ValhallaRoutingEngine($connector)->match(new RouteQuery(
+        sport: Sport::Run,
+        shape: Shape::PointToPoint,
+        distanceMetres: 5_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    ), $line);
+
+    expect($route instanceof GeneratedRoute)->toBe($snapped);
+
+    if ($route instanceof GeneratedRoute) {
+        expect($route->distanceMetres)->toBe(1400)
+            ->and($route->coordinates)->toHaveCount(3);
+    }
+})->with([
+    'one piece' => [1, true],
+    'in parts' => [2, false],
+]);

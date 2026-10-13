@@ -21,6 +21,8 @@ function tracingEngine(bool $fails = false): RoutingEngine
         /** @var list<list<array{0: float, 1: float}>> */
         public array $traced = [];
 
+        public bool $closed = false;
+
         public function __construct(private readonly bool $fails) {}
 
         public function route(RouteQuery $routeQuery): GeneratedRoute
@@ -44,7 +46,9 @@ function tracingEngine(bool $fails = false): RoutingEngine
 
         public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
         {
-            throw new LogicException('Not used.');
+            $this->closed = true;
+
+            return new GeneratedRoute($routeQuery, [$from, $to], 2_000, 0);
         }
     };
 }
@@ -120,19 +124,18 @@ it('rides the line the other way along the roads', function (): void {
     expect($routingEngine->traced)->toHaveCount(1);
 });
 
-it('starts the loop from the pin and comes back to it', function (): void {
+it('rides from the pin to the loop, along it, and home by other roads', function (): void {
     $routingEngine = tracingEngine();
     $this->app->instance(RoutingEngine::class, $routingEngine);
 
     $response = $this->actingAs(User::factory()->create())
-        ->postJson(route('routes.import.redo'), redoPayload('from_start'))
+        ->postJson(route('routes.import.redo'), [...redoPayload('from_start'), 'latitude' => 51.02, 'longitude' => 4.03])
         ->assertOk();
 
-    $traced = $routingEngine->traced[0] ?? [];
-
-    expect($traced[0] ?? null)->toBe([4.0152, 51.0102])
-        ->and(array_last($traced))->toBe([4.0152, 51.0102])
-        ->and($response->json('coordinates.0'))->toBe([4.0152, 51.0102]);
+    expect(array_last($routingEngine->traced)[0] ?? null)->toBe([4.03, 51.02])
+        ->and($routingEngine->closed)->toBeTrue()
+        ->and($response->json('coordinates.0'))->toBe([4.03, 51.02])
+        ->and(array_last($response->json('coordinates')))->toBe([4.03, 51.02]);
 });
 
 it('needs the pin to start from it', function (): void {

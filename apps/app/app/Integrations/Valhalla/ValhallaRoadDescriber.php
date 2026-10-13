@@ -12,6 +12,7 @@ use App\Domain\Routing\Details\RoadSurface;
 use App\Domain\Routing\Details\SurfaceShare;
 use App\Domain\Routing\Details\Turn;
 use App\Domain\Routing\Distance;
+use App\Domain\Routing\LineSimplifier;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\ValhallaCosting;
 use App\Integrations\Valhalla\Requests\HeightRequest;
@@ -127,7 +128,7 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
      */
     private function pieces(array $line): array
     {
-        $dense = $this->dense($line);
+        $dense = LineSimplifier::densify($line, $this->maxGapMetres);
         $first = $dense[0] ?? null;
 
         if ($first === null) {
@@ -157,35 +158,6 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
         $pieces[] = ['line' => $piece, 'offset' => $offset, 'metres' => $metres];
 
         return $pieces;
-    }
-
-    /**
-     * @param  list<array{0: float, 1: float}>  $line
-     * @return list<array{0: float, 1: float}>
-     */
-    private function dense(array $line): array
-    {
-        $dense = [];
-        $previous = null;
-
-        foreach ($line as $point) {
-            if ($previous !== null) {
-                $parts = (int) ceil(Distance::metres($previous, $point) / $this->maxGapMetres);
-
-                for ($part = 1; $part < $parts; $part++) {
-                    $share = $part / $parts;
-                    $dense[] = [
-                        $previous[0] + ($point[0] - $previous[0]) * $share,
-                        $previous[1] + ($point[1] - $previous[1]) * $share,
-                    ];
-                }
-            }
-
-            $dense[] = $point;
-            $previous = $point;
-        }
-
-        return $dense;
     }
 
     /**
