@@ -1,4 +1,9 @@
 import type { Coordinate } from '@/lib/route-arrows';
+import {
+    gpxStopWaypoints,
+    gpxTrackPoints,
+    type RouteDetails,
+} from '@/lib/route-details';
 
 /**
  * A brick, a duathlon, or a triathlon. The routing engine draws every land
@@ -547,7 +552,15 @@ function xml(value: string): string {
 /**
  * One track per leg. A swim pin is a waypoint.
  */
-export function multisportGpx(name: string, plan: MultisportPlan): string {
+/**
+ * One track per leg. With details for a leg, its points have heights and
+ * its stops are waypoints.
+ */
+export function multisportGpx(
+    name: string,
+    plan: MultisportPlan,
+    details: (RouteDetails | null)[] = [],
+): string {
     const base = name.trim() === '' ? 'Traceway' : name.trim();
     let waypoints = '';
     let tracks = '';
@@ -571,13 +584,9 @@ export function multisportGpx(name: string, plan: MultisportPlan): string {
             return;
         }
 
-        const points = item.coordinates
-            .map(
-                ([longitude, latitude]) =>
-                    `<trkpt lat="${latitude}" lon="${longitude}"></trkpt>`,
-            )
-            .join('');
-        tracks += `<trk><name>${label}</name><type>${type}</type><trkseg>${points}</trkseg></trk>`;
+        const legDetails = details[index] ?? null;
+        waypoints += gpxStopWaypoints(legDetails);
+        tracks += `<trk><name>${label}</name><type>${type}</type><trkseg>${gpxTrackPoints(item.coordinates, legDetails)}</trkseg></trk>`;
     });
 
     return `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Traceway"><metadata><name>${xml(base)}</name></metadata>${waypoints}${tracks}</gpx>`;

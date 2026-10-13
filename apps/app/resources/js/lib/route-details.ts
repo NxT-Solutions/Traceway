@@ -353,17 +353,16 @@ const stopSymbols: Record<StopKind, string> = {
 };
 
 /**
- * A GPX track for one line. With details, each point has its height and
- * each stop is a waypoint, as in the course files Traceway serves.
+ * The track points of one line. With details, each has its height.
  */
-export function routeGpx(
-    name: string,
+export function gpxTrackPoints(
     coordinates: Coordinate[],
     details: RouteDetails | null,
 ): string {
     let travelled = 0;
     let previous: Coordinate | null = null;
-    const points = coordinates
+
+    return coordinates
         .map((point) => {
             if (previous !== null) {
                 travelled += metresBetween(previous, point);
@@ -378,14 +377,30 @@ export function routeGpx(
             return `<trkpt lat="${point[1]}" lon="${point[0]}">${height === null ? '' : `<ele>${Math.round(height * 10) / 10}</ele>`}</trkpt>`;
         })
         .join('');
-    const waypoints = (details?.stops ?? [])
+}
+
+/**
+ * A waypoint for each stop on the line.
+ */
+export function gpxStopWaypoints(details: RouteDetails | null): string {
+    return (details?.stops ?? [])
         .map(
             (stop) =>
                 `<wpt lat="${stop.latitude}" lon="${stop.longitude}"><name>${xml(stop.name ?? stopLabels[stop.kind])}</name><sym>${stopSymbols[stop.kind]}</sym><type>${stop.kind}</type></wpt>`,
         )
         .join('');
+}
 
-    return `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Traceway">${waypoints}<trk><name>${xml(name)}</name><trkseg>${points}</trkseg></trk></gpx>`;
+/**
+ * A GPX track for one line. With details, each point has its height and
+ * each stop is a waypoint, as in the course files Traceway serves.
+ */
+export function routeGpx(
+    name: string,
+    coordinates: Coordinate[],
+    details: RouteDetails | null,
+): string {
+    return `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Traceway">${gpxStopWaypoints(details)}<trk><name>${xml(name)}</name><trkseg>${gpxTrackPoints(coordinates, details)}</trkseg></trk></gpx>`;
 }
 
 const detailSources = ['route-steepness', 'route-stops', 'route-hover'];
