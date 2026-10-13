@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+
+## Description: Route on this machine: find a map region, build it, start the server, and point the planner at it
+## Usage: valhalla [regions [search] | use <region>... | start | stop | status | logs | rebuild | planner local|public | help]
+## Example: "ddev valhalla regions france" or "ddev valhalla use france" or "ddev valhalla planner local"
+
+set -euo pipefail
+
+root="${DDEV_APPROOT:?Run this through ddev: ddev valhalla help}"
+site="${DDEV_SITENAME:?Run this through ddev: ddev valhalla help}"
+container="ddev-${site}-valhalla"
+image="ghcr.io/nilsnolde/docker-valhalla/valhalla:3.5.1"
+settings="${root}/.ddev/.env.valhalla.local"
+data="${root}/persistent/valhalla"
+app_env="${root}/apps/app/.env"
+
+setting() {
+    local value=""
+
+    if [[ -f "${settings}" ]]; then
+        value="$(grep -E "^${1}=" "${settings}" | tail -n 1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' || true)"
+    fi
+
+    echo "${value:-$2}"
+}
+
+port() {
+    setting VALHALLA_HOST_PORT 8002
+}
+
+help() {
+    cat <<'HELP'
+Route on this machine with Valhalla, so the planner never waits on the
+public server. Belgium is the default region.
+
+  ddev valhalla regions [search]     list Geofabrik regions, such as: regions france
+  ddev valhalla use <region>...      pick one or more regions, then download and build them
+  ddev valhalla start                start the server (the first start builds the tiles)
+  ddev valhalla stop                 stop the server; the map stays in persistent/valhalla
+  ddev valhalla status               region, build progress, disk, and whether it answers
+  ddev valhalla logs                 follow the build and the server
+  ddev valhalla rebuild              build the tiles again from the downloaded map
+  ddev valhalla planner local        route the planner on this machine
+  ddev valhalla planner public       route the planner on valhalla1.openstreetmap.de
+
+Limits live in .ddev/.env.valhalla.local, for example:
+
+  ddev dotenv set .ddev/.env.valhalla.local --valhalla-cpus=4 --valhalla-memory=6g --valhalla-threads=4
+
+Then `ddev valhalla stop` and `ddev valhalla start`. See docs/local-routing.md.
+HELP
+}
+
+# Clears files the server wrote. They belong to the container's user, so a
+# container removes them, which also works where the host cannot.
+clear_data() {
+    local keep_map="$1"
+    mkdir -p "${data}"
+
+    if [[ "${keep_map}" == "keep-map" ]]; then
+        docker run --rm -v "${data}:/custom_files" --entrypoint sh "${image}" \
+            -c 'find /custom_files -mindepth 1 -maxdepth 1 ! -name "*.pbf" -exec rm -rf {} +'
+    else
+        docker run --rm -v "${data}:/custom_files" --entrypoint sh "${image}" \
+            -c 'find /custom_files -mindepth 1 -maxdepth 1 -exec rm -rf {} +'
+    fi
+}
+
+start() {
+    mkdir -p "${data}"
+    # Writes the compose file with this project's settings, then starts only
+    # the routing server, so the web container keeps running.
+    ddev debug compose-config >/dev/null
+    docker compose -p "ddev-${site}" -f "${root}/.ddev/.ddev-docker-compose-full.yaml" \
+        --profile valhalla up -d --no-deps --force-recreate valhalla
+
+    echo
+    echo "Valhalla is starting for: $(setting VALHALLA_REGIONS belgium)"
+    echo "The first start downloads the map and builds the tiles. Follow it with: ddev valhalla logs"
+    echo "It answers on http://127.0.0.1:$(port) once it is ready. Then: ddev valhalla planner local"
+}
+
+stop() {
+    docker stop "${container}" >/dev/null 2>&1 || true
+    echo "Valhalla stopped. The map stays in persistent/valhalla."
+}
+
+status() {
+    local state answer
+    state="$(docker inspect -f '{{.State.Status}}' "${container}" 2>/dev/null || echo 'not created')"
+    answer="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$(port)/status" || true)"
+
+    echo "Region:     $(setting VALHALLA_REGIONS belgium)"
+    echo "Limits:     $(setting VALHALLA_CPUS 2) CPUs, $(setting VALHALLA_MEMORY 3g) memory, $(setting VALHALLA_THREADS 2) threads"
+    echo "Container:  ${state}"
+    echo "On disk:    $(du -sh "${data}" 2>/dev/null | cut -f1 || echo 'nothing yet')"
+
+    if [[ "${answer}" == "200" ]]; then
+        echo "Server:     answering on http://127.0.0.1:$(port)"
+    else
+        echo "Server:     not answering yet"
+
+        if [[ "${state}" == "running" ]]; then
+            echo "Last step:  $(docker logs --tail 1 "${container}" 2>&1 | cut -c1-120)"
+        fi
+    fi
+
+    echo "Planner:    $(grep -E '^VALHALLA_URL=' "${app_env}" 2>/dev/null | cut -d= -f2- || echo 'not set')"
+}
+
+use() {
+    if [[ $# -eq 0 ]]; then
+        echo "Name a region, such as: ddev valhalla use france. Find ids with: ddev valhalla regions <search>" >&2
+        exit 1
+    fi
+
+    local urls
+    urls="$(ddev exec -s web php /var/www/html/.ddev/valhalla/regions.php urls "$@")"
+
+    echo "Downloads:"
+    ddev exec -s web php /var/www/html/.ddev/valhalla/regions.php sizes ${urls}
+    echo "Plan for about three times the download in disk space. docs/local-routing.md has memory and time."
+
+    ddev dotenv set .ddev/.env.valhalla.local --valhalla-regions="$*" --valhalla-tile-urls="${urls}" >/dev/null
+    stop
+    clear_data all
+    start
+}
+
+planner() {
+    case "${1:-}" in
+        local) url="http://valhalla:8002" ;;
+        public) url="https://valhalla1.openstreetmap.de" ;;
+        *)
+            echo "Say where to route: ddev valhalla planner local, or ddev valhalla planner public" >&2
+            exit 1
+            ;;
+    esac
+
+    # Changes only the one line, so the rest of the file stays as it was.
+    if grep -qE '^VALHALLA_URL=' "${app_env}"; then
+        sed -i.bak -e "s#^VALHALLA_URL=.*#VALHALLA_URL=${url}#" "${app_env}"
+        rm -f "${app_env}.bak"
+    else
+        echo "VALHALLA_URL=${url}" >>"${app_env}"
+    fi
+
+    ddev exec -d /var/www/html/apps/app php artisan config:clear >/dev/null
+    echo "The planner now routes on ${url}"
+}
+
+command="${1:-help}"
+shift || true
+
+case "${command}" in
+    regions) ddev exec -s web php /var/www/html/.ddev/valhalla/regions.php list "$@" ;;
+    use) use "$@" ;;
+    start) start ;;
+    stop) stop ;;
+    status) status ;;
+    logs) docker logs -f --tail 50 "${container}" ;;
+    rebuild)
+        stop
+        clear_data keep-map
+        start
+        ;;
+    planner) planner "$@" ;;
+    help | -h | --help) help ;;
+    *)
+        echo "Unknown command: ${command}" >&2
+        help
+        exit 1
+        ;;
+esac
