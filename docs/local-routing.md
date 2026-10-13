@@ -91,6 +91,15 @@ Everything lives in `persistent/valhalla`: the downloaded map, the heights, and 
 
 Water, toilets, and cafés come from OpenStreetMap's Overpass server, `OVERPASS_URL` in `apps/app/.env`. The planner shows the route without them when that server is busy. Map tiles come from OpenFreeMap.
 
+## The browser tests
+
+The browser tests draw real routes, so they run best against your own server. With the planner sent to it, walk every route feature on a desktop and on a phone:
+
+```bash
+ddev valhalla planner local
+ddev exec -d /var/www/html/apps/app bun run test:browser:details
+```
+
 ## When it goes wrong
 
 - The build stops and `docker ps -a` shows the container exited with code 137: it ran out of memory. Raise `VALHALLA_MEMORY`, then `ddev valhalla stop` and `ddev valhalla start`.

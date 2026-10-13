@@ -549,14 +549,22 @@ try {
     await tap(mobile.getByRole('tab', { name: 'Generate' }));
     await tap(mobile.locator('button.fill'));
     await detailsShown(mobile, 'Phone loop to save');
+    const savedName = (await mobile.locator('.route-title').first().innerText()).trim();
     await tap(mobile.getByRole('button', { name: 'Save to profile' }));
     await mobile.getByRole('button', { name: 'Saved', exact: true }).waitFor({ timeout: routing });
-    step('phone: a loop saves with a tap');
+    step(`phone: a loop saves with a tap, as "${savedName}"`);
 
     await mobile.goto(`${base}/saved`, { waitUntil: 'domcontentloaded' });
     await mobile.waitForTimeout(1500);
     await fits(mobile, 'Phone library');
-    const card = mobile.getByText('Morning loop').first();
+    // The library opens as a map with a sheet. A tap opens the list, then a
+    // tap on the card opens the route.
+    const card = mobile.locator('.sheet-card', { hasText: savedName }).first();
+
+    if (!(await card.isVisible())) {
+        await tap(mobile.locator('.grab').first());
+    }
+
     await card.waitFor({ timeout: 15000 });
     await tap(card);
     await mobile.locator('.tw-details-chart').first().waitFor({ timeout: 20000 });
