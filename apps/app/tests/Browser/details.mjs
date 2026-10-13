@@ -267,9 +267,10 @@ try {
     check(JSON.stringify((await draft(page))?.routes?.[1]?.coordinates?.slice(0, 3)) !== firstLine, 'The next loop is the same line');
     step('desktop: the next loop reads its own climb and turns');
 
+    const shownStops = (await page.locator('summary', { hasText: 'Stops on the way' }).count()) > 0;
     const gpx = (await downloaded(page, () => page.getByRole('button', { name: 'Export GPX' }).click())).toString('utf8');
     check(gpx.includes('<ele>'), 'The exported GPX has no heights');
-    check(!loopStops || gpx.includes('<wpt'), 'The exported GPX lists no stops while the planner does');
+    check(!shownStops || gpx.includes('<wpt'), 'The exported GPX lists no stops while the planner shows them');
     step(`desktop: the exported GPX has heights${gpx.includes('<wpt') ? ' and stop waypoints' : ''}`);
 
     await page.getByRole('button', { name: 'Send to device' }).click();
