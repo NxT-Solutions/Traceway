@@ -1,0 +1,36 @@
+# Optional. Not started by `ddev start`.
+# ddev start --profiles=valhalla
+# Routes Belgium on this machine, so the planner and the browser tests are
+# never turned away by the public server. The first start downloads the map
+# from Geofabrik and builds the tiles, heights included, which takes a while.
+# Then set VALHALLA_URL=http://valhalla:8002 in apps/app/.env. From the host,
+# the same server answers on http://127.0.0.1:8002.
+services:
+    valhalla:
+        container_name: ddev-${DDEV_SITENAME}-valhalla
+        image: ghcr.io/nilsnolde/docker-valhalla/valhalla:3.5.1
+        profiles:
+            - valhalla
+        restart: "no"
+        environment:
+            tile_urls: "https://download.geofabrik.de/europe/belgium-latest.osm.pbf"
+            use_tiles_ignore_pbf: "True"
+            build_elevation: "True"
+            build_admins: "True"
+            build_time_zones: "True"
+            serve_tiles: "True"
+            server_threads: "4"
+        volumes:
+            - valhalla-tiles:/custom_files
+        expose:
+            - "8002"
+        ports:
+            - "127.0.0.1:8002:8002"
+        labels:
+            com.ddev.site-name: ${DDEV_SITENAME}
+            com.ddev.approot: ${DDEV_APPROOT}
+        x-ddev:
+            describe-info: "Optional. Start with ddev start --profiles=valhalla"
+
+volumes:
+    valhalla-tiles:
