@@ -93,11 +93,18 @@ Water, toilets, and cafés come from OpenStreetMap's Overpass server, `OVERPASS_
 
 ## The browser tests
 
-The browser tests draw real routes, so they run best against your own server. With the planner sent to it, walk every route feature on a desktop and on a phone:
+The browser tests draw real routes, so they run best against your own server. They run on your machine, not in DDEV. Once, from `apps/app`, install their packages and Chromium:
+
+```bash
+npm ci --prefix tests/Browser
+bunx playwright-core install chromium
+```
+
+Then send the planner to your server and walk every route feature on a desktop and on a phone:
 
 ```bash
 ddev valhalla planner local
-ddev exec -d /var/www/html/apps/app bun run test:browser:details
+bun run test:browser:details
 ```
 
 ## When it goes wrong
