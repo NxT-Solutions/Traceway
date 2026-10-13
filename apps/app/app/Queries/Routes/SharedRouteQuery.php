@@ -38,7 +38,7 @@ final class SharedRouteQuery
 
     /**
      * @param  list<SavedLeg>  $savedLegs
-     * @return list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null}>
+     * @return list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null, details: array<string, mixed>|null}>
      */
     private function legs(RouteId $routeId, array $savedLegs): array
     {
@@ -48,6 +48,7 @@ final class SharedRouteQuery
             $legs[] = [
                 ...$savedLeg->toArray(),
                 'fit_url' => $savedLeg->sport instanceof Sport ? SignedRouteLink::fitLeg($routeId->value, $index + 1) : null,
+                'details' => $savedLeg->details?->toArray(),
             ];
         }
 

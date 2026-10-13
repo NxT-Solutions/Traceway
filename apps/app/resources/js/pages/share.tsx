@@ -40,6 +40,7 @@ type SharedRoute = {
         coordinates: Coordinate[];
         fit_url: string | null;
         color?: string | null;
+        details?: RouteDetails | null;
     }>;
     details: RouteDetails | null;
 };
@@ -66,6 +67,16 @@ export default function Share({ route }: { route: SharedRoute }) {
     const mapRef = useRef<maplibregl.Map | null>(null);
     const asideRef = useRef<HTMLElement>(null);
     const [copied, setCopied] = useState(false);
+    // A multisport plan shows one land leg's climb at a time.
+    const detailLegs = route.legs.flatMap((leg, index) =>
+        leg.details ? [index] : [],
+    );
+    const [detailLegChoice, setDetailLegChoice] = useState(detailLegs[0] ?? 0);
+    const detailLeg =
+        route.legs.length > 0 ? (route.legs[detailLegChoice] ?? null) : null;
+    const shownDetails =
+        route.legs.length > 0 ? (detailLeg?.details ?? null) : route.details;
+    const shownLine = detailLeg?.coordinates ?? route.coordinates;
     const kilometres = (route.distance_metres / 1000).toFixed(1);
     const legColours = route.legs.map((leg, index) =>
         legColour('bold', index, leg.color),
@@ -89,6 +100,17 @@ export default function Share({ route }: { route: SharedRoute }) {
                   ],
         [route],
     );
+
+    const shownLineRef = useRef({ line: shownLine, details: shownDetails });
+    shownLineRef.current = { line: shownLine, details: shownDetails };
+
+    useEffect(() => {
+        const map = mapRef.current;
+
+        if (map?.isStyleLoaded()) {
+            syncDetailLayers(map, shownLine, shownDetails, false);
+        }
+    }, [shownLine, shownDetails]);
 
     useEffect(() => {
         const node = mapNode.current;
@@ -180,7 +202,12 @@ export default function Share({ route }: { route: SharedRoute }) {
             });
             ensureDirectionArrows(map, arrowLines);
             addDetailLayers(map);
-            syncDetailLayers(map, route.coordinates, route.details, false);
+            syncDetailLayers(
+                map,
+                shownLineRef.current.line,
+                shownLineRef.current.details,
+                false,
+            );
 
             const bounds = route.coordinates.reduce(
                 (box, coordinate) => box.extend(coordinate),
@@ -256,10 +283,29 @@ export default function Share({ route }: { route: SharedRoute }) {
                         ))}
                     </ol>
                 ) : null}
-                {route.details === null ? null : (
+                {detailLegs.length > 1 ? (
+                    <div
+                        className="tw-details-legs"
+                        role="tablist"
+                        aria-label="Leg to show"
+                    >
+                        {detailLegs.map((index) => (
+                            <button
+                                key={index}
+                                type="button"
+                                role="tab"
+                                aria-selected={detailLegChoice === index}
+                                onClick={() => setDetailLegChoice(index)}
+                            >
+                                {`${index + 1} ${sportLabel[route.legs[index]?.discipline ?? ''] ?? ''}`}
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
+                {shownDetails === null ? null : (
                     <div className="tw-details">
                         <RouteProfile
-                            details={route.details}
+                            details={shownDetails}
                             onHover={(metres) => {
                                 const map = mapRef.current;
 
@@ -268,15 +314,12 @@ export default function Share({ route }: { route: SharedRoute }) {
                                         map,
                                         metres === null
                                             ? null
-                                            : pointAlong(
-                                                  route.coordinates,
-                                                  metres,
-                                              ),
+                                            : pointAlong(shownLine, metres),
                                     );
                                 }
                             }}
                         />
-                        <SurfaceBar details={route.details} />
+                        <SurfaceBar details={shownDetails} />
                     </div>
                 )}
                 <div className="exports">

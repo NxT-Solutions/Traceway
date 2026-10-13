@@ -2293,6 +2293,15 @@
                                     "description": "The colour picked for the leg, as #rrggbb.",
                                     "type": "string",
                                     "nullable": true
+                                },
+                                "details": {
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/RouteDetails"
+                                        }
+                                    ],
+                                    "nullable": true,
+                                    "description": "The climb, surfaces, turns, and stops of a land leg. Null for the swim or a plan saved before they were read."
                                 }
                             },
                             "type": "object"

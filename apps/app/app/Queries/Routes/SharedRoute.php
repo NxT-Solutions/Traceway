@@ -37,6 +37,7 @@ use OpenApi\Attributes\Schema;
                     new Property(property: 'coordinates', ref: '#/components/schemas/CoordinateLine'),
                     new Property(property: 'fit_url', description: 'No course for the swim.', type: 'string', nullable: true),
                     new Property(property: 'color', description: 'The colour picked for the leg, as #rrggbb.', type: 'string', nullable: true),
+                    new Property(property: 'details', ref: '#/components/schemas/RouteDetails', description: 'The climb, surfaces, turns, and stops of a land leg. Null for the swim or a plan saved before they were read.', nullable: true),
                 ],
             ),
         ),
@@ -46,7 +47,7 @@ final readonly class SharedRoute
 {
     /**
      * @param  list<array{0: float, 1: float}>  $coordinates
-     * @param  list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null}>  $legs
+     * @param  list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null, details: array<string, mixed>|null}>  $legs
      * @param  array<string, mixed>|null  $details
      */
     public function __construct(
@@ -78,7 +79,7 @@ final readonly class SharedRoute
      *     gpx_url: string,
      *     fit_url: string,
      *     layout: string|null,
-     *     legs: list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null}>,
+     *     legs: list<array{discipline: string, distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, color: string|null, fit_url: string|null, details: array<string, mixed>|null}>,
      *     details: array<string, mixed>|null
      * }
      */

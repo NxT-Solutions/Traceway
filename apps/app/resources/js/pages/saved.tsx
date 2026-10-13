@@ -1547,21 +1547,34 @@ function RouteDetail({
 }) {
     const [sending, setSending] = useState(false);
     const [details, setDetails] = useState<RouteDetails | null>(null);
-    const multisport = route.legs.length > 0;
+    // A multisport plan shows one land leg's climb at a time, counted from 1.
+    const landLegs = route.legs.flatMap((leg, index) =>
+        leg.discipline === 'swim' ? [] : [index + 1],
+    );
+    const [legChoice, setLegChoice] = useState<number | null>(null);
+    const leg =
+        route.legs.length === 0
+            ? null
+            : legChoice !== null && landLegs.includes(legChoice)
+              ? legChoice
+              : (landLegs[0] ?? null);
 
     useEffect(() => {
         setDetails(null);
 
-        if (multisport) {
+        if (route.legs.length > 0 && leg === null) {
             return;
         }
 
         const controller = new AbortController();
 
-        fetch(`/routes/saved/${route.id}/details`, {
-            headers: { Accept: 'application/json' },
-            signal: controller.signal,
-        })
+        fetch(
+            `/routes/saved/${route.id}/details${leg === null ? '' : `?leg=${leg}`}`,
+            {
+                headers: { Accept: 'application/json' },
+                signal: controller.signal,
+            },
+        )
             .then((response) => (response.ok ? response.json() : null))
             .then((body: unknown) => {
                 const found =
@@ -1575,7 +1588,7 @@ function RouteDetail({
             .catch(() => {});
 
         return () => controller.abort();
-    }, [route.id, multisport]);
+    }, [route.id, route.legs.length, leg]);
 
     const legFits = route.legs.flatMap((leg, index) =>
         leg.fit_url === null
@@ -1625,6 +1638,25 @@ function RouteDetail({
                     </p>
                 ) : null}
             </div>
+            {landLegs.length > 1 ? (
+                <div
+                    className="tw-details-legs"
+                    role="tablist"
+                    aria-label="Leg to show"
+                >
+                    {landLegs.map((number) => (
+                        <button
+                            key={number}
+                            type="button"
+                            role="tab"
+                            aria-selected={leg === number}
+                            onClick={() => setLegChoice(number)}
+                        >
+                            {`${number} ${sportLabel[route.legs[number - 1]?.discipline ?? ''] ?? ''}`}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
             {details === null ? null : (
                 <div className="tw-details">
                     <RouteProfile details={details} />

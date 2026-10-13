@@ -231,3 +231,21 @@ it('reads the details of routes saved before they were kept', function (): void 
         ->and($older->ascent_metres)->toBe(40)
         ->and($older->details)->not->toBeNull();
 });
+
+it('shows the climb of each land leg on a shared multisport plan', function (): void {
+    $legDetails = new FixedRouteDetails()->for(Sport::Run, detailsLine())->toArray();
+    $savedRoute = SavedRoute::factory()->create([
+        'layout' => 'loops',
+        'legs' => [
+            ['discipline' => 'swim', 'distance_metres' => 750, 'ascent_metres' => 0, 'coordinates' => [[4.89, 51.1], [4.895, 51.103]]],
+            ['discipline' => 'run', 'distance_metres' => 5_000, 'ascent_metres' => 40, 'coordinates' => detailsLine(), 'details' => $legDetails],
+        ],
+    ]);
+
+    $this->get(URL::signedRoute('routes.share', $savedRoute))
+        ->assertOk()
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->where('route.legs.0.details', null)
+            ->where('route.legs.1.details.ascent_metres', 40)
+            ->has('route.legs.1.details.cues', 1));
+});

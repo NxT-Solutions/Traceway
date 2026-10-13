@@ -1762,7 +1762,22 @@ export default function Dashboard() {
         details: RouteDetails | null;
         steepness: boolean;
     }>({ line: [], details: null, steepness: false });
-    const detailLine = multisport ? null : (preview?.coordinates ?? null);
+    // A multisport plan shows the details of one land leg at a time.
+    const [detailLegChoice, setDetailLegChoice] = useState(0);
+    const landLegIndexes = (plan?.legs ?? []).flatMap((leg, index) =>
+        leg.discipline !== 'swim' && leg.coordinates.length > 1 ? [index] : [],
+    );
+    const detailLeg = landLegIndexes.includes(detailLegChoice)
+        ? detailLegChoice
+        : (landLegIndexes[0] ?? null);
+    const detailPlanLeg =
+        multisport && detailLeg !== null
+            ? (plan?.legs[detailLeg] ?? null)
+            : null;
+    const detailLine = multisport
+        ? (detailPlanLeg?.coordinates ?? null)
+        : (preview?.coordinates ?? null);
+    const detailSport = detailPlanLeg?.discipline ?? sport;
     const ascentMetres =
         details?.ascent_metres ?? (shown === null ? 0 : shown.ascent_metres);
     const importInputRef = useRef<HTMLInputElement>(null);
@@ -2281,7 +2296,7 @@ export default function Dashboard() {
         const controller = new AbortController();
         setDetailsLoading(true);
         const timer = window.setTimeout(() => {
-            fetchDetails(sport, detailLine, controller.signal)
+            fetchDetails(detailSport, detailLine, controller.signal)
                 .then((found) => {
                     setRoadDetails(found);
                     setDetailsLoading(false);
@@ -2291,7 +2306,7 @@ export default function Dashboard() {
                         setDetailsLoading(false);
                     }
                 });
-            fetchStops(sport, detailLine, controller.signal)
+            fetchStops(detailSport, detailLine, controller.signal)
                 .then((found) => setStops(found ?? []))
                 .catch(() => {});
         }, 250);
@@ -2300,7 +2315,7 @@ export default function Dashboard() {
             window.clearTimeout(timer);
             controller.abort();
         };
-    }, [detailLine, sport]);
+    }, [detailLine, detailSport]);
 
     useEffect(() => {
         detailsRef.current = {
@@ -2937,11 +2952,41 @@ export default function Dashboard() {
         URL.revokeObjectURL(url);
     }
 
-    function download(): void {
+    async function download(): Promise<void> {
         if (multisport) {
             if (plan !== null) {
+                // Each land leg gets its heights and stops. The server keeps
+                // them for an hour, so a leg already shown answers at once.
+                const controller = new AbortController();
+                const legDetails = await Promise.all(
+                    plan.legs.map(async (leg) => {
+                        if (
+                            leg.discipline === 'swim' ||
+                            leg.coordinates.length < 2
+                        ) {
+                            return null;
+                        }
+
+                        const [road, legStops] = await Promise.all([
+                            fetchDetails(
+                                leg.discipline,
+                                leg.coordinates,
+                                controller.signal,
+                            ).catch(() => null),
+                            fetchStops(
+                                leg.discipline,
+                                leg.coordinates,
+                                controller.signal,
+                            ).catch(() => null),
+                        ]);
+
+                        return road === null
+                            ? null
+                            : { ...road, stops: legStops ?? [] };
+                    }),
+                );
                 saveFile(
-                    new Blob([multisportGpx(name, plan)], {
+                    new Blob([multisportGpx(name, plan, legDetails)], {
                         type: 'application/gpx+xml',
                     }),
                     'traceway.gpx',
@@ -4992,7 +5037,40 @@ export default function Dashboard() {
                                         ) : null}
                                     </div>
                                 ) : null}
-                                {!multisport && details !== null ? (
+                                {multisport && landLegIndexes.length > 1 ? (
+                                    <div
+                                        className="seg tw-details-legs"
+                                        role="tablist"
+                                        aria-label="Leg to show"
+                                    >
+                                        {landLegIndexes.map((index) => (
+                                            <button
+                                                key={index}
+                                                type="button"
+                                                role="tab"
+                                                aria-selected={
+                                                    detailLeg === index
+                                                }
+                                                onClick={() =>
+                                                    setDetailLegChoice(index)
+                                                }
+                                            >
+                                                {`${index + 1} ${
+                                                    sports.find(
+                                                        (item) =>
+                                                            item.value ===
+                                                            plan?.legs[index]
+                                                                ?.discipline,
+                                                    )?.label ??
+                                                    plan?.legs[index]
+                                                        ?.discipline ??
+                                                    ''
+                                                }`}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : null}
+                                {details !== null && detailLine !== null ? (
                                     <div className="tw-details">
                                         <RouteProfile
                                             details={details}
@@ -5000,11 +5078,10 @@ export default function Dashboard() {
                                             onSteepness={setSteepness}
                                             onHover={(metres) =>
                                                 showOnMap(
-                                                    metres === null ||
-                                                        preview === null
+                                                    metres === null
                                                         ? null
                                                         : pointAlong(
-                                                              preview.coordinates,
+                                                              detailLine,
                                                               metres,
                                                           ),
                                                 )
@@ -5016,7 +5093,7 @@ export default function Dashboard() {
                                             onFocusPoint={showOnMap}
                                         />
                                     </div>
-                                ) : !multisport && detailsLoading ? (
+                                ) : detailsLoading ? (
                                     <div
                                         className="tw-details-loading"
                                         role="status"
@@ -5031,7 +5108,7 @@ export default function Dashboard() {
                                         type="button"
                                         className="outline"
                                         disabled={shown === null}
-                                        onClick={download}
+                                        onClick={() => void download()}
                                     >
                                         Export GPX
                                     </button>
