@@ -728,3 +728,8 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
 .tw-library .tw-details-legs{display:flex;gap:4px;margin:0 0 10px;padding:4px;border:1px solid var(--hair);border-radius:10px}
 .tw-library .tw-details-legs button{flex:1 1 0;height:32px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:500;cursor:pointer}
 .tw-library .tw-details-legs button[aria-selected="true"]{background:var(--seg-on);color:var(--seg-on-fg)}
+/* The stop or turn chosen from the list: an open ring that pulses, so the stop icon shows inside it */
+.tw-chosen{position:relative;width:40px;height:40px;border-radius:50%;border:3px solid var(--chart,#a6d13c);box-shadow:0 0 0 2px #16303a,inset 0 0 0 2px #16303a;pointer-events:none}
+.tw-chosen::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:3px solid var(--chart,#a6d13c);animation:tw-chosen-pulse 1.6s ease-out infinite}
+@keyframes tw-chosen-pulse{from{transform:scale(1);opacity:.9}to{transform:scale(2.1);opacity:0}}
+@media (prefers-reduced-motion: reduce){.tw-chosen::after{animation:none;opacity:0}}
