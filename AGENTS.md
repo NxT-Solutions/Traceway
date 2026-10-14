@@ -25,3 +25,5 @@ ddev exec -d /var/www/html/apps/app composer ci:check
 ```
 
 While iterating, run the narrow Pest file, then `ddev exec -d /var/www/html/apps/app vendor/bin/pest --parallel --compact`.
+
+Before opening or updating a pull request, run the whole check in `apps/app/.agents/skills/traceway-pr-check/SKILL.md`. It covers the gate, the builds, the browser suites, every page at every size and rotation, WCAG, GDPR, and a review of the branch.
