@@ -9,6 +9,7 @@ use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
+use App\Validation\LineWithinReach;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes\JsonContent;
@@ -52,7 +53,7 @@ class RedoImportedRouteRequest extends FormRequest
             'surface' => ['required', Rule::enum(Surface::class)],
             'elevation' => ['required', Rule::enum(ElevationBias::class)],
             'roads' => ['sometimes', Rule::in(['quiet', 'any'])],
-            'coordinates' => ['required', 'array', 'min:2', 'max:8000'],
+            'coordinates' => ['required', 'array', 'min:2', 'max:8000', new LineWithinReach],
             'coordinates.*' => ['array', 'size:2'],
             'coordinates.*.0' => ['numeric', 'between:-180,180'],
             'coordinates.*.1' => ['numeric', 'between:-90,90'],

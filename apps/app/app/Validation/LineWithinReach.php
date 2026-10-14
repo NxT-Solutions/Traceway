@@ -14,7 +14,12 @@ use Illuminate\Contracts\Validation\ValidationRule;
  */
 final readonly class LineWithinReach implements ValidationRule
 {
-    public const int METRES = 1_000_000;
+    /**
+     * The longest line any endpoint takes: a 300 km loop or opened file,
+     * the longest the planner makes, with room for one that lands long or
+     * is started from a pin away from it.
+     */
+    public const int METRES = 400_000;
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -31,7 +36,7 @@ final readonly class LineWithinReach implements ValidationRule
         }
 
         if (Distance::along($line) > self::METRES) {
-            $fail('A route can be up to 1,000 km.');
+            $fail('A route can be up to '.number_format(self::METRES / 1000).' km.');
         }
     }
 }

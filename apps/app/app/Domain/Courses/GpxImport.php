@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Courses;
 
+use App\Domain\Routing\Distance;
 use InvalidArgumentException;
 use XMLReader;
 
@@ -15,6 +16,12 @@ use XMLReader;
 final class GpxImport
 {
     public const int MAX_POINTS = 100_000;
+
+    /**
+     * The longest loop the planner draws. A longer file is a trip, not a
+     * ride, and its file would be more than a watch can follow.
+     */
+    public const int MAX_METRES = 300_000;
 
     public static function parse(string $xml): ImportedCourse
     {
@@ -79,6 +86,16 @@ final class GpxImport
 
         if (count($line) < 2) {
             throw new InvalidArgumentException('That file has no route in it.');
+        }
+
+        $metres = Distance::along($line);
+
+        if ($metres > self::MAX_METRES) {
+            throw new InvalidArgumentException(sprintf(
+                'That route is %s km. Traceway opens routes up to %s km.',
+                number_format($metres / 1000),
+                number_format(self::MAX_METRES / 1000),
+            ));
         }
 
         return new ImportedCourse($name ?? 'Imported route', $line);

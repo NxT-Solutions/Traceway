@@ -30,8 +30,8 @@ final readonly class OpenFreeMapStopFinder implements StopFinder
     private const float STEP_METRES = 250.0;
 
     /**
-     * More than the longest line the planner takes, 1,000 km, crosses at
-     * most latitudes: about one tile a kilometre in Belgium.
+     * More than the longest line the planner takes, 400 km, crosses up to
+     * about 80° north: about one tile a kilometre in Belgium.
      */
     private const int MAX_TILES = 1_500;
 

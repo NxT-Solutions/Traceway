@@ -335,3 +335,17 @@ it('tries a route the map servers failed on again only after a while', function 
     expect($recent->refresh()->details)->toBeNull()
         ->and($earlier->refresh()->details)->not->toBeNull();
 });
+
+it('reads lines up to 400 km and turns away a longer one', function (float $east, bool $taken): void {
+    app()->instance(RouteDetailsSource::class, new FixedRouteDetails);
+
+    $response = $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.details'), ['sport' => 'road', 'coordinates' => [[2.0, 51.0], [5.0, 51.0], [$east, 51.0]]]);
+
+    $taken
+        ? $response->assertOk()
+        : $response->assertJsonValidationErrors(['coordinates' => 'A route can be up to 400 km.']);
+})->with([
+    '399 km' => [7.7, true],
+    '402 km' => [7.75, false],
+]);
