@@ -6,6 +6,8 @@ use App\Domain\Routing\Details\RouteDetailsSource;
 use App\Domain\Routing\Sport;
 use App\Models\SavedRoute;
 use App\Models\User;
+use Illuminate\Console\Scheduling\Event;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -308,4 +310,28 @@ it('does not let routes that cannot be read hold back the ones that can', functi
 
     expect($failing->refresh()->details)->toBeNull()
         ->and($waiting->refresh()->details)->not->toBeNull();
+});
+
+it('reads unread routes on the production scheduler, a few at a time, never twice at once', function (): void {
+    $events = collect(resolve(Schedule::class)->events())
+        ->filter(fn (Event $event): bool => str_contains((string) $event->command, 'routes:details'));
+
+    expect($events)->toHaveCount(1)
+        ->and($events->first()?->expression)->toBe('*/10 * * * *')
+        ->and((string) $events->first()?->command)->toContain('--limit=20')
+        ->and($events->first()?->withoutOverlapping)->toBeTrue();
+});
+
+it('tries a route the map servers failed on again only after a while', function (): void {
+    $fixedRouteDetails = new FixedRouteDetails;
+    app()->instance(RouteDetailsSource::class, $fixedRouteDetails);
+    $recent = SavedRoute::factory()->create(['details_tried_at' => now()->subHour()]);
+    $earlier = SavedRoute::factory()->create(['details_tried_at' => now()->subHours(7)]);
+
+    $this->artisan('routes:details')
+        ->expectsOutputToContain('1 of 1 routes')
+        ->assertSuccessful();
+
+    expect($recent->refresh()->details)->toBeNull()
+        ->and($earlier->refresh()->details)->not->toBeNull();
 });

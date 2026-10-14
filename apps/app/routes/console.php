@@ -7,6 +7,7 @@ use App\Contracts\Bus\DispatchesCommands;
 use App\Queries\Routes\UnreadRoutesQuery;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function (): void {
     $this->comment(Inspiring::quote());
@@ -32,3 +33,12 @@ Artisan::command('routes:details {--limit=100 : How many routes to read in this 
 
     return 0;
 })->purpose('Read the climb, surfaces, turns, and stops of routes saved before Traceway kept them');
+
+// Production's scheduler reads the rest a few at a time: routes saved
+// before Traceway kept details, and multisport legs a save left for later.
+// A deploy needs nothing run by hand. The map servers are shared, so it
+// goes slowly, and one run never starts while another is still going.
+Schedule::command('routes:details', ['--limit' => 20])
+    ->everyTenMinutes()
+    ->withoutOverlapping(30)
+    ->runInBackground();

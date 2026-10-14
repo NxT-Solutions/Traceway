@@ -10,10 +10,17 @@ use App\Queries\RowReader;
 use App\Routes\RouteId;
 use App\Routes\SavedLeg;
 use App\Routes\UnreadRoute;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final readonly class UnreadRoutesQuery
 {
+    /**
+     * A route the map servers could not read waits this long before the
+     * next try, so a run is not spent on it again and again.
+     */
+    private const int RETRY_HOURS = 6;
+
     /**
      * The routes to read next: never tried first, then the longest since
      * the last try, so a route the map servers keep failing on cannot
@@ -27,6 +34,9 @@ final readonly class UnreadRoutesQuery
         $routes = [];
         $lazyCollection = DB::table('saved_routes')
             ->whereNull('details')
+            ->where(fn (Builder $builder): Builder => $builder
+                ->whereNull('details_tried_at')
+                ->orWhere('details_tried_at', '<', now()->subHours(self::RETRY_HOURS)))
             ->orderByRaw('details_tried_at is not null')
             ->oldest('details_tried_at')
             ->orderBy('id')
