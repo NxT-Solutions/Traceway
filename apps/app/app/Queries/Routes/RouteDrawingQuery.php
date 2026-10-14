@@ -77,8 +77,8 @@ final class RouteDrawingQuery
     {
         $stops = [];
 
-        foreach ($details as $routeDetails) {
-            foreach ($routeDetails->stops ?? [] as $stop) {
+        foreach ($details as $detail) {
+            foreach ($detail->stops ?? [] as $stop) {
                 $stops[] = $this->stop($stop);
             }
         }
