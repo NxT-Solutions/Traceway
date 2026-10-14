@@ -1505,6 +1505,15 @@ export default function Dashboard() {
         savedPlan?.swim ?? null,
     );
     const [activeLeg, setActiveLeg] = useState(0);
+    // The legs as last set, ahead of the next render, and the legs whose
+    // tapped end is still finding its road: quick taps each get their own
+    // leg, and two ends that land together both stay.
+    const legsRef = useRef(legs);
+    legsRef.current = legs;
+    const pendingFinishRef = useRef(new Set<number>());
+    // Undo and any change to the legs move this on, so an end still on its
+    // way lands nowhere instead of on a leg that moved.
+    const finishAskRef = useRef(0);
     const [placing, setPlacing] = useState<Placing>(null);
     const [plan, setPlan] = useState<MultisportPlan | null>(
         savedPlan?.plan ?? null,
@@ -2400,6 +2409,8 @@ export default function Dashboard() {
     useEffect(() => {
         void mode;
         tapAskRef.current += 1;
+        finishAskRef.current += 1;
+        pendingFinishRef.current.clear();
         setTapCard(null);
         setSearchPurpose(null);
     }, [mode]);
@@ -3822,7 +3833,13 @@ export default function Dashboard() {
         );
     }
 
+    function forgetPendingFinishes(): void {
+        finishAskRef.current += 1;
+        pendingFinishRef.current.clear();
+    }
+
     function chooseLayout(value: Layout): void {
+        forgetPendingFinishes();
         if (value === layout) {
             return;
         }
@@ -3897,6 +3914,7 @@ export default function Dashboard() {
     }
 
     function removeLeg(index: number): void {
+        forgetPendingFinishes();
         if (legs.length < 2) {
             return;
         }
@@ -3906,6 +3924,7 @@ export default function Dashboard() {
     }
 
     function moveLeg(from: number, to: number): void {
+        forgetPendingFinishes();
         if (to < 0 || to >= legs.length || from === to) {
             return;
         }
@@ -3934,7 +3953,7 @@ export default function Dashboard() {
             via,
             viaName,
             buildPoints,
-            legs,
+            legs: legsRef.current,
             swim,
             routes,
             routeIndex,
@@ -3944,6 +3963,7 @@ export default function Dashboard() {
         setUndo({
             label,
             restore: () => {
+                forgetPendingFinishes();
                 dirty.current = true;
                 startAskRef.current += 1;
                 viaAskRef.current += 1;
@@ -4106,12 +4126,23 @@ export default function Dashboard() {
         remember('Finish set');
         dirty.current = true;
         setTapCard(null);
-        const nextLegs = legs.map((leg, item) =>
+        const pending = pendingFinishRef.current;
+        const nextLegs = legsRef.current.map((leg, item) =>
             item === index ? { ...leg, finish: point } : leg,
         );
-        const missing = nextLegs.findIndex((leg) => leg.finish === null);
+        legsRef.current = nextLegs;
+        const missing = nextLegs.findIndex(
+            (leg, item) => leg.finish === null && !pending.has(item),
+        );
         setLegs(nextLegs);
         setPlan(null);
+
+        if (missing < 0 && pending.size > 0) {
+            setPlacing(null);
+            setMessage('Finding the road for the last end…');
+
+            return;
+        }
 
         if (missing >= 0) {
             setActiveLeg(missing);
@@ -4169,8 +4200,35 @@ export default function Dashboard() {
 
         if (placing?.kind === 'finish') {
             const leg = placing.leg;
+            const ask = finishAskRef.current;
+            const pending = pendingFinishRef.current;
+            pending.add(leg);
+            // The next tap is for the next leg, even before this end has
+            // found its road.
+            const next = legsRef.current.findIndex(
+                (item, index) => item.finish === null && !pending.has(index),
+            );
+
+            if (next >= 0) {
+                setActiveLeg(next);
+                setPlacing({ kind: 'finish', leg: next });
+                setMessage(
+                    `Tap the map where leg ${next + (swim === null ? 1 : 2)} ends.`,
+                );
+            } else {
+                setPlacing(null);
+            }
+
             void snapPoint(lng, lat).then((snapped) => {
+                if (finishAskRef.current !== ask) {
+                    return;
+                }
+
+                pending.delete(leg);
+
                 if (snapped === null) {
+                    setActiveLeg(leg);
+                    setPlacing({ kind: 'finish', leg });
                     setMessage(farFromRoad);
 
                     return;

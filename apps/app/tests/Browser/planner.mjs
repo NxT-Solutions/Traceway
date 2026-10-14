@@ -132,7 +132,12 @@ try {
     await desktop.mouse.down();
     await desktop.mouse.move(pin.x + pin.width / 2 + 80, pin.y + pin.height / 2 + 40, { steps: 8 });
     await desktop.mouse.up();
-    await desktop.waitForTimeout(300);
+
+    // The dropped pin finds its road first, which takes a moment on the
+    // public router.
+    for (let waited = 0; waited < 15000 && (await startOf()) === placed; waited += 250) {
+        await desktop.waitForTimeout(250);
+    }
 
     if ((await startOf()) === placed) {
         throw new Error('Dragging the start pin did not move the start.');
