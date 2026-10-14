@@ -214,6 +214,7 @@ jobs:
           echo 'SESSION_SECURE_COOKIE=false' >> .env
           if [ "$USE_ROUTER_STUB" = "true" ]; then
             sed -i 's|^VALHALLA_URL=.*|VALHALLA_URL=http://127.0.0.1:8002|' .env
+            sed -i 's|^OVERPASS_URL=.*|OVERPASS_URL=http://127.0.0.1:8002/api|' .env
           fi
           php artisan key:generate --no-interaction
           mkdir -p database
