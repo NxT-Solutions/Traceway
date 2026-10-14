@@ -528,18 +528,35 @@ export function addDetailLayers(map: MapLibreMap): void {
         });
     }
 
+    // A dot follows the chart. A ring marks a chosen stop or turn, under
+    // the stop's own icon, so the icon still shows inside it.
     if (map.getLayer('route-hover') === undefined) {
-        map.addLayer({
-            id: 'route-hover',
-            type: 'circle',
-            source: 'route-hover',
-            paint: {
-                'circle-radius': 7,
-                'circle-color': '#16303a',
-                'circle-stroke-color': '#ffffff',
-                'circle-stroke-width': 3,
+        map.addLayer(
+            {
+                id: 'route-hover',
+                type: 'circle',
+                source: 'route-hover',
+                paint: {
+                    'circle-radius': ['match', ['get', 'mark'], 'ring', 17, 7],
+                    'circle-color': [
+                        'match',
+                        ['get', 'mark'],
+                        'ring',
+                        'rgba(255,255,255,0.85)',
+                        '#16303a',
+                    ],
+                    'circle-stroke-color': [
+                        'match',
+                        ['get', 'mark'],
+                        'ring',
+                        '#16303a',
+                        '#ffffff',
+                    ],
+                    'circle-stroke-width': 3,
+                },
             },
-        });
+            'route-stops',
+        );
     }
 }
 
@@ -631,12 +648,13 @@ export function syncDetailLayers(
 }
 
 /**
- * Moves the dot that marks where the rider is looking on the profile, or
- * hides it.
+ * Moves the mark for where the rider is looking: a dot for the chart, a
+ * ring for a chosen stop or turn. Null hides it.
  */
 export function syncHoverPoint(
     map: MapLibreMap,
     point: Coordinate | null,
+    mark: 'dot' | 'ring' = 'dot',
 ): void {
     const source = map.getSource('route-hover');
 
@@ -652,7 +670,7 @@ export function syncHoverPoint(
                 : [
                       {
                           type: 'Feature',
-                          properties: {},
+                          properties: { mark },
                           geometry: { type: 'Point', coordinates: point },
                       },
                   ],
