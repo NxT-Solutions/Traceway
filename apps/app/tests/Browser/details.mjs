@@ -196,6 +196,51 @@ async function stopsShown(page, label) {
     }
 }
 
+async function title(page) {
+    return (await page.locator('.route-title').first().innerText()).trim();
+}
+
+/**
+ * The brightness of every route thumbnail, once each card has one or the
+ * time for them has passed. A black thumbnail is a shot of an empty canvas.
+ */
+async function thumbnails(page) {
+    await page
+        .waitForFunction(
+            () => {
+                const cards = document.querySelectorAll('.thumb').length;
+
+                return cards > 0 && document.querySelectorAll('.thumb img').length >= cards;
+            },
+            null,
+            { timeout: 30_000 },
+        )
+        .catch(() => {});
+
+    return page.evaluate(async () => {
+        const levels = [];
+
+        for (const image of document.querySelectorAll('.thumb img')) {
+            await image.decode().catch(() => {});
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 20;
+            const context = canvas.getContext('2d');
+            context.drawImage(image, 0, 0, 32, 20);
+            const pixels = context.getImageData(0, 0, 32, 20).data;
+            let sum = 0;
+
+            for (let index = 0; index < pixels.length; index += 4) {
+                sum += pixels[index] + pixels[index + 1] + pixels[index + 2];
+            }
+
+            levels.push(Math.round(sum / (pixels.length / 4) / 3));
+        }
+
+        return levels;
+    });
+}
+
 try {
     // ── Desktop ─────────────────────────────────────────────────────────
     const desktop = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 860 }, acceptDownloads: true });
@@ -318,13 +363,15 @@ try {
 
     await page.locator('button.fill').click();
     await detailsShown(page, 'Built route');
-    step('desktop: a built route through three tapped points shows its climb, surfaces, and turns');
+    check((await title(page)) === 'Morning loop', `A built route after an opened file is still named "${await title(page)}"`);
+    step('desktop: a built route through three tapped points shows its climb, surfaces, and turns, under its own name');
 
     // A brick: one land leg at a time.
     await page.getByRole('tab', { name: 'Multisport' }).click();
     await page.getByRole('button', { name: /^Type\s*\w/ }).click();
     await page.getByRole('radio', { name: /^Brick\b/ }).click();
     await page.waitForFunction(() => !document.querySelector('[data-slot="sheet-content"][data-state="open"]'));
+    check((await title(page)) === 'Brick', `Choosing a brick names the plan "${await title(page)}"`);
     await page.locator('button.fill').click();
     await page.locator('.leg-list li').first().waitFor({ timeout: routing });
     const legTabs = page.getByRole('tablist', { name: 'Leg to show' }).getByRole('tab');
@@ -347,6 +394,12 @@ try {
     check((brickGpx.match(/<trk>.*?<ele>/gs) ?? []).length === 2, 'Each brick track should have heights');
     step('desktop: the brick GPX gives each leg its heights');
 
+    await page.getByRole('tab', { name: 'Generate' }).click();
+    check((await title(page)) === 'Morning loop', `Leaving Multisport keeps the name "${await title(page)}"`);
+    await page.getByRole('tab', { name: 'Multisport' }).click();
+    check((await title(page)) === 'Brick', `Coming back to Multisport names it "${await title(page)}"`);
+    step('desktop: the brick is named after its session, and a loop drawn after it is not');
+
     // A long ride, past the size nginx keeps in memory.
     await page.getByRole('tab', { name: 'Generate' }).click();
     await page.evaluate(() => {
@@ -363,7 +416,22 @@ try {
     text = await detailsShown(page, '100 km loop');
     step(`desktop: a 100 km loop shows its climb (${/(\d+) m\s*up/.exec(text)?.[1]} m) and turns`);
 
+    await page.getByRole('button', { name: 'Rename route' }).click();
+    await page.locator('#route-name').fill('Sunday club');
+    await page.keyboard.press('Enter');
+    await page.getByRole('tab', { name: 'Multisport' }).click();
+    await page.getByRole('button', { name: /^Type\s*\w/ }).click();
+    await page.getByRole('radio', { name: /^Brick\b/ }).click();
+    await page.waitForFunction(() => !document.querySelector('[data-slot="sheet-content"][data-state="open"]'));
+    check((await title(page)) === 'Sunday club', `A session renamed the rider's route to "${await title(page)}"`);
+    await page.getByRole('tab', { name: 'Generate' }).click();
+    check((await title(page)) === 'Sunday club', `Leaving Multisport renamed the rider's route to "${await title(page)}"`);
+    step('desktop: a name the rider typed stays through a session and back');
+
     await page.goto(`${base}/saved`, { waitUntil: 'domcontentloaded' });
+    const desktopThumbs = await thumbnails(page);
+    check(desktopThumbs.every((level) => level > 25), `A saved route thumbnail is black (brightness ${desktopThumbs.join(', ')})`);
+    step(`desktop: ${desktopThumbs.length} saved route thumbnails, none black`);
     await page.getByText('Morning loop').first().click();
     await page.locator('.tw-details-chart').first().waitFor({ timeout: 20000 });
     step('desktop: the saved route shows its climb chart');
@@ -547,6 +615,7 @@ try {
 
     await mobile.locator('.pbody').evaluate((node) => node.scrollTo(0, 0));
     await tap(mobile.getByRole('tab', { name: 'Generate' }));
+    check((await title(mobile)) === 'Morning loop', `A loop after a brick and a file is named "${await title(mobile)}"`);
     await tap(mobile.locator('button.fill'));
     await detailsShown(mobile, 'Phone loop to save');
     const savedName = (await mobile.locator('.route-title').first().innerText()).trim();
@@ -566,6 +635,9 @@ try {
     }
 
     await card.waitFor({ timeout: 15000 });
+    const phoneThumbs = await thumbnails(mobile);
+    check(phoneThumbs.every((level) => level > 25), `A saved route thumbnail on the phone is black (brightness ${phoneThumbs.join(', ')})`);
+    step(`phone: ${phoneThumbs.length} saved route thumbnails, none black`);
     await tap(card);
     await mobile.locator('.tw-details-chart').first().waitFor({ timeout: 20000 });
     await fits(mobile, 'Phone saved route');
