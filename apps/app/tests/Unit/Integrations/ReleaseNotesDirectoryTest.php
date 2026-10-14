@@ -87,3 +87,11 @@ it('keeps to versions like v1.4.0', function (): void {
 
     expect(fn (): array => new ReleaseNotesDirectory($this->releases)->prepare('0.8', 'Rivers', summary: null))->toThrow(InvalidArgumentException::class, 'A version looks like v1.4.0');
 });
+
+it('names a release by its first change when it is prepared without a title', function (): void {
+    releaseNote($this->releases.'/unreleased', 'bell.md', 'New', '**A bell at the top of the planner** shows what is new.');
+
+    new ReleaseNotesDirectory($this->releases)->prepare('v0.8.0', '', summary: null);
+
+    expect(File::get($this->releases.'/v0.8.0/_release.md'))->toBe("---\ntitle: A bell at the top of the planner\n---\n");
+});

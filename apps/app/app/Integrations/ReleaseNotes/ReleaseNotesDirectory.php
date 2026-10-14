@@ -44,8 +44,9 @@ final readonly class ReleaseNotesDirectory implements ReleaseFeed
 
     /**
      * Moves every unreleased branch's notes into the new version's folder, beside a
-     * _release.md with the title and summary riders see. Nothing is moved when one file
-     * is not valid, or the version already has a folder.
+     * _release.md with the title and summary riders see. With no title, the release is
+     * named by its first change. Nothing is moved when one file is not valid, or the
+     * version already has a folder.
      *
      * @return list<string> The files moved.
      */
@@ -64,7 +65,10 @@ final readonly class ReleaseNotesDirectory implements ReleaseFeed
             ReleaseNotesFolder::branchNote($name, $contents);
         }
 
-        $releaseFile = ReleaseNotesFolder::releaseFile($title, $summary);
+        $releaseFile = ReleaseNotesFolder::releaseFile(
+            trim($title) !== '' ? $title : (ReleaseNotesFolder::suggestedTitle($branchNotes) ?? ''),
+            $summary,
+        );
         ReleaseNotesFolder::read($tag, $releaseFile, $branchNotes);
 
         throw_unless(mkdir($folder, 0775, recursive: true), RuntimeException::class, 'Could not create '.$folder.'.');

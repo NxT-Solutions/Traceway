@@ -45,7 +45,7 @@ From the notes:
 - **Summary:** one sentence, at most 140 characters, on what changed for the rider.
 - **Style:** plain words for riders over 60. No technical terms, no version numbers, no emoji, and no hype. Never the words beacon, kudos, segment, or suffer.
 
-Show the version, the title, the summary, and the list of notes to the person, and wait for a go. Skip the wait only if they already said to release without asking. If they want the words written for them, leave the title and summary empty, and GitHub Models writes them in the workflow.
+Show the version, the title, the summary, and the list of notes to the person, and wait for a go. Skip the wait only if they already said to release without asking. A release cut without a title, such as from the phone, is named by its first change, and the summary is optional.
 
 ## 4. Run it
 

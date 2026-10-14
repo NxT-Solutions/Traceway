@@ -75,6 +75,39 @@ final class ReleaseNotesFolder
     }
 
     /**
+     * A title made from the notes, for a release cut without one: the first change in the
+     * first section riders read, New before Fixes before Devices. A change that starts in
+     * bold is named by its bold words, any other by its first sentence.
+     *
+     * @param  array<string, string>  $branchNotes
+     */
+    public static function suggestedTitle(array $branchNotes): ?string
+    {
+        foreach (self::sections('unreleased', $branchNotes) as $changes) {
+            $lines = preg_split('/\R/u', implode("\n", $changes));
+
+            foreach (is_array($lines) ? $lines : [] as $line) {
+                if (preg_match('/^\s*[*-]\s+(.+)$/u', $line, $match) !== 1) {
+                    continue;
+                }
+
+                $change = trim($match[1]);
+                $sentences = preg_split('/(?<=[.!?])\s/u', $change, 2);
+                $title = preg_match('/^\*\*(.+?)\*\*/u', $change, $bold) === 1
+                    ? $bold[1]
+                    : (is_array($sentences) ? $sentences[0] : $change);
+                $title = rtrim(trim(str_replace(['**', '__', '`'], '', $title)), '.:;,!');
+
+                if ($title !== '') {
+                    return mb_strlen($title) <= 80 ? $title : rtrim(mb_substr($title, 0, 79)).'…';
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * The _release.md a release starts with.
      */
     public static function releaseFile(string $title, ?string $summary): string
