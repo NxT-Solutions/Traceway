@@ -1,0 +1,45 @@
+---
+import Base from '../layouts/Base.astro';
+import { inline, type LegalPage, legalUpdated } from '../legal';
+
+interface Props {
+    page: LegalPage;
+}
+
+const { page } = Astro.props;
+---
+
+<Base
+    title={page.title}
+    description={page.description}
+    markdown={`${page.path}.md`}
+>
+    <main class="wrap page">
+        <p class="kicker">Legal</p>
+        <h1>{page.heading}</h1>
+        <p class="page-date">Last updated {legalUpdated}</p>
+        <div class="prose">
+            {page.intro.map((text) => <p set:html={inline(text)} />)}
+            {
+                page.sections.map((section) => (
+                    <section>
+                        <h2>{section.heading}</h2>
+                        {section.paragraphs?.map((text) => (
+                            <p set:html={inline(text)} />
+                        ))}
+                        {section.items && (
+                            <ul>
+                                {section.items.map((text) => (
+                                    <li set:html={inline(text)} />
+                                ))}
+                            </ul>
+                        )}
+                        {section.after?.map((text) => (
+                            <p set:html={inline(text)} />
+                        ))}
+                    </section>
+                ))
+            }
+        </div>
+    </main>
+</Base>

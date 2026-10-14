@@ -1,8 +1,9 @@
 import type { APIRoute } from 'astro';
+import { legalPages } from '../legal';
 import { absolute } from '../seo/site';
 
-// The home page, and the one page beside it, with the day they were built.
-const pages = ['/', '/support'];
+// The home page, the pages beside it, and the day they were built.
+const pages = ['/', '/support', ...legalPages.map((page) => page.path)];
 
 export const GET: APIRoute = ({ site }) =>
     new Response(
