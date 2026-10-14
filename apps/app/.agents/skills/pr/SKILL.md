@@ -42,25 +42,10 @@ Take a screenshot of every screen the branch changes:
 - **States:** open the sheet, panel, or dialog the change is about.
 - **Sources:** the sheets from `bun run test:browser:screens` (`sheet-<page>.png`) count. Add close-ups through the browser tools.
 
-Name each file for what it shows, such as `whats-new-phone-dark.png`. Put them on the `pr-screenshots` branch under `pr/<number>/`. That branch never merges, and the `main` rules do not cover it:
+Name each file for what it shows, such as `whats-new-phone-dark.png`, and keep them in one folder outside the repository. The script below puts them on the `pr-screenshots` branch under `pr/<number>/`. It goes through GitHub's API, so it touches no local checkout, and it prints each file's URL. That branch never merges, and the `main` rules do not cover it.
 
 ```bash
-pr=<number>
-shots=/path/to/screenshots
-dir="$(mktemp -d)"
-if git fetch origin pr-screenshots 2>/dev/null; then
-  git worktree add "$dir" FETCH_HEAD
-  git -C "$dir" switch -c pr-screenshots-upload
-else
-  git worktree add --detach "$dir"
-  git -C "$dir" switch --orphan pr-screenshots-upload
-fi
-mkdir -p "$dir/pr/$pr" && cp "$shots"/*.png "$dir/pr/$pr/"
-git -C "$dir" add "pr/$pr"
-git -C "$dir" commit -m "📸 screenshots for #$pr"
-git -C "$dir" push origin HEAD:pr-screenshots
-git worktree remove --force "$dir"
-git branch -D pr-screenshots-upload
+apps/app/.agents/skills/pr/upload-screenshots.sh NxT-Solutions/Traceway <number> /path/to/screenshots
 ```
 
 Show them in the description as `![Phone, dark](https://raw.githubusercontent.com/NxT-Solutions/Traceway/pr-screenshots/pr/<number>/whats-new-phone-dark.png)`. Use a table for before and after. Open the pull request first if it has no number yet, then add the screenshots and edit the description.
