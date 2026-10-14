@@ -21,6 +21,7 @@ From `apps/app`:
 - Browser smoke is `tests/Browser` and runs on the host: `node planner.mjs` from that directory, with Playwright Chromium. `composer test:perf` is the k6 health check and also runs on the host, because k6 is not in the web image. Agentic browser steps from tester-army/e2e need a model key, so they are not the gate.
 - JS: `bun run check:fix` and `bun run types:check`
 - One shot: `composer ci:check`
+- Before a pull request, the whole check, with the builds, every page at every size, WCAG, GDPR, and a branch review, is the `traceway-pr-check` skill.
 
 Use the Laravel Boost MCP for docs, schema, and logs. Use the Playwright MCP to click a page a rider would see before saying UI work is done.
 

@@ -14,7 +14,8 @@
         "blade:check": "blade-formatter --check-formatted \"resources/views/**/*.blade.php\"",
         "blade:fix": "blade-formatter --write \"resources/views/**/*.blade.php\"",
         "test:browser": "node tests/Browser/planner.mjs && node tests/Browser/wcag.mjs && node tests/Browser/mobile.mjs",
-        "test:browser:details": "node tests/Browser/details.mjs"
+        "test:browser:details": "node tests/Browser/details.mjs",
+        "test:browser:screens": "node tests/Browser/screens.mjs"
     },
     "dependencies": {
         "@inertiajs/react": "^3.0.0",
