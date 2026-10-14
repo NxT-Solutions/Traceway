@@ -25,6 +25,7 @@ type Guide = {
     icon: LucideIcon;
     link?: { label: string; href: string };
     command?: string;
+    online?: boolean;
     steps: string[];
     note?: string;
 };
@@ -56,6 +57,7 @@ function guides(url: string): Guide[] {
             name: 'Claude',
             where: 'claude.ai, the desktop app, and your phone',
             icon: MessageCircle,
+            online: true,
             link: {
                 label: 'Open Claude connectors',
                 href: 'https://claude.ai/customize/connectors',
@@ -72,6 +74,7 @@ function guides(url: string): Guide[] {
             name: 'ChatGPT',
             where: 'chatgpt.com and the ChatGPT apps',
             icon: MessageCircle,
+            online: true,
             link: { label: 'Open ChatGPT', href: 'https://chatgpt.com/' },
             steps: [
                 'Open Settings, then Apps & Connectors.',
@@ -126,6 +129,21 @@ function guides(url: string): Guide[] {
             ],
         },
     ];
+}
+
+/**
+ * True when the address only works on this computer, like a DDEV site.
+ * Apps that connect from their own servers cannot reach it.
+ */
+function onThisComputer(url: string): boolean {
+    const host = new URL(url).hostname;
+
+    return (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '[::1]' ||
+        /\.(ddev\.site|test|localhost)$/.test(host)
+    );
 }
 
 function useCopy(): [string | null, (key: string, text: string) => void] {
@@ -197,6 +215,7 @@ export default function Assistants({
     apps: ConnectedApp[];
 }) {
     const [copied, copy] = useCopy();
+    const local = onThisComputer(url);
 
     return (
         <>
@@ -246,79 +265,105 @@ export default function Assistants({
                     title="Add it to your app"
                     description="One click where the app allows it, a few steps where it does not."
                 />
+                {local ? (
+                    <p className="ai-local">
+                        <b>This address only works on this computer.</b> Cursor,
+                        VS Code, Claude Code, and Codex run here, so they can
+                        reach it. Claude and ChatGPT connect from their own
+                        servers, so they need a public address. Run{' '}
+                        <code>ddev share</code>, open Traceway on the address it
+                        gives, and copy the connector address from there.
+                    </p>
+                ) : null}
                 <ul className="ai-apps">
-                    {guides(url).map((guide) => {
-                        const Icon = guide.icon;
+                    {guides(url)
+                        .sort(
+                            (first, second) =>
+                                Number(local && first.online === true) -
+                                Number(local && second.online === true),
+                        )
+                        .map((guide) => {
+                            const Icon = guide.icon;
 
-                        return (
-                            <li key={guide.id} className="ai-app">
-                                <div className="ai-app-head">
-                                    <span className="ai-app-icon">
-                                        <Icon size={20} aria-hidden="true" />
-                                    </span>
-                                    <span>
-                                        <b>{guide.name}</b>
-                                        <small>{guide.where}</small>
-                                    </span>
-                                </div>
-                                {guide.command ? (
-                                    <div className="ai-command">
-                                        <pre>{guide.command}</pre>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                copy(
-                                                    guide.id,
-                                                    guide.command ?? '',
-                                                )
-                                            }
-                                        >
-                                            {copied === guide.id ? (
-                                                <Check
-                                                    size={16}
-                                                    aria-hidden="true"
-                                                />
-                                            ) : (
-                                                <Copy
-                                                    size={16}
-                                                    aria-hidden="true"
-                                                />
-                                            )}
-                                            {copied === guide.id
-                                                ? 'Copied'
-                                                : 'Copy'}
-                                        </button>
+                            return (
+                                <li key={guide.id} className="ai-app">
+                                    <div className="ai-app-head">
+                                        <span className="ai-app-icon">
+                                            <Icon
+                                                size={20}
+                                                aria-hidden="true"
+                                            />
+                                        </span>
+                                        <span>
+                                            <b>{guide.name}</b>
+                                            <small>{guide.where}</small>
+                                        </span>
+                                        {local && guide.online ? (
+                                            <span className="ai-tag">
+                                                Needs a public address
+                                            </span>
+                                        ) : null}
                                     </div>
-                                ) : null}
-                                {guide.link ? (
-                                    <a
-                                        className="ai-add"
-                                        href={guide.link.href}
-                                        target={
-                                            guide.link.href.startsWith('http')
-                                                ? '_blank'
-                                                : undefined
-                                        }
-                                        rel="noopener noreferrer"
-                                    >
-                                        {guide.link.label}
-                                        <ExternalLink
-                                            size={16}
-                                            aria-hidden="true"
-                                        />
-                                    </a>
-                                ) : null}
-                                <ol>
-                                    {guide.steps.map((step) => (
-                                        <li key={step}>{step}</li>
-                                    ))}
-                                </ol>
-                                {guide.note ? (
-                                    <p className="ai-note">{guide.note}</p>
-                                ) : null}
-                            </li>
-                        );
-                    })}
+                                    {guide.command ? (
+                                        <div className="ai-command">
+                                            <pre>{guide.command}</pre>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    copy(
+                                                        guide.id,
+                                                        guide.command ?? '',
+                                                    )
+                                                }
+                                            >
+                                                {copied === guide.id ? (
+                                                    <Check
+                                                        size={16}
+                                                        aria-hidden="true"
+                                                    />
+                                                ) : (
+                                                    <Copy
+                                                        size={16}
+                                                        aria-hidden="true"
+                                                    />
+                                                )}
+                                                {copied === guide.id
+                                                    ? 'Copied'
+                                                    : 'Copy'}
+                                            </button>
+                                        </div>
+                                    ) : null}
+                                    {guide.link ? (
+                                        <a
+                                            className="ai-add"
+                                            href={guide.link.href}
+                                            target={
+                                                guide.link.href.startsWith(
+                                                    'http',
+                                                )
+                                                    ? '_blank'
+                                                    : undefined
+                                            }
+                                            rel="noopener noreferrer"
+                                        >
+                                            {guide.link.label}
+                                            <ExternalLink
+                                                size={16}
+                                                aria-hidden="true"
+                                            />
+                                        </a>
+                                    ) : null}
+                                    <ol>
+                                        {guide.steps.map((step) => (
+                                            <li key={step}>{step}</li>
+                                        ))}
+                                    </ol>
+                                    {guide.note ? (
+                                        <p className="ai-note">{guide.note}</p>
+                                    ) : null}
+                                </li>
+                            );
+                        })}
                 </ul>
             </div>
 

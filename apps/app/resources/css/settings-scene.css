@@ -170,6 +170,10 @@
 .tw-settings .ai-connected button{height:40px;padding:0 14px;border:1px solid var(--outline);border-radius:10px;background:transparent;font-weight:500;cursor:pointer}
 .tw-settings .ai-connected button:hover{border-color:var(--danger);color:var(--danger)}
 .tw-settings .ai-dot{flex:0 0 auto;width:10px;height:10px;border-radius:50%;background:var(--chart);box-shadow:0 0 0 4px oklch(0.78 0.17 128 / 0.2)}
+.tw-settings .ai-local{margin:0;padding:14px 16px;border:1px solid var(--panel-b);border-left:3px solid var(--chart);border-radius:12px;background:var(--panel);color:var(--muted);font-size:14px}
+.tw-settings .ai-local b{color:var(--text);font-weight:600}
+.tw-settings .ai-local code{padding:1px 6px;border-radius:6px;background:var(--icon-box);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.tw-settings .ai-tag{margin-left:auto;flex:0 0 auto;padding:3px 8px;border-radius:999px;background:var(--icon-box);color:var(--muted);font-size:12px;font-weight:500;white-space:nowrap}
 .tw-settings .ai-pointer{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 @media (max-width: 640px){
   .tw-settings .fill .long,.tw-settings .plan-nav .long{display:none}
