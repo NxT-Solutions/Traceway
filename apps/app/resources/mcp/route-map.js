@@ -9,10 +9,66 @@
  */
 const maplibreDist = 'https://unpkg.com/maplibre-gl@6.14.0/dist';
 const style = 'https://tiles.openfreemap.org/styles/dark';
-const legColours = ['#38bdf8', '#f472b6', '#4ade80', '#c4b5fd', '#f8fafc'];
+const fonts = 'https://fonts.bunny.net/outfit/files';
+const legColours = ['#38bdf8', '#f472b6', '#4ade80', '#c4b5fd', '#f6f3ea'];
 const ink = '#071f20';
-const paper = '#f8fafc';
+const paper = '#f6f3ea';
 const chartreuse = '#97cb46';
+const stopColours = { water: '#1d4ed8', toilet: '#6d28d9', cafe: '#0f766e' };
+
+/**
+ * OpenFreeMap's dark map in Traceway's ink: teal water, green woods, quiet
+ * roads, and paper labels, so the map sits in the card as one piece.
+ */
+const brandPaint = {
+    background: { 'background-color': '#0a2526' },
+    water: { 'fill-color': '#0f3a3f' },
+    waterway: { 'line-color': '#0f3a3f' },
+    landcover_wood: { 'fill-color': '#0d2e2a' },
+    landuse_park: { 'fill-color': '#0d2e2a' },
+    landuse_residential: { 'fill-color': '#0c2829' },
+    building: { 'fill-color': '#0c2324', 'fill-outline-color': '#133234' },
+    highway_path: { 'line-color': '#163536' },
+    highway_minor: { 'line-color': '#1a3a3b' },
+    highway_major_casing: { 'line-color': 'rgba(246, 243, 234, 0.08)' },
+    highway_major_inner: { 'line-color': '#21444a' },
+    highway_major_subtle: { 'line-color': '#21444a' },
+    highway_motorway_casing: { 'line-color': 'rgba(246, 243, 234, 0.1)' },
+    highway_motorway_inner: { 'line-color': '#2a5157' },
+    highway_motorway_subtle: { 'line-color': '#21444a' },
+    railway: { 'line-color': '#1c3b3c' },
+    railway_minor: { 'line-color': '#1c3b3c' },
+    railway_transit: { 'line-color': '#1c3b3c' },
+    boundary_state: { 'line-color': '#2f4f50' },
+    'boundary_country_z5-': { 'line-color': '#2f4f50' },
+    water_name: { 'text-color': '#6f9ea2', 'text-halo-color': ink },
+    highway_name_other: { 'text-color': '#6d8a88', 'text-halo-color': ink },
+    highway_name_motorway: { 'text-color': '#6d8a88' },
+    place_village: {
+        'text-color': 'rgba(246, 243, 234, 0.6)',
+        'text-halo-color': 'rgba(7, 31, 32, 0.9)',
+    },
+    place_suburb: {
+        'text-color': 'rgba(246, 243, 234, 0.6)',
+        'text-halo-color': 'rgba(7, 31, 32, 0.9)',
+    },
+    place_other: {
+        'text-color': 'rgba(246, 243, 234, 0.5)',
+        'text-halo-color': 'rgba(7, 31, 32, 0.9)',
+    },
+    place_town: {
+        'text-color': 'rgba(246, 243, 234, 0.8)',
+        'text-halo-color': 'rgba(7, 31, 32, 0.9)',
+    },
+    place_city: {
+        'text-color': 'rgba(246, 243, 234, 0.86)',
+        'text-halo-color': 'rgba(7, 31, 32, 0.9)',
+    },
+    place_city_large: {
+        'text-color': 'rgba(246, 243, 234, 0.9)',
+        'text-halo-color': 'rgba(7, 31, 32, 0.9)',
+    },
+};
 
 async function text(url) {
     const response = await fetch(url);
@@ -28,6 +84,32 @@ function blob(code) {
     return URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
 }
 
+/** Outfit, the Traceway font, for the card. The system font stands in until then. */
+async function brandFont() {
+    try {
+        const faces = await Promise.all(
+            ['400', '600'].map(async (weight) => {
+                const response = await fetch(
+                    `${fonts}/outfit-latin-${weight}-normal.woff2`,
+                );
+                const face = new FontFace(
+                    'Outfit',
+                    await response.arrayBuffer(),
+                    { weight },
+                );
+
+                return face.load();
+            }),
+        );
+
+        for (const face of faces) {
+            document.fonts.add(face);
+        }
+    } catch {
+        // The system font is fine.
+    }
+}
+
 let loading = null;
 
 /** MapLibre, its worker, and its styles, loaded once per card. */
@@ -41,11 +123,19 @@ function maplibre() {
         const sheet = document.createElement('style');
         sheet.textContent = `${css}
             .stage > .live-map.maplibregl-map { position: absolute; }
-            .live-map .maplibregl-ctrl-group { background: ${ink}; border: 1px solid rgba(246, 243, 234, 0.2); }
-            .live-map .maplibregl-ctrl-group button + button { border-top-color: rgba(246, 243, 234, 0.2); }
-            .live-map .maplibregl-ctrl-icon { filter: invert(1); }
-            .live-map .maplibregl-ctrl-attrib { background: rgba(7, 31, 32, 0.7); color: rgba(246, 243, 234, 0.7); }
-            .live-map .maplibregl-ctrl-attrib a { color: inherit; }`;
+            .live-map .maplibregl-ctrl-top-right { margin: 12px 12px 0 0; }
+            .live-map .maplibregl-ctrl-top-right .maplibregl-ctrl { margin: 0; }
+            .live-map .maplibregl-ctrl-group { background: rgba(7, 31, 32, 0.88); border: 1px solid rgba(246, 243, 234, 0.18); border-radius: 10px; box-shadow: none; overflow: hidden; }
+            .live-map .maplibregl-ctrl-group button { width: 32px; height: 32px; }
+            .live-map .maplibregl-ctrl-group button + button { border-top: 1px solid rgba(246, 243, 234, 0.14); }
+            .live-map .maplibregl-ctrl-group button:hover { background: rgba(246, 243, 234, 0.08); }
+            .live-map .maplibregl-ctrl-icon { filter: invert(1) brightness(1.4); }
+            .live-map .maplibregl-ctrl-bottom-right { margin: 0 8px 8px 0; }
+            .live-map .maplibregl-ctrl-attrib { background: rgba(7, 31, 32, 0.82); color: rgba(246, 243, 234, 0.66); border-radius: 999px; font: 11px/1.4 Outfit, system-ui, sans-serif; }
+            .live-map .maplibregl-ctrl-attrib.maplibregl-compact-show { padding: 3px 28px 3px 10px; }
+            .live-map .maplibregl-ctrl-attrib-button { background-color: transparent; filter: invert(1); }
+            .live-map .maplibregl-ctrl-attrib a { color: inherit; }
+            .live-map .maplibregl-cooperative-gesture-screen { background: rgba(7, 31, 32, 0.78); color: ${paper}; font: 600 15px/1.4 Outfit, system-ui, sans-serif; }`;
         document.head.append(sheet);
 
         const maplibregl = await import(blob(main));
@@ -73,7 +163,110 @@ function lines(line) {
     return line?.line?.length > 1 ? [{ points: line.line, colour: paper }] : [];
 }
 
-function addRoute(map, drawn) {
+function canvas(size, draw) {
+    const node = document.createElement('canvas');
+    node.width = size;
+    node.height = size;
+    const context = node.getContext('2d');
+    draw(context, size);
+
+    return context.getImageData(0, 0, size, size);
+}
+
+/** A small ink chevron that rides the route and points the way. */
+function arrowImage() {
+    return canvas(28, (context) => {
+        context.strokeStyle = ink;
+        context.lineWidth = 3.4;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.beginPath();
+        context.moveTo(10, 7);
+        context.lineTo(18, 14);
+        context.lineTo(10, 21);
+        context.stroke();
+    });
+}
+
+/** The share page's stop pins: water, toilets, and cafés. */
+function stopImage(kind) {
+    return canvas(44, (context, size) => {
+        context.fillStyle = paper;
+        context.beginPath();
+        context.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+        context.fill();
+        context.fillStyle = stopColours[kind];
+        context.beginPath();
+        context.arc(size / 2, size / 2, size / 2 - 5, 0, Math.PI * 2);
+        context.fill();
+        context.fillStyle = '#ffffff';
+        context.strokeStyle = '#ffffff';
+        context.lineWidth = 2.5;
+
+        if (kind === 'water') {
+            context.beginPath();
+            context.moveTo(22, 11);
+            context.bezierCurveTo(22, 11, 13, 21, 13, 26);
+            context.arc(22, 26, 9, Math.PI, 0, true);
+            context.bezierCurveTo(31, 21, 22, 11, 22, 11);
+            context.fill();
+        } else if (kind === 'cafe') {
+            context.fillRect(12, 17, 15, 12);
+            context.beginPath();
+            context.arc(29, 23, 4, -Math.PI / 2, Math.PI / 2);
+            context.stroke();
+            context.fillRect(11, 31, 18, 2.5);
+        } else {
+            context.font = 'bold 15px system-ui, sans-serif';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText('WC', size / 2, size / 2 + 1);
+        }
+    });
+}
+
+function brand(map) {
+    for (const [id, paint] of Object.entries(brandPaint)) {
+        if (map.getLayer(id) === undefined) {
+            continue;
+        }
+
+        for (const [property, value] of Object.entries(paint)) {
+            try {
+                map.setPaintProperty(id, property, value);
+            } catch {
+                // A layer this style draws differently keeps its own colour.
+            }
+        }
+    }
+}
+
+function point(coordinates, properties = {}) {
+    return {
+        type: 'Feature',
+        properties,
+        geometry: { type: 'Point', coordinates },
+    };
+}
+
+/** Metres between two points, near enough to tell a loop from a line. */
+function apart([a, b], [c, d]) {
+    const x = (c - a) * Math.cos((((b + d) / 2) * Math.PI) / 180);
+
+    return Math.hypot(x, d - b) * 111_320;
+}
+
+function addRoute(map, drawn, stops) {
+    const start = drawn[0].points[0];
+    const lastLine = drawn[drawn.length - 1].points;
+    const finish = lastLine[lastLine.length - 1];
+
+    map.addImage('route-arrow', arrowImage(), { pixelRatio: 2 });
+
+    for (const kind of Object.keys(stopColours)) {
+        map.addImage(`stop-${kind}`, stopImage(kind), { pixelRatio: 2 });
+    }
+
     map.addSource('route', {
         type: 'geojson',
         data: {
@@ -85,12 +278,29 @@ function addRoute(map, drawn) {
             })),
         },
     });
-    map.addSource('start', {
+    map.addSource('ends', {
         type: 'geojson',
         data: {
-            type: 'Feature',
-            properties: {},
-            geometry: { type: 'Point', coordinates: drawn[0].points[0] },
+            type: 'FeatureCollection',
+            features: [
+                point(start, { end: 'start' }),
+                ...(apart(start, finish) > 150
+                    ? [point(finish, { end: 'finish' })]
+                    : []),
+            ],
+        },
+    });
+    map.addSource('stops', {
+        type: 'geojson',
+        data: {
+            type: 'FeatureCollection',
+            features: stops
+                .filter((stop) => stopColours[stop.kind])
+                .map((stop) =>
+                    point([stop.longitude, stop.latitude], {
+                        icon: `stop-${stop.kind}`,
+                    }),
+                ),
         },
     });
     map.addLayer({
@@ -98,23 +308,64 @@ function addRoute(map, drawn) {
         type: 'line',
         source: 'route',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': ink, 'line-width': 8 },
+        paint: { 'line-color': ink, 'line-width': 9, 'line-opacity': 0.9 },
     });
     map.addLayer({
         id: 'route-line',
         type: 'line',
         source: 'route',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': ['get', 'colour'], 'line-width': 4 },
+        paint: { 'line-color': ['get', 'colour'], 'line-width': 4.5 },
     });
     map.addLayer({
-        id: 'start',
+        id: 'route-arrows',
+        type: 'symbol',
+        source: 'route',
+        layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 80,
+            'icon-image': 'route-arrow',
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
+            'icon-rotation-alignment': 'map',
+            'icon-keep-upright': false,
+        },
+    });
+    map.addLayer({
+        id: 'stops',
+        type: 'symbol',
+        source: 'stops',
+        layout: {
+            'icon-image': ['get', 'icon'],
+            'icon-allow-overlap': true,
+            'icon-size': 0.9,
+        },
+    });
+    map.addLayer({
+        id: 'ends-halo',
         type: 'circle',
-        source: 'start',
+        source: 'ends',
+        filter: ['==', ['get', 'end'], 'start'],
         paint: {
-            'circle-radius': 8,
+            'circle-radius': 13,
             'circle-color': chartreuse,
-            'circle-stroke-color': paper,
+            'circle-opacity': 0.22,
+        },
+    });
+    map.addLayer({
+        id: 'ends',
+        type: 'circle',
+        source: 'ends',
+        paint: {
+            'circle-radius': ['match', ['get', 'end'], 'start', 7.5, 6],
+            'circle-color': [
+                'match',
+                ['get', 'end'],
+                'start',
+                chartreuse,
+                paper,
+            ],
+            'circle-stroke-color': ink,
             'circle-stroke-width': 3,
         },
     });
@@ -126,6 +377,8 @@ function addRoute(map, drawn) {
  */
 export async function mount({ line, stage, status }) {
     const drawn = lines(line);
+
+    void brandFont();
 
     stage.querySelector('.live-map')?.remove();
 
@@ -177,7 +430,9 @@ export async function mount({ line, stage, status }) {
                 container: holder,
                 style,
                 bounds,
-                fitBoundsOptions: { padding: 32 },
+                fitBoundsOptions: {
+                    padding: { top: 36, bottom: 36, left: 36, right: 60 },
+                },
                 maxZoom: 17,
                 cooperativeGestures: true,
                 dragRotate: false,
@@ -191,10 +446,11 @@ export async function mount({ line, stage, status }) {
                 'top-right',
             );
             map.on('error', (event) => giveUp(event?.error?.message ?? ''));
+            map.on('style.load', () => brand(map));
             map.on('load', () => {
                 loaded = true;
                 window.clearTimeout(timer);
-                addRoute(map, drawn);
+                addRoute(map, drawn, line?.stops ?? []);
                 map.once('idle', () => {
                     holder.classList.add('ready');
                     resolve(true);

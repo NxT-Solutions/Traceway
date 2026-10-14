@@ -3,11 +3,16 @@
         <style>
             :root {
                 --ink: #071f20;
+                --ink-2: #0b2829;
                 --paper: #f6f3ea;
-                --muted: rgba(246, 243, 234, 0.62);
-                --hair: rgba(246, 243, 234, 0.14);
+                --muted: rgba(246, 243, 234, 0.66);
+                --faint: rgba(246, 243, 234, 0.44);
+                --hair: rgba(246, 243, 234, 0.12);
+                --edge: rgba(246, 243, 234, 0.22);
                 --chart: #97cb46;
-                --font: var(--font-sans, 'Outfit', system-ui, -apple-system, sans-serif);
+                --chart-dim: #86b83c;
+                --pad: 20px;
+                --font: 'Outfit', var(--font-sans, system-ui), -apple-system, 'Segoe UI', sans-serif;
             }
 
             * {
@@ -18,6 +23,7 @@
                 margin: 0;
                 background: transparent;
                 font-family: var(--font);
+                -webkit-font-smoothing: antialiased;
             }
 
             .card {
@@ -29,41 +35,75 @@
 
             .top {
                 display: flex;
-                align-items: flex-start;
+                align-items: flex-end;
                 justify-content: space-between;
-                gap: 12px;
-                padding: 16px 18px 0;
+                gap: 16px;
+                padding: 18px var(--pad) 16px;
             }
 
             .brand {
                 display: flex;
                 align-items: center;
-                gap: 6px;
+                gap: 7px;
                 font-size: 12px;
-                letter-spacing: 0.06em;
+                font-weight: 600;
+                letter-spacing: 0.08em;
                 text-transform: uppercase;
                 color: var(--muted);
             }
 
+            .brand svg {
+                color: var(--paper);
+            }
+
             h1 {
-                margin: 6px 0 0;
-                font-size: 20px;
-                line-height: 1.15;
+                margin: 8px 0 0;
+                font-size: 21px;
+                line-height: 1.2;
                 font-weight: 600;
                 letter-spacing: -0.02em;
+                text-wrap: balance;
             }
 
             .km {
-                font-size: 28px;
+                font-size: 32px;
+                line-height: 1;
                 font-weight: 600;
                 letter-spacing: -0.03em;
                 white-space: nowrap;
+                font-variant-numeric: tabular-nums;
             }
 
             .km small {
+                margin-left: 4px;
                 font-size: 14px;
                 font-weight: 500;
+                letter-spacing: 0;
                 color: var(--muted);
+            }
+
+            .stage {
+                position: relative;
+                border-block: 1px solid var(--hair);
+                background: var(--ink-2);
+            }
+
+            .stage.mapped {
+                aspect-ratio: 600 / 340;
+            }
+
+            .stage>.live-map {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                border: 0;
+                opacity: 0;
+                transition: opacity 400ms ease;
+            }
+
+            .stage>.live-map.ready {
+                opacity: 1;
             }
 
             svg.map {
@@ -91,33 +131,43 @@
                 }
             }
 
-            @media (prefers-reduced-motion: reduce) {
-                .draw {
-                    animation: none;
-                    stroke-dashoffset: 0;
-                }
+            .foot {
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+                padding: 16px var(--pad) var(--pad);
             }
 
-            .legs {
+            .facts {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 6px 14px;
+                gap: 6px;
                 margin: 0;
-                padding: 0 18px;
+                padding: 0;
                 list-style: none;
+            }
+
+            .facts li {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                height: 28px;
+                padding: 0 11px;
+                border: 1px solid var(--hair);
+                border-radius: 999px;
                 font-size: 13px;
+                font-weight: 500;
                 color: var(--muted);
             }
 
-            .legs li {
-                display: flex;
-                align-items: center;
-                gap: 6px;
+            .facts b {
+                color: var(--paper);
+                font-weight: 600;
             }
 
-            .legs i {
-                width: 10px;
-                height: 10px;
+            .facts i {
+                width: 9px;
+                height: 9px;
                 border-radius: 50%;
             }
 
@@ -125,20 +175,25 @@
                 display: flex;
                 flex-wrap: wrap;
                 gap: 8px;
-                padding: 14px 18px 18px;
             }
 
             button {
                 font: inherit;
                 font-size: 14px;
                 font-weight: 600;
+                height: 40px;
+                padding: 0 16px;
                 border-radius: 10px;
-                min-height: 40px;
-                padding: 0 14px;
                 cursor: pointer;
-                border: 1px solid var(--hair);
+                border: 1px solid var(--edge);
                 background: transparent;
                 color: var(--paper);
+                transition: background-color 160ms ease, border-color 160ms ease;
+            }
+
+            button:hover {
+                background: rgba(246, 243, 234, 0.06);
+                border-color: rgba(246, 243, 234, 0.36);
             }
 
             button.fill {
@@ -147,61 +202,63 @@
                 color: var(--ink);
             }
 
+            button.fill:hover {
+                background: var(--chart-dim);
+                border-color: var(--chart-dim);
+            }
+
             button:focus-visible {
                 outline: 2px solid var(--chart);
                 outline-offset: 2px;
             }
 
             .note {
-                padding: 0 18px 16px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin: 0;
                 font-size: 13px;
-                color: var(--muted);
+                color: var(--faint);
+            }
+
+            .note svg {
+                color: var(--chart);
             }
 
             .wait {
-                padding: 28px 18px;
+                margin: 0;
+                padding: 28px var(--pad);
                 color: var(--muted);
                 font-size: 15px;
             }
 
-            .stage {
-                position: relative;
-            }
-
-            .stage.mapped {
-                aspect-ratio: 600 / 340;
-            }
-
-            .stage>.live-map {
-                position: absolute;
-                inset: 0;
-                width: 100%;
-                height: 100%;
-                border: 0;
-                opacity: 0;
-                transition: opacity 400ms ease;
-            }
-
-            .stage>.live-map.ready {
-                opacity: 1;
+            .status {
+                margin: 0;
+                padding: 0 var(--pad) 12px;
+                font-size: 12px;
+                color: var(--chart);
             }
 
             .report {
-                margin: 0 18px 16px;
+                margin: 0 var(--pad) 16px;
                 max-height: 180px;
                 overflow: auto;
                 font: 11px/1.45 ui-monospace, Menlo, monospace;
                 white-space: pre-wrap;
                 word-break: break-all;
-                color: var(--muted);
+                color: var(--faint);
                 user-select: text;
             }
 
-            .status {
-                margin: 0;
-                padding: 0 18px 14px;
-                font-size: 12px;
-                color: var(--chart);
+            @media (prefers-reduced-motion: reduce) {
+                .draw {
+                    animation: none;
+                    stroke-dashoffset: 0;
+                }
+
+                .stage>.live-map {
+                    transition: none;
+                }
             }
 
             [hidden] {
@@ -322,7 +379,41 @@
                     }).join(' ');
                 }
 
-                /** The card: the name, the distance, the legs, and the line when there is one. */
+                const surfaces = {
+                    paved: 'Paved',
+                    mixed: 'Mixed surface',
+                    dirt: 'Dirt and trail',
+                };
+
+                /** The facts under the map: the sport or the legs, the climb, the ground, the stops. */
+                function facts(route, line) {
+                    const legs = route.legs ?? [];
+                    const climb = line?.ascent_metres ?? 0;
+                    const stops = line?.stops?.length ?? 0;
+                    const shown = legs.length === 0 ? [`<li><b>${sports[route.sport] ?? route.sport ?? 'Route'}</b></li>`] :
+                        legs.map((leg) => {
+                            const land = leg.discipline !== 'swim';
+                            const colour = land ? legColours[legs.filter((other) => other.discipline !== 'swim').indexOf(leg) %
+                                legColours.length] : 'rgba(246, 243, 234, 0.4)';
+                            const km = land ? `${Number(leg.distance_km).toFixed(1)} km` : 'draw it in the planner';
+
+                            return `<li><i style="background:${colour}"></i><b>${sports[leg.discipline] ?? leg.discipline}</b> ${km}</li>`;
+                        });
+
+                    shown.push(climb > 0 ? `<li><b>${climb} m</b> climb</li>` : '<li>Flat</li>');
+
+                    if (surfaces[route.surface]) {
+                        shown.push(`<li>${surfaces[route.surface]}</li>`);
+                    }
+
+                    if (stops > 0) {
+                        shown.push(`<li><b>${stops}</b> ${stops === 1 ? 'stop' : 'stops'} on the way</li>`);
+                    }
+
+                    return shown;
+                }
+
+                /** The card: the name, the distance, the facts, and the line when there is one. */
                 function draw(route, line) {
                     const legs = route.legs ?? [];
                     const landLegs = (line?.legs ?? []).filter((leg) => leg.discipline !== 'swim' && leg.line.length > 1);
@@ -342,17 +433,9 @@
 
                     map.toggleAttribute('hidden', lines.length === 0);
                     $('name').textContent = route.name;
-                    $('km').firstChild.textContent = Number(route.distance_km ?? (route.distance_metres ?? 0) / 1000).toFixed(1);
-                    $('legs').innerHTML = legs.length === 0 ?
-                        `<li>${sports[route.sport] ?? route.sport ?? ''}</li>` :
-                        legs.map((leg) => {
-                            const land = leg.discipline !== 'swim';
-                            const colour = land ? legColours[legs.filter((other) => other.discipline !== 'swim').indexOf(leg) %
-                                legColours.length] : '#f6f3ea66';
-                            const km = land ? ` · ${Number(leg.distance_km).toFixed(1)} km` : ' · draw it in the planner';
-
-                            return `<li><i style="background:${colour}"></i>${sports[leg.discipline] ?? leg.discipline}${km}</li>`;
-                        }).join('');
+                    $('km').querySelector('span').textContent = Number(route.distance_km ?? (route.distance_metres ?? 0) / 1000)
+                        .toFixed(1);
+                    $('legs').innerHTML = facts(route, line).join('');
 
                     $('wait').hidden = true;
                     $('route').hidden = false;
@@ -559,7 +642,7 @@
         <p id="wait" class="wait">Planning your route…</p>
 
         <section id="route" hidden>
-            <div class="top">
+            <header class="top">
                 <div>
                     <div class="brand">
                         <svg viewBox="0 0 32 32" width="16" height="16" fill="none" aria-hidden="true">
@@ -572,23 +655,31 @@
                     </div>
                     <h1 id="name"></h1>
                 </div>
-                <div id="km" class="km"><span></span> <small>km</small></div>
-            </div>
+                <div id="km" class="km"><span></span><small>km</small></div>
+            </header>
 
             <div class="stage">
                 <svg id="map" class="map" viewBox="0 0 600 340" role="img"
                     aria-label="The route on a map"></svg>
             </div>
 
-            <ul id="legs" class="legs"></ul>
+            <div class="foot">
+                <ul id="legs" class="facts"></ul>
 
-            <div class="acts">
-                <button id="open" class="fill" type="button">Open the map</button>
-                <button id="garmin" type="button">Garmin file</button>
-                <button id="gpx" type="button">GPX file</button>
+                <div class="acts">
+                    <button id="open" class="fill" type="button">Open the map</button>
+                    <button id="garmin" type="button">Garmin file</button>
+                    <button id="gpx" type="button">GPX file</button>
+                </div>
+
+                <p class="note">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
+                        <path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Saved to your Traceway library.
+                </p>
             </div>
-
-            <p class="note">Saved to your Traceway library.</p>
         </section>
 
         <p id="status" class="status" hidden></p>
