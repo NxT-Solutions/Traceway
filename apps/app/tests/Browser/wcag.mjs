@@ -117,9 +117,13 @@ try {
     await audit(desktop, '/dashboard route details');
 
     // A shared link, with how the ride was planned. Its address is signed,
-    // so it comes from the library.
+    // so the route is saved here and opened from the library, the same on
+    // a fresh database as on a used one.
+    const savedName = (await desktop.locator('.route-title').first().innerText()).trim();
+    await desktop.getByRole('button', { name: 'Save to profile' }).click();
+    await desktop.getByRole('button', { name: 'Saved', exact: true }).waitFor({ timeout: 120000 });
     await desktop.goto(`${base}/saved`, { waitUntil: 'networkidle' });
-    await desktop.getByText('Morning loop').first().click();
+    await desktop.getByText(savedName).first().click();
     await openDetails(desktop);
     await audit(desktop, '/saved route open');
     const shared = await desktop.getByRole('link', { name: 'Open' }).first().getAttribute('href', { timeout: 5000 }).catch(() => null);
