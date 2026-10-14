@@ -30,11 +30,11 @@ use Laravel\Mcp\Server\Ui\Csp;
 final class RouteMapApp extends AppResource
 {
     /**
-     * Where the map script fetches MapLibre and the map tiles from.
+     * Where the map script fetches MapLibre, the map tiles, and the font from.
      *
      * @var list<string>
      */
-    private const array MAP_DOMAINS = ['https://unpkg.com', 'https://tiles.openfreemap.org'];
+    private const array MAP_DOMAINS = ['https://unpkg.com', 'https://tiles.openfreemap.org', 'https://fonts.bunny.net'];
 
     public function handle(Request $request): Response
     {

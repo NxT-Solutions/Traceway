@@ -377,7 +377,7 @@ it('lets the card in the chat fetch its map, fresh each time', function (): void
     $csp = new RouteMapApp()->resolvedAppMeta()['csp'] ?? [];
 
     expect($csp['frameDomains'] ?? [])->toBe([rtrim(url('/'), '/')])
-        ->and($csp['connectDomains'] ?? [])->toBe([rtrim(url('/'), '/'), 'https://unpkg.com', 'https://tiles.openfreemap.org']);
+        ->and($csp['connectDomains'] ?? [])->toBe([rtrim(url('/'), '/'), 'https://unpkg.com', 'https://tiles.openfreemap.org', 'https://fonts.bunny.net']);
 
     $script = $this->get(route('mcp.apps.route-map'))->assertOk();
 
