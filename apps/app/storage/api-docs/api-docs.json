@@ -1337,6 +1337,96 @@
                 ]
             }
         },
+        "/routes/places": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Find places by name, the ones near the map first",
+                "operationId": "searchPlaces",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/SearchPlacesRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "Up to five places. None when nothing matches.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "places"
+                                    ],
+                                    "properties": {
+                                        "places": {
+                                            "type": "array",
+                                            "items": {
+                                                "required": [
+                                                    "name",
+                                                    "area",
+                                                    "latitude",
+                                                    "longitude"
+                                                ],
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "area": {
+                                                        "type": "string"
+                                                    },
+                                                    "latitude": {
+                                                        "type": "number"
+                                                    },
+                                                    "longitude": {
+                                                        "type": "number"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The search is too short or too long, or the point is not on the map.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "The place search is busy or did not answer. Try again in a moment.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
         "/settings/devices": {
             "post": {
                 "tags": [
@@ -3117,6 +3207,39 @@
                                 },
                                 "coordinates": {
                                     "$ref": "#/components/schemas/CoordinateLine"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "SearchPlacesRequest": {
+                "description": "What a rider typed, and the middle of the map they look at.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "query",
+                                "latitude",
+                                "longitude"
+                            ],
+                            "properties": {
+                                "query": {
+                                    "type": "string",
+                                    "maxLength": 120,
+                                    "minLength": 2
+                                },
+                                "latitude": {
+                                    "type": "number",
+                                    "maximum": 90,
+                                    "minimum": -90
+                                },
+                                "longitude": {
+                                    "type": "number",
+                                    "maximum": 180,
+                                    "minimum": -180
                                 }
                             },
                             "type": "object"

@@ -115,6 +115,22 @@ try {
     await desktop.getByRole('radiogroup', { name: 'Colour set' }).waitFor();
     await audit(desktop, '/dashboard colour sheet');
 
+    // Finding a place by name, and the card a tap on the map opens.
+    await desktop.goto(`${base}/dashboard`, { waitUntil: 'domcontentloaded' });
+    await desktop.getByRole('tab', { name: 'Generate' }).click();
+    await desktop.getByRole('button', { name: /^Start\b/ }).click();
+    await desktop.getByRole('searchbox', { name: 'Search for the start' }).fill('Westerlo');
+    await desktop.keyboard.press('Enter');
+    await desktop.getByRole('button', { name: /^Westerlo\b/ }).first().waitFor({ timeout: 15000 });
+    await audit(desktop, '/dashboard place search');
+    await desktop.keyboard.press('Escape');
+    await desktop.waitForFunction(() => !document.querySelector('[data-slot="sheet-content"][data-state="open"]'));
+    await desktop.locator('.maplibregl-canvas').focus();
+    await desktop.keyboard.press('Enter');
+    await desktop.locator('.tap-card').waitFor({ timeout: 3000 });
+    await audit(desktop, '/dashboard tap card');
+    await desktop.keyboard.press('Escape');
+
     // A route with what it shows about itself: the climb, the steepness on
     // the map, and the stops and turns, opened.
     async function openDetails(page) {

@@ -125,7 +125,7 @@ try {
     }
 
     async function legNames() {
-        return page.locator('section[aria-label="Legs"] button.field').evaluateAll((fields) =>
+        return page.locator('section[aria-label="Legs"] .pt:not([data-transition]) button.field').evaluateAll((fields) =>
             fields.map((field) => field.querySelector('span')?.textContent ?? ''),
         );
     }
@@ -202,7 +202,7 @@ try {
 
     step('dragged a leg above another with its grip');
 
-    await tap(page.locator('section[aria-label="Legs"] button.field').nth(0));
+    await tap(page.locator('section[aria-label="Legs"] .pt:not([data-transition]) button.field').nth(0));
     await tap(page.getByRole('button', { name: 'Move this leg later' }));
     names = await legNames();
 
@@ -239,14 +239,24 @@ try {
     }
 
     await page.touchscreen.tap(mapBox.x + mapBox.width / 2 + 30, mapBox.y + mapBox.height * 0.35);
+    await page.locator('.tap-card').waitFor({ timeout: 3000 });
+    await page.waitForTimeout(400);
+
+    const asked = await draft();
+
+    if (asked?.latitude !== before?.latitude || asked?.longitude !== before?.longitude) {
+        throw new Error('A tap on the map moved the transition before the rider chose to.');
+    }
+
+    await tap(page.getByRole('button', { name: 'Move the transition here' }));
     await page.waitForTimeout(400);
     const after = await draft();
 
     if (!before || !after || (before.latitude === after.latitude && before.longitude === after.longitude)) {
-        throw new Error('Tapping the map did not move the transition.');
+        throw new Error('Moving the transition from the tap card did not move it.');
     }
 
-    step('moved the transition with a tap on the map');
+    step('a tap on the map asks first, then moves the transition');
 
     await openDrawer();
     await tap(page.locator('button.fill'));

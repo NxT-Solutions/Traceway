@@ -40,6 +40,7 @@ use App\Domain\Routing\Details\RouteDetailsSource;
 use App\Domain\Routing\LineFollower;
 use App\Domain\Routing\PlaceFinder;
 use App\Domain\Routing\PlaceNamer;
+use App\Domain\Routing\PlaceSearch;
 use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\TracingLineFollower;
 use App\Handlers\ChangePasswordHandler;
@@ -65,6 +66,7 @@ use App\Integrations\GraphHopper\GraphHopperRoutingEngine;
 use App\Integrations\Nominatim\NominatimConnector;
 use App\Integrations\Nominatim\NominatimPlaceFinder;
 use App\Integrations\Nominatim\NominatimPlaceNamer;
+use App\Integrations\Nominatim\NominatimPlaceSearch;
 use App\Integrations\OpenFreeMap\OpenFreeMapConnector;
 use App\Integrations\OpenFreeMap\OpenFreeMapStopFinder;
 use App\Integrations\Osrm\OsrmConnector;
@@ -83,6 +85,7 @@ use App\Repositories\EloquentReleaseRepository;
 use App\Repositories\EloquentSavedRouteRepository;
 use App\Repositories\EloquentUserRepository;
 use App\Routes\CachedPlaceNamer;
+use App\Routes\CachedPlaceSearch;
 use App\Routes\CachedRouteDetails;
 use App\Routes\PacedPlaceFinder;
 use App\Routes\PlaceSearchPace;
@@ -178,6 +181,12 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(fn (): PlaceNamer => new CachedPlaceNamer(
             new NominatimPlaceNamer($this->nominatimConnector()),
+            $this->app->make(CacheRepository::class),
+            new PlaceSearchPace($this->app->make(CacheRepository::class)),
+        ));
+
+        $this->app->bind(fn (): PlaceSearch => new CachedPlaceSearch(
+            new NominatimPlaceSearch($this->nominatimConnector()),
             $this->app->make(CacheRepository::class),
             new PlaceSearchPace($this->app->make(CacheRepository::class)),
         ));

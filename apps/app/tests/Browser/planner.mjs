@@ -55,23 +55,112 @@ try {
     await desktop.waitForURL(/\/dashboard/, { timeout: 20000 });
     await fits(desktop, 'Planner');
 
-    // The map takes the keyboard: arrows move it, Enter places the start.
+    // The map takes the keyboard: arrows move it, Enter asks what to do at
+    // the cross, and Enter again places the start there.
     const draft = () => desktop.evaluate(() => {
         const key = Object.keys(localStorage).find((name) => /^traceway\.planner\.v1\.\d+$/.test(name));
 
-        return key ? localStorage.getItem(key) : null;
+        return key ? JSON.parse(localStorage.getItem(key) ?? 'null') : null;
     });
-    await desktop.locator('.maplibregl-canvas').waitFor();
-    await desktop.locator('.maplibregl-canvas').focus();
+    const startOf = async () => {
+        const saved = await draft();
+
+        return saved ? `${saved.latitude.toFixed(5)},${saved.longitude.toFixed(5)}` : null;
+    };
+    const canvas = desktop.locator('.maplibregl-canvas');
+    await canvas.waitFor();
+    await canvas.focus();
     await desktop.keyboard.press('ArrowRight');
     await desktop.waitForTimeout(400);
-    const beforeEnter = await draft();
+    const beforeEnter = await startOf();
+    await desktop.keyboard.press('Enter');
+    await desktop.locator('.tap-card').waitFor({ timeout: 3000 });
+
+    if ((await startOf()) !== beforeEnter) {
+        throw new Error('Enter on the map moved the start before the rider chose to.');
+    }
+
     await desktop.keyboard.press('Enter');
     await desktop.waitForTimeout(300);
 
-    if ((await draft()) === beforeEnter) {
-        throw new Error('Enter on the map did not place the start.');
+    if ((await startOf()) === beforeEnter) {
+        throw new Error('Enter on "Start here" did not place the start.');
     }
+
+    // Undo puts the start back where it was.
+    const placed = await startOf();
+    await canvas.focus();
+    await desktop.keyboard.press('ArrowRight');
+    await desktop.waitForTimeout(400);
+    await desktop.keyboard.press('Enter');
+    await desktop.locator('.tap-card').waitFor({ timeout: 3000 });
+    await desktop.keyboard.press('Enter');
+    await desktop.waitForTimeout(300);
+
+    if ((await startOf()) === placed) {
+        throw new Error('A second "Start here" did not move the start.');
+    }
+
+    await desktop.getByRole('button', { name: 'Undo' }).click();
+    await desktop.waitForTimeout(300);
+
+    if ((await startOf()) !== placed) {
+        throw new Error(`Undo left the start at ${await startOf()}, not ${placed}.`);
+    }
+
+    // Panning the map, or a tap that is not followed by a choice, never moves the start.
+    const mapBox = await canvas.boundingBox();
+    const middle = { x: mapBox.x + mapBox.width * 0.6, y: mapBox.y + mapBox.height * 0.45 };
+    await desktop.mouse.move(middle.x, middle.y);
+    await desktop.mouse.down();
+    await desktop.mouse.move(middle.x + 120, middle.y + 60, { steps: 8 });
+    await desktop.mouse.up();
+    await desktop.mouse.click(middle.x, middle.y);
+    await desktop.locator('.tap-card').waitFor({ timeout: 3000 });
+    await desktop.keyboard.press('Escape');
+    await desktop.locator('.tap-card').waitFor({ state: 'detached', timeout: 3000 });
+
+    if ((await startOf()) !== placed) {
+        throw new Error('Panning or a stray tap moved the start.');
+    }
+
+    // The start pin drags.
+    const pin = await desktop.locator('.tw-start-pin').boundingBox();
+    await desktop.mouse.move(pin.x + pin.width / 2, pin.y + pin.height / 2);
+    await desktop.mouse.down();
+    await desktop.mouse.move(pin.x + pin.width / 2 + 80, pin.y + pin.height / 2 + 40, { steps: 8 });
+    await desktop.mouse.up();
+    await desktop.waitForTimeout(300);
+
+    if ((await startOf()) === placed) {
+        throw new Error('Dragging the start pin did not move the start.');
+    }
+
+    // A place found by name becomes the start, and the Start row names it.
+    await desktop.getByRole('button', { name: /^Start\b/ }).click();
+    await desktop.getByRole('searchbox', { name: 'Search for the start' }).fill('Westerlo');
+    await desktop.keyboard.press('Enter');
+    const westerlo = desktop.getByRole('button', { name: /^Westerlo\b/ }).first();
+    await westerlo.waitFor({ timeout: 15000 });
+    await westerlo.click();
+    await desktop.getByRole('button', { name: /^Start\s*Westerlo/ }).waitFor({ timeout: 5000 });
+
+    if (!(await startOf())?.startsWith('51.0')) {
+        throw new Error(`Picking Westerlo put the start at ${await startOf()}.`);
+    }
+
+    // In Build, a point found by name sits on a road and joins the list.
+    await desktop.getByRole('tab', { name: 'Build' }).click();
+    await desktop.getByRole('button', { name: 'Add a point' }).click();
+    await desktop.getByRole('searchbox', { name: 'Search for a point' }).fill('Oevel');
+    await desktop.keyboard.press('Enter');
+    const oevel = desktop.getByRole('button', { name: /^Oevel\b/ }).first();
+    await oevel.waitFor({ timeout: 15000 });
+    await oevel.click();
+    await desktop.locator('.pts .pt[data-point]').first().waitFor({ timeout: 15000 });
+    await desktop.getByRole('button', { name: 'Undo' }).click();
+    await desktop.locator('.pts .pt[data-point]').first().waitFor({ state: 'detached', timeout: 3000 });
+    await desktop.getByRole('tab', { name: 'Generate' }).click();
 
     // A GPX file opens in the planner with three ways to ride it.
     await desktop.locator('input[type=file][accept*=".gpx"]').setInputFiles({
@@ -95,6 +184,15 @@ try {
     await desktop.getByRole('radio', { name: 'Chain' }).click();
     await desktop.getByText('Tap where leg 2 ends').waitFor();
     await fits(desktop, 'Multisport planner');
+
+    // The transition is found by name too.
+    await desktop.getByRole('button', { name: /Change the transition/ }).click();
+    await desktop.getByRole('searchbox', { name: 'Search for the transition' }).fill('Oevel');
+    await desktop.keyboard.press('Enter');
+    const transition = desktop.getByRole('button', { name: /^Oevel\b/ }).first();
+    await transition.waitFor({ timeout: 15000 });
+    await transition.click();
+    await desktop.locator('section[aria-label="Legs"]').getByText('Oevel').waitFor({ timeout: 5000 });
 
     await open(desktop, '/saved');
     await desktop.getByRole('link', { name: 'Plan your route' }).waitFor();

@@ -11,6 +11,7 @@ import {
     useState,
     useSyncExternalStore,
 } from 'react';
+import { MapTapCard, type TapAction } from '@/components/map-tap-card';
 import { MultisportIcon } from '@/components/multisport-icon';
 import {
     LegColourPicker,
@@ -18,6 +19,7 @@ import {
     MultisportLegs,
     type Placing,
 } from '@/components/multisport-legs';
+import { type PlaceAction, PlaceSearch } from '@/components/place-search';
 import {
     RouteCues,
     RouteProfile,
@@ -64,7 +66,12 @@ import {
     sessionOf,
     withIds,
 } from '@/lib/multisport';
-import { forgetSharedPlannerDraft, plannerDraftKey } from '@/lib/planner-draft';
+import { csrfToken, type FoundPlace, labelPlace } from '@/lib/places';
+import {
+    forgetSharedPlannerDraft,
+    plannerDraftKey,
+    recentPlacesKey,
+} from '@/lib/planner-draft';
 import {
     arrowIconSize,
     directionArrows,
@@ -103,6 +110,10 @@ type SheetName =
     | 'race'
     | 'session'
     | 'import'
+    | 'start'
+    | 'via'
+    | 'point'
+    | 'finish'
     | null;
 
 type Preview = {
@@ -167,8 +178,9 @@ const routeQuiet = [
 
 function buildMarkerElement(label: string): HTMLDivElement {
     const element = document.createElement('div');
-    element.className = 'build-pin';
+    element.className = 'build-pin draggable';
     element.textContent = label;
+    element.title = `Drag to move point ${label}`;
 
     return element;
 }
@@ -696,47 +708,6 @@ const emptyLine = {
     properties: {},
 };
 
-// The place is named through Traceway, so the browser never sends the pin to
-// the place search itself.
-async function labelPlace(
-    longitude: number,
-    latitude: number,
-): Promise<string> {
-    try {
-        const response = await fetch('/routes/place', {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-XSRF-TOKEN': csrfToken(),
-            },
-            body: JSON.stringify({ latitude, longitude }),
-        });
-        const body: unknown = await response.json();
-
-        if (
-            typeof body === 'object' &&
-            body !== null &&
-            'name' in body &&
-            typeof body.name === 'string' &&
-            body.name !== ''
-        ) {
-            return body.name;
-        }
-    } catch {
-        return 'Junction';
-    }
-
-    return 'Junction';
-}
-
-function csrfToken(): string {
-    const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
-    const token = match?.[1];
-
-    return token === undefined ? '' : decodeURIComponent(token);
-}
-
 type RoadSnap = {
     longitude: number;
     latitude: number;
@@ -990,6 +961,8 @@ type SavedPlanner = {
     nameFrom?: NameSource;
     sessionName?: string | null;
     via: Coordinate | null;
+    /** The place around the start, named once it moved. */
+    startName?: string | null;
     routes: Preview[];
     routeIndex: number;
     multisport?: SavedMultisport;
@@ -1571,6 +1544,40 @@ export default function Dashboard() {
     const [followRoads, setFollowRoads] = useState(true);
     const [finishLoop, setFinishLoop] = useState(true);
     const [viaName, setViaName] = useState<string | null>(null);
+    const [startName, setStartName] = useState<string | null>(
+        typeof saved?.startName === 'string' ? saved.startName : null,
+    );
+    // The next map tap sets the start, after "Pick on the map" in a sheet.
+    const [pickingStart, setPickingStart] = useState(false);
+    // A tap asks before it moves a pin: where it landed and what it is called.
+    const [tapCard, setTapCard] = useState<{
+        longitude: number;
+        latitude: number;
+        x: number;
+        y: number;
+        name: string | null;
+    } | null>(null);
+    const tapAskRef = useRef(0);
+    const startAskRef = useRef(0);
+    const closeTapRef = useRef<() => void>(() => {});
+    const moveStartRef = useRef<
+        (
+            longitude: number,
+            latitude: number,
+            options?: { message?: string; undoable?: boolean },
+        ) => void
+    >(() => {});
+    const moveViaRef = useRef<(point: Coordinate) => void>(() => {});
+    const moveBuildPointRef = useRef<
+        (id: string, longitude: number, latitude: number) => boolean
+    >(() => false);
+    // The last change to a pin or a point, so a slip can be taken back.
+    const [undo, setUndo] = useState<{
+        label: string;
+        restore: () => void;
+    } | null>(null);
+    const [undoHeld, setUndoHeld] = useState(false);
+    const recentKey = recentPlacesKey(auth.user.id);
     const [legMetres, setLegMetres] = useState<number[]>([]);
     const nameInputRef = useRef<HTMLInputElement>(null);
     const nameBeforeEdit = useRef<{ name: string; from: NameSource }>({
@@ -2050,6 +2057,9 @@ export default function Dashboard() {
             center: [start.longitude, start.latitude],
             zoom: 11,
             attributionControl: false,
+            // A hand that drifts a little while tapping still taps, and a
+            // short drag never counts as a tap.
+            clickTolerance: 6,
         });
 
         const geolocate = new maplibregl.GeolocateControl({
@@ -2063,14 +2073,14 @@ export default function Dashboard() {
         geolocate.on(
             'geolocate',
             (event: { coords: GeolocationCoordinates }) => {
-                dirty.current = true;
-                setLatitude(event.coords.latitude);
-                setLongitude(event.coords.longitude);
-                setRoutes([]);
-                setRouteIndex(0);
-                setPlan(null);
-                setMessage(
-                    'Start is your location. Draw a route when you are ready.',
+                moveStartRef.current(
+                    event.coords.longitude,
+                    event.coords.latitude,
+                    {
+                        message:
+                            'Start is your location. Draw a route when you are ready.',
+                        undoable: false,
+                    },
                 );
                 const reduced = window.matchMedia(
                     '(prefers-reduced-motion: reduce)',
@@ -2155,6 +2165,16 @@ export default function Dashboard() {
         }
 
         map.on('click', (event: MapMouseEvent) => {
+            // A tap on a pin is the pin's, not a tap on the map below it.
+            const target = event.originalEvent.target;
+
+            if (
+                target instanceof Element &&
+                target.closest('.maplibregl-marker') !== null
+            ) {
+                return;
+            }
+
             if (
                 modeRef.current === 'generate' &&
                 map.getLayer('route-faint-hit') !== undefined &&
@@ -2226,6 +2246,7 @@ export default function Dashboard() {
             clearRoadSnapCache();
         };
         map.on('move', dropRoadSnap);
+        map.on('movestart', () => closeTapRef.current());
         map.on('resize', dropRoadSnap);
         map.on('mouseout', () => {
             if (modeRef.current === 'build') {
@@ -2251,12 +2272,20 @@ export default function Dashboard() {
         });
 
         mapRef.current = map;
-        markerRef.current = new maplibregl.Marker({
+        const startPin = new maplibregl.Marker({
             color: '#16303a',
             className: 'tw-start-pin',
+            draggable: true,
         })
             .setLngLat([start.longitude, start.latitude])
             .addTo(map);
+        startPin.getElement().title = 'Drag to move the start';
+        startPin.on('dragstart', () => closeTapRef.current());
+        startPin.on('dragend', () => {
+            const at = startPin.getLngLat();
+            moveStartRef.current(at.lng, at.lat);
+        });
+        markerRef.current = startPin;
 
         // MapLibre sets position:relative on its root, which drops the
         // absolute sizing. Resize once the box has a real height.
@@ -2320,7 +2349,10 @@ export default function Dashboard() {
         }
 
         const cursor =
-            mode === 'build' || (mode === 'multisport' && placing !== null)
+            mode === 'build' ||
+            (mode === 'multisport' && placing !== null) ||
+            pickingStart ||
+            placingVia
                 ? 'crosshair'
                 : '';
         map.getCanvas().style.cursor = cursor;
@@ -2329,7 +2361,43 @@ export default function Dashboard() {
         if (mode !== 'build') {
             hideSnapRef.current();
         }
-    }, [mode, placing]);
+    }, [mode, placing, pickingStart, placingVia]);
+
+    // A card or a pick waiting for a tap belongs to the mode it was opened in.
+    useEffect(() => {
+        void mode;
+        tapAskRef.current += 1;
+        setTapCard(null);
+        setPickingStart(false);
+    }, [mode]);
+
+    // Undo stays a while, and as long as the rider points at it or tabs to it.
+    useEffect(() => {
+        if (undo === null || undoHeld) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => setUndo(null), 10000);
+
+        return () => window.clearTimeout(timer);
+    }, [undo, undoHeld]);
+
+    // A draft saved before starts had names gets its name once.
+    const namedSavedStart = useRef(false);
+
+    useEffect(() => {
+        if (namedSavedStart.current || saved === null || startName !== null) {
+            return;
+        }
+
+        namedSavedStart.current = true;
+        const ask = startAskRef.current;
+        void labelPlace(saved.longitude, saved.latitude).then((name) => {
+            if (startAskRef.current === ask && name !== 'Junction') {
+                setStartName(name);
+            }
+        });
+    }, [saved, startName]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -2492,6 +2560,7 @@ export default function Dashboard() {
             nameFrom,
             sessionName: sessionNameRef.current,
             via,
+            startName,
             routes,
             routeIndex,
             multisport: {
@@ -2519,6 +2588,7 @@ export default function Dashboard() {
         name,
         nameFrom,
         via,
+        startName,
         routes,
         routeIndex,
         legs,
@@ -2545,9 +2615,20 @@ export default function Dashboard() {
         }
 
         if (viaMarkerRef.current === null) {
-            viaMarkerRef.current = new maplibregl.Marker({ color: '#c6e84a' })
+            const viaPin = new maplibregl.Marker({
+                color: '#c6e84a',
+                className: 'tw-via-pin',
+                draggable: true,
+            })
                 .setLngLat(via)
                 .addTo(map);
+            viaPin.getElement().title = 'Drag to move the via';
+            viaPin.on('dragstart', () => closeTapRef.current());
+            viaPin.on('dragend', () => {
+                const at = viaPin.getLngLat();
+                moveViaRef.current([at.lng, at.lat]);
+            });
+            viaMarkerRef.current = viaPin;
 
             return;
         }
@@ -2610,9 +2691,22 @@ export default function Dashboard() {
             const marker = new maplibregl.Marker({
                 element: buildMarkerElement(String(index + 1)),
                 anchor: 'center',
+                draggable: true,
             })
                 .setLngLat([point.longitude, point.latitude])
                 .addTo(map);
+            marker.on('dragstart', () => {
+                closeTapRef.current();
+                hideSnapRef.current();
+            });
+            marker.on('dragend', () => {
+                const at = marker.getLngLat();
+
+                // Off every road, the point goes back where it was.
+                if (!moveBuildPointRef.current(point.id, at.lng, at.lat)) {
+                    marker.setLngLat([point.longitude, point.latitude]);
+                }
+            });
             buildMarkersRef.current.push(marker);
         });
     }, [buildPoints, mode, longitude, latitude, preview]);
@@ -3728,7 +3822,130 @@ export default function Dashboard() {
         changeLegs(nextLegs);
     }
 
+    /**
+     * Keeps what the pins and points look like now, so the change that
+     * follows can be taken back with Undo.
+     */
+    function remember(label: string): void {
+        const before = {
+            latitude,
+            longitude,
+            startName,
+            via,
+            viaName,
+            buildPoints,
+            legs,
+            swim,
+            routes,
+            routeIndex,
+            plan,
+        };
+        setUndoHeld(false);
+        setUndo({
+            label,
+            restore: () => {
+                dirty.current = true;
+                startAskRef.current += 1;
+                setLatitude(before.latitude);
+                setLongitude(before.longitude);
+                setStartName(before.startName);
+                setVia(before.via);
+                setViaName(before.viaName);
+                setBuildPoints(before.buildPoints);
+                setLegs(before.legs);
+                setSwim(before.swim);
+                setRoutes(before.routes);
+                setRouteIndex(before.routeIndex);
+                setPlan(before.plan);
+                setUndo(null);
+                setMessage('Undone.');
+            },
+        });
+    }
+
+    /**
+     * Moves the start, which is the transition in Multisport. A drawn route
+     * no longer starts there, so it goes. The new spot is named unless the
+     * rider picked it by name.
+     */
+    function moveStart(
+        lng: number,
+        lat: number,
+        options: { name?: string; message?: string; undoable?: boolean } = {},
+    ): void {
+        if (options.undoable !== false) {
+            remember(multisport ? 'Transition moved' : 'Start moved');
+        }
+
+        dirty.current = true;
+        setPickingStart(false);
+        setTapCard(null);
+        setLongitude(lng);
+        setLatitude(lat);
+        setRoutes([]);
+        setRouteIndex(0);
+        setPlan(null);
+        setMessage(
+            options.message ??
+                (multisport
+                    ? 'Transition moved. Draw the route when you are ready.'
+                    : 'Start moved. Draw a route when you are ready.'),
+        );
+        const ask = startAskRef.current + 1;
+        startAskRef.current = ask;
+
+        if (options.name !== undefined) {
+            setStartName(options.name);
+
+            return;
+        }
+
+        setStartName(null);
+        void labelPlace(lng, lat).then((name) => {
+            if (startAskRef.current === ask) {
+                setStartName(name === 'Junction' ? null : name);
+            }
+        });
+    }
+
+    moveStartRef.current = moveStart;
+
+    /**
+     * Sets where the loop passes and draws it again, as choosing a via
+     * always has.
+     */
+    function setViaPoint(point: Coordinate, name?: string): void {
+        remember(via === null ? 'Via set' : 'Via moved');
+        dirty.current = true;
+        setTapCard(null);
+        setVia(point);
+        setViaName(name ?? null);
+        setPlacingVia(false);
+
+        if (name === undefined) {
+            void labelPlace(point[0], point[1]).then(setViaName);
+        }
+
+        void generate({ via: point });
+    }
+
+    moveViaRef.current = (point) => setViaPoint(point);
+
+    function clearVia(): void {
+        remember('Via removed');
+        setVia(null);
+        setViaName(null);
+        setPlacingVia(false);
+        void generate({ via: null });
+    }
+
     function placeFinish(index: number): void {
+        setActiveLeg(index);
+        setSheet('finish');
+    }
+
+    function pickFinishOnMap(index: number): void {
+        setSheet(null);
         setActiveLeg(index);
         setPlacing({ kind: 'finish', leg: index });
         setMessage(
@@ -3736,7 +3953,45 @@ export default function Dashboard() {
         );
     }
 
+    /**
+     * Sets where a leg of a chain ends. Once every leg has an end, the plan
+     * is drawn; until then the next leg without one waits for its tap.
+     */
+    function setLegFinish(
+        index: number,
+        point: Coordinate,
+        options: { next?: boolean } = {},
+    ): void {
+        remember('Finish set');
+        dirty.current = true;
+        setTapCard(null);
+        const nextLegs = legs.map((leg, item) =>
+            item === index ? { ...leg, finish: point } : leg,
+        );
+        const missing = nextLegs.findIndex((leg) => leg.finish === null);
+        setLegs(nextLegs);
+        setPlan(null);
+
+        if (missing >= 0) {
+            setActiveLeg(missing);
+            setPlacing(
+                options.next === true ? { kind: 'finish', leg: missing } : null,
+            );
+            setMessage(
+                options.next === true
+                    ? `Tap the map where leg ${missing + (swim === null ? 1 : 2)} ends.`
+                    : `Leg ${index + (swim === null ? 1 : 2)} ends there. Set where leg ${missing + (swim === null ? 1 : 2)} ends next.`,
+            );
+
+            return;
+        }
+
+        setPlacing(null);
+        void drawMultisport({ legs: nextLegs });
+    }
+
     moveFinishRef.current = (index, point) => {
+        remember('Finish moved');
         const nextLegs = legs.map((leg, item) =>
             item === index ? { ...leg, finish: point } : leg,
         );
@@ -3758,6 +4013,7 @@ export default function Dashboard() {
         dirty.current = true;
 
         if (placing?.kind === 'swim') {
+            remember('Swim point added');
             const nextSwim = [...(swim ?? []), point].slice(0, mostSwimPoints);
             setSwim(nextSwim);
             setPlan(null);
@@ -3771,33 +4027,12 @@ export default function Dashboard() {
         }
 
         if (placing?.kind === 'finish') {
-            const nextLegs = legs.map((leg, index) =>
-                index === placing.leg ? { ...leg, finish: point } : leg,
-            );
-            const missing = nextLegs.findIndex((leg) => leg.finish === null);
-            setLegs(nextLegs);
-            setPlan(null);
-
-            if (missing >= 0) {
-                setActiveLeg(missing);
-                setPlacing({ kind: 'finish', leg: missing });
-                setMessage(
-                    `Tap the map where leg ${missing + (swim === null ? 1 : 2)} ends.`,
-                );
-
-                return;
-            }
-
-            setPlacing(null);
-            void drawMultisport({ legs: nextLegs });
+            setLegFinish(placing.leg, point, { next: true });
 
             return;
         }
 
-        setLongitude(lng);
-        setLatitude(lat);
-        setPlan(null);
-        setMessage('Transition moved. Draw the route when you are ready.');
+        openTapCard(lng, lat);
     }
 
     function showSnapRing(point: RoadSnap | null): void {
@@ -3869,6 +4104,34 @@ export default function Dashboard() {
         });
     };
 
+    /**
+     * Adds a Build point on a road. A point picked by name keeps that name;
+     * a tapped one is named after the place around it.
+     */
+    function addBuildPoint(point: RoadSnap, name?: string): void {
+        remember('Point added');
+        const placed = {
+            id: crypto.randomUUID(),
+            longitude: point.longitude,
+            latitude: point.latitude,
+            name: name ?? 'Junction',
+        };
+        dirty.current = true;
+        setBuildPoints((current) => [...current, placed]);
+
+        if (name !== undefined) {
+            return;
+        }
+
+        void labelPlace(point.longitude, point.latitude).then((label) => {
+            setBuildPoints((current) =>
+                current.map((item) =>
+                    item.id === placed.id ? { ...item, name: label } : item,
+                ),
+            );
+        });
+    }
+
     function placeBuildPoint(lng: number, lat: number): void {
         const map = mapRef.current;
         const point = map === null ? null : snapToRoad(map, lng, lat);
@@ -3879,24 +4142,143 @@ export default function Dashboard() {
             return;
         }
 
-        const placed = {
-            id: crypto.randomUUID(),
-            longitude: point.longitude,
-            latitude: point.latitude,
-            name: 'Junction',
-        };
+        addBuildPoint(point);
+    }
+
+    moveBuildPointRef.current = (id, lng, lat) => {
+        const map = mapRef.current;
+        const point = map === null ? null : snapToRoad(map, lng, lat);
+
+        if (point === null) {
+            setMessage('No road or path is close enough to put a point there.');
+
+            return false;
+        }
+
+        remember('Point moved');
         dirty.current = true;
-        setBuildPoints((current) => [...current, placed]);
+        setBuildPoints((current) =>
+            current.map((item) =>
+                item.id === id ? { ...item, ...point, name: 'Junction' } : item,
+            ),
+        );
         void labelPlace(point.longitude, point.latitude).then((name) => {
             setBuildPoints((current) =>
                 current.map((item) =>
-                    item.id === placed.id ? { ...item, name } : item,
+                    item.id === id &&
+                    item.longitude === point.longitude &&
+                    item.latitude === point.latitude
+                        ? { ...item, name }
+                        : item,
                 ),
             );
         });
+
+        return true;
+    };
+
+    function removeBuildPoint(index: number): void {
+        remember('Point removed');
+        dirty.current = true;
+        setBuildPoints((current) =>
+            current.filter((_, item) => item !== index),
+        );
     }
 
+    /**
+     * Asks what a tap on the map should do, instead of moving a pin at once.
+     */
+    function openTapCard(lng: number, lat: number): void {
+        const map = mapRef.current;
+
+        if (map === null) {
+            return;
+        }
+
+        const at = map.project([lng, lat]);
+        const ask = tapAskRef.current + 1;
+        tapAskRef.current = ask;
+        setTapCard({
+            longitude: lng,
+            latitude: lat,
+            x: at.x,
+            y: at.y,
+            name: null,
+        });
+        void labelPlace(lng, lat).then((name) => {
+            if (tapAskRef.current !== ask || name === 'Junction') {
+                return;
+            }
+
+            setTapCard((card) => (card === null ? null : { ...card, name }));
+        });
+    }
+
+    function closeTapCard(focusMap = false): void {
+        tapAskRef.current += 1;
+        setTapCard(null);
+
+        if (focusMap) {
+            mapRef.current?.getCanvas().focus();
+        }
+    }
+
+    closeTapRef.current = () => {
+        if (tapCard !== null) {
+            closeTapCard();
+        }
+    };
+
+    const tapActions: TapAction[] =
+        tapCard === null
+            ? []
+            : multisport
+              ? [
+                    {
+                        label: 'Move the transition here',
+                        onSelect: () =>
+                            moveStart(tapCard.longitude, tapCard.latitude, {
+                                name: tapCard.name ?? undefined,
+                            }),
+                    },
+                    ...(layout === 'chain'
+                        ? [
+                              {
+                                  label: `Leg ${activeLeg + (swim === null ? 1 : 2)} ends here`,
+                                  onSelect: () =>
+                                      setLegFinish(activeLeg, [
+                                          tapCard.longitude,
+                                          tapCard.latitude,
+                                      ]),
+                              },
+                          ]
+                        : []),
+                ]
+              : [
+                    {
+                        label: 'Start here',
+                        onSelect: () =>
+                            moveStart(tapCard.longitude, tapCard.latitude, {
+                                name: tapCard.name ?? undefined,
+                            }),
+                    },
+                    {
+                        label: 'Go via here',
+                        onSelect: () =>
+                            setViaPoint(
+                                [tapCard.longitude, tapCard.latitude],
+                                tapCard.name ?? undefined,
+                            ),
+                    },
+                ];
+
     onMapClickRef.current = (lng, lat) => {
+        if (pickingStart) {
+            moveStart(lng, lat);
+
+            return;
+        }
+
         if (mode === 'multisport') {
             clickMultisport(lng, lat);
 
@@ -3910,24 +4292,136 @@ export default function Dashboard() {
         }
 
         if (placingViaRef.current) {
-            const point: Coordinate = [lng, lat];
-            dirty.current = true;
-            setVia(point);
-            setViaName(null);
-            setPlacingVia(false);
-            void labelPlace(lng, lat).then(setViaName);
-            void generate({ via: point });
+            setViaPoint([lng, lat]);
 
             return;
         }
 
-        dirty.current = true;
-        setLongitude(lng);
-        setLatitude(lat);
-        setRoutes([]);
-        setRouteIndex(0);
-        setMessage('Start moved. Draw a route when you are ready.');
+        openTapCard(lng, lat);
     };
+
+    /** The middle of the map, so a search finds places near it first. */
+    function searchNear(): { latitude: number; longitude: number } {
+        const centre = mapRef.current?.getCenter();
+
+        return centre === undefined
+            ? { latitude, longitude }
+            : { latitude: centre.lat, longitude: centre.lng };
+    }
+
+    function showPlace(place: FoundPlace): void {
+        const map = mapRef.current;
+
+        if (map === null) {
+            return;
+        }
+
+        const reduced = window.matchMedia(
+            '(prefers-reduced-motion: reduce)',
+        ).matches;
+        map.easeTo({
+            center: [place.longitude, place.latitude],
+            zoom: Math.max(map.getZoom(), 14),
+            padding: framePadding(),
+            duration: reduced ? 0 : 400,
+        });
+    }
+
+    function pickStartPlace(place: FoundPlace): void {
+        setSheet(null);
+        moveStart(place.longitude, place.latitude, { name: place.name });
+        showPlace(place);
+    }
+
+    function pickViaPlace(place: FoundPlace): void {
+        setSheet(null);
+        setViaPoint([place.longitude, place.latitude], place.name);
+        showPlace(place);
+    }
+
+    function pickFinishPlace(place: FoundPlace): void {
+        setSheet(null);
+        setLegFinish(activeLeg, [place.longitude, place.latitude]);
+        showPlace(place);
+    }
+
+    /**
+     * A Build point found by name still sits on a road: Traceway moves it
+     * onto the nearest one for the sport.
+     */
+    async function pickBuildPlace(place: FoundPlace): Promise<void> {
+        setSheet(null);
+        showPlace(place);
+
+        try {
+            const response = await fetch('/routes/snap', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': csrfToken(),
+                },
+                body: JSON.stringify({
+                    latitude: place.latitude,
+                    longitude: place.longitude,
+                    sport,
+                }),
+            });
+            const body: unknown = await response.json();
+
+            if (
+                response.ok &&
+                typeof body === 'object' &&
+                body !== null &&
+                'latitude' in body &&
+                'longitude' in body &&
+                typeof body.latitude === 'number' &&
+                typeof body.longitude === 'number'
+            ) {
+                addBuildPoint(
+                    { latitude: body.latitude, longitude: body.longitude },
+                    place.name,
+                );
+                setMessage(`${place.name} added. It sits on the nearest road.`);
+
+                return;
+            }
+
+            setMessage(
+                typeof body === 'object' &&
+                    body !== null &&
+                    'message' in body &&
+                    typeof body.message === 'string'
+                    ? body.message
+                    : 'No road or path is close enough to put a point there.',
+            );
+        } catch {
+            setMessage('The road could not be found. Try again in a moment.');
+        }
+    }
+
+    function pickStartOnMap(): void {
+        setSheet(null);
+        setPlacingVia(false);
+        setPickingStart(true);
+        setMessage(
+            multisport
+                ? 'Tap the map where the transition is.'
+                : 'Tap the map where you start.',
+        );
+    }
+
+    function pickViaOnMap(): void {
+        setSheet(null);
+        setPickingStart(false);
+        setPlacingVia(true);
+        setMessage('Tap the map where the loop should pass.');
+    }
+
+    function locateFromSheet(): void {
+        setSheet(null);
+        locateMe();
+    }
 
     function redraw(next: {
         sport?: string;
@@ -4096,6 +4590,32 @@ export default function Dashboard() {
                     >
                         <div ref={mapNode} className="h-full w-full" />
                         <div className="vig" />
+                        {tapCard === null ? null : (
+                            <MapTapCard
+                                key={`${tapCard.longitude},${tapCard.latitude}`}
+                                x={tapCard.x}
+                                y={tapCard.y}
+                                name={tapCard.name}
+                                actions={tapActions}
+                                onClose={() => closeTapCard(true)}
+                            />
+                        )}
+                        {undo === null || tapCard !== null ? null : (
+                            <div
+                                className="undobar"
+                                role="group"
+                                aria-label="Last change"
+                                onMouseEnter={() => setUndoHeld(true)}
+                                onMouseLeave={() => setUndoHeld(false)}
+                                onFocus={() => setUndoHeld(true)}
+                                onBlur={() => setUndoHeld(false)}
+                            >
+                                <span role="status">{undo.label}</span>
+                                <button type="button" onClick={undo.restore}>
+                                    Undo
+                                </button>
+                            </div>
+                        )}
                         <div className="mapctl">
                             <div className="ctl">
                                 <button
@@ -4169,7 +4689,16 @@ export default function Dashboard() {
                                 point
                             </p>
                         ) : null}
-                        {mode === 'build' && !mapKeyboard ? (
+                        {(pickingStart || placingVia) && !mapKeyboard ? (
+                            <p className="maphint">
+                                <b>+</b>{' '}
+                                {pickingStart
+                                    ? multisport
+                                        ? 'Tap where the transition is'
+                                        : 'Tap where you start'
+                                    : 'Tap where the loop should pass'}
+                            </p>
+                        ) : mode === 'build' && !mapKeyboard ? (
                             <p className="maphint">
                                 <b>+</b> The ring sits on the nearest road or
                                 path
@@ -4448,10 +4977,25 @@ export default function Dashboard() {
                                     onRemove={removeLeg}
                                     onMove={moveLeg}
                                     onPlaceFinish={placeFinish}
+                                    transitionName={startName}
+                                    onFindTransition={() => setSheet('start')}
                                 />
                             ) : mode === 'generate' ? (
                                 <section aria-label="Ask">
                                     <p className="sec-label">Ask</p>
+                                    <button
+                                        type="button"
+                                        className="row"
+                                        onClick={() => setSheet('start')}
+                                    >
+                                        <span className="k">Start</span>
+                                        <span className="v">
+                                            {pickingStart
+                                                ? 'Tap the map'
+                                                : (startName ?? 'Your pin')}
+                                            <Chevron />
+                                        </span>
+                                    </button>
                                     <button
                                         type="button"
                                         className="row"
@@ -4521,19 +5065,7 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
-                                        onClick={() => {
-                                            if (via !== null) {
-                                                setVia(null);
-                                                setViaName(null);
-                                                setPlacingVia(false);
-                                                void generate({ via: null });
-                                                return;
-                                            }
-                                            setPlacingVia(true);
-                                            setMessage(
-                                                'Tap the map where the loop should pass.',
-                                            );
-                                        }}
+                                        onClick={() => setSheet('via')}
                                     >
                                         <span className="k">Via</span>
                                         <span className="v">
@@ -4558,7 +5090,7 @@ export default function Dashboard() {
                                     <div className="flex items-baseline justify-between gap-3">
                                         <p className="sec-label">Points</p>
                                         <p className="small">
-                                            Tap a road on the map to add one
+                                            Search, or tap a road on the map
                                         </p>
                                     </div>
                                     <div
@@ -4575,17 +5107,23 @@ export default function Dashboard() {
                                             <button
                                                 type="button"
                                                 className="field"
-                                                onClick={() =>
+                                                onClick={() => {
                                                     showPoint(
                                                         longitude,
                                                         latitude,
-                                                    )
-                                                }
+                                                    );
+                                                    setSheet('start');
+                                                }}
                                             >
-                                                <span>Your pin</span>
+                                                <span>
+                                                    {pickingStart
+                                                        ? 'Tap the map'
+                                                        : (startName ??
+                                                          'Your pin')}
+                                                </span>
                                                 <small>Start</small>
                                                 <span className="vh">
-                                                    Show on the map
+                                                    Change the start
                                                 </span>
                                             </button>
                                             <button
@@ -4761,14 +5299,7 @@ export default function Dashboard() {
                                                     className="ghostbtn"
                                                     aria-label={`Remove point ${index + 1}`}
                                                     onClick={() =>
-                                                        setBuildPoints(
-                                                            (current) =>
-                                                                current.filter(
-                                                                    (_, item) =>
-                                                                        item !==
-                                                                        index,
-                                                                ),
-                                                        )
+                                                        removeBuildPoint(index)
                                                     }
                                                 >
                                                     <svg
@@ -4813,11 +5344,7 @@ export default function Dashboard() {
                                         <button
                                             type="button"
                                             className="addrow"
-                                            onClick={() =>
-                                                setMessage(
-                                                    'Tap a road on the map. The point snaps onto the route.',
-                                                )
-                                            }
+                                            onClick={() => setSheet('point')}
                                         >
                                             <span
                                                 className="mark add"
@@ -5391,6 +5918,124 @@ export default function Dashboard() {
                     </aside>
                 </main>
             </div>
+
+            {(
+                [
+                    {
+                        name: 'start',
+                        title: multisport
+                            ? 'Where is the transition?'
+                            : 'Where do you start?',
+                        label: multisport
+                            ? 'Search for the transition'
+                            : 'Search for the start',
+                        onPick: pickStartPlace,
+                        actions: [
+                            {
+                                label: 'Use my location',
+                                copy: 'Where this device is now',
+                                onSelect: locateFromSheet,
+                            },
+                            {
+                                label: 'Pick on the map',
+                                copy: 'Your next tap on the map sets it',
+                                onSelect: pickStartOnMap,
+                            },
+                        ],
+                    },
+                    {
+                        name: 'via',
+                        title: 'Where should the loop pass?',
+                        label: 'Search for a place to pass',
+                        onPick: pickViaPlace,
+                        actions: [
+                            {
+                                label: 'Pick on the map',
+                                copy: 'Your next tap on the map sets it',
+                                onSelect: pickViaOnMap,
+                            },
+                            ...(via === null
+                                ? []
+                                : [
+                                      {
+                                          label: 'No via',
+                                          copy: `Stop passing ${viaName ?? 'the via'}`,
+                                          onSelect: () => {
+                                              setSheet(null);
+                                              clearVia();
+                                          },
+                                      },
+                                  ]),
+                        ],
+                    },
+                    {
+                        name: 'point',
+                        title: 'Add a point',
+                        label: 'Search for a point',
+                        onPick: (place: FoundPlace) => {
+                            void pickBuildPlace(place);
+                        },
+                        actions: [
+                            {
+                                label: 'Tap a road on the map',
+                                copy: 'The point sits on the road you tap',
+                                onSelect: () => {
+                                    setSheet(null);
+                                    setMessage(
+                                        'Tap a road on the map. The point snaps onto the route.',
+                                    );
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        name: 'finish',
+                        title: `Where does leg ${activeLeg + (swim === null ? 1 : 2)} end?`,
+                        label: 'Search for where the leg ends',
+                        onPick: pickFinishPlace,
+                        actions: [
+                            {
+                                label: 'Pick on the map',
+                                copy: 'Your next tap on the map sets it',
+                                onSelect: () => pickFinishOnMap(activeLeg),
+                            },
+                        ],
+                    },
+                ] satisfies {
+                    name: SheetName;
+                    title: string;
+                    label: string;
+                    onPick: (place: FoundPlace) => void;
+                    actions: PlaceAction[];
+                }[]
+            ).map((placeSheet) => (
+                <Sheet
+                    key={placeSheet.name}
+                    modal={!wide}
+                    open={sheet === placeSheet.name}
+                    onOpenChange={(open) => !open && setSheet(null)}
+                >
+                    <SheetContent
+                        side="bottom"
+                        className="tw-pop top-auto block h-fit max-h-[80vh] gap-0 overflow-y-auto rounded-t-[10px] bg-background pb-4 text-foreground shadow-sm"
+                    >
+                        <SheetHeader className={sheetHeading}>
+                            <SheetTitle className="pr-6">
+                                {placeSheet.title}
+                            </SheetTitle>
+                        </SheetHeader>
+                        {sheet === placeSheet.name ? (
+                            <PlaceSearch
+                                near={searchNear}
+                                storageKey={recentKey}
+                                label={placeSheet.label}
+                                onPick={placeSheet.onPick}
+                                actions={placeSheet.actions}
+                            />
+                        ) : null}
+                    </SheetContent>
+                </Sheet>
+            ))}
 
             <Sheet
                 modal={!wide}
