@@ -226,33 +226,71 @@
                     }).join(' ');
                 }
 
-                function draw(route) {
+                /** The card: the name, the distance, the legs, and the line when there is one. */
+                function draw(route, line) {
                     const legs = route.legs ?? [];
-                    const landLegs = legs.filter((leg) => leg.discipline !== 'swim' && leg.line.length > 1);
-                    const lines = landLegs.length > 0 ? landLegs.map((leg) => leg.line) : [route.line];
-                    const toPoint = project(lines, 600, 340, 28);
+                    const landLegs = (line?.legs ?? []).filter((leg) => leg.discipline !== 'swim' && leg.line.length > 1);
+                    const lines = landLegs.length > 0 ? landLegs.map((leg) => leg.line) : (line?.line?.length > 1 ? [line.line] :
+                    []);
                     const map = $('map');
-                    const start = toPoint(lines[0][0]);
 
-                    map.innerHTML = lines.map((line, index) =>
-                            `<path class="line draw" pathLength="1" style="animation-delay:${index * 0.35}s" stroke="${landLegs.length > 0 ? legColours[index % legColours.length] : '#f8fafc'}" d="${path(line, toPoint)}"></path>`
-                        ).join('') +
-                        `<circle cx="${start[0].toFixed(1)}" cy="${start[1].toFixed(1)}" r="8" fill="#97cb46" stroke="#f6f3ea" stroke-width="3"></circle>`;
+                    if (lines.length > 0) {
+                        const toPoint = project(lines, 600, 340, 28);
+                        const start = toPoint(lines[0][0]);
 
+                        map.innerHTML = lines.map((points, index) =>
+                                `<path class="line draw" pathLength="1" style="animation-delay:${index * 0.35}s" stroke="${landLegs.length > 0 ? legColours[index % legColours.length] : '#f8fafc'}" d="${path(points, toPoint)}"></path>`
+                            ).join('') +
+                            `<circle cx="${start[0].toFixed(1)}" cy="${start[1].toFixed(1)}" r="8" fill="#97cb46" stroke="#f6f3ea" stroke-width="3"></circle>`;
+                    }
+
+                    map.toggleAttribute('hidden', lines.length === 0);
                     $('name').textContent = route.name;
-                    $('km').firstChild.textContent = (route.distance_metres / 1000).toFixed(1);
+                    $('km').firstChild.textContent = Number(route.distance_km ?? (route.distance_metres ?? 0) / 1000).toFixed(1);
                     $('legs').innerHTML = legs.length === 0 ?
-                        `<li>${sports[route.sport] ?? route.sport}</li>` :
-                        legs.map((leg, index) => {
+                        `<li>${sports[route.sport] ?? route.sport ?? ''}</li>` :
+                        legs.map((leg) => {
                             const land = leg.discipline !== 'swim';
-                            const colour = land ? legColours[landLegs.indexOf(leg) % legColours.length] : '#f6f3ea66';
-                            const km = land ? ` · ${(leg.distance_metres / 1000).toFixed(1)} km` : ' · draw it in the planner';
+                            const colour = land ? legColours[legs.filter((other) => other.discipline !== 'swim').indexOf(leg) %
+                                legColours.length] : '#f6f3ea66';
+                            const km = land ? ` · ${Number(leg.distance_km).toFixed(1)} km` : ' · draw it in the planner';
 
                             return `<li><i style="background:${colour}"></i>${sports[leg.discipline] ?? leg.discipline}${km}</li>`;
                         }).join('');
 
                     $('wait').hidden = true;
                     $('route').hidden = false;
+                }
+
+                /** Gives up on a call the host never answers, so the card does not wait forever. */
+                function within(promise, milliseconds) {
+                    return Promise.race([
+                        promise,
+                        new Promise((resolve, reject) => setTimeout(() => reject(new Error('No answer')), milliseconds)),
+                    ]);
+                }
+
+                /**
+                 * The line, sent along with the plan. A host that leaves it out
+                 * gets one try at asking the server, and the card shows without
+                 * a line when that fails too.
+                 */
+                async function lineFor(app, result, plan) {
+                    const sent = result?._meta?.['traceway/drawing'];
+
+                    if (sent?.line) {
+                        return sent;
+                    }
+
+                    try {
+                        const drawing = await within(app.callServerTool('route_drawing', {
+                            id: plan.id
+                        }), 8000);
+
+                        return drawing?.isError ? null : data(drawing);
+                    } catch {
+                        return null;
+                    }
                 }
 
                 createMcpApp(async (app) => {
@@ -291,18 +329,8 @@
                             return;
                         }
 
-                        const drawing = await app.callServerTool('route_drawing', {
-                            id: plan.id
-                        });
-
-                        if (drawing.isError) {
-                            say(drawing.content?.[0]?.text ?? 'The route could not be drawn.');
-                            return;
-                        }
-
-                        const route = data(drawing);
-                        links = route;
-                        draw(route);
+                        links = plan;
+                        draw(plan, await lineFor(app, result, plan));
                     });
                 });
             </script>

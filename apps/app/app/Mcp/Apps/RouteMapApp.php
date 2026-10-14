@@ -24,6 +24,11 @@ use Laravel\Mcp\Server\Attributes\Uri;
 #[AppMeta(prefersBorder: false)]
 final class RouteMapApp extends AppResource
 {
+    /**
+     * Where a plan's result carries the line for the map.
+     */
+    public const string DRAWING = 'traceway/drawing';
+
     public function handle(Request $request): Response
     {
         return Response::view('mcp.route-map-app');
