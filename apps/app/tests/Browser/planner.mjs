@@ -174,7 +174,12 @@ try {
     const oevel = desktop.getByRole('option', { name: /^Oevel\b/ }).first();
     await oevel.waitFor({ timeout: 15000 });
     await oevel.click();
-    await desktop.getByRole('button', { name: 'Add a point here' }).click();
+    // On failure, say what the card and the planner said instead.
+    await desktop.getByRole('button', { name: 'Add a point here' }).click({ timeout: 30000 }).catch(async (error) => {
+        const card = await desktop.locator('.tap-card').allInnerTexts();
+        const note = await desktop.locator('.map-search-note, .note[role="status"]').allInnerTexts();
+        throw new Error(`No "Add a point here" for Oevel. Card: ${JSON.stringify(card)}. Status: ${JSON.stringify(note)}. ${error.message}`);
+    });
     await desktop.locator('.pts .pt[data-point]').first().waitFor({ timeout: 15000 });
     await desktop.getByRole('button', { name: 'Undo' }).click();
     await desktop.locator('.pts .pt[data-point]').first().waitFor({ state: 'detached', timeout: 3000 });
