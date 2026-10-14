@@ -1,5 +1,5 @@
 ---
-title: Know the ride before you go
+title: Climbs, turns, and stops on every route
 summary: Know the ride before you go, take it to your watch with every turn and stop, and plan it by just asking your AI.
 date: 2026-10-14T13:23:49Z
 ---
