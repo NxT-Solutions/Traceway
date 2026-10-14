@@ -168,7 +168,7 @@
                 position: relative;
             }
 
-            .stage.framed {
+            .stage.mapped {
                 aspect-ratio: 600 / 340;
             }
 
@@ -238,6 +238,8 @@
                  * Traceway's log arrives only where the rules allow it.
                  */
                 const report = {
+                    script: 'not fetched',
+                    map: 'not tried',
                     blocked: [],
                     policy: ''
                 };
@@ -251,6 +253,8 @@
 
                     $('report').hidden = false;
                     $('report').textContent = [
+                        `Map: ${report.map}`,
+                        `Map script: ${report.script}`,
                         `Background worker: ${report.blocked.some((rule) => rule.startsWith('worker-src')) ? 'blocked' : 'allowed'}`,
                         `Blocked: ${report.blocked.join(', ') || 'nothing'}`,
                         `Chat app rules: ${report.policy || 'none reported'}`,
@@ -386,45 +390,122 @@
                 }
 
                 /**
-                 * Lays the map from Traceway over the drawing once it says it
-                 * is drawn. It is Traceway's own share page, so it is always the
-                 * current map. A chat app that does not allow it keeps the
-                 * drawing.
+                 * Traceway's own share page over the drawing, where the chat app
+                 * allows a frame. Resolves true once it says its map is drawn.
                  */
-                function showMap(plan) {
-                    const stage = document.querySelector('.stage');
+                function framed(plan, stage) {
+                    return new Promise((resolve) => {
+                        if (!plan.embed_url) {
+                            resolve(false);
 
-                    document.querySelector('.live-map')?.remove();
-
-                    if (!plan.embed_url || stage === null) {
-                        return;
-                    }
-
-                    const frame = document.createElement('iframe');
-                    frame.className = 'live-map';
-                    frame.title = 'The route on a map you can move and zoom';
-                    frame.src = plan.embed_url;
-
-                    const giveUp = window.setTimeout(() => {
-                        frame.remove();
-                        status('The map from Traceway did not open here, so the drawing stays.');
-                        sendReport('map did not open');
-                    }, 15000);
-
-                    window.addEventListener('message', function ready(event) {
-                        if (event.source !== frame.contentWindow || event.data?.type !== 'traceway:map-ready') {
                             return;
                         }
 
-                        window.clearTimeout(giveUp);
-                        window.removeEventListener('message', ready);
-                        stage.classList.add('framed');
-                        frame.classList.add('ready');
-                        status('Map from Traceway.');
-                        sendReport('map shown');
-                    });
+                        const frame = document.createElement('iframe');
+                        frame.className = 'live-map';
+                        frame.title = 'The route on a map you can move and zoom';
+                        const settle = (shown) => {
+                            window.clearTimeout(timer);
+                            window.removeEventListener('message', ready);
+                            document.removeEventListener('securitypolicyviolation', refused);
 
-                    stage.append(frame);
+                            if (!shown) {
+                                frame.remove();
+                            }
+
+                            resolve(shown);
+                        };
+                        const timer = window.setTimeout(() => settle(false), 15000);
+                        const ready = (event) => {
+                            if (event.source === frame.contentWindow && event.data?.type === 'traceway:map-ready') {
+                                frame.classList.add('ready');
+                                settle(true);
+                            }
+                        };
+                        const refused = (event) => {
+                            if (event.effectiveDirective === 'frame-src') {
+                                settle(false);
+                            }
+                        };
+
+                        window.addEventListener('message', ready);
+                        document.addEventListener('securitypolicyviolation', refused);
+                        frame.src = plan.embed_url;
+                        stage.append(frame);
+                    });
+                }
+
+                /**
+                 * The map script, fresh from Traceway so it is never older than
+                 * the site, or the copy this card came with when Traceway cannot
+                 * be reached from here.
+                 */
+                async function mapCode() {
+                    const main = document.querySelector('main');
+
+                    try {
+                        const response = await fetch(main.dataset.mapScript, {
+                            cache: 'no-cache'
+                        });
+
+                        if (response.ok) {
+                            report.script = 'fresh from Traceway';
+
+                            return await response.text();
+                        }
+
+                        report.script = `copy in the card (Traceway answered ${response.status})`;
+                    } catch (error) {
+                        report.script = `copy in the card (${error.message})`;
+                    }
+
+                    const bytes = Uint8Array.from(atob(main.dataset.mapCode), (character) => character.charCodeAt(0));
+
+                    return new TextDecoder().decode(bytes);
+                }
+
+                /**
+                 * A map you can move and zoom over the drawing: Traceway's page
+                 * where the chat app allows a frame, else the map script run in
+                 * the card. When neither works, the drawing stays.
+                 */
+                async function showMap(plan, line) {
+                    const stage = document.querySelector('.stage');
+
+                    stage?.querySelector('.live-map')?.remove();
+
+                    if (stage === null) {
+                        return;
+                    }
+
+                    let shown = await framed(plan, stage);
+                    report.map = shown ? 'Traceway page in a frame' : 'no frame';
+
+                    if (!shown) {
+                        try {
+                            const code = await mapCode();
+                            const map = await import(URL.createObjectURL(new Blob([code], {
+                                type: 'text/javascript'
+                            })));
+                            shown = await map.mount({
+                                line,
+                                stage,
+                                status
+                            });
+                            report.map = shown ? 'map script in the card' : 'map script could not draw';
+                        } catch (error) {
+                            report.map = `map script failed (${error.message})`;
+                        }
+                    }
+
+                    if (shown) {
+                        stage.classList.add('mapped');
+                        status('Map you can move and zoom.');
+                    } else {
+                        status('No map here, so the drawing stays.');
+                    }
+
+                    sendReport(shown ? 'map shown' : 'no map');
                 }
 
                 createMcpApp(async (app) => {
@@ -464,15 +545,17 @@
                         }
 
                         links = plan;
-                        draw(plan, await lineFor(app, result, plan));
-                        showMap(plan);
+                        const line = await lineFor(app, result, plan);
+                        draw(plan, line);
+                        showMap(plan, line);
                     });
                 });
             </script>
         @endverbatim
     </x-slot:head>
 
-    <main class="card" data-status="{{ $showStatus ? 'on' : 'off' }}" data-traceway="{{ $traceway }}">
+    <main class="card" data-status="{{ $showStatus ? 'on' : 'off' }}" data-traceway="{{ $traceway }}"
+        data-map-script="{{ $mapScript }}" data-map-code="{{ base64_encode($mapCode) }}">
         <p id="wait" class="wait">Planning your route…</p>
 
         <section id="route" hidden>
