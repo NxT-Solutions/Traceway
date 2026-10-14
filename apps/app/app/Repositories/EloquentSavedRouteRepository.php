@@ -7,7 +7,6 @@ namespace App\Repositories;
 use App\Account\RiderId;
 use App\Commands\SaveRouteCommand;
 use App\Contracts\Routes\SavedRouteRepository;
-use App\Domain\Routing\Details\RouteDetails;
 use App\Models\SavedRoute;
 use App\Routes\ForeignRoute;
 use App\Routes\MissingRoute;
@@ -45,14 +44,14 @@ final readonly class EloquentSavedRouteRepository implements SavedRouteRepositor
     }
 
     /**
-     * @param SavedLeg[] $legs
+     * @param  SavedLeg[]  $legs
      */
-    public function storeDetails(RouteId $routeId, ?RouteDetails $routeDetails, array $legs, ?int $ascentMetres): void
+    public function storeDetails(RouteId $routeId, ?array $details, array $legs, ?int $ascentMetres): void
     {
         $values = ['details_tried_at' => now()];
 
-        if ($routeDetails instanceof RouteDetails) {
-            $values['details'] = json_encode($routeDetails->toArray(), JSON_THROW_ON_ERROR);
+        if ($details !== null) {
+            $values['details'] = json_encode($details, JSON_THROW_ON_ERROR);
         }
 
         if ($legs !== []) {

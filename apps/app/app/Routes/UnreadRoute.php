@@ -2,11 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Queries\Routes;
+namespace App\Routes;
 
 use App\Domain\Routing\Sport;
-use App\Routes\RouteId;
-use App\Routes\SavedLeg;
 
 /**
  * A saved route whose climb, surfaces, turns, and stops are not read yet.

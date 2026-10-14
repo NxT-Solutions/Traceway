@@ -42,7 +42,7 @@ final readonly class ReadRouteDetailsHandler
                     return false;
                 }
 
-                $this->savedRouteRepository->storeDetails($route->routeId, $routeDetails, [], $routeDetails->hasClimb() ? $routeDetails->ascentMetres : null);
+                $this->savedRouteRepository->storeDetails($route->routeId, $routeDetails->toArray(), [], $routeDetails->hasClimb() ? $routeDetails->ascentMetres : null);
 
                 return true;
             }
@@ -64,7 +64,7 @@ final readonly class ReadRouteDetailsHandler
 
             $this->savedRouteRepository->storeDetails(
                 $route->routeId,
-                routeDetails: null,
+                details: null,
                 legs: $legs,
                 ascentMetres: array_sum(array_map(fn (SavedLeg $savedLeg): int => $savedLeg->ascentMetres, $legs)),
             );

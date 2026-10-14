@@ -9,6 +9,7 @@ use App\Domain\Routing\Sport;
 use App\Queries\RowReader;
 use App\Routes\RouteId;
 use App\Routes\SavedLeg;
+use App\Routes\UnreadRoute;
 use Illuminate\Support\Facades\DB;
 
 final readonly class UnreadRoutesQuery
