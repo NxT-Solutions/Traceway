@@ -192,7 +192,7 @@ async function stopsShown(page, label) {
 
         return true;
     } catch {
-        note(`${label}: no stops showed (none near, or the stop server was busy)`);
+        note(`${label}: no stops showed (none near, or the map tiles did not load)`);
 
         return false;
     }
