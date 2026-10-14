@@ -50,8 +50,8 @@ use Throwable;
 #[RendersApp(resource: RouteMapApp::class)]
 final class PlanMultisportTool extends Tool
 {
+    use AnswersWithDrawing;
     use ReadsArguments;
-    use SendsDrawing;
 
     private const array LAND_SPORTS = ['road', 'gravel', 'mtb', 'run', 'trail_run', 'walk', 'hike'];
 
@@ -226,7 +226,10 @@ final class PlanMultisportTool extends Tool
         return LineSimplifier::simplify($line, LineSimplifier::ROUTE_METRES);
     }
 
-    private function answer(string $id, string $name, MultisportRoute $multisportRoute, ?float $swimKm): ResponseFactory
+    /**
+     * @return array<string, mixed>
+     */
+    private function answer(string $id, string $name, MultisportRoute $multisportRoute, ?float $swimKm): array
     {
         $links = RouteLinks::for($id);
         $legs = [];
@@ -256,13 +259,13 @@ final class PlanMultisportTool extends Tool
             $summary .= ' Water has no roads, so draw the swim in the planner before you go.';
         }
 
-        return Response::structured([
+        return [
             'id' => $id,
             'name' => $name,
             'distance_km' => RouteLinks::kilometres($multisportRoute->distanceMetres()),
             'legs' => $legs,
             ...$links,
             'summary' => $summary,
-        ]);
+        ];
     }
 }
