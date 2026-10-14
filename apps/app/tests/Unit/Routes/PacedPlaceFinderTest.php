@@ -43,7 +43,7 @@ it('waits for its turn when the planner just asked the place search', function (
     $place = new PacedPlaceFinder(fixedPlaceFinder(), $placeSearchPace)->find('Westerlo');
 
     expect($place?->name)->toBe('Westerlo, Belgium')
-        ->and(Date::now()->toTimeString())->toBe('12:00:01');
+        ->and(Date::now()->toTimeString())->toBe('12:00:02');
 });
 
 it('asks straight away when it is Traceway’s turn', function (): void {

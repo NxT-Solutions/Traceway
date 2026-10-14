@@ -264,6 +264,13 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(60)->by('places:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
         });
+        // A search can cost the public place search a few requests, and all
+        // of Traceway shares one a second, so one rider gets a handful.
+        RateLimiter::for('place-search', function (Request $request): Limit {
+            $id = $request->user()?->getAuthIdentifier();
+
+            return Limit::perMinute(10)->by('place-search:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
+        });
     }
 
     /**

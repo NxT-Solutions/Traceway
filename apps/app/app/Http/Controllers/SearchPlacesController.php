@@ -15,6 +15,7 @@ use OpenApi\Attributes\Post;
 use OpenApi\Attributes\Property;
 use OpenApi\Attributes\RequestBody;
 use OpenApi\Attributes\Response;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Throwable;
 
@@ -68,6 +69,10 @@ class SearchPlacesController extends Controller
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
     #[Response(
+        response: HttpResponse::HTTP_TOO_MANY_REQUESTS,
+        description: 'Too many searches in a minute.',
+    )]
+    #[Response(
         response: HttpResponse::HTTP_SERVICE_UNAVAILABLE,
         description: 'The place search is busy or did not answer. Try again in a moment.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
@@ -79,12 +84,13 @@ class SearchPlacesController extends Controller
                 $searchPlacesRequest->string('query')->toString(),
                 $searchPlacesRequest->float('latitude'),
                 $searchPlacesRequest->float('longitude'),
-                $searchPlacesRequest->language(),
             );
         } catch (PlaceSearchBusy) {
             return $this->busy();
         } catch (Throwable $throwable) {
-            report($throwable);
+            // Only the kind of failure: the message of a timeout holds the
+            // URL, and with it what the rider typed.
+            report(new RuntimeException('The place search failed with '.$throwable::class.'.'));
 
             return $this->busy();
         }

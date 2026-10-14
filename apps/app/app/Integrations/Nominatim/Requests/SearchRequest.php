@@ -20,7 +20,6 @@ final class SearchRequest extends Request
         private readonly string $search,
         private readonly int $limit = 1,
         private readonly ?array $viewbox = null,
-        private readonly ?string $language = null,
     ) {}
 
     public function resolveEndpoint(): string
@@ -43,10 +42,6 @@ final class SearchRequest extends Request
             $query['viewbox'] = implode(',', array_map(static fn (float $edge): string => sprintf('%.4F', $edge), $this->viewbox));
             $query['bounded'] = 0;
             $query['addressdetails'] = 1;
-        }
-
-        if ($this->language !== null) {
-            $query['accept-language'] = $this->language;
         }
 
         return $query;

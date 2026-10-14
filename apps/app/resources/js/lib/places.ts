@@ -89,20 +89,6 @@ function isFoundPlace(value: unknown): value is FoundPlace {
     );
 }
 
-/** The browser's language, as the place search takes it: "nl" or "en-GB". */
-function browserLanguage(): string | undefined {
-    const language = typeof navigator === 'undefined' ? '' : navigator.language;
-    const match = language.match(/^([a-z]{2})(?:-([a-z]{2}))?/i);
-
-    if (match === null) {
-        return undefined;
-    }
-
-    return match[2] === undefined
-        ? (match[1] ?? '').toLowerCase()
-        : `${(match[1] ?? '').toLowerCase()}-${match[2].toUpperCase()}`;
-}
-
 /**
  * A pasted "51.12, 4.90" is a place already, so it never leaves the page.
  * The same rule as the AI tools' start point.
@@ -153,7 +139,6 @@ export async function searchPlaces(
             query,
             latitude: near.latitude,
             longitude: near.longitude,
-            language: browserLanguage(),
         });
         const body: unknown = await response.json();
 

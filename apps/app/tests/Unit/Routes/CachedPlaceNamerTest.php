@@ -85,7 +85,7 @@ it('has a pin tapped straight after another wait for its turn, then names it', f
 
     expect($cachedPlaceNamer->nameAt(51.2, 4.8))->toBe('Oevel')
         ->and($placeNamer->asked)->toHaveCount(2)
-        ->and(Date::now()->toTimeString())->toBe('12:00:01');
+        ->and(Date::now()->toTimeString())->toBe('12:00:02');
 });
 
 it('stops asking for a minute after the place search fails', function (): void {

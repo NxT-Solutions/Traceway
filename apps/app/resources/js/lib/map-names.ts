@@ -22,13 +22,16 @@ const layers: { layer: string; kind: PlaceKind }[] = [
     { layer: 'mountain_peak', kind: 'place' },
 ];
 
-/** Lowercase, without accents or punctuation: "Sint-Jozef" is "sint jozef". */
+/**
+ * Lowercase, without accents or punctuation, in any script: "Sint-Jozef" is
+ * "sint jozef", and "Αθήνα" is "αθηνα".
+ */
 export function normalise(text: string): string {
     return text
         .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
+        .replace(/\p{M}/gu, '')
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
         .trim();
 }
 

@@ -798,7 +798,7 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
   .tw-planner .map-search{left:12px;right:72px;top:12px;width:auto}
   .tw-planner .player{top:72px}
   .tw-planner .maphint{top:72px}
-  .tw-planner .undobar{top:72px}
-  .tw-planner .app:has(.player-card) .maphint,
-  .tw-planner .app:has(.player-card) .undobar{top:140px}
+  .tw-planner .undobar{top:120px}
+  .tw-planner .app:has(.player-card) .maphint{top:140px}
+  .tw-planner .app:has(.player-card) .undobar{top:188px}
 }

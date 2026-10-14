@@ -50,25 +50,51 @@ export function MapTapCard({
         const height = card.offsetHeight;
         const gap = 18;
         const edge = 12;
-        const above = y - gap - height;
-        const top =
-            above >= edge
-                ? above
-                : Math.min(y + gap, map.clientHeight - height - edge);
         const left = Math.min(
             Math.max(edge, x - width / 2),
             map.clientWidth - width - edge,
         );
+        // Never under the search bar, where the bar would hide the name.
+        const bar = map.querySelector<HTMLElement>('.map-search');
+        const clear =
+            bar !== null &&
+            left < bar.offsetLeft + bar.offsetWidth &&
+            left + width > bar.offsetLeft
+                ? bar.offsetTop + bar.offsetHeight + edge
+                : edge;
+        const above = y - gap - height;
+        const top =
+            above >= clear
+                ? above
+                : Math.min(y + gap, map.clientHeight - height - edge);
 
-        setPlace({ left, top: Math.max(edge, top) });
+        setPlace({ left, top: Math.max(clear, top) });
     }, [x, y, note]);
+
+    // Escape puts the card away wherever the focus is, even while it is
+    // still finding the nearest road.
+    useEffect(() => {
+        const away = (event: globalThis.KeyboardEvent): void => {
+            if (event.key === 'Escape' && !event.defaultPrevented) {
+                onClose();
+            }
+        };
+        document.addEventListener('keydown', away);
+
+        return () => document.removeEventListener('keydown', away);
+    }, [onClose]);
 
     // Focus waits until the card is placed and has its actions: a hidden
     // button takes no focus.
     const ready = place !== null && note === null;
 
     useEffect(() => {
-        if (ready) {
+        // A rider typing in the search keeps the cursor there.
+        const typing =
+            document.activeElement instanceof HTMLInputElement ||
+            document.activeElement instanceof HTMLTextAreaElement;
+
+        if (ready && !typing) {
             cardRef.current
                 ?.querySelector<HTMLButtonElement>('.fill')
                 ?.focus({ preventScroll: true });
@@ -92,12 +118,6 @@ export function MapTapCard({
                         ? { visibility: 'hidden' }
                         : { left: place.left, top: place.top }
                 }
-                onKeyDown={(event) => {
-                    if (event.key === 'Escape') {
-                        event.stopPropagation();
-                        onClose();
-                    }
-                }}
             >
                 <div className="tap-head">
                     <b>{name ?? 'This spot'}</b>

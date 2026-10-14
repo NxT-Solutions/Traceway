@@ -39,7 +39,7 @@ it('lists places by a short name and the area that tells them apart', function (
         ]),
     ]);
 
-    $matches = nominatimSearch($mock)->search('westerlo', 51.1, 4.9, 'nl');
+    $matches = nominatimSearch($mock)->search('westerlo', 51.1, 4.9);
 
     expect($matches)->toEqual([
         new PlaceMatch('Westerlo', 'Turnhout, Belgium', 51.0907, 4.9166, PlaceKind::Town),
@@ -49,7 +49,7 @@ it('lists places by a short name and the area that tells them apart', function (
         && $response->getPendingRequest()->query()->get('limit') === 5
         && $response->getPendingRequest()->query()->get('viewbox') === '4.4000,50.6000,5.4000,51.6000'
         && $response->getPendingRequest()->query()->get('bounded') === 0
-        && $response->getPendingRequest()->query()->get('accept-language') === 'nl'
+        && $response->getPendingRequest()->query()->get('accept-language') === null
         && str_starts_with((string) $response->getPendingRequest()->headers()->get('User-Agent'), 'Traceway/'));
 });
 
@@ -69,7 +69,7 @@ it('names a house by its street and number, and places it in its town, not its h
             [
                 'lat' => '51.17', 'lon' => '4.35', 'name' => '', 'addresstype' => 'place', 'category' => 'place', 'type' => 'house',
                 'display_name' => '3, Roodborstlaan, Vogeltjeswijk, Nachtegalenhof, Hoboken, Antwerpen, Vlaanderen, 2660, België',
-                'address' => ['house_number' => '3', 'road' => 'Roodborstlaan', 'neighbourhood' => 'Vogeltjeswijk', 'hamlet' => 'Nachtegalenhof', 'town' => 'Hoboken', 'city' => 'Antwerpen', 'county' => 'Antwerpen', 'country' => 'België'],
+                'address' => ['house_number' => '3', 'road' => 'Roodborstlaan', 'neighbourhood' => 'Vogeltjeswijk', 'hamlet' => 'Nachtegalenhof', 'town' => 'Hoboken', 'city' => 'Antwerpen', 'county' => 'Antwerpen', 'ISO3166-2-lvl4' => 'BE-VLG', 'country' => 'België / Belgique / Belgien'],
             ],
             [
                 'lat' => '51.18', 'lon' => '4.36', 'name' => 'Roodborstlaan', 'category' => 'highway', 'type' => 'residential', 'addresstype' => 'road',
@@ -85,12 +85,29 @@ it('names a house by its street and number, and places it in its town, not its h
     ]);
 });
 
+it('names the country the way its region does', function (): void {
+    $matches = nominatimSearch(new MockClient([
+        SearchRequest::class => MockResponse::make([
+            ['lat' => '50.63', 'lon' => '5.57', 'name' => 'Liège', 'addresstype' => 'city', 'address' => ['city' => 'Liège', 'county' => 'Liège', 'state' => 'Wallonie', 'ISO3166-2-lvl4' => 'BE-WAL', 'country' => 'België / Belgique / Belgien']],
+            ['lat' => '46.0', 'lon' => '8.95', 'name' => 'Lugano', 'addresstype' => 'city', 'address' => ['city' => 'Lugano', 'state' => 'Ticino', 'ISO3166-2-lvl4' => 'CH-TI', 'country' => 'Schweiz/Suisse/Svizzera/Svizra']],
+            ['lat' => '52.08', 'lon' => '4.31', 'name' => 'Den Haag', 'addresstype' => 'city', 'address' => ['city' => 'Den Haag', 'state' => 'Zuid-Holland', 'country' => 'Nederland']],
+        ]),
+    ]))->search('city', 51.1, 4.9);
+
+    expect(array_map(static fn (PlaceMatch $placeMatch): string => $placeMatch->area, $matches))
+        ->toBe(['Wallonie, Belgique', 'Ticino, Svizzera', 'Zuid-Holland, Nederland']);
+});
+
 it('keeps the box around the map on the globe', function (): void {
     $mock = new MockClient([SearchRequest::class => MockResponse::make([])]);
 
     expect(nominatimSearch($mock)->search('dateline', 89.8, 179.9))->toBe([]);
     $mock->assertSent(fn (SearchRequest $searchRequest, Response $response): bool => $response->getPendingRequest()->query()->get('viewbox') === '179.4000,89.3000,180.0000,90.0000');
 });
+
+it('does not take an empty page for nothing found', function (): void {
+    nominatimSearch(new MockClient([SearchRequest::class => MockResponse::make('')]))->search('Westerlo', 51.1, 4.9);
+})->throws(RuntimeException::class, 'The place search did not answer.');
 
 it('fails loudly when the place search is down', function (): void {
     nominatimSearch(new MockClient([SearchRequest::class => MockResponse::make(['error' => 'busy'], 503)]))->search('Westerlo', 51.1, 4.9);
