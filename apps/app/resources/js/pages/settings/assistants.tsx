@@ -286,7 +286,14 @@ export default function Assistants({
                             const Icon = guide.icon;
 
                             return (
-                                <li key={guide.id} className="ai-app">
+                                <li
+                                    key={guide.id}
+                                    className={
+                                        guide.command
+                                            ? 'ai-app ai-app-wide'
+                                            : 'ai-app'
+                                    }
+                                >
                                     <div className="ai-app-head">
                                         <span className="ai-app-icon">
                                             <Icon
@@ -294,15 +301,15 @@ export default function Assistants({
                                                 aria-hidden="true"
                                             />
                                         </span>
-                                        <span>
+                                        <span className="ai-app-name">
                                             <b>{guide.name}</b>
                                             <small>{guide.where}</small>
+                                            {local && guide.online ? (
+                                                <span className="ai-tag">
+                                                    Needs a public address
+                                                </span>
+                                            ) : null}
                                         </span>
-                                        {local && guide.online ? (
-                                            <span className="ai-tag">
-                                                Needs a public address
-                                            </span>
-                                        ) : null}
                                     </div>
                                     {guide.command ? (
                                         <div className="ai-command">
