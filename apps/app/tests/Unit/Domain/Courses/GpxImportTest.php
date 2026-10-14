@@ -62,3 +62,16 @@ it('does not expand entities or read files the GPX points to', function (): void
 
     expect($name ?? '')->not->toContain('root:');
 });
+
+it('refuses a file longer than the longest loop the planner draws, and says how long it is', function (): void {
+    $xml = '<gpx><trk><trkseg><trkpt lat="51.0" lon="2.0"/><trkpt lat="51.0" lon="4.2"/><trkpt lat="51.0" lon="6.43"/></trkseg></trk></gpx>';
+
+    expect(fn (): ImportedCourse => GpxImport::parse($xml))
+        ->toThrow(InvalidArgumentException::class, 'That route is 310 km. Traceway opens routes up to 300 km.');
+});
+
+it('opens a long ride under that', function (): void {
+    $xml = '<gpx><trk><trkseg><trkpt lat="51.0" lon="2.0"/><trkpt lat="51.0" lon="4.2"/><trkpt lat="51.0" lon="6.2"/></trkseg></trk></gpx>';
+
+    expect(GpxImport::parse($xml)->coordinates)->toHaveCount(3);
+});

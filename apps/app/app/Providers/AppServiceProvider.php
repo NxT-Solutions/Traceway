@@ -57,10 +57,10 @@ use App\Integrations\GraphHopper\GraphHopperRoutingEngine;
 use App\Integrations\Nominatim\NominatimConnector;
 use App\Integrations\Nominatim\NominatimPlaceFinder;
 use App\Integrations\Nominatim\NominatimPlaceNamer;
+use App\Integrations\OpenFreeMap\OpenFreeMapConnector;
+use App\Integrations\OpenFreeMap\OpenFreeMapStopFinder;
 use App\Integrations\Osrm\OsrmConnector;
 use App\Integrations\Osrm\OsrmRoutingEngine;
-use App\Integrations\Overpass\OverpassConnector;
-use App\Integrations\Overpass\OverpassStopFinder;
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Integrations\Valhalla\ValhallaRoadDescriber;
 use App\Integrations\Valhalla\ValhallaRoutingEngine;
@@ -170,12 +170,12 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(function (): RouteDetailsSource {
             $valhalla = config('services.valhalla.url');
-            $overpass = config('services.overpass.url');
+            $tiles = config('services.openfreemap.url');
 
             return new CachedRouteDetails(
                 new RouteDetailer(
                     new ValhallaRoadDescriber(new ValhallaConnector(is_string($valhalla) && $valhalla !== '' ? $valhalla : 'https://valhalla1.openstreetmap.de')),
-                    new OverpassStopFinder(new OverpassConnector(is_string($overpass) && $overpass !== '' ? $overpass : 'https://overpass-api.de/api')),
+                    new OpenFreeMapStopFinder(new OpenFreeMapConnector(is_string($tiles) && $tiles !== '' ? $tiles : 'https://tiles.openfreemap.org')),
                 ),
                 $this->app->make(CacheRepository::class),
             );

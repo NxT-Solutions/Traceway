@@ -90,7 +90,7 @@ Everything lives in `persistent/valhalla`: the downloaded map, the heights, and 
 
 ## What still uses the network
 
-Water, toilets, and cafés come from OpenStreetMap's Overpass server, `OVERPASS_URL` in `apps/app/.env`. The planner shows the route without them when that server is busy. Map tiles come from OpenFreeMap.
+Map tiles come from OpenFreeMap, `OPENFREEMAP_URL` in `apps/app/.env`. The server reads water, toilets, and cafés out of the same tiles. Place names come from Nominatim, `NOMINATIM_URL`.
 
 ## The browser tests
 

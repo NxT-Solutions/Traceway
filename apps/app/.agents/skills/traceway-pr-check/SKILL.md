@@ -38,7 +38,7 @@ bun run test:browser:details
 bun run test:browser:screens
 ```
 
-They fail on an uncaught page error, not only on a failed step. A note in the details walk ("the stop server was busy") is the public Overpass server, not a failure.
+They fail on an uncaught page error, not only on a failed step. A note in the details walk ("the place search named none of the tapped points") is the public Nominatim server, not a failure.
 
 `test:browser:screens` turns every rider page through desktop, tablet both ways, phone both ways, a small phone, and back, on one open page, and fails on sideways scroll. Then **look at the sheets** it leaves (`sheet-<page>.png`, in `$TMPDIR/traceway-screens`, or `SCREENS_DIR`). Look for text that runs into its neighbour, a panel that covers the map, a control under the player bar, a map that kept the old view after the turn. A test cannot see those.
 

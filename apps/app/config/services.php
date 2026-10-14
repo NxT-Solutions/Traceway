@@ -52,9 +52,10 @@ return [
         'url' => env('NOMINATIM_URL', 'https://nominatim.openstreetmap.org'),
     ],
 
-    // Water, toilets, and cafés along a route, from OpenStreetMap.
-    'overpass' => [
-        'url' => env('OVERPASS_URL', 'https://overpass-api.de/api'),
+    // Water, toilets, and cafés along a route, read from the OpenStreetMap
+    // map tiles the planner's map draws.
+    'openfreemap' => [
+        'url' => env('OPENFREEMAP_URL', 'https://tiles.openfreemap.org'),
     ],
 
     'valhalla' => [

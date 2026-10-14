@@ -7,7 +7,7 @@ declare(strict_types=1);
 | request. It answers the planner's routing calls with straight lines, and the
 | calls that describe a line with a hill, two turns, and a gravel end, so the
 | climb chart, the surfaces, and the turns show without a fair-use router. It
-| also stands in for Overpass with no stops, and for Nominatim with one
+| also stands in for the map tiles with no stops, and for Nominatim with one
 | village name for every pin, so no test waits on those servers.
 | A push to main keeps the real ones.
 |
@@ -163,8 +163,16 @@ if ($path === '/height' && count($line) >= 2) {
     return;
 }
 
-if ($path === '/api/interpreter') {
-    reply(200, ['elements' => []]);
+if ($path === '/planet') {
+    reply(200, ['tilejson' => '3.0.0', 'tiles' => ['http://127.0.0.1:8002/planet/stub/{z}/{x}/{y}.pbf']]);
+
+    return;
+}
+
+// An empty tile: no water, toilets, or cafés anywhere.
+if (str_starts_with($path, '/planet/stub/')) {
+    http_response_code(200);
+    header('Content-Type: application/vnd.mapbox-vector-tile');
 
     return;
 }
@@ -176,5 +184,5 @@ if ($path === '/reverse') {
 }
 
 reply(in_array($path, ['/route', '/locate'], strict: true) ? 400 : 404, [
-    'error' => 'The stub answers /route, /locate, /trace_route, /trace_attributes, /height, /api/interpreter, and /reverse.',
+    'error' => 'The stub answers /route, /locate, /trace_route, /trace_attributes, /height, /planet, its tiles, and /reverse.',
 ]);

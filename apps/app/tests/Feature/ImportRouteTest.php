@@ -96,6 +96,22 @@ it('refuses a file that is not a GPX route', function (string $name, string $con
     'broken xml' => ['broken.gpx', '<gpx><trk>'],
 ]);
 
+it('says so when a file is longer than the planner opens', function (): void {
+    $file = UploadedFile::fake()->createWithContent('tour.gpx', '<gpx><trk><trkseg><trkpt lat="51.0" lon="2.0"/><trkpt lat="51.0" lon="6.43"/></trkseg></trk></gpx>');
+
+    $this->actingAs(User::factory()->create())
+        ->post(route('routes.import'), ['file' => $file], ['Accept' => 'application/json'])
+        ->assertUnprocessable()
+        ->assertJsonPath('message', 'That route is 310 km. Traceway opens routes up to 300 km.');
+});
+
+it('does not ride a line again that is longer than any route', function (): void {
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.import.redo'), [...redoPayload('keep'), 'coordinates' => [[2.0, 51.0], [5.0, 51.0], [7.75, 51.0]]])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['coordinates' => 'A route can be up to 400 km.']);
+});
+
 it('asks a guest to log in before opening a file', function (): void {
     $this->postJson(route('routes.import'), [])->assertUnauthorized();
 });

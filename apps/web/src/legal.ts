@@ -81,7 +81,7 @@ export const privacy: LegalPage = {
                 '**Hetzner Online** hosts the server and the database, in Germany.',
                 '**Cloudflare** keeps the backup copies of the database.',
                 '**Resend** sends the account email. It gets your email address and the message. For a copy of your data, that includes the file.',
-                '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, the [Overpass API](https://overpass-api.de) for water, toilets, and cafés, and [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names. The Traceway server sends them the points of a route, the name of a place, or a pin rounded to about 100 metres. It never sends your name or email address.',
+                '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names, and the [OpenFreeMap](https://openfreemap.org) map tiles for water, toilets, and cafés. The Traceway server sends them the points of a route, the name of a place, a pin rounded to about 100 metres, or which map tiles a route crosses. It never sends your name or email address.',
                 '**Your own browser** loads the map itself from [OpenFreeMap](https://openfreemap.org). Like any website, it sees your IP address and the part of the map you look at. Everything else goes through Traceway.',
             ],
             after: [
@@ -324,7 +324,7 @@ export const notice: LegalPage = {
             items: [
                 'Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, under the Open Database License.',
                 'Map tiles by [OpenFreeMap](https://openfreemap.org) and [OpenMapTiles](https://openmaptiles.org), drawn with [MapLibre](https://maplibre.org).',
-                'Routes by [Valhalla](https://github.com/valhalla/valhalla), place names by [Nominatim](https://nominatim.org), and water, toilets, and cafés by the [Overpass API](https://overpass-api.de).',
+                'Routes by [Valhalla](https://github.com/valhalla/valhalla), and place names by [Nominatim](https://nominatim.org). Water, toilets, and cafés come from the OpenFreeMap tiles.',
             ],
         },
         {
