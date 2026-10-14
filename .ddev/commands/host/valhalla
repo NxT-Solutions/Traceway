@@ -76,13 +76,24 @@ start() {
 
     echo
     echo "Valhalla is starting for: $(setting VALHALLA_REGIONS belgium)"
-    echo "The first start downloads the map and builds the tiles. Follow it with: ddev valhalla logs"
+
+    if [[ -f "${data}/valhalla_tiles.tar" ]]; then
+        echo "The tiles are built, so it answers in a few seconds."
+    elif compgen -G "${data}/*.pbf" >/dev/null; then
+        echo "It builds the tiles from the map already downloaded. Follow it with: ddev valhalla logs"
+    else
+        echo "It downloads the map and builds the tiles. Follow it with: ddev valhalla logs"
+    fi
+
     echo "It answers on http://127.0.0.1:$(port) once it is ready. Then: ddev valhalla planner local"
 }
 
 stop() {
     docker stop "${container}" >/dev/null 2>&1 || true
-    echo "Valhalla stopped. The map stays in persistent/valhalla."
+
+    if [[ "${1:-}" != "quiet" ]]; then
+        echo "Valhalla stopped. The map stays in persistent/valhalla."
+    fi
 }
 
 status() {
@@ -122,7 +133,8 @@ use() {
     echo "Plan for about three times the download in disk space. docs/local-routing.md has memory and time."
 
     ddev dotenv set .ddev/.env.valhalla.local --valhalla-regions="$*" --valhalla-tile-urls="${urls}" >/dev/null
-    stop
+    stop quiet
+    echo "Removing the old map and tiles from persistent/valhalla."
     clear_data all
     start
 }
@@ -160,7 +172,8 @@ case "${command}" in
     status) status ;;
     logs) docker logs -f --tail 50 "${container}" ;;
     rebuild)
-        stop
+        stop quiet
+        echo "Removing the tiles. The downloaded map stays."
         clear_data keep-map
         start
         ;;
