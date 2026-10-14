@@ -37,7 +37,9 @@ final readonly class CachedPlaceSearch implements PlaceSearch
         $query = mb_strtolower((string) preg_replace('/\s+/u', ' ', trim($query)));
         $nearLatitude = round($nearLatitude, 1);
         $nearLongitude = round($nearLongitude, 1);
-        $key = sprintf('place-search:%s:%.1f,%.1f:%s', $language, $nearLatitude, $nearLongitude, hash('xxh128', $query));
+        // The version changes whenever a match is named differently, so old
+        // answers are not shown for a month.
+        $key = sprintf('place-search:v2:%s:%.1f,%.1f:%s', $language, $nearLatitude, $nearLongitude, hash('xxh128', $query));
         $cached = $this->repository->get($key);
 
         if (is_array($cached)) {

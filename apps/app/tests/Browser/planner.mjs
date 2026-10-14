@@ -80,6 +80,7 @@ try {
         throw new Error('Enter on the map moved the start before the rider chose to.');
     }
 
+    await desktop.locator('.tap-card .fill:focus').waitFor({ timeout: 10000 });
     await desktop.keyboard.press('Enter');
     await desktop.waitForTimeout(300);
 
@@ -93,7 +94,8 @@ try {
     await desktop.keyboard.press('ArrowRight');
     await desktop.waitForTimeout(400);
     await desktop.keyboard.press('Enter');
-    await desktop.locator('.tap-card').waitFor({ timeout: 3000 });
+    // The card finds the nearest road first, then offers its actions.
+    await desktop.locator('.tap-card .fill:focus').waitFor({ timeout: 10000 });
     await desktop.keyboard.press('Enter');
     await desktop.waitForTimeout(300);
 

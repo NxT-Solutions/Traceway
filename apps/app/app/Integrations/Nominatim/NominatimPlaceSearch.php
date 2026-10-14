@@ -24,9 +24,16 @@ final readonly class NominatimPlaceSearch implements PlaceSearch
     private const float NEAR = 0.5;
 
     /**
-     * The parts of an address that place a match, the smallest first.
+     * The parts of an address a rider knows their home by, the town or
+     * village before the city it belongs to, and before a hamlet or a
+     * neighbourhood: "Hoboken", not "Nachtegalenhof".
      */
-    private const array AREA_PARTS = ['suburb', 'village', 'hamlet', 'town', 'city', 'municipality', 'county', 'state', 'country'];
+    private const array SETTLEMENT_PARTS = ['town', 'village', 'city', 'municipality', 'suburb', 'hamlet'];
+
+    /**
+     * The parts that place a town itself.
+     */
+    private const array REGION_PARTS = ['county', 'state'];
 
     /**
      * The parts of an address that name the street a house is on.
@@ -118,46 +125,43 @@ final readonly class NominatimPlaceSearch implements PlaceSearch
     }
 
     /**
-     * The two smallest parts of the address that are not the place itself,
-     * like "Hoboken, Belgium" or "Turnhout, Belgium".
+     * Where a match is: its town, or for a town its region, then the
+     * country. "Hoboken, België" or "Turnhout, Belgium".
      *
      * @param  array<mixed>  $address
      * @param  list<string>  $parts
      */
     private function area(array $address, string $name, ?string $street, array $parts): string
     {
-        $area = [];
+        $place = $this->part($address, self::SETTLEMENT_PARTS, $name)
+            ?? $this->part($address, self::REGION_PARTS, $name);
+        $country = $this->part($address, ['country'], $name);
 
-        foreach (self::AREA_PARTS as $part) {
-            $value = $address[$part] ?? null;
-
-            if (is_string($value) && $value !== '' && $value !== $name && ! in_array($value, $area, strict: true)) {
-                $area[] = $value;
-            }
+        if ($place !== null || $country !== null) {
+            return implode(', ', array_filter([$place, $country], static fn (?string $part): bool => $part !== null));
         }
 
-        if ($area === []) {
-            $area = array_values(array_filter(
-                $parts,
-                static fn (string $part): bool => $part !== $name && $part !== $street && ! is_numeric($part),
-            ));
-        }
+        $rest = array_values(array_filter(
+            $parts,
+            static fn (string $part): bool => $part !== $name && $part !== $street && ! is_numeric($part),
+        ));
 
-        return implode(', ', count($area) > 2 ? [$area[0], $area[count($area) - 1]] : $area);
+        return implode(', ', count($rest) > 2 ? [$rest[0], $rest[count($rest) - 1]] : $rest);
     }
 
     /**
-     * The first of the named address parts that has a value.
+     * The first of the named address parts that has a value, other than the
+     * place's own name.
      *
      * @param  array<mixed>  $address
      * @param  list<string>  $keys
      */
-    private function part(array $address, array $keys): ?string
+    private function part(array $address, array $keys, ?string $except = null): ?string
     {
         foreach ($keys as $key) {
             $value = $address[$key] ?? null;
 
-            if (is_string($value) && trim($value) !== '') {
+            if (is_string($value) && trim($value) !== '' && trim($value) !== $except) {
                 return trim($value);
             }
         }

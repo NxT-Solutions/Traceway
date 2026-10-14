@@ -63,25 +63,25 @@ it('names a place from its address line when the map gives it no name', function
     expect($matches)->toEqual([new PlaceMatch('Grote Markt', 'Brussels, Belgium', 51.0, 4.0)]);
 });
 
-it('names a house by its street and number, not by the number alone', function (): void {
+it('names a house by its street and number, and places it in its town, not its hamlet', function (): void {
     $matches = nominatimSearch(new MockClient([
         SearchRequest::class => MockResponse::make([
             [
                 'lat' => '51.17', 'lon' => '4.35', 'name' => '', 'addresstype' => 'place', 'category' => 'place', 'type' => 'house',
-                'display_name' => '3, Roodborstlaan, Hoboken, Antwerpen, Vlaanderen, België / Belgique / Belgien',
-                'address' => ['house_number' => '3', 'road' => 'Roodborstlaan', 'suburb' => 'Hoboken', 'city' => 'Antwerpen', 'country' => 'Belgium'],
+                'display_name' => '3, Roodborstlaan, Vogeltjeswijk, Nachtegalenhof, Hoboken, Antwerpen, Vlaanderen, 2660, België',
+                'address' => ['house_number' => '3', 'road' => 'Roodborstlaan', 'neighbourhood' => 'Vogeltjeswijk', 'hamlet' => 'Nachtegalenhof', 'town' => 'Hoboken', 'city' => 'Antwerpen', 'county' => 'Antwerpen', 'country' => 'België'],
             ],
             [
                 'lat' => '51.18', 'lon' => '4.36', 'name' => 'Roodborstlaan', 'category' => 'highway', 'type' => 'residential', 'addresstype' => 'road',
                 'display_name' => 'Roodborstlaan, Hoboken, Antwerpen, Belgium',
-                'address' => ['road' => 'Roodborstlaan', 'suburb' => 'Hoboken', 'city' => 'Antwerpen', 'country' => 'Belgium'],
+                'address' => ['road' => 'Roodborstlaan', 'hamlet' => 'Nachtegalenhof', 'town' => 'Hoboken', 'city' => 'Antwerpen', 'country' => 'België'],
             ],
         ]),
     ]))->search('roodborstlaan 3 hoboken', 51.1, 4.9);
 
     expect($matches)->toEqual([
-        new PlaceMatch('Roodborstlaan 3', 'Hoboken, Belgium', 51.17, 4.35, PlaceKind::Address),
-        new PlaceMatch('Roodborstlaan', 'Hoboken, Belgium', 51.18, 4.36, PlaceKind::Street),
+        new PlaceMatch('Roodborstlaan 3', 'Hoboken, België', 51.17, 4.35, PlaceKind::Address),
+        new PlaceMatch('Roodborstlaan', 'Hoboken, België', 51.18, 4.36, PlaceKind::Street),
     ]);
 });
 

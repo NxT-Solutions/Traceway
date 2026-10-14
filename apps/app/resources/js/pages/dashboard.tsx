@@ -722,6 +722,11 @@ type RoadSnap = {
 };
 
 const snapRadius = 36;
+// A pin snaps to the nearest road or path, but not to one so far away that
+// the rider would not recognise the spot.
+const farthestSnapMetres = 500;
+const farFromRoad =
+    'No road or path is close enough there. Pick a spot nearer one.';
 const snapReach = 180;
 
 type SnapSegment = {
@@ -1515,6 +1520,9 @@ export default function Dashboard() {
     const moveFinishRef = useRef<(index: number, point: Coordinate) => void>(
         () => {},
     );
+    const snapPointRef = useRef<
+        (longitude: number, latitude: number) => Promise<Coordinate | null>
+    >(() => Promise.resolve(null));
     const multisportRef = useRef<{
         plan: MultisportPlan | null;
         swim: Coordinate[] | null;
@@ -1568,6 +1576,8 @@ export default function Dashboard() {
         x: number;
         y: number;
         name: string | null;
+        /** Ready once the spot sits on a road or path. */
+        status: 'ready' | 'snapping' | 'far';
     } | null>(null);
     const tapAskRef = useRef(0);
     const startAskRef = useRef(0);
@@ -2533,7 +2543,20 @@ export default function Dashboard() {
                     .addTo(map);
                 marker.on('dragend', () => {
                     const at = marker.getLngLat();
-                    moveFinishRef.current(index, [at.lng, at.lat]);
+                    const from = leg.finish;
+                    void snapPointRef
+                        .current(at.lng, at.lat)
+                        .then((snapped) => {
+                            if (snapped === null) {
+                                if (from !== null) {
+                                    marker.setLngLat(from);
+                                }
+
+                                return;
+                            }
+
+                            moveFinishRef.current(index, snapped);
+                        });
                 });
                 multisportMarkersRef.current.push(marker);
             });
@@ -3918,7 +3941,30 @@ export default function Dashboard() {
         });
     }
 
-    moveStartRef.current = moveStart;
+    /**
+     * Moves the start to the nearest road or path to a spot, from a drag or
+     * the device's location. Too far from one, the pin stays where it was.
+     */
+    async function placeStart(
+        lng: number,
+        lat: number,
+        options: { message?: string; undoable?: boolean } = {},
+    ): Promise<void> {
+        const snapped = await snapPoint(lng, lat);
+
+        if (snapped === null) {
+            markerRef.current?.setLngLat([longitude, latitude]);
+            setMessage(farFromRoad);
+
+            return;
+        }
+
+        moveStart(snapped[0], snapped[1], options);
+    }
+
+    moveStartRef.current = (lng, lat, options) => {
+        void placeStart(lng, lat, options);
+    };
 
     /**
      * Sets where the loop passes and draws it again, as choosing a via
@@ -3939,7 +3985,21 @@ export default function Dashboard() {
         void generate({ via: point });
     }
 
-    moveViaRef.current = (point) => setViaPoint(point);
+    moveViaRef.current = (point) => {
+        void snapPoint(point[0], point[1]).then((snapped) => {
+            if (snapped === null) {
+                if (via !== null) {
+                    viaMarkerRef.current?.setLngLat(via);
+                }
+
+                setMessage(farFromRoad);
+
+                return;
+            }
+
+            setViaPoint(snapped);
+        });
+    };
 
     function clearVia(): void {
         remember('Via removed');
@@ -4032,7 +4092,16 @@ export default function Dashboard() {
         }
 
         if (placing?.kind === 'finish') {
-            setLegFinish(placing.leg, point, { next: true });
+            const leg = placing.leg;
+            void snapPoint(lng, lat).then((snapped) => {
+                if (snapped === null) {
+                    setMessage(farFromRoad);
+
+                    return;
+                }
+
+                setLegFinish(leg, snapped, { next: true });
+            });
 
             return;
         }
@@ -4201,29 +4270,64 @@ export default function Dashboard() {
             return;
         }
 
-        const at = map.project([lng, lat]);
         const ask = tapAskRef.current + 1;
         tapAskRef.current = ask;
-        setTapCard({
-            longitude: lng,
-            latitude: lat,
-            x: at.x,
-            y: at.y,
-            name: name ?? null,
-        });
-
-        if (name !== undefined) {
-            return;
-        }
-
-        void labelPlace(lng, lat).then((label) => {
-            if (tapAskRef.current !== ask || label === 'Junction') {
+        const show = (
+            at: Coordinate,
+            status: 'ready' | 'snapping' | 'far',
+        ): void => {
+            const point = map.project(at);
+            setTapCard((card) => ({
+                longitude: at[0],
+                latitude: at[1],
+                x: point.x,
+                y: point.y,
+                name: name ?? card?.name ?? null,
+                status,
+            }));
+        };
+        const named = (at: Coordinate): void => {
+            if (name !== undefined) {
                 return;
             }
 
-            setTapCard((card) =>
-                card === null ? null : { ...card, name: label },
-            );
+            void labelPlace(at[0], at[1]).then((label) => {
+                if (tapAskRef.current !== ask || label === 'Junction') {
+                    return;
+                }
+
+                setTapCard((card) =>
+                    card === null ? null : { ...card, name: label },
+                );
+            });
+        };
+        // A spot on a road or path right away when one is drawn near it;
+        // otherwise Traceway looks for the nearest one for the sport.
+        const near = snapOnScreen(lng, lat);
+
+        if (near !== null) {
+            setTapCard(null);
+            show(near, 'ready');
+            named(near);
+
+            return;
+        }
+
+        setTapCard(null);
+        show([lng, lat], 'snapping');
+        void snapFromServer(lng, lat).then((snapped) => {
+            if (tapAskRef.current !== ask) {
+                return;
+            }
+
+            if (snapped === null) {
+                show([lng, lat], 'far');
+
+                return;
+            }
+
+            show(snapped, 'ready');
+            named(snapped);
         });
     }
 
@@ -4287,7 +4391,10 @@ export default function Dashboard() {
                 label: 'Add a point here',
                 onSelect: done(() => {
                     setTapCard(null);
-                    void addSnappedPoint(card.longitude, card.latitude, name);
+                    addBuildPoint(
+                        { longitude: card.longitude, latitude: card.latitude },
+                        name,
+                    );
                 }),
             };
 
@@ -4341,7 +4448,7 @@ export default function Dashboard() {
 
         if (placingViaRef.current) {
             setSearchPurpose(null);
-            setViaPoint([lng, lat]);
+            moveViaRef.current([lng, lat]);
 
             return;
         }
@@ -4394,14 +4501,29 @@ export default function Dashboard() {
     }
 
     /**
-     * A Build point found by name still sits on a road: Traceway moves it
-     * onto the nearest one for the sport.
+     * The nearest road or path to a spot among the ones drawn on screen, as
+     * a Build point snaps, or null when none is drawn close enough.
      */
-    async function addSnappedPoint(
+    function snapOnScreen(lng: number, lat: number): Coordinate | null {
+        const map = mapRef.current;
+
+        if (map === null || !map.getBounds().contains([lng, lat])) {
+            return null;
+        }
+
+        const point = snapToRoad(map, lng, lat);
+
+        return point === null ? null : [point.longitude, point.latitude];
+    }
+
+    /**
+     * The nearest road or path for the sport, from the routing engine, when
+     * none is drawn near the spot. Null when the nearest one is too far.
+     */
+    async function snapFromServer(
         lng: number,
         lat: number,
-        name?: string,
-    ): Promise<void> {
+    ): Promise<Coordinate | null> {
         try {
             const response = await fetch('/routes/snap', {
                 method: 'POST',
@@ -4410,46 +4532,44 @@ export default function Dashboard() {
                     'Content-Type': 'application/json',
                     'X-XSRF-TOKEN': csrfToken(),
                 },
-                body: JSON.stringify({
-                    latitude: lat,
-                    longitude: lng,
-                    sport,
-                }),
+                body: JSON.stringify({ latitude: lat, longitude: lng, sport }),
             });
             const body: unknown = await response.json();
 
             if (
-                response.ok &&
-                typeof body === 'object' &&
-                body !== null &&
-                'latitude' in body &&
-                'longitude' in body &&
-                typeof body.latitude === 'number' &&
-                typeof body.longitude === 'number'
+                !response.ok ||
+                typeof body !== 'object' ||
+                body === null ||
+                !('latitude' in body) ||
+                !('longitude' in body) ||
+                typeof body.latitude !== 'number' ||
+                typeof body.longitude !== 'number'
             ) {
-                addBuildPoint(
-                    { latitude: body.latitude, longitude: body.longitude },
-                    name,
-                );
-                setMessage(
-                    `${name ?? 'The point'} is added. It sits on the nearest road.`,
-                );
-
-                return;
+                return null;
             }
 
-            setMessage(
-                typeof body === 'object' &&
-                    body !== null &&
-                    'message' in body &&
-                    typeof body.message === 'string'
-                    ? body.message
-                    : 'No road or path is close enough to put a point there.',
-            );
+            const snapped: Coordinate = [body.longitude, body.latitude];
+
+            return metresBetween([lng, lat], snapped) > farthestSnapMetres
+                ? null
+                : snapped;
         } catch {
-            setMessage('The road could not be found. Try again in a moment.');
+            return null;
         }
     }
+
+    /**
+     * Every pin lands on a road or path, never in a field or a forest: on
+     * screen first, then from the routing engine.
+     */
+    async function snapPoint(
+        lng: number,
+        lat: number,
+    ): Promise<Coordinate | null> {
+        return snapOnScreen(lng, lat) ?? (await snapFromServer(lng, lat));
+    }
+
+    snapPointRef.current = snapPoint;
 
     const searchActions: SearchAction[] = [
         {
@@ -4667,6 +4787,13 @@ export default function Dashboard() {
                                 x={tapCard.x}
                                 y={tapCard.y}
                                 name={tapCard.name}
+                                note={
+                                    tapCard.status === 'snapping'
+                                        ? 'Finding the nearest road or path…'
+                                        : tapCard.status === 'far'
+                                          ? farFromRoad
+                                          : null
+                                }
                                 actions={tapActions}
                                 onClose={() => closeTapCard(true)}
                             />
