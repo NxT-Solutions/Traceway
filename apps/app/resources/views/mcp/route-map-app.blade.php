@@ -234,7 +234,8 @@
 
                 /**
                  * On a local site only: what the chat app allows, shown under
-                 * the card and sent to Traceway's log, so a blocked map says why.
+                 * the card, so a blocked map says why. The copy sent to
+                 * Traceway's log arrives only where the rules allow it.
                  */
                 const report = {
                     blocked: [],

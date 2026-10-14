@@ -41,10 +41,7 @@ final class RouteMapApp extends AppResource
     {
         return AppMeta::make()
             ->prefersBorder(prefersBorder: false)
-            ->csp(Csp::make()
-                ->frameDomains([$this->traceway()])
-                // On a local site, the card reports what the chat app blocked.
-                ->resourceDomains([$this->traceway()]));
+            ->csp(Csp::make()->frameDomains([$this->traceway()]));
     }
 
     private function traceway(): string
