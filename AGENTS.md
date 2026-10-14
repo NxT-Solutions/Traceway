@@ -42,3 +42,20 @@ How the rider notes get there:
 - **A release** is the Release workflow (`.github/workflows/release.yml`). It moves the notes from `unreleased/` into the new version's folder, commits that to `main`, and publishes the GitHub release, which deploys.
   - When asked to release, or on `/release`, follow `.agents/skills/release/SKILL.md`.
   - Never tag, push to `main`, or create a GitHub release by hand.
+
+## After a merge
+
+When a pull request is merged to `main`, clean up without being asked. Worktrees fill the disk: each one holds its own `vendor` and `node_modules`.
+
+1. From the main checkout, run `git fetch --prune` and `git worktree list`.
+2. Remove the worktree whose branch was merged: `git worktree remove .claude/worktrees/<name>`. Then delete the local branch with `git branch -D <branch>`, because a squash merge leaves it looking unmerged.
+3. Also remove any other worktree under `.claude/worktrees` whose pull request is merged, or whose commits are all on `main` (`git cherry origin/main <branch>` prints no `+` lines).
+4. Finish with `git worktree prune`, then `df -h /` to see the space you got back.
+
+Keep a worktree when any of these are true:
+- A running session uses it as its folder.
+- It has uncommitted changes (`git status --porcelain`).
+- It has commits that are not on `main`.
+- It is outside `.claude/worktrees`, like another tool's workspace.
+
+Say which ones you kept, and why.
