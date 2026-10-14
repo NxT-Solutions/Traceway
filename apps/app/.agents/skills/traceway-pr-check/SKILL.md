@@ -83,6 +83,15 @@ git diff origin/main...HEAD
 
 Review it with two fresh reviewers, one for PHP (Domain, Integrations, HTTP, Blade, tests) and one for the frontend (React, CSS, the card's scripts, the Astro site). Ask each for correctness bugs with a concrete failing scenario, security (signed links, ownership, XSS through route, stop, and street names, CORS, uploads), the architecture rules in `AGENTS.md`, and missing tests. Verify each finding in the code before fixing it; drop the ones you cannot back with a scenario.
 
-## 8. Then open the PR
+## 8. Rider notes
+
+Rebase on `main` and compare the branch with it (`git diff origin/main...HEAD --stat`).
+
+- **Something riders use changed:** `apps/app/resources/releases/unreleased/<branch>.md` says what changed for them, all of it, in plain words. Follow the `rider-notes` skill.
+- **Nothing for riders:** the pull request gets the `no-rider-notes` label.
+
+The Rider Notes check fails the pull request otherwise.
+
+## 9. Then open the PR
 
 Only with every step clean. In the description: what changed, the checks that ran and their counts, the sheets you looked at, any outside host the branch adds, and what is left for later.

@@ -26,4 +26,19 @@ ddev exec -d /var/www/html/apps/app composer ci:check
 
 While iterating, run the narrow Pest file, then `ddev exec -d /var/www/html/apps/app vendor/bin/pest --parallel --compact`.
 
-Before opening or updating a pull request, run the whole check in `apps/app/.agents/skills/traceway-pr-check/SKILL.md`. It covers the gate, the builds, the browser suites, every page at every size and rotation, WCAG, GDPR, and a review of the branch.
+To open or update a pull request, or on `/pr`, follow `.agents/skills/pr/SKILL.md`: rebase on `main`, run the whole check in `apps/app/.agents/skills/traceway-pr-check/SKILL.md`, add the rider notes, and prove the change with screenshots in the description. It covers the gate, the builds, the browser suites, every page at every size and rotation, WCAG, GDPR, and a review of the branch.
+
+## Releases
+
+Riders and developers get their own notes:
+
+- **Riders** read the notes in `apps/app/resources/releases`, shown in the planner under What's new.
+- **Developers** read the GitHub release, titled with its version, with GitHub's generated notes.
+
+How the rider notes get there:
+
+- **Every branch** that changes something riders use adds one file, `apps/app/resources/releases/unreleased/<branch>.md`, with its section (New, Fixes, or Devices) and the changes in plain words. Follow `.agents/skills/rider-notes/SKILL.md`. A branch with nothing for riders gets the `no-rider-notes` label instead. The Rider Notes check enforces this.
+- **Before each pull request update,** rebase on `main` and make sure the notes still cover everything the branch changes.
+- **A release** is the Release workflow (`.github/workflows/release.yml`). It moves the notes from `unreleased/` into the new version's folder, commits that to `main`, and publishes the GitHub release, which deploys.
+  - When asked to release, or on `/release`, follow `.agents/skills/release/SKILL.md`.
+  - Never tag, push to `main`, or create a GitHub release by hand.

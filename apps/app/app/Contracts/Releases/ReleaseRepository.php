@@ -10,17 +10,17 @@ use DateTimeImmutable;
 interface ReleaseRepository
 {
     /**
-     * Adds the release, or brings its name and notes up to date when the tag is known.
+     * Adds the release, or brings its title, summary, and notes up to date when the tag is
+     * known. A release with no date keeps the one it first got, or gets now.
      */
-    public function save(string $tag, string $name, string $notes, DateTimeImmutable $publishedAt): void;
+    public function save(string $tag, string $title, ?string $summary, string $notes, ?DateTimeImmutable $publishedAt): void;
 
     /**
-     * Forgets the releases published since the given time that are not in the list: one
-     * deleted on GitHub, turned back into a draft, or left with nothing for a rider.
+     * Forgets every release not in the list, such as one whose notes were removed.
      *
      * @param  list<string>  $tags
      */
-    public function forgetAllBut(array $tags, DateTimeImmutable $since): void;
+    public function forgetAllBut(array $tags): void;
 
     /**
      * False when there is no such release.

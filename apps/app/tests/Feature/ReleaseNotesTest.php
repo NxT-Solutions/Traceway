@@ -14,48 +14,84 @@ uses(RefreshDatabase::class);
 
 /**
  * @param  list<PublishedRelease>  $releases
+ * @param  list<string>  $unreleased
  */
-function releaseFeed(array $releases, bool $down = false): ReleaseFeed
+function releaseFeed(array $releases, bool $broken = false, array $unreleased = []): ReleaseFeed
 {
-    return new readonly class($releases, $down) implements ReleaseFeed
+    return new readonly class($releases, $broken, $unreleased) implements ReleaseFeed
     {
         /**
          * @param  list<PublishedRelease>  $releases
+         * @param  list<string>  $unreleased
          */
-        public function __construct(private array $releases, private bool $down) {}
+        public function __construct(private array $releases, private bool $broken, private array $unreleased) {}
 
         public function published(): array
         {
-            throw_if($this->down, RuntimeException::class, 'GitHub did not list the releases.');
+            throw_if($this->broken, InvalidArgumentException::class, 'v0.2.0/_release.md needs a title.');
 
             return $this->releases;
+        }
+
+        public function unreleased(): array
+        {
+            return $this->unreleased;
         }
     };
 }
 
-test('the sync copies the published releases and brings an edited one up to date', function (): void {
+function publishedRelease(string $tag, string $notes, ?string $date = null, ?string $summary = null): PublishedRelease
+{
+    return new PublishedRelease($tag, 'Title of '.$tag, $summary, $notes, $date === null ? null : CarbonImmutable::parse($date));
+}
+
+test('the sync saves the rider notes of each release and brings an edited one up to date', function (): void {
     $this->app->instance(ReleaseFeed::class, releaseFeed([
-        new PublishedRelease('v0.2.0', 'Stops along the way', CarbonImmutable::parse('2026-10-10T10:00:00Z'), "## New\n\n* Water stops"),
-        new PublishedRelease('v0.1.0', 'First release', CarbonImmutable::parse('2026-10-01T10:00:00Z'), "## New\n\n* Loops"),
+        publishedRelease('v0.2.0', "## New\n\n* Water stops", '2026-10-10T10:00:00Z', 'Stops on the way.'),
+        publishedRelease('v0.1.0', "## New\n\n* Loops", '2026-10-01T10:00:00Z'),
     ]));
 
-    $this->artisan('releases:sync')->expectsOutput('Read the notes of 2 releases.')->assertSuccessful();
+    $this->artisan('releases:sync')->expectsOutput('Read the rider notes of 2 releases.')->assertSuccessful();
 
     $this->app->instance(ReleaseFeed::class, releaseFeed([
-        new PublishedRelease('v0.2.0', 'Stops along the way', CarbonImmutable::parse('2026-10-10T10:00:00Z'), "## New\n\n* Water and toilet stops"),
+        publishedRelease('v0.2.0', "## New\n\n* Water and toilet stops", '2026-10-10T10:00:00Z', 'Stops on the way.'),
+        publishedRelease('v0.1.0', "## New\n\n* Loops", '2026-10-01T10:00:00Z'),
     ]));
 
     $this->artisan('releases:sync')->assertSuccessful();
 
+    $release = Release::query()->where('tag', 'v0.2.0')->firstOrFail();
+
     expect(Release::query()->count())->toBe(2)
-        ->and(Release::query()->where('tag', 'v0.2.0')->value('notes'))->toBe("## New\n\n* Water and toilet stops");
+        ->and($release->notes)->toBe("## New\n\n* Water and toilet stops")
+        ->and($release->name)->toBe('Title of v0.2.0')
+        ->and($release->summary)->toBe('Stops on the way.');
 });
 
-test('the sync warns and does not fail when GitHub is down', function (): void {
-    $this->app->instance(ReleaseFeed::class, releaseFeed([], down: true));
+test('a release with no date gets the time a deploy first reads it, and keeps it', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-20T08:00:00Z'));
+    $this->app->instance(ReleaseFeed::class, releaseFeed([publishedRelease('v0.8.0', "## New\n\n* Rivers")]));
+    $this->artisan('releases:sync')->assertSuccessful();
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-22T08:00:00Z'));
+    $this->artisan('releases:sync')->assertSuccessful();
+
+    expect(Release::query()->where('tag', 'v0.8.0')->firstOrFail()->published_at->toIso8601String())->toBe('2026-10-20T08:00:00+00:00');
+});
+
+test('the sync reports a broken notes file and does not fail the deploy', function (): void {
+    $this->app->instance(ReleaseFeed::class, releaseFeed([], broken: true));
 
     $this->artisan('releases:sync')
-        ->expectsOutputToContain('The releases were not read from GitHub')
+        ->expectsOutputToContain('The rider notes were not read: v0.2.0/_release.md needs a title.')
+        ->assertSuccessful();
+});
+
+test('the sync warns about rider notes merged but not released', function (): void {
+    $this->app->instance(ReleaseFeed::class, releaseFeed([publishedRelease('v0.1.0', "## New\n\n* Loops")], unreleased: ['river-routes.md']));
+
+    $this->artisan('releases:sync')
+        ->expectsOutputToContain('Rider notes not in a release yet: river-routes.md.')
         ->assertSuccessful();
 });
 
@@ -172,20 +208,29 @@ test('a guest is sent to sign in', function (): void {
     $this->post(route('releases.read-all'))->assertRedirect(route('login'));
 });
 
-test('the sync forgets a release GitHub no longer lists', function (): void {
+test('the sync forgets a release whose notes were removed', function (): void {
     $this->app->instance(ReleaseFeed::class, releaseFeed([
-        new PublishedRelease('v0.3.0', 'Three', CarbonImmutable::parse('2026-10-12T10:00:00Z'), "## New\n\n* Three"),
-        new PublishedRelease('v0.2.0', 'Two', CarbonImmutable::parse('2026-10-10T10:00:00Z'), "## New\n\n* Two"),
-    ]));
-    $this->artisan('releases:sync')->assertSuccessful();
-    Release::factory()->create(['tag' => 'v0.1.0', 'published_at' => CarbonImmutable::parse('2026-09-01T10:00:00Z')]);
-
-    $this->app->instance(ReleaseFeed::class, releaseFeed([
-        new PublishedRelease('v0.2.0', 'Two', CarbonImmutable::parse('2026-10-10T10:00:00Z'), "## New\n\n* Two"),
+        publishedRelease('v0.3.0', "## New\n\n* Three", '2026-10-12T10:00:00Z'),
+        publishedRelease('v0.2.0', "## New\n\n* Two", '2026-10-10T10:00:00Z'),
     ]));
     $this->artisan('releases:sync')->assertSuccessful();
 
-    expect(Release::query()->orderBy('tag')->pluck('tag')->all())->toBe(['v0.1.0', 'v0.2.0']);
+    $this->app->instance(ReleaseFeed::class, releaseFeed([
+        publishedRelease('v0.2.0', "## New\n\n* Two", '2026-10-10T10:00:00Z'),
+    ]));
+    $this->artisan('releases:sync')->assertSuccessful();
+
+    expect(Release::query()->pluck('tag')->all())->toBe(['v0.2.0']);
+});
+
+test('a release summary is the line the bell shows, and the page shows it above the notes', function (): void {
+    $user = User::factory()->create(['created_at' => now()->subYear()]);
+    Release::factory()->create(['summary' => 'Stops show up again.', 'notes' => "## Fixes\n\n* Water stops"]);
+
+    $this->actingAs($user)->get(route('releases.index'))
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->where('whatsNew.items.0.headline', 'Stops show up again.')
+            ->where('releases.0.summary', 'Stops show up again.'));
 });
 
 test('a rider hears of releases from the month before joining, and none older', function (): void {

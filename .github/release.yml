@@ -1,4 +1,7 @@
-# Groups the notes GitHub writes when you click "Generate release notes".
+# Groups the technical notes GitHub writes for a release: pull requests, labels,
+# and contributors. Riders never read these. The notes riders read in the
+# planner's What's new live in apps/app/resources/releases, one file per branch.
+# Releases are cut by the Release workflow (.github/workflows/release.yml).
 changelog:
   exclude:
     labels: [duplicate, invalid, wontfix]

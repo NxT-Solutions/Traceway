@@ -60,8 +60,6 @@ use App\Handlers\StoreRouteImageHandler;
 use App\Handlers\SyncReleasesHandler;
 use App\Handlers\UpdateProfileHandler;
 use App\Handlers\WelcomeRiderHandler;
-use App\Integrations\GitHub\GitHubConnector;
-use App\Integrations\GitHub\GitHubReleaseFeed;
 use App\Integrations\GraphHopper\GraphHopperConnector;
 use App\Integrations\GraphHopper\GraphHopperRoutingEngine;
 use App\Integrations\Nominatim\NominatimConnector;
@@ -71,6 +69,7 @@ use App\Integrations\OpenFreeMap\OpenFreeMapConnector;
 use App\Integrations\OpenFreeMap\OpenFreeMapStopFinder;
 use App\Integrations\Osrm\OsrmConnector;
 use App\Integrations\Osrm\OsrmRoutingEngine;
+use App\Integrations\ReleaseNotes\ReleaseNotesDirectory;
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Integrations\Valhalla\ValhallaRoadDescriber;
 use App\Integrations\Valhalla\ValhallaRoutingEngine;
@@ -183,19 +182,8 @@ class AppServiceProvider extends ServiceProvider
             new PlaceSearchPace($this->app->make(CacheRepository::class)),
         ));
 
-        $this->app->bind(function (): ReleaseFeed {
-            $url = config('services.github.url');
-            $repository = config('services.github.releases_repo');
-            $token = config('services.github.token');
-
-            return new GitHubReleaseFeed(
-                new GitHubConnector(
-                    is_string($url) && $url !== '' ? $url : 'https://api.github.com',
-                    is_string($token) && $token !== '' ? $token : null,
-                ),
-                is_string($repository) && $repository !== '' ? $repository : 'NxT-Solutions/Traceway',
-            );
-        });
+        $this->app->bind(ReleaseFeed::class, fn (): ReleaseNotesDirectory => new ReleaseNotesDirectory(resource_path('releases')));
+        $this->app->bind(ReleaseNotesDirectory::class, fn (): ReleaseNotesDirectory => new ReleaseNotesDirectory(resource_path('releases')));
 
         $this->app->bind(function (): RouteDetailsSource {
             $valhalla = config('services.valhalla.url');

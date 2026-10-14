@@ -27,7 +27,8 @@ class ReleaseFactory extends Factory
 
         return [
             'tag' => $tag,
-            'name' => $tag,
+            'name' => 'Faster near the coast',
+            'summary' => null,
             'notes' => "## New\n\n* Routes plan faster near the coast",
             'published_at' => now()->subDay(),
         ];

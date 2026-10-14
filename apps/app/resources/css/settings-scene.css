@@ -183,6 +183,7 @@
 .tw-settings .release-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0;color:var(--muted);font-size:14px}
 .tw-settings .release-head h2{margin:4px 0 0}
 .tw-settings .release-new{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:var(--chart);color:var(--chart-ink);font-size:12px;font-weight:700}
+.tw-settings .release-lead{max-width:62ch;margin:0;font-size:17px;line-height:1.55;color:var(--text)}
 .tw-settings .release-notes{max-width:62ch;font-size:16px;line-height:1.6;color:var(--text)}
 .tw-settings .release-notes h3,.tw-settings .release-notes h4{margin:18px 0 6px;font-size:15px;font-weight:600;letter-spacing:.01em;color:var(--muted);text-transform:uppercase}
 .tw-settings .release-notes > :first-child{margin-top:0}

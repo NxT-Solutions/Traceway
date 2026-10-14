@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Commands\ReadRouteDetailsCommand;
 use App\Commands\SyncReleasesCommand;
 use App\Contracts\Bus\DispatchesCommands;
+use App\Domain\Releases\ReleaseFeed;
+use App\Integrations\ReleaseNotes\ReleaseNotesDirectory;
 use App\Queries\Routes\UnreadRoutesQuery;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -67,24 +69,45 @@ Schedule::command('cache:prune-expired')->hourly();
 // included, in failed_jobs. A day is long enough to see why.
 Schedule::command('queue:prune-failed', ['--hours' => 24])->hourly();
 
-Artisan::command('releases:sync', function (DispatchesCommands $dispatchesCommands): int {
+Artisan::command('releases:sync', function (DispatchesCommands $dispatchesCommands, ReleaseFeed $releaseFeed): int {
     try {
         $saved = $dispatchesCommands->dispatch(new SyncReleasesCommand);
     } catch (Throwable $throwable) {
         report($throwable);
-        $this->warn('The releases were not read from GitHub: '.$throwable->getMessage());
+        $this->warn('The rider notes were not read: '.$throwable->getMessage());
 
         return 0;
     }
 
-    $this->info('Read the notes of '.(is_int($saved) ? $saved : 0).' releases.');
+    $this->info('Read the rider notes of '.(is_int($saved) ? $saved : 0).' releases.');
+
+    $unreleased = $releaseFeed->unreleased();
+
+    if ($unreleased !== []) {
+        $this->warn('Rider notes not in a release yet: '.implode(', ', $unreleased).'. They go out with the next release.');
+    }
 
     return 0;
-})->purpose('Copy the release notes published on GitHub, so riders can read what changed');
+})->purpose('Read the rider notes in resources/releases, so riders see what changed');
 
-// A deploy reads the new notes before the site opens. This catches a
-// release edited on GitHub afterwards, and one the deploy could not reach.
-Schedule::command('releases:sync')
-    ->hourly()
-    ->withoutOverlapping(10)
-    ->runInBackground();
+Artisan::command('releases:prepare {version : The new version, such as v1.4.0} {--title= : The title riders see} {--summary= : One line riders see under the title}', function (ReleaseNotesDirectory $releaseNotesDirectory): int {
+    $version = is_string($this->argument('version')) ? $this->argument('version') : '';
+    $title = $this->option('title');
+    $summary = $this->option('summary');
+
+    try {
+        $moved = $releaseNotesDirectory->prepare(
+            $version,
+            is_string($title) ? $title : '',
+            is_string($summary) && $summary !== '' ? $summary : null,
+        );
+    } catch (InvalidArgumentException $invalidArgumentException) {
+        $this->error($invalidArgumentException->getMessage());
+
+        return 1;
+    }
+
+    $this->info('Moved '.count($moved).' rider notes into '.$version.': '.implode(', ', $moved).'.');
+
+    return 0;
+})->purpose('Move the unreleased rider notes into the folder of a new version');

@@ -33,8 +33,9 @@ final class ReleaseNotesQuery
 
         $rows = (clone $builder)
             ->latest('published_at')
+            ->latest('id')
             ->limit(5)
-            ->get(['id', 'tag', 'name', 'notes', 'published_at']);
+            ->get(['id', 'tag', 'name', 'summary', 'notes', 'published_at']);
 
         $items = [];
 
@@ -45,7 +46,7 @@ final class ReleaseNotesQuery
                 'tag' => $reader->string('tag'),
                 'name' => $reader->string('name'),
                 'published_at' => $reader->iso('published_at'),
-                'headline' => RiderNotes::headline($reader->string('notes')),
+                'headline' => $reader->optionalString('summary') ?? RiderNotes::headline($reader->string('notes')),
             ];
         }
 
@@ -60,7 +61,7 @@ final class ReleaseNotesQuery
      * ready to show. Images are left out, so opening the page loads nothing from the
      * hosts a pull request title might point at.
      *
-     * @return list<array{id: int, tag: string, name: string, published_at: string|null, read: bool, html: string}>
+     * @return list<array{id: int, tag: string, name: string, summary: string|null, published_at: string|null, read: bool, html: string}>
      */
     public function pageFor(int $riderId, ?DateTimeInterface $joinedAt): array
     {
@@ -71,7 +72,8 @@ final class ReleaseNotesQuery
             })
             ->where('releases.published_at', '>=', ReleaseWindow::opensAt($joinedAt ?? now()))
             ->latest('releases.published_at')
-            ->get(['releases.id', 'releases.tag', 'releases.name', 'releases.notes', 'releases.published_at', 'release_reads.read_at']);
+            ->latest('releases.id')
+            ->get(['releases.id', 'releases.tag', 'releases.name', 'releases.summary', 'releases.notes', 'releases.published_at', 'release_reads.read_at']);
 
         $releases = [];
 
@@ -81,6 +83,7 @@ final class ReleaseNotesQuery
                 'id' => $reader->int('id'),
                 'tag' => $reader->string('tag'),
                 'name' => $reader->string('name'),
+                'summary' => $reader->optionalString('summary'),
                 'published_at' => $reader->iso('published_at'),
                 'read' => $reader->optionalString('read_at') !== null,
                 'html' => $this->html($reader->string('notes')),

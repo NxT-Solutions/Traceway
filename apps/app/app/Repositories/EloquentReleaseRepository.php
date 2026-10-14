@@ -15,21 +15,27 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class EloquentReleaseRepository implements ReleaseRepository
 {
-    public function save(string $tag, string $name, string $notes, DateTimeImmutable $publishedAt): void
+    public function save(string $tag, string $title, ?string $summary, string $notes, ?DateTimeImmutable $publishedAt): void
     {
-        Release::query()->updateOrCreate(['tag' => $tag], [
-            'name' => $name,
+        $release = Release::query()->firstOrNew(['tag' => $tag]);
+        $release->fill([
+            'name' => $title,
+            'summary' => $summary,
             'notes' => $notes,
-            'published_at' => $publishedAt,
         ]);
+
+        if ($publishedAt instanceof DateTimeImmutable) {
+            $release->fill(['published_at' => CarbonImmutable::instance($publishedAt)]);
+        } elseif (! $release->exists) {
+            $release->fill(['published_at' => CarbonImmutable::now()]);
+        }
+
+        $release->save();
     }
 
-    public function forgetAllBut(array $tags, DateTimeImmutable $since): void
+    public function forgetAllBut(array $tags): void
     {
-        DB::table('releases')
-            ->where('published_at', '>=', $since)
-            ->whereNotIn('tag', $tags)
-            ->delete();
+        DB::table('releases')->whereNotIn('tag', $tags)->delete();
     }
 
     public function markRead(RiderId $riderId, int $releaseId): bool

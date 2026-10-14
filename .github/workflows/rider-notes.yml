@@ -1,0 +1,55 @@
+---
+# Every pull request that changes what riders use says what changed for them, in
+# one file of its own: apps/app/resources/releases/unreleased/<branch>.md. The
+# Release workflow moves those files into the next version. A pull request with
+# nothing for riders (CI, docs, tests) carries the no-rider-notes label instead.
+name: Rider Notes
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rider-notes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  notes:
+    name: Rider notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Look For This Branch's Rider Notes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'no-rider-notes') }}
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only "${BASE}...HEAD")"
+
+          if [ "$SKIP" = "true" ]; then
+            echo "Labelled no-rider-notes: nothing for riders in this pull request."
+            exit 0
+          fi
+
+          if grep -qE '^apps/app/resources/releases/unreleased/[^/]+\.md$' <<< "$changed"; then
+            echo "Rider notes:"
+            grep -E '^apps/app/resources/releases/unreleased/[^/]+\.md$' <<< "$changed"
+            exit 0
+          fi
+
+          if grep -qE '^(apps/app/(app|resources|routes|config|database|lang)/|apps/garmin/|apps/web/src/)' <<< "$changed"; then
+            echo "::error::Add apps/app/resources/releases/unreleased/<branch>.md with what changed for riders (section: New, Fixes, or Devices), or label the pull request no-rider-notes."
+            exit 1
+          fi
+
+          echo "Nothing riders use changed."

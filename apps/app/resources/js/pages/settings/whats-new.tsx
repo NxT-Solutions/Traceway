@@ -91,6 +91,9 @@ export default function WhatsNew({ releases }: { releases: ReleaseNotes[] }) {
                             </button>
                         )}
                     </header>
+                    {release.summary ? (
+                        <p className="release-lead">{release.summary}</p>
+                    ) : null}
                     <div
                         className="release-notes"
                         // The server renders the notes from Markdown with raw HTML escaped and unsafe links removed.
