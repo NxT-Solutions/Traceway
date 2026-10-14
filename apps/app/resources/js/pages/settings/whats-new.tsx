@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import {
+    focusAfterRead,
     markAllReleasesRead,
     markReleaseRead,
     releaseAnchor,
@@ -30,7 +31,13 @@ export default function WhatsNew({ releases }: { releases: ReleaseNotes[] }) {
                         <button
                             type="button"
                             className="outline"
-                            onClick={() => markAllReleasesRead()}
+                            onClick={() =>
+                                markAllReleasesRead(() =>
+                                    focusAfterRead(
+                                        `${releaseAnchor(releases[0]?.tag ?? '')}-title`,
+                                    ),
+                                )
+                            }
                         >
                             Mark all as read
                         </button>
@@ -60,7 +67,10 @@ export default function WhatsNew({ releases }: { releases: ReleaseNotes[] }) {
                                     <span className="release-new">New</span>
                                 )}
                             </p>
-                            <h2 id={`${releaseAnchor(release.tag)}-title`}>
+                            <h2
+                                id={`${releaseAnchor(release.tag)}-title`}
+                                tabIndex={-1}
+                            >
                                 {release.name}
                             </h2>
                         </div>
@@ -68,10 +78,16 @@ export default function WhatsNew({ releases }: { releases: ReleaseNotes[] }) {
                             <button
                                 type="button"
                                 className="outline"
-                                aria-label={`Mark ${release.tag} as read`}
-                                onClick={() => markReleaseRead(release.id)}
+                                onClick={() =>
+                                    markReleaseRead(release.id, () =>
+                                        focusAfterRead(
+                                            `${releaseAnchor(release.tag)}-title`,
+                                        ),
+                                    )
+                                }
                             >
                                 Mark as read
+                                <span className="sr-only"> {release.tag}</span>
                             </button>
                         )}
                     </header>

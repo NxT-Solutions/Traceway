@@ -5,39 +5,38 @@ declare(strict_types=1);
 namespace App\Domain\Releases;
 
 /**
- * Cuts the notes GitHub writes for a release down to what a rider reads: what is new,
- * what was fixed, and what changed on a device. Docs, dependencies, and who opened which
- * pull request are for the people building Traceway. Notes written by hand, with none of
- * GitHub's groups, are kept whole.
+ * Cuts the notes GitHub writes for a release down to what a rider reads. Docs,
+ * dependencies, other changes, and who opened which pull request are for the people
+ * building Traceway, so those groups go. Everything else stays: what is new, what was
+ * fixed, what changed on a device, and any words written by hand around them.
  */
 final class RiderNotes
 {
     /**
-     * The groups in .github/release.yml a rider reads.
-     */
-    private const array KEPT = ['new', 'fixes', 'devices'];
-
-    /**
      * The groups GitHub writes that are not for a rider.
      */
-    private const array DROPPED = ['docs', 'dependencies', 'other changes', 'new contributors', "what's changed", 'what’s changed'];
+    private const array DROPPED = ['docs', 'dependencies', 'other changes', 'new contributors'];
+
+    /**
+     * Headings GitHub writes above the groups. The heading goes; what is under it stays.
+     */
+    private const array UNWRAPPED = ["what's changed", 'what’s changed'];
 
     private const string COMMIT_TYPES = 'feat|fix|perf|refactor|chore|docs|test|ci|build|style|revert|content';
 
     public static function from(string $body): string
     {
-        $lines = self::lines((string) preg_replace('/<!--.*?-->/su', '', $body));
-        $grouped = self::isGrouped($lines);
         $kept = [];
-        $keeping = ! $grouped;
+        $keeping = true;
 
-        foreach ($lines as $line) {
+        foreach (self::lines((string) preg_replace('/<!--.*?-->/su', '', $body)) as $line) {
             $title = self::headingTitle($line);
 
-            if ($title !== null && $grouped) {
-                $keeping = in_array(self::groupKey($title), self::KEPT, strict: true);
+            if ($title !== null) {
+                $group = self::groupKey($title);
+                $keeping = ! in_array($group, self::DROPPED, strict: true);
 
-                if ($keeping) {
+                if ($keeping && ! in_array($group, self::UNWRAPPED, strict: true)) {
                     $kept[] = '';
                     $kept[] = '## '.$title;
                     $kept[] = '';
@@ -81,22 +80,6 @@ final class RiderNotes
         $lines = preg_split('/\R/u', $text);
 
         return $lines === false ? [] : $lines;
-    }
-
-    /**
-     * @param  list<string>  $lines
-     */
-    private static function isGrouped(array $lines): bool
-    {
-        foreach ($lines as $line) {
-            $title = self::headingTitle($line);
-
-            if ($title !== null && in_array(self::groupKey($title), [...self::KEPT, ...self::DROPPED], strict: true)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static function headingTitle(string $line): ?string

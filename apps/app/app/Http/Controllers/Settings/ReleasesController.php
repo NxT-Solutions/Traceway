@@ -26,8 +26,10 @@ class ReleasesController extends Controller
 {
     public function index(Request $request, ReleaseNotesQuery $releaseNotesQuery): Response
     {
+        $user = $this->user($request);
+
         return Inertia::render('settings/whats-new', [
-            'releases' => $releaseNotesQuery->pageFor($this->user($request)->id),
+            'releases' => $releaseNotesQuery->pageFor($user->id, $user->created_at),
         ]);
     }
 

@@ -51,7 +51,7 @@ class HandleInertiaRequests extends Middleware
             ],
             // What changed in Traceway since the rider last looked, for the bell in the header.
             'whatsNew' => fn (): ?array => $user instanceof User
-                ? resolve(ReleaseNotesQuery::class)->summaryFor($user->id)
+                ? resolve(ReleaseNotesQuery::class)->summaryFor($user->id, $user->created_at)
                 : null,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

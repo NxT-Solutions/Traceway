@@ -149,7 +149,7 @@ test("the What's new page shows the notes, and which ones are read", function ()
             ->has('releases', 2)
             ->where('releases.0.tag', 'v0.2.0')
             ->where('releases.0.read', expected: false)
-            ->where('releases.0.html', "<h2>New</h2>\n<ul>\n<li>Water stops</li>\n</ul>\n")
+            ->where('releases.0.html', "<h3>New</h3>\n<ul>\n<li>Water stops</li>\n</ul>\n")
             ->where('releases.1.read', expected: true));
 });
 
@@ -170,4 +170,53 @@ test('a guest is sent to sign in', function (): void {
     $this->get(route('releases.index'))->assertRedirect(route('login'));
     $this->post(route('releases.read', $release->id))->assertRedirect(route('login'));
     $this->post(route('releases.read-all'))->assertRedirect(route('login'));
+});
+
+test('the sync forgets a release GitHub no longer lists', function (): void {
+    $this->app->instance(ReleaseFeed::class, releaseFeed([
+        new PublishedRelease('v0.3.0', 'Three', CarbonImmutable::parse('2026-10-12T10:00:00Z'), "## New\n\n* Three"),
+        new PublishedRelease('v0.2.0', 'Two', CarbonImmutable::parse('2026-10-10T10:00:00Z'), "## New\n\n* Two"),
+    ]));
+    $this->artisan('releases:sync')->assertSuccessful();
+    Release::factory()->create(['tag' => 'v0.1.0', 'published_at' => CarbonImmutable::parse('2026-09-01T10:00:00Z')]);
+
+    $this->app->instance(ReleaseFeed::class, releaseFeed([
+        new PublishedRelease('v0.2.0', 'Two', CarbonImmutable::parse('2026-10-10T10:00:00Z'), "## New\n\n* Two"),
+    ]));
+    $this->artisan('releases:sync')->assertSuccessful();
+
+    expect(Release::query()->orderBy('tag')->pluck('tag')->all())->toBe(['v0.1.0', 'v0.2.0']);
+});
+
+test('a rider hears of releases from the month before joining, and none older', function (): void {
+    $user = User::factory()->create(['created_at' => now()->subDays(10)]);
+    Release::factory()->create(['tag' => 'v0.3.0', 'published_at' => now()->subDays(39)]);
+    Release::factory()->create(['tag' => 'v0.1.0', 'published_at' => now()->subDays(41)]);
+
+    $this->actingAs($user)->get(route('releases.index'))
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->has('releases', 1)
+            ->where('releases.0.tag', 'v0.3.0')
+            ->where('whatsNew.unread', 1));
+});
+
+test('marking every release read leaves out the ones the rider was never told about', function (): void {
+    $user = User::factory()->create(['created_at' => now()->subDays(10)]);
+    Release::factory()->create(['published_at' => now()->subDay()]);
+    Release::factory()->create(['published_at' => now()->subYear()]);
+
+    $this->actingAs($user)->post(route('releases.read-all'))->assertRedirect();
+
+    $this->assertDatabaseCount('release_reads', 1);
+});
+
+test('an image in release notes shows as its description, and loads nothing', function (): void {
+    $user = User::factory()->create();
+    Release::factory()->create(['notes' => "## New\n\n* A new map ![the new map](https://tracker.example/pixel.png)"]);
+
+    $this->actingAs($user)
+        ->get(route('releases.index'))
+        ->assertInertia(fn (Assert $assert): Assert => $assert->where('releases.0.html', fn (string $html): bool => ! str_contains($html, '<img')
+            && ! str_contains($html, 'tracker.example')
+            && str_contains($html, 'A new map the new map')));
 });

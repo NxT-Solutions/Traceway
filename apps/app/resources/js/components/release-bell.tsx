@@ -3,6 +3,7 @@ import type { MouseEvent } from 'react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
+    focusAfterRead,
     markAllReleasesRead,
     markReleaseRead,
     releaseAnchor,
@@ -16,30 +17,38 @@ const TOASTED_KEY = 'traceway.release-toasted';
 
 /**
  * Says once, in a toast, that a new version is out. The bell keeps the count
- * after that. The tag is remembered in this browser only. On a phone
- * or tablet the toast would cover the plan drawer, so the bell says it alone.
+ * after that. This browser remembers the publish date of the newest release it
+ * toasted, so reading that one never brings up a toast for an older one. On a
+ * phone or tablet the toast would cover the plan drawer, so the bell says it alone.
  */
 function useNewReleaseToast(newest: UnreadRelease | undefined): void {
     useEffect(() => {
         if (
             newest === undefined ||
+            newest.published_at === null ||
             window.matchMedia('(max-width: 1023px)').matches
         ) {
             return;
         }
 
         try {
-            if (window.localStorage.getItem(TOASTED_KEY) === newest.tag) {
+            const toasted = window.localStorage.getItem(TOASTED_KEY);
+
+            if (
+                toasted !== null &&
+                Date.parse(toasted) >= Date.parse(newest.published_at)
+            ) {
                 return;
             }
 
-            window.localStorage.setItem(TOASTED_KEY, newest.tag);
+            window.localStorage.setItem(TOASTED_KEY, newest.published_at);
         } catch {
             return;
         }
 
         toast.info(`Traceway ${newest.tag} is out`, {
             description: newest.headline ?? newest.name,
+            duration: 12000,
             action: {
                 label: "See what's new",
                 onClick: () =>
@@ -72,18 +81,30 @@ export default function ReleaseBell() {
         }
 
         function onKeyDown(event: KeyboardEvent): void {
-            if (event.key === 'Escape') {
+            if (
+                event.key === 'Escape' &&
+                rootRef.current?.contains(document.activeElement)
+            ) {
                 setOpen(false);
                 buttonRef.current?.focus();
             }
         }
 
+        // Tabbing away from the bell closes it, as a click outside does.
+        function onFocusIn(event: FocusEvent): void {
+            if (!rootRef.current?.contains(event.target as Node)) {
+                setOpen(false);
+            }
+        }
+
         document.addEventListener('pointerdown', onPointerDown);
         document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('focusin', onFocusIn);
 
         return () => {
             document.removeEventListener('pointerdown', onPointerDown);
             document.removeEventListener('keydown', onKeyDown);
+            document.removeEventListener('focusin', onFocusIn);
         };
     }, [open]);
 
@@ -93,10 +114,22 @@ export default function ReleaseBell() {
 
     const { unread, items } = whatsNew;
 
+    const titleId = `${panelId}-title`;
+
     function readAndOpen(
         event: MouseEvent<HTMLAnchorElement>,
         item: UnreadRelease,
     ): void {
+        if (
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey ||
+            event.button !== 0
+        ) {
+            return;
+        }
+
         event.preventDefault();
         const target = event.currentTarget.href;
         setOpen(false);
@@ -146,15 +179,21 @@ export default function ReleaseBell() {
                 <section
                     id={panelId}
                     className="rb-panel"
-                    aria-labelledby={`${panelId}-title`}
+                    aria-labelledby={titleId}
                 >
                     <div className="rb-head">
-                        <h2 id={`${panelId}-title`}>What's new</h2>
+                        <h2 id={titleId} tabIndex={-1}>
+                            What's new
+                        </h2>
                         {unread > 0 ? (
                             <button
                                 type="button"
                                 className="rb-all"
-                                onClick={() => markAllReleasesRead()}
+                                onClick={() =>
+                                    markAllReleasesRead(() =>
+                                        focusAfterRead(titleId),
+                                    )
+                                }
                             >
                                 Mark all as read
                             </button>
@@ -193,7 +232,11 @@ export default function ReleaseBell() {
                                         className="rb-check"
                                         aria-label={`Mark ${item.tag} as read`}
                                         title="Mark as read"
-                                        onClick={() => markReleaseRead(item.id)}
+                                        onClick={() =>
+                                            markReleaseRead(item.id, () =>
+                                                focusAfterRead(titleId),
+                                            )
+                                        }
                                     >
                                         <svg
                                             width="16"

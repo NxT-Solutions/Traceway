@@ -81,6 +81,27 @@ try {
 
     await scan(desktop, '/settings/security');
 
+    // The bell in the header: open, checked, closed with Escape, and one release read.
+    await scan(desktop, '/dashboard');
+    const bell = desktop.getByRole('button', { name: /^What's new/ });
+    const unreadBefore = Number((await bell.getAttribute('aria-label')).match(/(\d+) unread/)?.[1] ?? 0);
+    await bell.click();
+    await desktop.locator('.rb-panel').waitFor();
+    await audit(desktop, "/dashboard what's new");
+    await desktop.keyboard.press('Escape');
+    if ((await desktop.locator('.rb-panel').count()) !== 0 || !(await bell.evaluate((node) => node === document.activeElement))) {
+        failures.push("/dashboard what's new: Escape did not close the panel and give focus back to the bell");
+    }
+    if (unreadBefore > 0) {
+        await bell.click();
+        await desktop.getByRole('button', { name: /^Mark v.+ as read$/ }).first().click();
+        await desktop.waitForFunction(
+            (before) => !document.querySelector('.rb-button')?.getAttribute('aria-label')?.includes(`${before} unread`),
+            unreadBefore,
+        );
+        await desktop.keyboard.press('Escape');
+    }
+
     // The multisport plan, and the sheets it opens.
     await scan(desktop, '/dashboard');
     await desktop.getByRole('tab', { name: 'Multisport' }).click();

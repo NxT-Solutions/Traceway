@@ -71,6 +71,7 @@ Artisan::command('releases:sync', function (DispatchesCommands $dispatchesComman
     try {
         $saved = $dispatchesCommands->dispatch(new SyncReleasesCommand);
     } catch (Throwable $throwable) {
+        report($throwable);
         $this->warn('The releases were not read from GitHub: '.$throwable->getMessage());
 
         return 0;
