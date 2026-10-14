@@ -265,7 +265,7 @@ export async function drawShareImage(
                 new maplibregl.LngLatBounds(first, first),
             ),
             {
-                padding: { top: 80, right: 80, bottom: 80, left: 640 },
+                padding: { top: 80, right: 80, bottom: 80, left: 720 },
                 duration: 0,
                 maxZoom: 15,
             },
@@ -293,9 +293,10 @@ export async function drawShareImage(
         context.drawImage(map.getCanvas(), 0, 0, width, height);
 
         // The left side holds the words, so the map fades out under them.
-        const shade = context.createLinearGradient(0, 0, 820, 0);
+        // It is clear again before the route begins.
+        const shade = context.createLinearGradient(0, 0, 700, 0);
         shade.addColorStop(0, 'rgba(7, 31, 32, 0.97)');
-        shade.addColorStop(0.62, 'rgba(7, 31, 32, 0.9)');
+        shade.addColorStop(0.8, 'rgba(7, 31, 32, 0.9)');
         shade.addColorStop(1, 'rgba(7, 31, 32, 0)');
         context.fillStyle = shade;
         context.fillRect(0, 0, width, height);
