@@ -184,13 +184,13 @@
 .tw-settings .release-head h2{margin:4px 0 0}
 .tw-settings .release-new{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:var(--chart);color:var(--chart-ink);font-size:12px;font-weight:700}
 .tw-settings .release-notes{max-width:62ch;font-size:16px;line-height:1.6;color:var(--text)}
-.tw-settings .release-notes h2,.tw-settings .release-notes h3{margin:18px 0 6px;font-size:15px;font-weight:600;letter-spacing:.01em;color:var(--muted);text-transform:uppercase}
+.tw-settings .release-notes h3,.tw-settings .release-notes h4{margin:18px 0 6px;font-size:15px;font-weight:600;letter-spacing:.01em;color:var(--muted);text-transform:uppercase}
 .tw-settings .release-notes > :first-child{margin-top:0}
 .tw-settings .release-notes p{margin:0 0 10px}
 .tw-settings .release-notes ul,.tw-settings .release-notes ol{margin:0 0 10px;padding-left:22px;list-style:disc}
 .tw-settings .release-notes ol{list-style:decimal}
 .tw-settings .release-notes li{margin:4px 0}
-.tw-settings .release-notes li::marker{color:var(--chart-dim)}
+.tw-settings .release-notes li::marker{color:var(--muted)}
 .tw-settings .release-notes a{color:var(--text);text-decoration:underline;text-underline-offset:3px}
 .tw-settings .release-notes code{padding:1px 5px;border-radius:5px;background:var(--hover);font-size:.92em}
 

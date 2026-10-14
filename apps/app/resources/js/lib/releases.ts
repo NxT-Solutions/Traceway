@@ -33,10 +33,18 @@ export function markReleaseRead(id: number, onFinish?: () => void): void {
     );
 }
 
-export function markAllReleasesRead(): void {
+export function markAllReleasesRead(onFinish?: () => void): void {
     router.post(
         ReleasesController.readAll.url(),
         {},
-        { preserveScroll: true, preserveState: true, only: reloaded },
+        { preserveScroll: true, preserveState: true, only: reloaded, onFinish },
     );
+}
+
+/**
+ * Moves focus to an element after the button that had it is gone, so a
+ * keyboard does not fall back to the top of the page.
+ */
+export function focusAfterRead(id: string): void {
+    requestAnimationFrame(() => document.getElementById(id)?.focus());
 }

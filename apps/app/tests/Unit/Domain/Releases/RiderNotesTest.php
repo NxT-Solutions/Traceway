@@ -70,3 +70,13 @@ it('reads the first change as a one-line headline', function (): void {
         ->toBe('A bigger map, see the planner')
         ->and(RiderNotes::headline('Only a sentence.'))->toBeNull();
 });
+
+it('keeps words written above the groups, and headings of its own', function (): void {
+    expect(RiderNotes::from("Maps load twice as fast now.\r\n\r\n## What's Changed\r\n### New\r\n* feat!: stops along the way by @a in https://github.com/x/y/pull/1\r\n### Other changes\r\n* ci: faster by @a in https://github.com/x/y/pull/2\r\n## Known issues\r\n* Polar is not there yet"))
+        ->toBe("Maps load twice as fast now.\n\n## New\n\n* Stops along the way\n\n## Known issues\n\n* Polar is not there yet");
+});
+
+it("keeps a plain list under What's changed", function (): void {
+    expect(RiderNotes::from("## What's changed\n\n* :zap: perf(map): faster maps"))
+        ->toBe('* Faster maps');
+});

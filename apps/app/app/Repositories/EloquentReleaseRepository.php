@@ -6,7 +6,9 @@ namespace App\Repositories;
 
 use App\Account\RiderId;
 use App\Contracts\Releases\ReleaseRepository;
+use App\Domain\Releases\ReleaseWindow;
 use App\Models\Release;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +22,14 @@ final readonly class EloquentReleaseRepository implements ReleaseRepository
             'notes' => $notes,
             'published_at' => $publishedAt,
         ]);
+    }
+
+    public function forgetAllBut(array $tags, DateTimeImmutable $since): void
+    {
+        DB::table('releases')
+            ->where('published_at', '>=', $since)
+            ->whereNotIn('tag', $tags)
+            ->delete();
     }
 
     public function markRead(RiderId $riderId, int $releaseId): bool
@@ -39,7 +49,10 @@ final readonly class EloquentReleaseRepository implements ReleaseRepository
 
     public function markAllRead(RiderId $riderId): void
     {
+        $joined = DB::table('users')->where('id', $riderId->value)->value('created_at');
+
         $unread = DB::table('releases')
+            ->where('published_at', '>=', ReleaseWindow::opensAt(is_string($joined) ? CarbonImmutable::parse($joined) : now()))
             ->whereNotExists(fn (Builder $builder): Builder => $builder->selectRaw('1')
                 ->from('release_reads')
                 ->whereColumn('release_reads.release_id', 'releases.id')
