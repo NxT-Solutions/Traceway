@@ -1,7 +1,9 @@
-import type {
-    ExpressionSpecification,
-    GeoJSONSource,
-    Map as MapLibreMap,
+import {
+    type ExpressionSpecification,
+    type GeoJSONSource,
+    type Map as MapLibreMap,
+    Marker as MapLibreMarker,
+    type Marker,
 } from 'maplibre-gl';
 
 export type Coordinate = [number, number];
@@ -528,8 +530,8 @@ export function addDetailLayers(map: MapLibreMap): void {
         });
     }
 
-    // A dot follows the chart. A ring marks a chosen stop or turn, under
-    // the stop's own icon, so the icon still shows inside it.
+    // The dot that follows the chart sits under the stop icons, so pointing
+    // at the chart never hides one.
     if (map.getLayer('route-hover') === undefined) {
         map.addLayer(
             {
@@ -537,21 +539,9 @@ export function addDetailLayers(map: MapLibreMap): void {
                 type: 'circle',
                 source: 'route-hover',
                 paint: {
-                    'circle-radius': ['match', ['get', 'mark'], 'ring', 17, 7],
-                    'circle-color': [
-                        'match',
-                        ['get', 'mark'],
-                        'ring',
-                        'rgba(255,255,255,0.85)',
-                        '#16303a',
-                    ],
-                    'circle-stroke-color': [
-                        'match',
-                        ['get', 'mark'],
-                        'ring',
-                        '#16303a',
-                        '#ffffff',
-                    ],
+                    'circle-radius': 7,
+                    'circle-color': '#16303a',
+                    'circle-stroke-color': '#ffffff',
                     'circle-stroke-width': 3,
                 },
             },
@@ -648,13 +638,12 @@ export function syncDetailLayers(
 }
 
 /**
- * Moves the mark for where the rider is looking: a dot for the chart, a
- * ring for a chosen stop or turn. Null hides it.
+ * Moves the dot that marks where the rider is looking on the profile, or
+ * hides it.
  */
 export function syncHoverPoint(
     map: MapLibreMap,
     point: Coordinate | null,
-    mark: 'dot' | 'ring' = 'dot',
 ): void {
     const source = map.getSource('route-hover');
 
@@ -670,9 +659,41 @@ export function syncHoverPoint(
                 : [
                       {
                           type: 'Feature',
-                          properties: { mark },
+                          properties: {},
                           geometry: { type: 'Point', coordinates: point },
                       },
                   ],
     });
+}
+
+const chosenMarkers = new WeakMap<MapLibreMap, Marker>();
+
+/**
+ * Marks the stop or turn the rider chose with a ring that pulses around it.
+ * The middle stays open, so the stop's own icon shows through. Null takes
+ * the ring away.
+ */
+export function markChosen(map: MapLibreMap, point: Coordinate | null): void {
+    const marker = chosenMarkers.get(map);
+
+    if (point === null) {
+        marker?.remove();
+        chosenMarkers.delete(map);
+
+        return;
+    }
+
+    if (marker !== undefined) {
+        marker.setLngLat(point);
+
+        return;
+    }
+
+    const element = document.createElement('div');
+    element.className = 'tw-chosen';
+    element.setAttribute('aria-hidden', 'true');
+    chosenMarkers.set(
+        map,
+        new MapLibreMarker({ element }).setLngLat(point).addTo(map),
+    );
 }

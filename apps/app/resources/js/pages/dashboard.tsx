@@ -76,6 +76,7 @@ import {
     addDetailLayers,
     fetchDetails,
     fetchStops,
+    markChosen,
     pointAlong,
     type RouteDetails,
     routeGpx,
@@ -2414,7 +2415,8 @@ export default function Dashboard() {
             chosenPointRef.current = null;
         }
 
-        syncHoverPoint(map, chosenPointRef.current?.point ?? null, 'ring');
+        syncHoverPoint(map, null);
+        markChosen(map, chosenPointRef.current?.point ?? null);
     }, [detailLine, details, steepness]);
 
     useEffect(() => {
@@ -2905,19 +2907,12 @@ export default function Dashboard() {
 
     /**
      * Marks a place on the map from the profile chart or the turn list.
-     * Letting go shows the stop or turn the rider chose, if any.
      */
     function showOnMap(point: Coordinate | null): void {
         const map = mapRef.current;
 
         if (map !== null) {
-            const chosen = chosenPointRef.current?.point ?? null;
-
-            syncHoverPoint(
-                map,
-                point ?? chosen,
-                point === null ? 'ring' : 'dot',
-            );
+            syncHoverPoint(map, point);
         }
     }
 
@@ -2933,7 +2928,8 @@ export default function Dashboard() {
         }
 
         chosenPointRef.current = { point, line: detailLine };
-        syncHoverPoint(map, point, 'ring');
+        syncHoverPoint(map, null);
+        markChosen(map, point);
         const fly = (): void => {
             const reduced = window.matchMedia(
                 '(prefers-reduced-motion: reduce)',
