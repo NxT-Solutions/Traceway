@@ -71,6 +71,7 @@ class SearchPlacesController extends Controller
     #[Response(
         response: HttpResponse::HTTP_TOO_MANY_REQUESTS,
         description: 'Too many searches in a minute.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
     #[Response(
         response: HttpResponse::HTTP_SERVICE_UNAVAILABLE,

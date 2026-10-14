@@ -1420,7 +1420,14 @@
                         }
                     },
                     "429": {
-                        "description": "Too many searches in a minute."
+                        "description": "Too many searches in a minute.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
                     },
                     "503": {
                         "description": "The place search is busy or did not answer. Try again in a moment.",

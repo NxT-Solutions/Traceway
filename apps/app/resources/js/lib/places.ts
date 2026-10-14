@@ -15,7 +15,11 @@ export type FoundPlace = {
 
 export type PlaceSearchResult =
     | { kind: 'found'; places: FoundPlace[] }
-    | { kind: 'busy'; message: string };
+    /**
+     * Worth one more try when the turn was taken. At the rider's own limit,
+     * `until` is when searching works again.
+     */
+    | { kind: 'busy'; message: string; again: boolean; until?: number };
 
 const mostRecent = 5;
 
@@ -127,6 +131,7 @@ export async function searchPlaces(
     const busy: PlaceSearchResult = {
         kind: 'busy',
         message: 'Search is busy. Try again in a moment.',
+        again: true,
     };
     const typed = parseCoordinates(query);
 
@@ -151,7 +156,17 @@ export async function searchPlaces(
                     ? body.message
                     : busy.message;
 
-            return { kind: 'busy', message };
+            const wait = Number(response.headers.get('Retry-After'));
+
+            return {
+                kind: 'busy',
+                message,
+                again: response.status === 503,
+                until:
+                    response.status === 429 && wait > 0
+                        ? Date.now() + wait * 1000
+                        : undefined,
+            };
         }
 
         const places =
