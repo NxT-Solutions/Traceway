@@ -196,6 +196,12 @@ async function stopsShown(page, label) {
     }
 }
 
+async function pinAt(page) {
+    const box = await page.locator('.tw-start-pin').first().boundingBox();
+
+    return box ? `${Math.round(box.x)},${Math.round(box.y)}` : 'off the map';
+}
+
 async function title(page) {
     return (await page.locator('.route-title').first().innerText()).trim();
 }
@@ -304,6 +310,22 @@ try {
     await turns.first().focus();
     check(/onto|Left|Right|Bear|Sharp|U-turn|Roundabout/.test(await turns.first().innerText()), 'A turn has no direction');
     step(`desktop: the turn list opens with ${await turns.count()} turns, and a turn can be pointed at`);
+
+    const pinBefore = await pinAt(page);
+    await turns.nth(Math.min(5, (await turns.count()) - 1)).click();
+    await page.waitForTimeout(1500);
+    check((await pinAt(page)) !== pinBefore, 'Clicking a turn did not move the map to it');
+    step('desktop: clicking a turn takes the map to it');
+
+    if (loopStops) {
+        await page.locator('summary', { hasText: 'Stops on the way' }).click();
+        const stopRows = page.locator('.tw-details-lists details[open]', { has: page.locator('summary', { hasText: 'Stops on the way' }) }).locator('li button');
+        const beforeStop = await pinAt(page);
+        await stopRows.last().click();
+        await page.waitForTimeout(1500);
+        check((await pinAt(page)) !== beforeStop, 'Clicking a stop did not move the map to it');
+        step('desktop: clicking a stop takes the map to it');
+    }
 
     const firstLine = JSON.stringify((await draft(page))?.routes?.[0]?.coordinates?.slice(0, 3));
     await page.getByRole('button', { name: 'Next loop' }).click();
@@ -568,13 +590,25 @@ try {
     await tap(mobile.locator('summary', { hasText: 'Turns (' }));
     const phoneTurns = mobile.locator('.tw-details-lists details[open] li button');
     check((await phoneTurns.count()) > 0, 'The turn list does not open with a tap');
-    await tap(phoneTurns.first());
-    step('phone: a tap opens the turn list, and a turn can be tapped');
+    const phonePinBefore = await pinAt(mobile);
+    await tap(phoneTurns.nth(Math.min(5, (await phoneTurns.count()) - 1)));
+    await mobile.waitForFunction(() => !document.querySelector('.panel.open'), null, { timeout: 3000 });
+    await mobile.waitForTimeout(1500);
+    check((await pinAt(mobile)) !== phonePinBefore, 'Tapping a turn did not move the map to it');
+    step('phone: a tap on a turn lowers the plan and takes the map to the turn');
+    await openDrawer();
 
     if (await stopsShown(mobile, 'Phone loop')) {
         await tap(mobile.locator('summary', { hasText: 'Stops on the way' }));
-        check((await mobile.locator('.tw-details-lists details[open] li button').count()) > 0, 'The stops list does not open with a tap');
-        step('phone: a tap opens the stops on the way');
+        const phoneStops = mobile.locator('.tw-details-lists details[open]', { has: mobile.locator('summary', { hasText: 'Stops on the way' }) }).locator('li button');
+        check((await phoneStops.count()) > 0, 'The stops list does not open with a tap');
+        const beforeStop = await pinAt(mobile);
+        await tap(phoneStops.last());
+        await mobile.waitForFunction(() => !document.querySelector('.panel.open'), null, { timeout: 3000 });
+        await mobile.waitForTimeout(1500);
+        check((await pinAt(mobile)) !== beforeStop, 'Tapping a stop did not move the map to it');
+        step('phone: a tap on a stop lowers the plan and takes the map to the stop');
+        await openDrawer();
     }
 
     const phoneLoop = (await draft(mobile))?.routes?.[0]?.coordinates ?? [];

@@ -320,20 +320,24 @@ function cueText(cue: Cue): string {
 
 /**
  * The turns and the stops in order along the route. Pointing at one marks
- * it on the map.
+ * it on the map, and choosing one takes the map there.
  */
 export function RouteCues({
     details,
     onFocusPoint,
+    onSelectPoint,
 }: {
     details: RouteDetails;
     onFocusPoint?: (point: Coordinate | null) => void;
+    onSelectPoint?: (point: Coordinate) => void;
 }) {
     const focus = (point: Coordinate) => ({
         onPointerEnter: () => onFocusPoint?.(point),
         onPointerLeave: () => onFocusPoint?.(null),
         onFocus: () => onFocusPoint?.(point),
         onBlur: () => onFocusPoint?.(null),
+        onClick: () => onSelectPoint?.(point),
+        title: onSelectPoint ? 'Show on the map' : undefined,
     });
 
     return (
