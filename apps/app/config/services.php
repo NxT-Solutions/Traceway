@@ -52,15 +52,6 @@ return [
         'url' => env('NOMINATIM_URL', 'https://nominatim.openstreetmap.org'),
     ],
 
-    // Riders read what changed in each version. The notes come from the
-    // releases published on GitHub. The repository is public, so the token
-    // only raises the hourly limit.
-    'github' => [
-        'url' => env('GITHUB_API_URL', 'https://api.github.com'),
-        'releases_repo' => env('GITHUB_RELEASES_REPO', 'NxT-Solutions/Traceway'),
-        'token' => env('GITHUB_TOKEN'),
-    ],
-
     // Water, toilets, and cafés along a route, read from the OpenStreetMap
     // map tiles the planner's map draws.
     'openfreemap' => [

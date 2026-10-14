@@ -18,6 +18,7 @@ export type ReleaseNotes = {
     id: number;
     tag: string;
     name: string;
+    summary: string | null;
     published_at: string | null;
     read: boolean;
     html: string;
