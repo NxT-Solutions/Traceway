@@ -128,7 +128,7 @@
 .tw-settings .ai-reply{align-self:flex-start;display:flex;flex-direction:column;gap:10px;width:88%;border:1px solid var(--hair);border-bottom-left-radius:4px;background:var(--bg);animation:ai-reply 9s var(--ease) infinite both}
 .tw-settings .ai-tool{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:3px 8px;border-radius:999px;background:var(--icon-box);color:var(--muted);font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .tw-settings .ai-tool svg{color:var(--chart)}
-.tw-settings .ai-map{display:block;width:100%;height:auto;border-radius:10px;background:var(--ink)}
+.tw-settings .ai-map{display:block;width:100%;height:auto;border:1px solid var(--hair);border-radius:10px;background:var(--ink)}
 .tw-settings .ai-roads{fill:none;stroke:oklch(0.97 0.012 95 / 0.1);stroke-width:5;stroke-linecap:round}
 .tw-settings .ai-route{fill:none;stroke:var(--chart);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:520;stroke-dashoffset:520;animation:ai-draw 9s var(--ease) infinite both}
 .tw-settings .ai-start{fill:var(--chart);stroke:var(--ink);stroke-width:3}
