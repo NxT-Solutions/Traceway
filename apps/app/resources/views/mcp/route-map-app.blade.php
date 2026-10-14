@@ -172,7 +172,7 @@
                 aspect-ratio: 600 / 340;
             }
 
-            .live-map {
+            .stage>.live-map {
                 position: absolute;
                 inset: 0;
                 width: 100%;
@@ -182,7 +182,7 @@
                 transition: opacity 400ms ease;
             }
 
-            .live-map.ready {
+            .stage>.live-map.ready {
                 opacity: 1;
             }
 

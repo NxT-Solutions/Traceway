@@ -40,6 +40,7 @@ function maplibre() {
         ]);
         const sheet = document.createElement('style');
         sheet.textContent = `${css}
+            .stage > .live-map.maplibregl-map { position: absolute; }
             .live-map .maplibregl-ctrl-group { background: ${ink}; border: 1px solid rgba(246, 243, 234, 0.2); }
             .live-map .maplibregl-ctrl-group button + button { border-top-color: rgba(246, 243, 234, 0.2); }
             .live-map .maplibregl-ctrl-icon { filter: invert(1); }
