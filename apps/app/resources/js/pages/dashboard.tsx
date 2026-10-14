@@ -1854,6 +1854,11 @@ export default function Dashboard() {
     const ascentMetres =
         details?.ascent_metres ?? (shown === null ? 0 : shown.ascent_metres);
     const importInputRef = useRef<HTMLInputElement>(null);
+    // The stop or turn the rider chose from the list, kept marked on the map.
+    const chosenPointRef = useRef<{
+        point: Coordinate;
+        line: Coordinate[] | null;
+    } | null>(null);
     const [imported, setImported] = useState<{
         name: string;
         coordinates: Coordinate[];
@@ -2403,7 +2408,13 @@ export default function Dashboard() {
         }
 
         syncDetailLayers(map, detailLine ?? [], details, steepness);
-        syncHoverPoint(map, null);
+
+        // A stop or turn chosen on one route means nothing on the next.
+        if (chosenPointRef.current?.line !== detailLine) {
+            chosenPointRef.current = null;
+        }
+
+        syncHoverPoint(map, chosenPointRef.current?.point ?? null);
     }, [detailLine, details, steepness]);
 
     useEffect(() => {
@@ -2894,13 +2905,50 @@ export default function Dashboard() {
 
     /**
      * Marks a place on the map from the profile chart or the turn list.
+     * Letting go shows the stop or turn the rider chose, if any.
      */
     function showOnMap(point: Coordinate | null): void {
         const map = mapRef.current;
 
         if (map !== null) {
-            syncHoverPoint(map, point);
+            syncHoverPoint(map, point ?? chosenPointRef.current?.point ?? null);
         }
+    }
+
+    /**
+     * Takes the map to a stop or a turn, close enough to see the street. On
+     * a phone the drawer covers the map, so it goes down first.
+     */
+    function goToPoint(point: Coordinate): void {
+        const map = mapRef.current;
+
+        if (map === null) {
+            return;
+        }
+
+        chosenPointRef.current = { point, line: detailLine };
+        syncHoverPoint(map, point);
+        const fly = (): void => {
+            const reduced = window.matchMedia(
+                '(prefers-reduced-motion: reduce)',
+            ).matches;
+
+            map.flyTo({
+                center: point,
+                zoom: Math.max(map.getZoom(), 16),
+                padding: framePadding(),
+                duration: reduced ? 0 : 900,
+            });
+        };
+
+        if (panelOpen && window.matchMedia('(max-width: 1023px)').matches) {
+            setPanelOpen(false);
+            window.setTimeout(fly, 240);
+
+            return;
+        }
+
+        fly();
     }
 
     async function openGpx(file: File): Promise<void> {
@@ -5188,6 +5236,7 @@ export default function Dashboard() {
                                         <RouteCues
                                             details={details}
                                             onFocusPoint={showOnMap}
+                                            onSelectPoint={goToPoint}
                                         />
                                     </div>
                                 ) : detailsLoading ? (
