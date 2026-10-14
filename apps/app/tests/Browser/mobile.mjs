@@ -327,8 +327,12 @@ try {
     await pin.waitFor();
     const pinAt = await centre(pin);
     const finishBefore = (await draft())?.multisport?.legs?.[1]?.finish;
+    // The dropped finish snaps to a road first, then the chain draws again
+    // and the map frames it; the drawer stays shut until that is done.
+    const redrawn = page.waitForResponse((response) => new URL(response.url()).pathname === '/routes/multisport', { timeout: routing });
     await drag(pinAt, { x: pinAt.x - 60, y: pinAt.y + 40 }, 16);
-    await page.waitForTimeout(400);
+    await redrawn;
+    await page.waitForTimeout(600);
     const finishAfter = (await draft())?.multisport?.legs?.[1]?.finish;
 
     if (!finishBefore || !finishAfter || finishBefore.join() === finishAfter.join()) {
