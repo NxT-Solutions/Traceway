@@ -16,8 +16,11 @@ use App\Http\Controllers\RouteStopsController;
 use App\Http\Controllers\SavedRouteLibraryController;
 use App\Http\Controllers\ShowSavedRouteDetailsController;
 use App\Http\Controllers\ShowSharedRouteController;
+use App\Http\Controllers\ShowSharedRouteImageController;
 use App\Http\Controllers\SnapPointController;
+use App\Http\Controllers\StoreRouteImageController;
 use App\Http\Controllers\StoreSavedRouteController;
+use App\Http\Middleware\KeepOutOfSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -29,17 +32,20 @@ Route::post('login/demo/{rider}', DemoLoginController::class)
 Route::get('/', fn () => Inertia::render('welcome'))->name('home');
 
 Route::get('share/{savedRoute}', ShowSharedRouteController::class)
-    ->middleware('signed')
+    ->middleware(['signed', KeepOutOfSearch::class])
     ->name('routes.share');
+Route::get('share/{savedRoute}/image', ShowSharedRouteImageController::class)
+    ->middleware(['signed', KeepOutOfSearch::class])
+    ->name('routes.share.image');
 Route::get('share/{savedRoute}/gpx', [ExportSharedCourseController::class, 'gpx'])
-    ->middleware('signed')
+    ->middleware(['signed', KeepOutOfSearch::class])
     ->name('routes.share.gpx');
 Route::get('share/{savedRoute}/fit', [ExportSharedCourseController::class, 'fit'])
-    ->middleware('signed')
+    ->middleware(['signed', KeepOutOfSearch::class])
     ->name('routes.share.fit');
 Route::get('share/{savedRoute}/fit/{leg}', [ExportSharedCourseController::class, 'fitLeg'])
     ->whereNumber('leg')
-    ->middleware('signed')
+    ->middleware(['signed', KeepOutOfSearch::class])
     ->name('routes.share.fit.leg');
 
 Route::get('docs/public', fn (): RedirectResponse => redirect()->to('/docs'));
@@ -60,6 +66,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('routes/saved', StoreSavedRouteController::class)->name('routes.saved.store');
     Route::delete('routes/saved/{savedRoute}', DestroySavedRouteController::class)->name('routes.saved.destroy');
     Route::get('routes/saved/{savedRoute}/details', ShowSavedRouteDetailsController::class)->name('routes.saved.details');
+    Route::post('routes/saved/{savedRoute}/image', StoreRouteImageController::class)->name('routes.saved.image');
 });
 
 require __DIR__.'/settings.php';

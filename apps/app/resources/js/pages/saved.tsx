@@ -21,6 +21,7 @@ import {
     resizeDirectionArrows,
 } from '@/lib/route-arrows';
 import { isRouteDetails, type RouteDetails } from '@/lib/route-details';
+import { keepShareImage, shareImageRoute } from '@/lib/share-image';
 import '../../css/planner.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -45,6 +46,7 @@ type SavedRoute = {
         distance_metres: number;
         fit_url: string | null;
     }>;
+    image_drawn?: boolean;
 };
 
 const sportLabel: Record<string, string> = {
@@ -407,7 +409,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
             style: themedMapStyle(resolvedAppearance),
             interactive: false,
             attributionControl: false as const,
-            preserveDrawingBuffer: true,
+            canvasContextAttributes: { preserveDrawingBuffer: true },
             fadeDuration: 0,
         };
         const map = new maplibregl.Map(mapOptions);
@@ -520,6 +522,36 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
             node.remove();
         };
     }, [routes, resolvedAppearance]);
+
+    // A route saved before its picture existed, or by an AI assistant, has
+    // no picture for its shared link yet. The library draws them one at a
+    // time, quietly, after the thumbnails.
+    useEffect(() => {
+        const missing = routes.filter(
+            (route) =>
+                route.image_drawn === false && route.coordinates.length > 1,
+        );
+
+        if (missing.length === 0) {
+            return;
+        }
+
+        let stopped = false;
+        const timer = window.setTimeout(async () => {
+            for (const route of missing) {
+                if (stopped) {
+                    return;
+                }
+
+                await keepShareImage(route.id, shareImageRoute(route));
+            }
+        }, 4000);
+
+        return () => {
+            stopped = true;
+            window.clearTimeout(timer);
+        };
+    }, [routes]);
 
     useEffect(() => {
         if (!showMap) {

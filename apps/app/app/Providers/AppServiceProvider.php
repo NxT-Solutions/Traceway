@@ -17,6 +17,7 @@ use App\Commands\OpenAccountCommand;
 use App\Commands\RevokeDeviceCommand;
 use App\Commands\SaveRouteCommand;
 use App\Commands\StartDevicePairingCommand;
+use App\Commands\StoreRouteImageCommand;
 use App\Commands\UpdateProfileCommand;
 use App\Commands\WelcomeRiderCommand;
 use App\Contracts\Account\ConnectedAppRepository;
@@ -26,6 +27,7 @@ use App\Contracts\Account\UserRepository;
 use App\Contracts\Auth\CurrentRider;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Contracts\Mail\AccountMailer;
+use App\Contracts\Routes\RouteImageStore;
 use App\Contracts\Routes\SavedRouteRepository;
 use App\Domain\Routing\Details\RouteDetailer;
 use App\Domain\Routing\Details\RouteDetailsSource;
@@ -44,6 +46,7 @@ use App\Handlers\OpenAccountHandler;
 use App\Handlers\RevokeDeviceHandler;
 use App\Handlers\SaveRouteHandler;
 use App\Handlers\StartDevicePairingHandler;
+use App\Handlers\StoreRouteImageHandler;
 use App\Handlers\UpdateProfileHandler;
 use App\Handlers\WelcomeRiderHandler;
 use App\Integrations\GraphHopper\GraphHopperConnector;
@@ -60,6 +63,7 @@ use App\Integrations\Valhalla\ValhallaRoutingEngine;
 use App\Mail\TracewayAccountMailer;
 use App\Models\PreventLazyLoading;
 use App\Notifications\RiderEmailConfirmation;
+use App\Repositories\DiskRouteImageStore;
 use App\Repositories\EloquentConnectedAppRepository;
 use App\Repositories\EloquentDeviceLinkRepository;
 use App\Repositories\EloquentSavedRouteRepository;
@@ -73,6 +77,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Passport\Passport;
@@ -93,6 +98,7 @@ class AppServiceProvider extends ServiceProvider
             ExportPersonalDataCommand::class => ExportPersonalDataHandler::class,
             SaveRouteCommand::class => SaveRouteHandler::class,
             DeleteRouteCommand::class => DeleteRouteHandler::class,
+            StoreRouteImageCommand::class => StoreRouteImageHandler::class,
             DisconnectAppCommand::class => DisconnectAppHandler::class,
             StartDevicePairingCommand::class => StartDevicePairingHandler::class,
             ClaimDevicePairingCommand::class => ClaimDevicePairingHandler::class,
@@ -104,6 +110,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(UserRepository::class, EloquentUserRepository::class);
         $this->app->bind(SavedRouteRepository::class, EloquentSavedRouteRepository::class);
+        $this->app->bind(RouteImageStore::class, fn (): DiskRouteImageStore => new DiskRouteImageStore(Storage::disk('local')));
         $this->app->bind(ConnectedAppRepository::class, EloquentConnectedAppRepository::class);
         $this->app->bind(DeviceLinkRepository::class, EloquentDeviceLinkRepository::class);
         $this->app->bind(CurrentRider::class, SessionRider::class);

@@ -16,6 +16,7 @@ import {
     syncDetailLayers,
     syncHoverPoint,
 } from '@/lib/route-details';
+import { keepShareImage, shareImageRoute } from '@/lib/share-image';
 import '../../css/planner.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -43,6 +44,7 @@ type SharedRoute = {
         details?: RouteDetails | null;
     }>;
     details: RouteDetails | null;
+    image_url: string;
 };
 
 const sportLabel: Record<string, string> = {
@@ -62,7 +64,13 @@ const surfaceLabel: Record<string, string> = {
     dirt: 'Dirt',
 };
 
-export default function Share({ route }: { route: SharedRoute }) {
+export default function Share({
+    route,
+    draw_image: drawImage = false,
+}: {
+    route: SharedRoute;
+    draw_image?: boolean;
+}) {
     const mapNode = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const asideRef = useRef<HTMLElement>(null);
@@ -100,6 +108,27 @@ export default function Share({ route }: { route: SharedRoute }) {
                   ],
         [route],
     );
+
+    // The rider who saved the route opens their own link before its picture
+    // exists, so their browser draws it for the chats that show the link.
+    useEffect(() => {
+        const id = window.location.pathname.split('/')[2];
+
+        if (!drawImage || id === undefined) {
+            return;
+        }
+
+        void keepShareImage(
+            id,
+            shareImageRoute({
+                ...route,
+                legs: route.legs.map((leg, index) => ({
+                    ...leg,
+                    color: legColour('bold', index, leg.color),
+                })),
+            }),
+        );
+    }, [drawImage, route]);
 
     const shownLineRef = useRef({ line: shownLine, details: shownDetails });
     shownLineRef.current = { line: shownLine, details: shownDetails };
@@ -236,7 +265,7 @@ export default function Share({ route }: { route: SharedRoute }) {
 
     return (
         <div className="tw-share">
-            <Head title={route.name} />
+            <Head title={`${route.name} · ${kilometres} km`} />
             <div ref={mapNode} className="map" />
             <RoutePlayer
                 mapRef={mapRef}

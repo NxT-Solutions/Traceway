@@ -26,6 +26,15 @@ final class SignedRouteLink
         return URL::signedRoute('routes.share.fit', ['savedRoute' => $id]);
     }
 
+    /**
+     * The picture a chat shows for the link. The version changes when the
+     * picture is drawn again, so a chat that kept an old one fetches anew.
+     */
+    public static function image(string $id, ?int $version): string
+    {
+        return URL::signedRoute('routes.share.image', ['savedRoute' => $id, 'v' => $version ?? 0]);
+    }
+
     public static function fitLeg(string $id, int $position): string
     {
         return URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $id, 'leg' => $position]);

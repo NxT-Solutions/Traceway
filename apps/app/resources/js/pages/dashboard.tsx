@@ -84,6 +84,7 @@ import {
     syncDetailLayers,
     syncHoverPoint,
 } from '@/lib/route-details';
+import { keepShareImage, shareImageRoute } from '@/lib/share-image';
 import { support } from '@/lib/support';
 import { cn } from '@/lib/utils';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -3288,13 +3289,11 @@ export default function Dashboard() {
                 body: JSON.stringify(payload),
             });
             const body: unknown = await response.json().catch(() => null);
-            const url =
-                typeof body === 'object' &&
-                body !== null &&
-                'url' in body &&
-                typeof body.url === 'string'
-                    ? body.url
-                    : null;
+            const record =
+                typeof body === 'object' && body !== null
+                    ? (body as Record<string, unknown>)
+                    : {};
+            const url = typeof record.url === 'string' ? record.url : null;
 
             if (!response.ok || url === null) {
                 setMessage('The route could not be saved.');
@@ -3304,6 +3303,33 @@ export default function Dashboard() {
 
             setRouteSaved(true);
             setMessage('Saved. Share it from Saved routes.');
+
+            // The shared link shows the route on the map in a chat. Only the
+            // browser can draw that, so it does it now, in the background.
+            if (typeof record.id === 'string') {
+                void keepShareImage(
+                    record.id,
+                    shareImageRoute({
+                        name: String(payload.name ?? name),
+                        sport: String(payload.sport ?? sport),
+                        surface: String(payload.surface ?? surface),
+                        distance_metres: Number(payload.distance_metres ?? 0),
+                        ascent_metres:
+                            details?.ascent_metres ??
+                            Number(payload.ascent_metres ?? 0),
+                        coordinates: (payload.coordinates ??
+                            []) as Coordinate[],
+                        legs: multisport
+                            ? (plan?.legs ?? []).map((leg, index) => ({
+                                  discipline: leg.discipline,
+                                  distance_metres: leg.distance_metres,
+                                  coordinates: leg.coordinates,
+                                  color: planColours[index] ?? null,
+                              }))
+                            : [],
+                    }),
+                );
+            }
         } catch {
             setMessage('The route could not be saved.');
         } finally {

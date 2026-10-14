@@ -1645,6 +1645,51 @@
                 "security": []
             }
         },
+        "/share/{savedRoute}/image": {
+            "get": {
+                "tags": [
+                    "Share"
+                ],
+                "summary": "The picture a chat shows for a shared course",
+                "description": "Requires a signed URL. Until the rider has opened the route in a browser, this is the Traceway picture.",
+                "operationId": "sharedCourseImage",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The route on the map, 1200 by 630.",
+                        "content": {
+                            "image/jpeg": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            },
+                            "image/png": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The link is not signed."
+                    }
+                },
+                "security": []
+            }
+        },
         "/routes/snap": {
             "post": {
                 "tags": [
@@ -1690,6 +1735,71 @@
                     },
                     "422": {
                         "description": "Nothing is close enough.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/routes/saved/{savedRoute}/image": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Keep the picture of a saved route",
+                "description": "The planner draws the route on the map and sends the picture, so a shared link shows it in a chat.",
+                "operationId": "storeRouteImage",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/StoreRouteImageRequest"
+                },
+                "responses": {
+                    "204": {
+                        "description": "The picture is kept."
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The rider has no such route.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The picture is not a JPEG of 1200 by 630.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2198,6 +2308,7 @@
                     "coordinates",
                     "gpx_url",
                     "fit_url",
+                    "image_url",
                     "layout",
                     "legs",
                     "details"
@@ -2231,6 +2342,10 @@
                         "type": "string"
                     },
                     "fit_url": {
+                        "type": "string"
+                    },
+                    "image_url": {
+                        "description": "The picture chats show for the link: the route on the map, 1200 by 630.",
                         "type": "string"
                     },
                     "layout": {
@@ -2987,6 +3102,27 @@
                                     "enum": [
                                         "garmin"
                                     ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "StoreRouteImageRequest": {
+                "description": "The picture a shared link shows: the route on the map.",
+                "required": true,
+                "content": {
+                    "multipart/form-data": {
+                        "schema": {
+                            "required": [
+                                "image"
+                            ],
+                            "properties": {
+                                "image": {
+                                    "description": "A JPEG of 1200 by 630, at most 1 MB.",
+                                    "type": "string",
+                                    "format": "binary"
                                 }
                             },
                             "type": "object"

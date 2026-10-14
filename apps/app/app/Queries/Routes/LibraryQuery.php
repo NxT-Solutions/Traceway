@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Queries\Routes;
 
+use App\Account\RiderId;
+use App\Contracts\Routes\RouteImageStore;
 use App\Domain\Routing\LineSimplifier;
 use App\Domain\Routing\Sport;
 use App\Queries\RowReader;
@@ -11,8 +13,10 @@ use App\Routes\RouteId;
 use App\Routes\SavedLeg;
 use Illuminate\Support\Facades\DB;
 
-final class LibraryQuery
+final readonly class LibraryQuery
 {
+    public function __construct(private RouteImageStore $routeImageStore) {}
+
     public function page(int $riderId): LibraryPage
     {
         return new LibraryPage($this->forRider($riderId));
@@ -63,6 +67,7 @@ final class LibraryQuery
                 LineSimplifier::simplify($reader->line('coordinates'), LineSimplifier::OVERVIEW_METRES),
                 $reader->optionalString('layout'),
                 $this->legs($id, $reader->legs('legs')),
+                $this->routeImageStore->drawnAt(new RiderId($riderId), new RouteId($id)) !== null,
             );
         }
 
