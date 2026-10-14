@@ -1524,6 +1524,9 @@ export default function Dashboard() {
     const moveFinishRef = useRef<(index: number, point: Coordinate) => void>(
         () => {},
     );
+    // A dragged pin sticks to the nearest road or path drawn on screen, so
+    // it lands where the rider sees it, not with a jump on release.
+    const dragSnapRef = useRef<(marker: maplibregl.Marker) => void>(() => {});
     const snapPointRef = useRef<
         (longitude: number, latitude: number) => Promise<Coordinate | null>
     >(() => Promise.resolve(null));
@@ -2311,6 +2314,7 @@ export default function Dashboard() {
             .addTo(map);
         startPin.getElement().title = 'Drag to move the start';
         startPin.on('dragstart', () => closeTapRef.current());
+        startPin.on('drag', () => dragSnapRef.current(startPin));
         startPin.on('dragend', () => {
             const at = startPin.getLngLat();
             moveStartRef.current(at.lng, at.lat);
@@ -2549,6 +2553,7 @@ export default function Dashboard() {
                 })
                     .setLngLat(leg.finish)
                     .addTo(map);
+                marker.on('drag', () => dragSnapRef.current(marker));
                 marker.on('dragend', () => {
                     const at = marker.getLngLat();
                     const from = leg.finish;
@@ -2666,6 +2671,7 @@ export default function Dashboard() {
                 .addTo(map);
             viaPin.getElement().title = 'Drag to move the via';
             viaPin.on('dragstart', () => closeTapRef.current());
+            viaPin.on('drag', () => dragSnapRef.current(viaPin));
             viaPin.on('dragend', () => {
                 const at = viaPin.getLngLat();
                 moveViaRef.current([at.lng, at.lat]);
@@ -2762,6 +2768,7 @@ export default function Dashboard() {
                 .setLngLat(at)
                 .addTo(map);
             const pin = { marker, at };
+            marker.on('drag', () => dragSnapRef.current(marker));
             marker.on('dragstart', () => {
                 marker.getElement().classList.add('dragging');
                 closeTapRef.current();
@@ -2825,11 +2832,17 @@ export default function Dashboard() {
             Math.max(12, canvas.height - edge - 48),
             cover + 44,
         );
-        const player = document.querySelector('.player-card');
-        const below =
-            player instanceof HTMLElement
-                ? player.getBoundingClientRect().bottom - canvas.top + 12
+        // The route sits under the search bar and the player, with room for
+        // the start pin, which stands above the spot it marks.
+        const pinRoom = 40;
+        const covers = ['.map-search', '.player-card'].map((selector) => {
+            const element = document.querySelector(selector);
+
+            return element instanceof HTMLElement
+                ? element.getBoundingClientRect().bottom - canvas.top + 12
                 : 0;
+        });
+        const below = Math.max(...covers) + pinRoom;
         const top = Math.max(
             edge,
             Math.min(below, canvas.height - bottom - 60),
@@ -4653,6 +4666,15 @@ export default function Dashboard() {
     }
 
     snapPointRef.current = snapPoint;
+
+    dragSnapRef.current = (marker) => {
+        const at = marker.getLngLat();
+        const snapped = snapOnScreen(at.lng, at.lat);
+
+        if (snapped !== null) {
+            marker.setLngLat(snapped);
+        }
+    };
 
     const searchActions: SearchAction[] = [
         ...(purpose === 'start' || purpose === 'transition'

@@ -14,14 +14,18 @@ use Throwable;
  * Searches with the map's centre rounded to about ten kilometres, so the
  * place search never learns where a rider is looking, and remembers the
  * answer for a month, as the public place search asks. "Westerlo" and
- * " westerlo " are one search. A search waits up to two seconds for
- * Traceway's turn; one that gets no turn is busy, and the rider tries again.
+ * " westerlo " are one search. A search waits up to five seconds for
+ * Traceway's turn; one that gets no turn is busy.
  */
 final readonly class CachedPlaceSearch implements PlaceSearch
 {
     private const int SECONDS = 2_592_000;
 
-    private const int WAIT_MILLISECONDS = 2000;
+    /**
+     * A rider who pressed Enter waits a little longer for a turn than a pin
+     * waits for its name: the turn is shared with every pin on Traceway.
+     */
+    private const int WAIT_MILLISECONDS = 5000;
 
     public function __construct(
         private PlaceSearch $placeSearch,

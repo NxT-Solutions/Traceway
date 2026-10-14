@@ -111,11 +111,11 @@ it('turns away a search that is too short or a point that is not on the map', fu
         ->assertJsonValidationErrors(['query', 'latitude']);
 });
 
-it('lets one rider search ten times a minute, so all of Traceway keeps its share', function (): void {
+it('lets one rider search thirty times a minute, so all of Traceway keeps its share', function (): void {
     findsPlaces([]);
     $user = User::factory()->create();
 
-    foreach (range(1, 10) as $search) {
+    foreach (range(1, 30) as $search) {
         $this->actingAs($user)
             ->postJson(route('routes.places'), ['query' => 'Westerlo '.$search, 'latitude' => 51.1, 'longitude' => 4.9])
             ->assertOk();
@@ -123,7 +123,9 @@ it('lets one rider search ten times a minute, so all of Traceway keeps its share
 
     $this->actingAs($user)
         ->postJson(route('routes.places'), ['query' => 'Westerlo', 'latitude' => 51.1, 'longitude' => 4.9])
-        ->assertTooManyRequests();
+        ->assertTooManyRequests()
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('message', fn (string $message): bool => preg_match('/^You have used all 30 searches for this minute\. You can search again in \d+ seconds\.$/', $message) === 1);
 });
 
 it('reports only the kind of failure, never what the rider typed', function (): void {

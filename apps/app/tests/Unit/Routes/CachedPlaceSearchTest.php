@@ -75,6 +75,16 @@ it('asks once for the same words typed differently near the same place', functio
         ->and($placeSearch->asked)->toHaveCount(2);
 });
 
+it('waits longer for a turn than a pin waits for its name', function (): void {
+    $placeSearch = countingPlaceSearch();
+    $repository = new Repository(new ArrayStore);
+    // Another lookup holds the turn for four seconds.
+    $repository->put('place-search:turn', value: true, ttl: 4);
+
+    expect(cachedPlaceSearch($placeSearch, $repository)->search('Westerlo', 51.1, 4.9))->toHaveCount(1)
+        ->and(Date::now()->toTimeString())->toBe('12:00:04');
+});
+
 it('is busy, without asking, when another search has the turn', function (): void {
     $placeSearch = countingPlaceSearch();
     $repository = new Repository(new ArrayStore);

@@ -94,6 +94,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -264,12 +265,24 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(60)->by('places:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
         });
-        // A search can cost the public place search a few requests, and all
-        // of Traceway shares one a second, so one rider gets a handful.
+        // The place search's own pace keeps Traceway at one request a second;
+        // this only stops one rider taking every turn. A search can cost two
+        // or three requests with its retries, so a rider gets plenty.
         RateLimiter::for('place-search', function (Request $request): Limit {
             $id = $request->user()?->getAuthIdentifier();
 
-            return Limit::perMinute(10)->by('place-search:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
+            return Limit::perMinute(30)
+                ->by('place-search:'.(is_scalar($id) ? (string) $id : (string) $request->ip()))
+                ->response(static function (Request $request, array $headers): JsonResponse {
+                    $seconds = $headers['Retry-After'] ?? 60;
+
+                    return new JsonResponse([
+                        'message' => sprintf(
+                            'You have used all 30 searches for this minute. You can search again in %d seconds.',
+                            is_numeric($seconds) ? (int) $seconds : 60,
+                        ),
+                    ], 429, $headers);
+                });
         });
     }
 

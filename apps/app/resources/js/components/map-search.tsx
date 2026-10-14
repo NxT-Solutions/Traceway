@@ -42,7 +42,7 @@ type Status =
           places: FoundPlace[];
           fixed: string | null;
       }
-    | { kind: 'busy'; message: string };
+    | { kind: 'busy'; message: string; until?: number };
 
 type Option =
     | { id: string; type: 'action'; action: SearchAction }
@@ -97,6 +97,21 @@ export function MapSearch({
     const [nearby, setNearby] = useState<FoundPlace[]>([]);
     const [recent, setRecent] = useState<FoundPlace[]>([]);
     const [active, setActive] = useState(-1);
+    const [now, setNow] = useState(() => Date.now());
+    const until = status.kind === 'busy' ? status.until : undefined;
+
+    // At the rider's limit for the minute, the note counts down to when
+    // searching works again.
+    useEffect(() => {
+        if (until === undefined) {
+            return;
+        }
+
+        setNow(Date.now());
+        const timer = window.setInterval(() => setNow(Date.now()), 1000);
+
+        return () => window.clearInterval(timer);
+    }, [until]);
 
     // Suggestions from the map follow the typing, a beat behind it.
     useEffect(() => {
@@ -124,6 +139,12 @@ export function MapSearch({
         setActive(-1);
         setStatus({ kind: 'searching' });
         let result = await searchPlaces(words, near());
+
+        // Busy means another place lookup had Traceway's turn: once more.
+        if (result.kind === 'busy' && result.again) {
+            await new Promise((resolve) => window.setTimeout(resolve, 1500));
+            result = await searchPlaces(words, near());
+        }
         let fixed: string | null = null;
 
         if (result.kind === 'found' && result.places.length === 0) {
@@ -277,7 +298,10 @@ export function MapSearch({
         }
 
         if (words.length < 2) {
-            setStatus({ kind: 'busy', message: 'Type at least two letters.' });
+            setStatus({
+                kind: 'busy',
+                message: 'Type at least two letters.',
+            });
 
             return;
         }
@@ -289,7 +313,11 @@ export function MapSearch({
         status.kind === 'searching'
             ? 'Searching…'
             : status.kind === 'busy'
-              ? status.message
+              ? status.until === undefined
+                  ? status.message
+                  : status.until <= now
+                    ? 'You can search again now. Press Enter.'
+                    : `You have used all 30 searches for this minute. You can search again in ${Math.ceil((status.until - now) / 1000)} seconds.`
               : searched && status.fixed !== null
                 ? `Showing results for “${status.fixed}”.`
                 : searched && status.places.length === 0
