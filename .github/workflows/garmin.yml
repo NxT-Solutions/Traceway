@@ -1,9 +1,19 @@
 name: Garmin App
 
 on:
+  # Nothing outside apps/garmin reaches the build, so other changes skip it.
   pull_request:
+    paths:
+      - apps/garmin/**
+      - .github/workflows/garmin.yml
   push:
     branches: [main]
+    paths:
+      - apps/garmin/**
+      - .github/workflows/garmin.yml
+  # A weekly build shows a changed SDK licence or a login problem before a release does.
+  schedule:
+    - cron: "0 6 * * 1"
   release:
     types: [published]
   workflow_dispatch:
@@ -27,6 +37,7 @@ jobs:
   build:
     name: Garmin app build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: apps/garmin
@@ -160,6 +171,7 @@ jobs:
     needs: build
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: write
 

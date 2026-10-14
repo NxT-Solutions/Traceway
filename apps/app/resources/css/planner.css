@@ -361,6 +361,7 @@
 .tw-share .credit a{color:#16303a;text-decoration:underline;text-underline-offset:2px}
 .tw-planner .outline{flex:1 1 0;height:42px;border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);font-size:15px;font-weight:500;cursor:pointer}
 .tw-planner .outline:hover{background:var(--hover)}
+.tw-planner .outline:disabled{opacity:.6;cursor:default;background:transparent}
 .tw-planner .legend{display:flex;align-items:center;gap:18px;font-size:13px;color:var(--muted);flex-wrap:wrap}
 .tw-planner .legend span{display:inline-flex;align-items:center;gap:8px}
 .tw-planner .legend i{display:inline-block;width:22px;height:3px;border-radius:2px;background:var(--text)}

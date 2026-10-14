@@ -141,7 +141,7 @@ ddev logs -s web
 
 The mail sources live in `apps/mail`. They are [Maizzle 6](https://maizzle.com) Vue templates: one layout in `layouts/MainLayout.vue`, the button and the fallback link in `components/`, and one file per message in `emails/`. The build inlines the styles so Outlook keeps them and writes the HTML Laravel sends to `apps/app/resources/views/mail/compiled`.
 
-That folder is build output, so Git ignores it. `ddev start` builds it, CI builds it before the tests, and the production image builds it on release. After you change a source, rebuild it:
+That folder is build output, so Git ignores it. `ddev start` builds it, CI restores or builds it before the tests, and the production image builds it on release. After you change a source, rebuild it:
 
 ```bash
 ddev exec -d /var/www/html/apps/mail npm run build
@@ -187,16 +187,7 @@ Then `ddev restart`. The site URL includes the port. `ddev start` writes that UR
 
 The planner uses SQLite at `apps/app/database/database.sqlite`. Tests use an in-memory SQLite database.
 
-DDEV also starts Postgres 16. To use it, set these in `apps/app/.env` and run `ddev artisan migrate`:
-
-```
-DB_CONNECTION=pgsql
-DB_HOST=db
-DB_PORT=5432
-DB_DATABASE=db
-DB_USERNAME=db
-DB_PASSWORD=db
-```
+Production uses SQLite too, in `storage/database/traceway.sqlite`. DDEV runs no database container.
 
 Queue, cache, and sessions use the same database. Redis is not required.
 

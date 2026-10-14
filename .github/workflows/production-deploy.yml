@@ -22,6 +22,7 @@ jobs:
   build:
     name: Build And Publish Production Image
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       image: ${{ steps.image.outputs.image }}
 
@@ -92,6 +93,9 @@ jobs:
 
       - name: Set Up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # The runner is thrown away, so tearing the builder down only costs time.
+          cleanup: false
 
       - name: Log In To GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -110,14 +114,19 @@ jobs:
           tags: |
             ${{ steps.image.outputs.image }}
             ${{ steps.image.outputs.name }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # A registry cache outlives the release tag it was made on. The Actions
+          # cache is scoped to one ref, so no release could reuse the last one.
+          # mode=min keeps only the layers of the final image, which the push has
+          # just sent, so the export is a manifest and nothing waits on it.
+          cache-from: type=registry,ref=${{ steps.image.outputs.name }}:buildcache
+          cache-to: type=registry,ref=${{ steps.image.outputs.name }}:buildcache,mode=min,ignore-error=true
           secret-files: |
             runtime_env=/tmp/traceway.runtime.env
 
   deploy:
     name: Deploy To Production
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: build
     environment:
       name: production

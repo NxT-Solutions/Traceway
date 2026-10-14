@@ -6,9 +6,8 @@ webserver_type: nginx-fpm
 xdebug_enabled: false
 additional_hostnames: []
 additional_fqdns: []
-database:
-    type: postgres
-    version: "16"
+# The app runs on SQLite everywhere. With no db container, DDEV leaves DB_* in .env alone.
+omit_containers: [db]
 hooks:
     post-start:
         - exec: bash .ddev/scripts/bootstrap.sh
