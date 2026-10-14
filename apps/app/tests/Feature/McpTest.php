@@ -145,6 +145,16 @@ it('says so when the routing engine finds no loop', function (): void {
     expect(SavedRoute::query()->count())->toBe(0);
 });
 
+it('asks for what is missing in plain words', function (): void {
+    TracewayServer::actingAs(User::factory()->create())
+        ->tool(PlanLoopTool::class, [])
+        ->assertHasErrors([
+            'Say where the loop starts, like "Westerlo, Belgium" or a street address.',
+            'Say which sport: road, gravel, mtb, run, trail_run, walk, or hike.',
+            'Say how far, in kilometres.',
+        ]);
+});
+
 it('refuses a sport it does not plan', function (): void {
     TracewayServer::actingAs(User::factory()->create())
         ->tool(PlanLoopTool::class, ['start' => 'Westerlo, Belgium', 'sport' => 'rowing', 'distance_km' => 10])
