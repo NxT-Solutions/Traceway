@@ -47,3 +47,9 @@ trap 'php artisan up || true' EXIT
 php artisan migrate --force
 php artisan optimize:clear
 php artisan optimize
+
+# Before the site opens again, every saved route gets its climb, turns, and
+# stops: the ones saved before Traceway kept them, and the multisport legs a
+# save left for later. A route the map servers cannot read is reported and
+# skipped, not a failed deploy; the scheduler tries it again later.
+php artisan routes:details --limit=1000
