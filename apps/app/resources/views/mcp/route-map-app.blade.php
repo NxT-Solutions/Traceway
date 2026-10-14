@@ -237,7 +237,6 @@
                  * the card and sent to Traceway's log, so a blocked map says why.
                  */
                 const report = {
-                    worker: 'not tried',
                     blocked: [],
                     policy: ''
                 };
@@ -251,7 +250,7 @@
 
                     $('report').hidden = false;
                     $('report').textContent = [
-                        `Background worker: ${report.worker}`,
+                        `Background worker: ${report.blocked.some((rule) => rule.startsWith('worker-src')) ? 'blocked' : 'allowed'}`,
                         `Blocked: ${report.blocked.join(', ') || 'nothing'}`,
                         `Chat app rules: ${report.policy || 'none reported'}`,
                     ].join('\n');
@@ -265,15 +264,16 @@
                     report.blocked.push(`${event.effectiveDirective} ${event.blockedURI}`);
                 });
 
+                // A worker the rules block shows up as a blocked worker-src.
                 if (document.querySelector('main').dataset.status === 'on') {
                     try {
                         new Worker(URL.createObjectURL(new Blob(['close()'], {
                             type: 'text/javascript'
                         }))).terminate();
-                        report.worker = 'allowed';
-                    } catch (error) {
-                        report.worker = `blocked (${error.name})`;
+                    } catch {
+                        report.blocked.push('worker-src blob (threw)');
                     }
+                }
                 }
 
                 /** A tool result's data, whether it came as structured content or as JSON text. */
