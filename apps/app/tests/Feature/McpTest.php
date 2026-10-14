@@ -19,6 +19,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
+use Laravel\Mcp\Server\Testing\TestResponse;
 
 uses(RefreshDatabase::class);
 
@@ -329,6 +330,22 @@ it('draws the plan in the chat with the Traceway map', function (): void {
     expect(new PlanLoopTool()->toArray()['_meta']['ui'] ?? null)->toBe(['resourceUri' => 'ui://traceway/route-map', 'visibility' => ['model', 'app']])
         ->and(new PlanMultisportTool()->toArray()['_meta']['ui']['resourceUri'] ?? null)->toBe('ui://traceway/route-map')
         ->and(new RouteDrawingTool()->toArray()['_meta']['ui']['visibility'] ?? null)->toBe(['app']);
+});
+
+it('sends the line for the map with the plan, outside what the model reads', function (): void {
+    $user = User::factory()->create();
+    $result = fn (TestResponse $testResponse): array => (fn (): array => $this->response->toArray()['result'])->call($testResponse);
+
+    $loop = $result(TracewayServer::actingAs($user)
+        ->tool(PlanLoopTool::class, ['start' => 'Westerlo, Belgium', 'sport' => 'road', 'distance_km' => 40]));
+    $brick = $result(TracewayServer::actingAs($user)
+        ->tool(PlanMultisportTool::class, ['start' => 'Westerlo, Belgium', 'event' => 'brick', 'race' => 'sprint']));
+
+    expect($loop['_meta'][RouteMapApp::DRAWING]['line'][0] ?? null)->toBe([4.92, 51.09])
+        ->and($loop['_meta'][RouteMapApp::DRAWING]['name'] ?? null)->toBe('40.4 km road ride from Westerlo')
+        ->and($loop['content'][0]['text'] ?? '')->not->toContain('"line"')
+        ->and($loop['structuredContent'])->not->toHaveKey('line')
+        ->and($brick['_meta'][RouteMapApp::DRAWING]['legs'] ?? [])->toHaveCount(2);
 });
 
 it('gives the map the line of a route the rider saved', function (): void {

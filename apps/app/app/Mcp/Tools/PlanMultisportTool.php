@@ -22,6 +22,7 @@ use App\Mcp\RaceDistances;
 use App\Mcp\RouteLinks;
 use App\Mcp\SportDefaults;
 use App\Mcp\StartPoint;
+use App\Queries\Routes\RouteDrawingQuery;
 use App\Queries\Routes\SignedRouteLink;
 use App\Routes\CoordinateLine;
 use App\Routes\RouteName;
@@ -50,6 +51,7 @@ use Throwable;
 final class PlanMultisportTool extends Tool
 {
     use ReadsArguments;
+    use SendsDrawing;
 
     private const array LAND_SPORTS = ['road', 'gravel', 'mtb', 'run', 'trail_run', 'walk', 'hike'];
 
@@ -58,6 +60,7 @@ final class PlanMultisportTool extends Tool
         MultisportPlanner $multisportPlanner,
         StartPoint $startPoint,
         DispatchesCommands $dispatchesCommands,
+        RouteDrawingQuery $routeDrawingQuery,
     ): Response|ResponseFactory {
         $riderId = $this->riderId($request);
 
@@ -156,7 +159,7 @@ final class PlanMultisportTool extends Tool
             return Response::error('The plan was made but could not be saved. Try again.');
         }
 
-        return $this->answer($saved->id, $name, $plan, $swimKm);
+        return $this->withDrawing($this->answer($saved->id, $name, $plan, $swimKm), $routeDrawingQuery, $saved->id, $riderId);
     }
 
     /**

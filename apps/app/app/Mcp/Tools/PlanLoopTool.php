@@ -19,6 +19,7 @@ use App\Mcp\Apps\RouteMapApp;
 use App\Mcp\RouteLinks;
 use App\Mcp\SportDefaults;
 use App\Mcp\StartPoint;
+use App\Queries\Routes\RouteDrawingQuery;
 use App\Routes\CoordinateLine;
 use App\Routes\RouteName;
 use App\Routes\SavedRouteLink;
@@ -45,12 +46,14 @@ use Throwable;
 final class PlanLoopTool extends Tool
 {
     use ReadsArguments;
+    use SendsDrawing;
 
     public function handle(
         Request $request,
         RoutingEngine $routingEngine,
         StartPoint $startPoint,
         DispatchesCommands $dispatchesCommands,
+        RouteDrawingQuery $routeDrawingQuery,
     ): Response|ResponseFactory {
         $riderId = $this->riderId($request);
 
@@ -141,7 +144,7 @@ final class PlanLoopTool extends Tool
         $links = RouteLinks::for($saved->id);
         $kilometres = RouteLinks::kilometres($route->distanceMetres);
 
-        return Response::structured([
+        return $this->withDrawing(Response::structured([
             'id' => $saved->id,
             'name' => $name,
             'sport' => $sport->value,
@@ -159,7 +162,7 @@ final class PlanLoopTool extends Tool
                 $links['garmin_url'],
                 $links['gpx_url'],
             ),
-        ]);
+        ]), $routeDrawingQuery, $saved->id, $riderId);
     }
 
     /**
