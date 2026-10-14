@@ -173,17 +173,21 @@ function canvas(size, draw) {
     return context.getImageData(0, 0, size, size);
 }
 
-/** A small ink chevron that rides the route and points the way. */
+/** A paper disc with an ink chevron, like the share page, pointing the way. */
 function arrowImage() {
-    return canvas(28, (context) => {
+    return canvas(36, (context, size) => {
+        context.fillStyle = paper;
+        context.beginPath();
+        context.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+        context.fill();
         context.strokeStyle = ink;
-        context.lineWidth = 3.4;
+        context.lineWidth = 3.6;
         context.lineCap = 'round';
         context.lineJoin = 'round';
         context.beginPath();
-        context.moveTo(10, 7);
-        context.lineTo(18, 14);
-        context.lineTo(10, 21);
+        context.moveTo(15, 11);
+        context.lineTo(22, 18);
+        context.lineTo(15, 25);
         context.stroke();
     });
 }
@@ -323,7 +327,7 @@ function addRoute(map, drawn, stops) {
         source: 'route',
         layout: {
             'symbol-placement': 'line',
-            'symbol-spacing': 80,
+            'symbol-spacing': 140,
             'icon-image': 'route-arrow',
             'icon-allow-overlap': true,
             'icon-ignore-placement': true,
@@ -452,6 +456,10 @@ export async function mount({ line, stage, status }) {
                 window.clearTimeout(timer);
                 addRoute(map, drawn, line?.stops ?? []);
                 map.once('idle', () => {
+                    // The credit starts folded, one tap away behind the i.
+                    holder
+                        .querySelector('.maplibregl-compact-show')
+                        ?.classList.remove('maplibregl-compact-show');
                     holder.classList.add('ready');
                     resolve(true);
                 });
