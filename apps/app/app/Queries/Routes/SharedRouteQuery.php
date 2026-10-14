@@ -6,7 +6,9 @@ namespace App\Queries\Routes;
 
 use App\Account\RiderId;
 use App\Contracts\Routes\RouteImageStore;
+use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
+use App\Queries\RowReader;
 use App\Routes\RouteId;
 use App\Routes\SavedLeg;
 
@@ -24,6 +26,8 @@ final readonly class SharedRouteQuery
         $rowReader = SavedRouteRow::find($routeId->value);
         $riderId = $rowReader->int('user_id');
         $drawnAt = $this->routeImageStore->drawnAt(new RiderId($riderId), $routeId);
+        $coordinates = $rowReader->line('coordinates');
+        $savedLegs = $rowReader->legs('legs');
 
         return new SharedRoute(
             name: $rowReader->string('name'),
@@ -33,16 +37,31 @@ final readonly class SharedRouteQuery
             roads: $rowReader->string('roads'),
             distanceMetres: $rowReader->int('distance_metres'),
             ascentMetres: $rowReader->int('ascent_metres'),
-            coordinates: $rowReader->line('coordinates'),
+            coordinates: $coordinates,
             gpxUrl: SignedRouteLink::gpx($routeId->value),
             fitUrl: SignedRouteLink::fit($routeId->value),
             layout: $rowReader->optionalString('layout'),
-            legs: $this->legs($routeId, $rowReader->legs('legs')),
+            legs: $this->legs($routeId, $savedLegs),
             details: $rowReader->details('details')?->toArray(),
             imageUrl: SignedRouteLink::image($routeId->value, $drawnAt),
             imageDrawn: $drawnAt !== null,
             riderId: $riderId,
+            shape: $savedLegs === [] ? $this->shape($rowReader, $coordinates) : null,
         );
+    }
+
+    /**
+     * How the route goes, so a shared link shows how it was planned.
+     *
+     * @param  list<array{0: float, 1: float}>  $coordinates
+     */
+    private function shape(RowReader $rowReader, array $coordinates): string
+    {
+        if (($rowReader->optionalLine('user_coordinates') ?? []) !== []) {
+            return 'drawn';
+        }
+
+        return Shape::of($coordinates)->value;
     }
 
     /**

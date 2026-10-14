@@ -10,13 +10,14 @@ use OpenApi\Attributes\Schema;
 
 #[Schema(
     schema: 'SharedRoute',
-    required: ['name', 'sport', 'surface', 'elevation', 'roads', 'distance_metres', 'ascent_metres', 'coordinates', 'gpx_url', 'fit_url', 'image_url', 'layout', 'legs', 'details'],
+    required: ['name', 'sport', 'surface', 'elevation', 'roads', 'shape', 'distance_metres', 'ascent_metres', 'coordinates', 'gpx_url', 'fit_url', 'image_url', 'layout', 'legs', 'details'],
     properties: [
         new Property(property: 'name', type: 'string'),
         new Property(property: 'sport', type: 'string'),
         new Property(property: 'surface', type: 'string'),
         new Property(property: 'elevation', type: 'string'),
         new Property(property: 'roads', type: 'string'),
+        new Property(property: 'shape', description: 'How the route goes: a loop, out and back, one way, or along points the rider drew. Null for a multisport plan.', type: 'string', nullable: true, enum: ['loop', 'out_and_back', 'point_to_point', 'drawn']),
         new Property(property: 'distance_metres', type: 'integer'),
         new Property(property: 'ascent_metres', type: 'integer'),
         new Property(property: 'coordinates', ref: '#/components/schemas/CoordinateLine'),
@@ -68,6 +69,7 @@ final readonly class SharedRoute
         public string $imageUrl = '',
         public bool $imageDrawn = false,
         public int $riderId = 0,
+        public ?string $shape = null,
     ) {}
 
     /**
@@ -77,6 +79,7 @@ final readonly class SharedRoute
      *     surface: string,
      *     elevation: string,
      *     roads: string,
+     *     shape: string|null,
      *     distance_metres: int,
      *     ascent_metres: int,
      *     coordinates: list<array{0: float, 1: float}>,
@@ -96,6 +99,7 @@ final readonly class SharedRoute
             'surface' => $this->surface,
             'elevation' => $this->elevation,
             'roads' => $this->roads,
+            'shape' => $this->shape,
             'distance_metres' => $this->distanceMetres,
             'ascent_metres' => $this->ascentMetres,
             'coordinates' => $this->coordinates,

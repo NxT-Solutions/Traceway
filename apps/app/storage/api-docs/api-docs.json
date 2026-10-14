@@ -2303,6 +2303,7 @@
                     "surface",
                     "elevation",
                     "roads",
+                    "shape",
                     "distance_metres",
                     "ascent_metres",
                     "coordinates",
@@ -2328,6 +2329,17 @@
                     },
                     "roads": {
                         "type": "string"
+                    },
+                    "shape": {
+                        "description": "How the route goes: a loop, out and back, one way, or along points the rider drew. Null for a multisport plan.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "loop",
+                            "out_and_back",
+                            "point_to_point",
+                            "drawn"
+                        ]
                     },
                     "distance_metres": {
                         "type": "integer"

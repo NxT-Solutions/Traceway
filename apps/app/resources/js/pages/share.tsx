@@ -1,7 +1,11 @@
 import { Head } from '@inertiajs/react';
 import * as maplibregl from 'maplibre-gl';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RouteProfile, SurfaceBar } from '@/components/route-details';
+import {
+    RouteCues,
+    RouteProfile,
+    SurfaceBar,
+} from '@/components/route-details';
 import { type PlayerLine, RoutePlayer } from '@/components/route-player';
 import { streetsMapStyle } from '@/lib/maplibre';
 import { legColour, legDeviceName } from '@/lib/multisport';
@@ -11,6 +15,7 @@ import {
 } from '@/lib/route-arrows';
 import {
     addDetailLayers,
+    markChosen,
     pointAlong,
     type RouteDetails,
     syncDetailLayers,
@@ -28,6 +33,7 @@ type SharedRoute = {
     surface: string;
     elevation: string;
     roads: string;
+    shape: 'loop' | 'out_and_back' | 'point_to_point' | 'drawn' | null;
     distance_metres: number;
     ascent_metres: number;
     coordinates: Coordinate[];
@@ -64,6 +70,57 @@ const surfaceLabel: Record<string, string> = {
     dirt: 'Dirt',
 };
 
+// The planner's words for what the rider asked, shown read-only here.
+const shapeLabel: Record<string, string> = {
+    loop: 'Loop',
+    out_and_back: 'Out and back',
+    point_to_point: 'One way',
+    drawn: 'Your own points',
+};
+
+const hillsLabel: Record<string, string> = {
+    neutral: 'Any',
+    minimize: 'Flat',
+    maximize: 'Hilly',
+};
+
+const roadsLabel: Record<string, string> = {
+    quiet: 'Quiet first',
+    any: 'Any road',
+};
+
+const layoutLabel: Record<string, string> = {
+    loops: 'Each leg a loop',
+    chain: 'One leg after another',
+};
+
+/**
+ * What the rider asked the planner for, so whoever opens the link knows how
+ * the ride was planned.
+ */
+function plannedWith(
+    route: SharedRoute,
+    kilometres: string,
+): [string, string][] {
+    if (route.legs.length > 0) {
+        return [
+            ['Plan', 'Multisport'],
+            ['Legs', layoutLabel[route.layout ?? ''] ?? 'Each leg a loop'],
+            ['Length', `${kilometres} km`],
+            ['Roads', roadsLabel[route.roads] ?? route.roads],
+        ];
+    }
+
+    return [
+        ['Shape', shapeLabel[route.shape ?? 'loop'] ?? 'Loop'],
+        ['Length', `${kilometres} km`],
+        ['Sport', sportLabel[route.sport] ?? route.sport],
+        ['Surface', surfaceLabel[route.surface] ?? route.surface],
+        ['Hills', hillsLabel[route.elevation] ?? route.elevation],
+        ['Roads', roadsLabel[route.roads] ?? route.roads],
+    ];
+}
+
 export default function Share({
     route,
     draw_image: drawImage = false,
@@ -78,6 +135,7 @@ export default function Share({
     const mapRef = useRef<maplibregl.Map | null>(null);
     const asideRef = useRef<HTMLElement>(null);
     const [copied, setCopied] = useState(false);
+    const [steepness, setSteepness] = useState(false);
     // A multisport plan shows one land leg's climb at a time.
     const detailLegs = route.legs.flatMap((leg, index) =>
         leg.details ? [index] : [],
@@ -133,16 +191,57 @@ export default function Share({
         );
     }, [drawImage, route]);
 
-    const shownLineRef = useRef({ line: shownLine, details: shownDetails });
-    shownLineRef.current = { line: shownLine, details: shownDetails };
+    const shownLineRef = useRef({
+        line: shownLine,
+        details: shownDetails,
+        steepness,
+    });
+    shownLineRef.current = {
+        line: shownLine,
+        details: shownDetails,
+        steepness,
+    };
 
     useEffect(() => {
         const map = mapRef.current;
 
         if (map?.isStyleLoaded()) {
-            syncDetailLayers(map, shownLine, shownDetails, false);
+            syncDetailLayers(map, shownLine, shownDetails, steepness);
         }
-    }, [shownLine, shownDetails]);
+    }, [shownLine, shownDetails, steepness]);
+
+    // A stop or turn chosen on another leg does not belong on this one.
+    useEffect(() => {
+        const map = mapRef.current;
+
+        if (map !== null && shownLine.length > 0) {
+            markChosen(map, null);
+        }
+    }, [shownLine]);
+
+    // Fly to a stop or a turn, clear of the card over the map.
+    const showOnMap = (point: Coordinate) => {
+        const map = mapRef.current;
+        const card = asideRef.current?.getBoundingClientRect();
+
+        if (map === null) {
+            return;
+        }
+
+        const beside =
+            card !== undefined && card.right < window.innerWidth * 0.6;
+        map.flyTo({
+            center: point,
+            zoom: Math.max(map.getZoom(), 16),
+            padding: {
+                top: !beside && card ? card.bottom + 16 : 48,
+                left: beside && card ? card.right + 24 : 24,
+                right: 48,
+                bottom: 96,
+            },
+        });
+        markChosen(map, point);
+    };
 
     useEffect(() => {
         const node = mapNode.current;
@@ -241,7 +340,7 @@ export default function Share({
                 map,
                 shownLineRef.current.line,
                 shownLineRef.current.details,
-                false,
+                shownLineRef.current.steepness,
             );
 
             const bounds = route.coordinates.reduce(
@@ -314,12 +413,6 @@ export default function Share({
                     {route.legs.length > 0
                         ? ` · Multisport · ${route.legs.length} legs`
                         : ` · ${sportLabel[route.sport] ?? route.sport}`}
-                    {route.legs.length > 0
-                        ? ''
-                        : ` · ${surfaceLabel[route.surface] ?? route.surface}`}
-                    {route.legs.length === 0 && route.roads === 'quiet'
-                        ? ' · Quiet roads'
-                        : ''}
                 </p>
                 {route.legs.length > 0 ? (
                     <ol className="legs">
@@ -365,6 +458,8 @@ export default function Share({
                     <div className="tw-details">
                         <RouteProfile
                             details={shownDetails}
+                            steepness={steepness}
+                            onSteepness={setSteepness}
                             onHover={(metres) => {
                                 const map = mapRef.current;
 
@@ -379,8 +474,32 @@ export default function Share({
                             }}
                         />
                         <SurfaceBar details={shownDetails} />
+                        <RouteCues
+                            details={shownDetails}
+                            onFocusPoint={(point) => {
+                                const map = mapRef.current;
+
+                                if (map !== null) {
+                                    syncHoverPoint(map, point);
+                                }
+                            }}
+                            onSelectPoint={showOnMap}
+                        />
                     </div>
                 )}
+                <section className="planned" aria-labelledby="planned-title">
+                    <h2 id="planned-title">How it was planned</h2>
+                    <dl>
+                        {plannedWith(route, kilometres).map(
+                            ([label, value]) => (
+                                <div key={label}>
+                                    <dt>{label}</dt>
+                                    <dd>{value}</dd>
+                                </div>
+                            ),
+                        )}
+                    </dl>
+                </section>
                 <div className="exports">
                     <a href={route.gpx_url}>GPX</a>
                     {route.legs.length > 0 ? (

@@ -348,6 +348,16 @@
 .tw-share .exports{display:flex;flex-wrap:wrap;gap:8px}
 .tw-share .exports a,.tw-share .exports button{display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 14px;border:1px solid #16303a;border-radius:10px;background:transparent;color:#16303a;font:inherit;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer}
 .tw-share .credit{margin:12px 0 0;font-size:13px;color:#5d6b62}
+.tw-share aside{max-height:calc(100dvh - 48px);overflow-y:auto;overscroll-behavior:contain}
+.tw-share .planned{margin:0 0 16px}
+.tw-share .planned h2{margin:0 0 2px;font-size:13px;font-weight:600;letter-spacing:0.02em;color:#5d6b62}
+.tw-share .planned dl{margin:0}
+.tw-share .planned div{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #e4e0d4;font-size:15px}
+.tw-share .planned dt{color:#5d6b62}
+.tw-share .planned dd{margin:0;font-weight:600;text-align:right}
+@media (max-width: 760px){
+  .tw-share aside{left:12px;top:12px;width:calc(100% - 24px);max-height:min(56dvh,calc(100dvh - 120px))}
+}
 .tw-share .credit a{color:#16303a;text-decoration:underline;text-underline-offset:2px}
 .tw-planner .outline{flex:1 1 0;height:42px;border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);font-size:15px;font-weight:500;cursor:pointer}
 .tw-planner .outline:hover{background:var(--hover)}

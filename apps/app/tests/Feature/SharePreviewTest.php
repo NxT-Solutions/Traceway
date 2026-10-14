@@ -52,6 +52,24 @@ it('shows only the map of a shared route inside a chat card, and only on a signe
     $this->get(route('routes.share.embed', $savedRoute))->assertForbidden();
 });
 
+it('tells whoever opens the link how the ride was planned', function (): void {
+    $outAndBack = SavedRoute::factory()->create();
+    $loop = SavedRoute::factory()->create(['coordinates' => [[4.0, 51.0], [4.02, 51.0], [4.02, 51.02], [4.0, 51.02], [4.0, 51.0]]]);
+    $drawn = SavedRoute::factory()->create(['user_coordinates' => [[4.0, 51.0], [4.01, 51.01]]]);
+    $brick = SavedRoute::factory()->create([
+        'layout' => 'loops',
+        'legs' => [['discipline' => 'road', 'distance_metres' => 20_000, 'ascent_metres' => 40, 'coordinates' => [[3.72, 51.05], [3.74, 51.06], [3.72, 51.05]]]],
+    ]);
+
+    foreach ([[$outAndBack, 'out_and_back'], [$loop, 'loop'], [$drawn, 'drawn'], [$brick, null]] as [$savedRoute, $shape]) {
+        $this->get(URL::signedRoute('routes.share', $savedRoute))
+            ->assertInertia(fn (Assert $assert): Assert => $assert
+                ->where('route.shape', $shape)
+                ->where('route.elevation', 'neutral')
+                ->where('route.roads', 'quiet'));
+    }
+});
+
 it('names each leg of a shared multisport plan', function (): void {
     $savedRoute = SavedRoute::factory()->create([
         'name' => 'Sunday brick',
