@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Mcp\Tools;
 
 use App\Queries\Routes\RouteDrawingQuery;
+use App\Queries\Routes\SignedRouteLink;
 use App\Routes\RouteId;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 
 /**
  * The answer to a plan. The model reads the text: the name, the distance,
- * and the links. The map in the chat reads the structured content, which
- * also carries the line, so it draws without asking the server again.
+ * and the links. The card in the chat reads the structured content, which
+ * also carries the line to draw and the map page to show over it.
  */
 trait AnswersWithDrawing
 {
@@ -25,6 +26,10 @@ trait AnswersWithDrawing
         $text = json_encode($plan, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         return new ResponseFactory(Response::text($text))
-            ->withStructuredContent($drawing === null ? $plan : [...$plan, 'drawing' => $drawing]);
+            ->withStructuredContent([
+                ...$plan,
+                'drawing' => $drawing,
+                'embed_url' => SignedRouteLink::embed($id),
+            ]);
     }
 }

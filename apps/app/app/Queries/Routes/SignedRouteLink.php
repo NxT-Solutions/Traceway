@@ -16,6 +16,11 @@ final class SignedRouteLink
         return URL::signedRoute('routes.share', ['savedRoute' => $id]);
     }
 
+    public static function embed(string $id): string
+    {
+        return URL::signedRoute('routes.share.embed', ['savedRoute' => $id]);
+    }
+
     public static function gpx(string $id): string
     {
         return URL::signedRoute('routes.share.gpx', ['savedRoute' => $id]);

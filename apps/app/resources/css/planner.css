@@ -340,6 +340,7 @@
 .tw-planner .btns .outline{display:inline-flex;align-items:center;justify-content:center;width:100%;min-width:0;flex:none;padding:0 10px}
 .tw-share{position:relative;height:100dvh;background:#f7f5ec;color:#16303a;font-family:Outfit,system-ui,sans-serif}
 .tw-share .map{position:absolute;inset:0}
+.tw-share-embed{height:100vh;background:#071f20}
 .tw-share aside{position:absolute;left:24px;top:24px;z-index:2;width:min(360px,calc(100% - 48px));padding:18px 20px;border:1px solid #e4e0d4;border-radius:16px;background:#fbfaf4;box-shadow:0 24px 48px -32px rgb(22 48 58 / 0.35)}
 .tw-share .mark{margin:0 0 6px;font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5d6b62}
 .tw-share h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-0.02em}
