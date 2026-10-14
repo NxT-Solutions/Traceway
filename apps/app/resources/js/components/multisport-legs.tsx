@@ -114,6 +114,8 @@ export function MultisportLegs({
     onRemove,
     onMove,
     onPlaceFinish,
+    transitionName,
+    onFindTransition,
 }: {
     legs: LandLeg[];
     layout: Layout;
@@ -135,6 +137,10 @@ export function MultisportLegs({
     onRemove: (index: number) => void;
     onMove: (from: number, to: number) => void;
     onPlaceFinish: (index: number) => void;
+    /** The place around the transition, once it has a name. */
+    transitionName: string | null;
+    /** Opens the search for where the transition is. */
+    onFindTransition: () => void;
 }) {
     const offset = swim === null ? 1 : 2;
     const legDrag = useDragReorder(
@@ -234,18 +240,23 @@ export function MultisportLegs({
                             ? `Tap where leg ${placing.leg + offset} ends`
                             : drawingSwim
                               ? 'Tap the water to draw the swim'
-                              : 'Tap the map to move the transition'}
+                              : 'Search, or tap the map'}
                     </p>
                 </div>
                 <div className="pts" ref={legDrag.listRef}>
-                    <div className="pt">
+                    <div className="pt" data-transition>
                         <span className="mark start" aria-hidden="true">
                             <span />
                         </span>
-                        <div className="field">
-                            <span>Transition</span>
+                        <button
+                            type="button"
+                            className="field"
+                            onClick={onFindTransition}
+                        >
+                            <span>{transitionName ?? 'Transition'}</span>
                             <small>T</small>
-                        </div>
+                            <span className="vh">Change the transition</span>
+                        </button>
                     </div>
                     {swim === null ? null : (
                         <div className={drawingSwim ? 'pt on' : 'pt'}>

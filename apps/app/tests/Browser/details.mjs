@@ -283,6 +283,8 @@ try {
     }
 
     const chart = page.locator('.tw-details-chart').first();
+    // The panel scrolls; the chart may sit below its fold.
+    await chart.scrollIntoViewIfNeeded();
     const box = await chart.boundingBox();
     await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 2);
     await page.locator('.tw-details-tip').waitFor({ timeout: 3000 });

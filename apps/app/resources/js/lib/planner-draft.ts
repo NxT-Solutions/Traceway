@@ -10,6 +10,14 @@ export function plannerDraftKey(userId: number): string {
 }
 
 /**
+ * The places a rider picked lately, kept apart per rider and forgotten on
+ * log out with the draft.
+ */
+export function recentPlacesKey(userId: number): string {
+    return `${prefix}places.${userId}`;
+}
+
+/**
  * Before drafts had a rider's id in the key, every rider on a browser
  * shared this one. It may belong to someone else, so it is dropped.
  */

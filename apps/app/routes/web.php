@@ -15,6 +15,7 @@ use App\Http\Controllers\RedoImportedRouteController;
 use App\Http\Controllers\RouteDetailsController;
 use App\Http\Controllers\RouteStopsController;
 use App\Http\Controllers\SavedRouteLibraryController;
+use App\Http\Controllers\SearchPlacesController;
 use App\Http\Controllers\ShowSavedRouteDetailsController;
 use App\Http\Controllers\ShowSharedRouteController;
 use App\Http\Controllers\ShowSharedRouteEmbedController;
@@ -64,6 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('routes/multisport', PreviewMultisportController::class)->name('routes.multisport');
     Route::post('routes/snap', SnapPointController::class)->name('routes.snap');
     Route::post('routes/place', NamePlaceController::class)->middleware('throttle:places')->name('routes.place');
+    Route::post('routes/places', SearchPlacesController::class)->middleware('throttle:places')->name('routes.places');
     Route::post('routes/details', RouteDetailsController::class)->middleware('throttle:map')->name('routes.details');
     Route::post('routes/stops', RouteStopsController::class)->middleware('throttle:map')->name('routes.stops');
     Route::post('routes/fit', ExportFitCourseController::class)->middleware('throttle:map')->name('routes.fit');

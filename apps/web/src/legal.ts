@@ -81,7 +81,7 @@ export const privacy: LegalPage = {
                 '**Hetzner Online** hosts the server and the database, in Germany.',
                 '**Cloudflare** keeps the backup copies of the database.',
                 '**Resend** sends the account email. It gets your email address and the message. For a copy of your data, that includes the file.',
-                '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names, and the [OpenFreeMap](https://openfreemap.org) map tiles for water, toilets, and cafés. The Traceway server sends them the points of a route, the name of a place, a pin rounded to about 100 metres, or which map tiles a route crosses. It never sends your name or email address.',
+                '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names, and the [OpenFreeMap](https://openfreemap.org) map tiles for water, toilets, and cafés. The Traceway server sends them the points of a route, the name of a place, a place you search for with the middle of your map rounded to about 10 kilometres, a pin rounded to about 100 metres, or which map tiles a route crosses. It never sends your name or email address.',
                 '**Your own browser** loads the map itself from [OpenFreeMap](https://openfreemap.org). Like any website, it sees your IP address and the part of the map you look at. Everything else goes through Traceway.',
             ],
             after: [
@@ -118,6 +118,7 @@ export const privacy: LegalPage = {
                 '**A pairing code:** 10 minutes.',
                 '**Unsaved routes and their details:** up to two hours, not linked to you.',
                 '**Place names:** 30 days, for a pin rounded to about 100 metres, not linked to you.',
+                '**Place searches:** 30 days, for the words you typed and the middle of your map rounded to about 10 kilometres, not linked to you.',
                 '**An email that could not be sent:** up to a day, so the problem can be found. Then it is deleted.',
                 '**Backups:** something you delete can stay in a backup for up to 14 days. Then it is gone.',
                 '**Error logs:** only the latest. Older lines are overwritten automatically.',
@@ -279,7 +280,7 @@ export const cookies: LegalPage = {
                 'A few things are kept in your own browser’s storage. They stay on your device.',
             ],
             items: [
-                '**traceway.planner…** keeps the route you were planning, so it is still there when you come back.',
+                '**traceway.planner…** keeps the route you were planning, so it is still there when you come back, and the last few places you picked in a search. It is cleared when you log out.',
                 '**traceway.library.layout** remembers whether your library shows a grid, a map, or a list.',
                 '**appearance** keeps your light or dark choice here too.',
             ],

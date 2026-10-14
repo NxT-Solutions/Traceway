@@ -8,7 +8,8 @@ declare(strict_types=1);
 | calls that describe a line with a hill, two turns, and a gravel end, so the
 | climb chart, the surfaces, and the turns show without a fair-use router. It
 | also stands in for the map tiles with no stops, and for Nominatim with one
-| village name for every pin, so no test waits on those servers.
+| village name for every pin and the same two places for every search, so no
+| test waits on those servers.
 | A push to main keeps the real ones.
 |
 |   php -S 127.0.0.1:8002 tests/Browser/valhalla-stub.php
@@ -177,6 +178,24 @@ if (str_starts_with($path, '/planet/stub/')) {
     return;
 }
 
+// Two places for any search, the town first, so a test can pick one.
+if ($path === '/search') {
+    reply(200, [
+        [
+            'lat' => '51.0907', 'lon' => '4.9166', 'name' => 'Westerlo',
+            'display_name' => 'Westerlo, Turnhout, Antwerp, Flanders, Belgium',
+            'address' => ['town' => 'Westerlo', 'county' => 'Turnhout', 'country' => 'Belgium'],
+        ],
+        [
+            'lat' => '51.1012', 'lon' => '4.9411', 'name' => 'Oevel',
+            'display_name' => 'Oevel, Westerlo, Turnhout, Antwerp, Belgium',
+            'address' => ['village' => 'Oevel', 'town' => 'Westerlo', 'country' => 'Belgium'],
+        ],
+    ]);
+
+    return;
+}
+
 if ($path === '/reverse') {
     reply(200, ['name' => 'Stubbington', 'address' => ['village' => 'Stubbington']]);
 
@@ -184,5 +203,5 @@ if ($path === '/reverse') {
 }
 
 reply(in_array($path, ['/route', '/locate'], strict: true) ? 400 : 404, [
-    'error' => 'The stub answers /route, /locate, /trace_route, /trace_attributes, /height, /planet, its tiles, and /reverse.',
+    'error' => 'The stub answers /route, /locate, /trace_route, /trace_attributes, /height, /planet, its tiles, /search, and /reverse.',
 ]);
