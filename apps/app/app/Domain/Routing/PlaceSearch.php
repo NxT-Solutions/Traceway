@@ -11,9 +11,10 @@ namespace App\Domain\Routing;
 interface PlaceSearch
 {
     /**
-     * The places that match, the ones near the given point first.
+     * The places that match, the ones near the given point first, named in
+     * the given language where the map has a name in it.
      *
      * @return list<PlaceMatch>
      */
-    public function search(string $query, float $nearLatitude, float $nearLongitude): array;
+    public function search(string $query, float $nearLatitude, float $nearLongitude, string $language = 'en'): array;
 }

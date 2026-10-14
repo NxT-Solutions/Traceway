@@ -89,6 +89,7 @@ use App\Routes\CachedPlaceSearch;
 use App\Routes\CachedRouteDetails;
 use App\Routes\PacedPlaceFinder;
 use App\Routes\PlaceSearchPace;
+use App\Routes\RelaxedPlaceSearch;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -185,11 +186,11 @@ class AppServiceProvider extends ServiceProvider
             new PlaceSearchPace($this->app->make(CacheRepository::class)),
         ));
 
-        $this->app->bind(fn (): PlaceSearch => new CachedPlaceSearch(
+        $this->app->bind(fn (): PlaceSearch => new RelaxedPlaceSearch(new CachedPlaceSearch(
             new NominatimPlaceSearch($this->nominatimConnector()),
             $this->app->make(CacheRepository::class),
             new PlaceSearchPace($this->app->make(CacheRepository::class)),
-        ));
+        )));
 
         $this->app->bind(ReleaseFeed::class, fn (): ReleaseNotesDirectory => new ReleaseNotesDirectory(resource_path('releases')));
         $this->app->bind(ReleaseNotesDirectory::class, fn (): ReleaseNotesDirectory => new ReleaseNotesDirectory(resource_path('releases')));

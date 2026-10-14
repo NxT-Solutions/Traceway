@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\PlaceKind;
 use App\Domain\Routing\PlaceMatch;
 use App\Domain\Routing\PlaceSearch;
 use App\Integrations\Nominatim\Requests\SearchRequest;
@@ -27,7 +28,7 @@ function findsPlaces(array|Throwable $answer): void
          */
         public function __construct(private array|Throwable $answer) {}
 
-        public function search(string $query, float $nearLatitude, float $nearLongitude): array
+        public function search(string $query, float $nearLatitude, float $nearLongitude, string $language = 'en'): array
         {
             throw_if($this->answer instanceof Throwable, $this->answer);
 
@@ -37,13 +38,13 @@ function findsPlaces(array|Throwable $answer): void
 }
 
 it('finds places by name for a rider', function (): void {
-    findsPlaces([new PlaceMatch('Westerlo', 'Turnhout, Belgium', 51.0907, 4.9166)]);
+    findsPlaces([new PlaceMatch('Westerlo', 'Turnhout, Belgium', 51.0907, 4.9166, PlaceKind::Town)]);
 
     $this->actingAs(User::factory()->create())
-        ->postJson(route('routes.places'), ['query' => 'Westerlo', 'latitude' => 51.1, 'longitude' => 4.9])
+        ->postJson(route('routes.places'), ['query' => 'Westerlo', 'latitude' => 51.1, 'longitude' => 4.9, 'language' => 'nl'])
         ->assertOk()
         ->assertExactJson(['places' => [
-            ['name' => 'Westerlo', 'area' => 'Turnhout, Belgium', 'latitude' => 51.0907, 'longitude' => 4.9166],
+            ['name' => 'Westerlo', 'area' => 'Turnhout, Belgium', 'latitude' => 51.0907, 'longitude' => 4.9166, 'kind' => 'town'],
         ]]);
 });
 
@@ -105,9 +106,9 @@ it('turns away a search that is too short or a point that is not on the map', fu
     findsPlaces([]);
 
     $this->actingAs(User::factory()->create())
-        ->postJson(route('routes.places'), ['query' => 'W', 'latitude' => 91, 'longitude' => 4.9])
+        ->postJson(route('routes.places'), ['query' => 'W', 'latitude' => 91, 'longitude' => 4.9, 'language' => 'dutch'])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['query', 'latitude']);
+        ->assertJsonValidationErrors(['query', 'latitude', 'language']);
 });
 
 it('finds places only for a signed-in rider', function (): void {

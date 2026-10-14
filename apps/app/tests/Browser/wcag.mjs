@@ -119,9 +119,9 @@ try {
     await desktop.goto(`${base}/dashboard`, { waitUntil: 'domcontentloaded' });
     await desktop.getByRole('tab', { name: 'Generate' }).click();
     await desktop.getByRole('button', { name: /^Start\b/ }).click();
-    await desktop.getByRole('searchbox', { name: 'Search for the start' }).fill('Westerlo');
+    await desktop.getByRole('combobox', { name: 'Search for your start' }).fill('Westerlo');
     await desktop.keyboard.press('Enter');
-    await desktop.getByRole('button', { name: /^Westerlo\b/ }).first().waitFor({ timeout: 15000 });
+    await desktop.getByRole('option', { name: /^Westerlo\b/ }).first().waitFor({ timeout: 15000 });
     await audit(desktop, '/dashboard place search');
     await desktop.keyboard.press('Escape');
     await desktop.waitForFunction(() => !document.querySelector('[data-slot="sheet-content"][data-state="open"]'));

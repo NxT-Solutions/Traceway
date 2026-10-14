@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\PlaceKind;
 use App\Domain\Routing\PlaceMatch;
 use App\Domain\Routing\PlaceSearch;
 use App\Routes\CachedPlaceSearch;
@@ -26,7 +27,7 @@ function countingPlaceSearch(bool $down = false): PlaceSearch
 {
     return new class($down) implements PlaceSearch
     {
-        /** @var list<array{0: string, 1: float, 2: float}> */
+        /** @var list<array{0: string, 1: float, 2: float, 3: string}> */
         public array $asked = [];
 
         public function __construct(private readonly bool $down) {}
@@ -34,13 +35,13 @@ function countingPlaceSearch(bool $down = false): PlaceSearch
         /**
          * @return list<PlaceMatch>
          */
-        public function search(string $query, float $nearLatitude, float $nearLongitude): array
+        public function search(string $query, float $nearLatitude, float $nearLongitude, string $language = 'en'): array
         {
-            $this->asked[] = [$query, $nearLatitude, $nearLongitude];
+            $this->asked[] = [$query, $nearLatitude, $nearLongitude, $language];
 
             throw_if($this->down, RuntimeException::class, 'The place search did not answer.');
 
-            return [new PlaceMatch('Westerlo', 'Turnhout, Belgium', 51.0907, 4.9166)];
+            return [new PlaceMatch('Westerlo', 'Turnhout, Belgium', 51.0907, 4.9166, PlaceKind::Town)];
         }
     };
 }
@@ -55,10 +56,10 @@ function cachedPlaceSearch(PlaceSearch $placeSearch, ?Repository $repository = n
 it('searches near the map rounded to about ten kilometres, not where the rider looks', function (): void {
     $placeSearch = countingPlaceSearch();
 
-    $matches = cachedPlaceSearch($placeSearch)->search('Westerlo', 51.123456, 4.987654);
+    $matches = cachedPlaceSearch($placeSearch)->search('Westerlo', 51.123456, 4.987654, 'nl');
 
-    expect($matches)->toEqual([new PlaceMatch('Westerlo', 'Turnhout, Belgium', 51.0907, 4.9166)])
-        ->and($placeSearch->asked)->toBe([['westerlo', 51.1, 5.0]]);
+    expect($matches)->toEqual([new PlaceMatch('Westerlo', 'Turnhout, Belgium', 51.0907, 4.9166, PlaceKind::Town)])
+        ->and($placeSearch->asked)->toBe([['westerlo', 51.1, 5.0, 'nl']]);
 });
 
 it('asks once for the same words typed differently near the same place', function (): void {
@@ -70,8 +71,10 @@ it('asks once for the same words typed differently near the same place', functio
     $first = $cachedPlaceSearch->search('  WESTERLO ', 51.12, 5.01);
     $cachedPlaceSearch->search('Westerlo', 50.5, 4.98);
 
-    expect($first)->toEqual([new PlaceMatch('Westerlo', 'Turnhout, Belgium', 51.0907, 4.9166)])
-        ->and($placeSearch->asked)->toHaveCount(2);
+    $cachedPlaceSearch->search('Westerlo', 51.11, 4.98, 'fr');
+
+    expect($first)->toEqual([new PlaceMatch('Westerlo', 'Turnhout, Belgium', 51.0907, 4.9166, PlaceKind::Town)])
+        ->and($placeSearch->asked)->toHaveCount(3);
 });
 
 it('is busy, without asking, when another search has the turn', function (): void {

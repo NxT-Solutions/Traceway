@@ -759,16 +759,44 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
 .tw-planner .tap-card .outline{flex:none;width:100%}
 /* Undo after a pin moved or a point came or went */
 .tw-planner .undobar{position:absolute;left:50%;bottom:100px;transform:translateX(-50%);z-index:4;display:flex;align-items:center;gap:12px;margin:0;padding:6px 6px 6px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--panel-b);box-shadow:var(--shadow);font-size:14px;color:var(--text);white-space:nowrap}
-@media (max-width: 1023px){.tw-planner .undobar{bottom:auto;top:68px}}
+@media (max-width: 1023px){.tw-planner .undobar{bottom:auto}}
 .tw-planner .undobar button{height:34px;padding:0 12px;border:0;border-radius:8px;background:var(--hover);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
 .tw-planner .build-pin.draggable{pointer-events:auto;cursor:grab;touch-action:none}
 .tw-planner .build-pin.draggable:active{cursor:grabbing}
 .tw-planner .tw-start-pin,.tw-planner .tw-via-pin{cursor:grab;touch-action:none}
 .tw-planner .tw-start-pin:active,.tw-planner .tw-via-pin:active{cursor:grabbing}
-/* Place search inside a sheet */
-body:has(.tw-planner) .tw-pop .place-search{margin-top:16px}
-body:has(.tw-planner) .tw-pop .place-form{display:flex;gap:8px;align-items:center}
-body:has(.tw-planner) .tw-pop .place-form .outline.sm{height:40px}
-body:has(.tw-planner) .tw-pop .place-search > .small{margin:8px 0 12px}
-body:has(.tw-planner) .tw-pop .place-list{margin:0;padding:0;list-style:none}
-body:has(.tw-planner) .tw-pop .place-list button.choice:focus-visible{outline:none;border-color:var(--text);box-shadow:0 0 0 1px var(--text)}
+/* The search bar on the map: right of the panel on a wide screen, across the top on a phone */
+.tw-planner .map-search{position:absolute;left:448px;top:24px;z-index:5;width:min(420px,calc(100% - 448px - 88px));color:var(--text)}
+.tw-planner .map-search-bar{display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 14px;border:1px solid var(--panel-b);border-radius:12px;background:var(--panel);box-shadow:var(--shadow)}
+.tw-planner .map-search.open .map-search-bar{border-bottom-left-radius:0;border-bottom-right-radius:0;box-shadow:none}
+.tw-planner .map-search-bar:focus-within{border-color:var(--text);box-shadow:0 0 0 1px var(--text),var(--shadow)}
+.tw-planner .map-search-bar .lead{flex:0 0 auto;color:var(--muted)}
+.tw-planner .map-search-bar input{flex:1 1 auto;min-width:0;height:100%;border:0;background:transparent;color:var(--text);font:inherit;font-size:16px}
+/* The ring is on the whole bar, through :focus-within above */
+.tw-planner .map-search-bar input:focus{outline:none;box-shadow:none}
+.tw-planner .map-search-bar input::placeholder{color:var(--muted)}
+.tw-planner .map-search-bar .clear{flex:0 0 auto;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer}
+.tw-planner .map-search-bar .clear:hover{background:var(--hover);color:var(--text)}
+.tw-planner .map-search .purpose{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 4px 0 10px;border-radius:13px;background:var(--chart);color:var(--chart-ink);font-size:13px;font-weight:600}
+.tw-planner .map-search .purpose button{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;background:transparent;color:inherit;cursor:pointer}
+.tw-planner .map-search-note:empty{display:none}
+.tw-planner .map-search-note{margin:0;padding:10px 14px;border:1px solid var(--panel-b);border-top:0;background:var(--panel);font-size:13px;color:var(--muted)}
+.tw-planner .map-search-list{max-height:min(60vh,420px);overflow-y:auto;border:1px solid var(--panel-b);border-top:0;border-radius:0 0 12px 12px;background:var(--panel);box-shadow:var(--shadow)}
+.tw-planner .map-search-list[hidden]{display:none}
+.tw-planner .map-search-note:not(:empty):has(+ .map-search-list[hidden]){border-radius:0 0 12px 12px;box-shadow:var(--shadow)}
+.tw-planner .map-search-list [role="option"]{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 14px;border-top:1px solid var(--hair);cursor:pointer}
+.tw-planner .map-search-list [role="option"]:first-child{border-top:0}
+.tw-planner .map-search-list [role="option"] svg{flex:0 0 auto;color:var(--muted)}
+.tw-planner .map-search-list [role="option"].on{background:var(--hover)}
+.tw-planner .map-search-list .t{display:flex;flex-direction:column;gap:1px;min-width:0}
+.tw-planner .map-search-list .t b{font-weight:500;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tw-planner .map-search-list .t small{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tw-planner .maphint{top:84px}
+@media (max-width: 1023px){
+  .tw-planner .map-search{left:12px;right:72px;top:12px;width:auto}
+  .tw-planner .player{top:72px}
+  .tw-planner .maphint{top:72px}
+  .tw-planner .undobar{top:72px}
+  .tw-planner .app:has(.player-card) .maphint,
+  .tw-planner .app:has(.player-card) .undobar{top:140px}
+}

@@ -43,12 +43,13 @@ class SearchPlacesController extends Controller
             required: ['places'],
             properties: [
                 new Property(property: 'places', type: 'array', items: new Items(
-                    required: ['name', 'area', 'latitude', 'longitude'],
+                    required: ['name', 'area', 'latitude', 'longitude', 'kind'],
                     properties: [
                         new Property(property: 'name', type: 'string'),
                         new Property(property: 'area', type: 'string'),
                         new Property(property: 'latitude', type: 'number'),
                         new Property(property: 'longitude', type: 'number'),
+                        new Property(property: 'kind', type: 'string', enum: ['address', 'street', 'town', 'place']),
                     ],
                     type: 'object',
                 )),
@@ -78,6 +79,7 @@ class SearchPlacesController extends Controller
                 $searchPlacesRequest->string('query')->toString(),
                 $searchPlacesRequest->float('latitude'),
                 $searchPlacesRequest->float('longitude'),
+                $searchPlacesRequest->language(),
             );
         } catch (PlaceSearchBusy) {
             return $this->busy();
@@ -93,6 +95,7 @@ class SearchPlacesController extends Controller
                 'area' => $placeMatch->area,
                 'latitude' => $placeMatch->latitude,
                 'longitude' => $placeMatch->longitude,
+                'kind' => $placeMatch->kind->value,
             ], $matches),
         ]);
     }
