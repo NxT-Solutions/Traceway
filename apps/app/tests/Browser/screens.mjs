@@ -54,6 +54,7 @@ async function openLists(page) {
 }
 
 let shared = null;
+let savedName = null;
 
 const pages = [
     {
@@ -74,6 +75,11 @@ const pages = [
             await page.getByRole('tab', { name: 'Generate' }).click();
             await page.locator('button.fill').click();
             await page.locator('.tw-details-chart').first().waitFor({ timeout: routing });
+            // Saved here, so the library and the shared link have a route
+            // on a fresh database too.
+            savedName = (await page.locator('.route-title').first().innerText()).trim();
+            await page.getByRole('button', { name: 'Save to profile' }).click();
+            await page.getByRole('button', { name: 'Saved', exact: true }).waitFor({ timeout: routing });
         },
     },
     {
@@ -81,7 +87,7 @@ const pages = [
         url: '/saved',
         auth: true,
         prepare: async (page) => {
-            await page.getByText('Morning loop').first().click();
+            await page.getByText(savedName ?? 'Morning loop').first().click();
             await openLists(page);
             shared = await page.getByRole('link', { name: 'Open' }).first().getAttribute('href');
         },
