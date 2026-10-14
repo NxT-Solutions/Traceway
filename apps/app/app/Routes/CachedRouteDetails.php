@@ -15,7 +15,8 @@ use ValueError;
 /**
  * Remembers the details of a line for an hour. The planner reads them when
  * the line is drawn, and saving the same line straight after reads them
- * again. Stops are kept only when the stop finder answered.
+ * again. Details with a part missing, and stops the finder did not answer
+ * for, are not kept, so the next read tries again.
  */
 final readonly class CachedRouteDetails implements RouteDetailsSource
 {
@@ -51,7 +52,10 @@ final readonly class CachedRouteDetails implements RouteDetailsSource
         }
 
         $routeDetails = $this->routeDetailsSource->road($sport, $line);
-        $this->repository->put($key, $routeDetails->toArray(), self::SECONDS);
+
+        if ($routeDetails->complete) {
+            $this->repository->put($key, $routeDetails->toArray(), self::SECONDS);
+        }
 
         return $routeDetails;
     }

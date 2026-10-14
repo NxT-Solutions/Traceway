@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\Account\RiderId;
 use App\Commands\SaveRouteCommand;
 use App\Contracts\Routes\SavedRouteRepository;
+use App\Domain\Routing\Details\RouteDetails;
 use App\Models\SavedRoute;
 use App\Routes\ForeignRoute;
 use App\Routes\MissingRoute;
@@ -41,6 +42,33 @@ final readonly class EloquentSavedRouteRepository implements SavedRouteRepositor
 
             return $savedRoute->id;
         });
+    }
+
+    /**
+     * @param SavedLeg[] $legs
+     */
+    public function storeDetails(RouteId $routeId, ?RouteDetails $routeDetails, array $legs, ?int $ascentMetres): void
+    {
+        $values = ['details_tried_at' => now()];
+
+        if ($routeDetails instanceof RouteDetails) {
+            $values['details'] = json_encode($routeDetails->toArray(), JSON_THROW_ON_ERROR);
+        }
+
+        if ($legs !== []) {
+            $values['legs'] = json_encode(array_map(fn (SavedLeg $savedLeg): array => $savedLeg->toStored(), $legs), JSON_THROW_ON_ERROR);
+        }
+
+        if ($ascentMetres !== null) {
+            $values['ascent_metres'] = $ascentMetres;
+        }
+
+        DB::table('saved_routes')->where('id', $routeId->value)->update($values);
+    }
+
+    public function noteDetailsTried(RouteId $routeId): void
+    {
+        DB::table('saved_routes')->where('id', $routeId->value)->update(['details_tried_at' => now()]);
     }
 
     public function owns(RouteId $routeId, RiderId $riderId): bool

@@ -28,3 +28,16 @@ it('keeps the road and leaves out the stops when the stop finder does not answer
 
     expect(fn (): array => $cachedRouteDetails->stops(Sport::Road, [[4.9, 51.1], [4.93, 51.12]]))->toThrow(RuntimeException::class);
 });
+
+it('reads a line again when part of it came back without details', function (): void {
+    $fixedRouteDetails = new FixedRouteDetails;
+    $fixedRouteDetails->complete = false;
+
+    $cachedRouteDetails = new CachedRouteDetails($fixedRouteDetails, new Repository(new ArrayStore));
+    $line = [[4.9, 51.1], [4.93, 51.12], [4.9, 51.1]];
+
+    $cachedRouteDetails->road(Sport::Road, $line);
+    $cachedRouteDetails->road(Sport::Road, $line);
+
+    expect($fixedRouteDetails->asked)->toHaveCount(2);
+});

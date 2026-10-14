@@ -156,7 +156,8 @@ it('keeps the heights when the turns do not come back', function (): void {
 
     expect($roadDescription->profile)->toHaveCount(2)
         ->and($roadDescription->cues)->toBe([])
-        ->and($roadDescription->surfaces[0]->surface)->toBe(RoadSurface::Unknown);
+        ->and($roadDescription->surfaces[0]->surface)->toBe(RoadSurface::Unknown)
+        ->and($roadDescription->complete)->toBeFalse();
 });
 
 it('fails when the server answers nothing at all', function (): void {

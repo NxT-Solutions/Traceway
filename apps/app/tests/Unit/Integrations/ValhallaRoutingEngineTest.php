@@ -15,6 +15,7 @@ use App\Integrations\Valhalla\Requests\RouteRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Integrations\Valhalla\ValhallaRoutingEngine;
+use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
@@ -172,3 +173,58 @@ it('snaps a whole line onto the roads, and gives up on one matched in parts', fu
     'one piece' => [1, true],
     'in parts' => [2, false],
 ]);
+
+it('takes a snap that times out or answers an error page as no match, so the points are followed', function (MockResponse $mockResponse): void {
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient(new MockClient([TraceRouteRequest::class => $mockResponse]));
+
+    expect(new ValhallaRoutingEngine($connector)->match(new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::PointToPoint,
+        distanceMetres: 5_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    ), [[4.0, 51.0], [4.01, 51.0], [4.02, 51.0]]))->toBeNull();
+})->with([
+    'a timeout' => fn (): MockResponse => MockResponse::make()->throw(fn (PendingRequest $pendingRequest): FatalRequestException => new FatalRequestException(new RuntimeException('Timed out'), $pendingRequest)),
+    'an error page' => fn (): MockResponse => MockResponse::make('<html>Gateway timeout</html>', 504),
+]);
+
+it('keeps the start and the finish of a loop facing their own ways', function (): void {
+    $bodies = [];
+    $mock = new MockClient([
+        RouteRequest::class => function (PendingRequest $pendingRequest) use (&$bodies): MockResponse {
+            /** @var array{locations: list<array{lon: float, lat: float}>} $body */
+            $body = $pendingRequest->body()?->all();
+            $bodies[] = $body;
+            $line = array_map(fn (array $location): array => [$location['lon'], $location['lat']], $body['locations']);
+
+            return MockResponse::make(['trip' => ['summary' => ['length' => 1.0], 'legs' => [['shape' => Polyline::encode($line)]]]], 200);
+        },
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    new ValhallaRoutingEngine($connector)->follow(new RouteQuery(
+        sport: Sport::Run,
+        shape: Shape::PointToPoint,
+        distanceMetres: 5_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    ), [
+        new FollowPoint([4.0, 51.0], 90),
+        new FollowPoint([4.01, 51.0], 0),
+        new FollowPoint([4.01, 51.01], 270),
+        new FollowPoint([4.0, 51.01], 180),
+        new FollowPoint([4.0, 51.0], 45),
+    ]);
+
+    $locations = $bodies[0]['locations'] ?? [];
+
+    expect($locations[0]['heading'] ?? null)->toBe(90)
+        ->and(array_last($locations)['heading'] ?? null)->toBe(45);
+});

@@ -52,7 +52,7 @@ final readonly class SaveRouteCommand
             elevation: $this->elevation,
             roads: $this->roads,
             distanceMetres: $this->distanceMetres,
-            ascentMetres: $routeDetails instanceof RouteDetails ? $routeDetails->ascentMetres : $this->legAscent($legs) ?? $this->ascentMetres,
+            ascentMetres: $routeDetails instanceof RouteDetails && $routeDetails->hasClimb() ? $routeDetails->ascentMetres : $this->legAscent($legs) ?? $this->ascentMetres,
             coordinates: $this->coordinates,
             userCoordinates: $this->userCoordinates,
             finishCoordinates: $this->finishCoordinates,

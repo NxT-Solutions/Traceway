@@ -14,6 +14,7 @@ use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
 use InvalidArgumentException;
 use RuntimeException;
+use Throwable;
 
 /**
  * Rides an imported line again: the other way round, or from the rider's own
@@ -152,7 +153,7 @@ final class ImportedLine
 
         try {
             $matched = $lineFollower->match($routeQuery, $line);
-        } catch (RuntimeException) {
+        } catch (Throwable) {
             $matched = null;
         }
 

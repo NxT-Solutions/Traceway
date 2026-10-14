@@ -30,6 +30,11 @@ final readonly class OverpassStopFinder implements StopFinder
 
         throw_if($response->failed(), RuntimeException::class, 'The map did not answer for stops.');
 
+        // A query that ran out of time still answers 200, with a remark and
+        // what it found so far. That is not "no stops", so it is not kept.
+        $remark = $response->json('remark');
+        throw_if(is_string($remark) && str_contains($remark, 'runtime error'), RuntimeException::class, 'The map ran out of time looking for stops.');
+
         $elements = $response->json('elements');
 
         if (! is_array($elements)) {

@@ -14,6 +14,7 @@ use App\Commands\DisconnectAppCommand;
 use App\Commands\ExportPersonalDataCommand;
 use App\Commands\LinkDeviceCommand;
 use App\Commands\OpenAccountCommand;
+use App\Commands\ReadRouteDetailsCommand;
 use App\Commands\RevokeDeviceCommand;
 use App\Commands\SaveRouteCommand;
 use App\Commands\StartDevicePairingCommand;
@@ -43,6 +44,7 @@ use App\Handlers\DisconnectAppHandler;
 use App\Handlers\ExportPersonalDataHandler;
 use App\Handlers\LinkDeviceHandler;
 use App\Handlers\OpenAccountHandler;
+use App\Handlers\ReadRouteDetailsHandler;
 use App\Handlers\RevokeDeviceHandler;
 use App\Handlers\SaveRouteHandler;
 use App\Handlers\StartDevicePairingHandler;
@@ -97,6 +99,7 @@ class AppServiceProvider extends ServiceProvider
             DeleteAccountCommand::class => DeleteAccountHandler::class,
             ExportPersonalDataCommand::class => ExportPersonalDataHandler::class,
             SaveRouteCommand::class => SaveRouteHandler::class,
+            ReadRouteDetailsCommand::class => ReadRouteDetailsHandler::class,
             DeleteRouteCommand::class => DeleteRouteHandler::class,
             StoreRouteImageCommand::class => StoreRouteImageHandler::class,
             DisconnectAppCommand::class => DisconnectAppHandler::class,
@@ -205,6 +208,13 @@ class AppServiceProvider extends ServiceProvider
     {
         RateLimiter::for('device', fn (Request $request): Limit => Limit::perMinute(60)->by($request->ip()));
         RateLimiter::for('device-pairing', fn (Request $request): Limit => Limit::perMinute(6)->by($request->ip()));
+        // Each of these asks the map servers several times. A rider redraws
+        // often, so the limit is generous, but one account cannot flood them.
+        RateLimiter::for('map', function (Request $request): Limit {
+            $id = $request->user()?->getAuthIdentifier();
+
+            return Limit::perMinute(60)->by('map:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
+        });
     }
 
     /**

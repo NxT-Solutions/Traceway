@@ -25,7 +25,19 @@ final readonly class RouteDetails
         public array $surfaces,
         public array $cues,
         public array $stops,
+        // False when the map server left part of the line out. Such details
+        // are shown, not remembered, so the next read can fill the gap.
+        public bool $complete = true,
     ) {}
+
+    /**
+     * Whether the heights came back. Without them the climb is unknown, not
+     * flat, so a climb from elsewhere stands.
+     */
+    public function hasClimb(): bool
+    {
+        return $this->profile !== [];
+    }
 
     /**
      * The same details with these stops.
@@ -34,7 +46,7 @@ final readonly class RouteDetails
      */
     public function withStops(array $stops): self
     {
-        return new self($this->profile, $this->ascentMetres, $this->descentMetres, $this->surfaces, $this->cues, $stops);
+        return new self($this->profile, $this->ascentMetres, $this->descentMetres, $this->surfaces, $this->cues, $stops, $this->complete);
     }
 
     /**

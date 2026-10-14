@@ -21,6 +21,7 @@ use App\Integrations\Valhalla\Requests\RouteRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
 use RuntimeException;
 use Saloon\Http\Response;
+use Throwable;
 
 final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngine
 {
@@ -139,18 +140,29 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             return null;
         }
 
-        $response = $this->valhallaConnector->send(new TraceRouteRequest([
-            'encoded_polyline' => Polyline::encode(LineSimplifier::densify($line, 100.0)),
-            'shape_format' => 'polyline6',
-            'shape_match' => 'map_snap',
-            'trace_options' => ['search_radius' => 25, 'breakage_distance' => 2000],
-            'directions_options' => ['directions_type' => 'none'],
-        ] + ValhallaCosting::trace($routeQuery->sport)));
-        $legs = $response->json('trip.legs');
-        $length = $response->json('trip.summary.length');
+        // A timeout or an error page is no match either: following the
+        // points still works, so the caller tries that next.
+        try {
+            $response = $this->valhallaConnector->send(new TraceRouteRequest([
+                'encoded_polyline' => Polyline::encode(LineSimplifier::densify($line, 100.0)),
+                'shape_format' => 'polyline6',
+                'shape_match' => 'map_snap',
+                'trace_options' => ['search_radius' => 25, 'breakage_distance' => 2000],
+                'directions_options' => ['directions_type' => 'none'],
+            ] + ValhallaCosting::trace($routeQuery->sport)));
+
+            if (! $response->successful()) {
+                return null;
+            }
+
+            $legs = $response->json('trip.legs');
+            $length = $response->json('trip.summary.length');
+        } catch (Throwable) {
+            return null;
+        }
 
         // A line matched in parts has gaps between them. Points do better.
-        if (! $response->successful() || ! is_array($legs) || count($legs) !== 1 || ! is_numeric($length)) {
+        if (! is_array($legs) || count($legs) !== 1 || ! is_numeric($length)) {
             return null;
         }
 
@@ -224,7 +236,7 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             $pieceQuery = count($pieces) > 1 ? $this->pointToPoint($routeQuery) : $routeQuery;
             $pieceCounts[$planIndex] = count($pieces);
 
-            $headings = $this->headingsByPoint($plan['waypoints'], $plan['headings'] ?? null);
+            $headings = isset($plan['headings']) ? $this->headingsAlong($plan['waypoints'], $plan['headings'], $pieces) : null;
 
             foreach ($pieces as $pieceIndex => $piece) {
                 $requests[$planIndex.':'.$pieceIndex] = new RouteRequest(ValhallaCosting::payload(
@@ -233,10 +245,7 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
                     $pieceIndex === 0 ? ($plan['heading'] ?? null) : null,
                     mustVisit: $plan['mustVisit'] ?? false,
                     viaRadius: $plan['viaRadius'] ?? null,
-                    headings: $headings === null ? null : array_map(
-                        fn (array $point): ?int => $headings[$this->pointKey($point)] ?? null,
-                        $piece,
-                    ),
+                    headings: $headings[$pieceIndex] ?? null,
                 ));
             }
         }
@@ -287,34 +296,48 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
     }
 
     /**
-     * The heading at each point, found again after the points are cut into
-     * pieces. A point added along a long hop has none.
+     * The heading of each point in each piece. The pieces keep the points in
+     * order, add points along long hops, and repeat each joint, so they are
+     * walked in step with the points: the next point takes its heading, an
+     * added point has none, and a joint keeps the one it had. A loop's start
+     * and finish are the same place but keep their own headings.
      *
      * @param  list<array{0: float, 1: float}>  $waypoints
-     * @param  list<int|null>|null  $headings
-     * @return array<string, int|null>|null
+     * @param  list<int|null>  $headings
+     * @param  list<list<array{0: float, 1: float}>>  $pieces
+     * @return list<list<int|null>>
      */
-    private function headingsByPoint(array $waypoints, ?array $headings): ?array
+    private function headingsAlong(array $waypoints, array $headings, array $pieces): array
     {
-        if ($headings === null) {
-            return null;
+        $next = 0;
+        $joint = null;
+        $along = [];
+
+        foreach ($pieces as $pieceIndex => $piece) {
+            $own = [];
+
+            foreach ($piece as $pointIndex => $point) {
+                if ($pieceIndex > 0 && $pointIndex === 0) {
+                    $own[] = $joint;
+
+                    continue;
+                }
+
+                $waypoint = $waypoints[$next] ?? null;
+
+                if ($waypoint !== null && $waypoint[0] === $point[0] && $waypoint[1] === $point[1]) {
+                    $own[] = $headings[$next] ?? null;
+                    $next++;
+                } else {
+                    $own[] = null;
+                }
+            }
+
+            $joint = $own[count($own) - 1] ?? null;
+            $along[] = $own;
         }
 
-        $byPoint = [];
-
-        foreach ($waypoints as $index => $point) {
-            $byPoint[$this->pointKey($point)] = $headings[$index] ?? null;
-        }
-
-        return $byPoint;
-    }
-
-    /**
-     * @param  array{0: float, 1: float}  $point
-     */
-    private function pointKey(array $point): string
-    {
-        return sprintf('%.7f,%.7f', $point[0], $point[1]);
+        return $along;
     }
 
     private function pointToPoint(RouteQuery $routeQuery): RouteQuery

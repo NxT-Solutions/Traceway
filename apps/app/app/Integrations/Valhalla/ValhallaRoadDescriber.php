@@ -99,6 +99,7 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
         $surfaceMetres = [];
         $cues = [];
         $answered = false;
+        $complete = true;
 
         foreach ($pieces as $index => $piece) {
             $heights = $this->heights($responses['height:'.$index] ?? null, $piece['offset'], $index > 0);
@@ -106,6 +107,7 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
             $turns = $this->cues($responses['route:'.$index] ?? null, $piece['offset']);
 
             $answered = $answered || $heights !== null || $edges !== null || $turns !== null;
+            $complete = $complete && $heights !== null && $edges !== null && $turns !== null;
             $profile = array_merge($profile, $heights ?? []);
             $cues = array_merge($cues, $turns ?? []);
 
@@ -116,7 +118,7 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
 
         throw_unless($answered, RuntimeException::class, 'The router could not describe that line.');
 
-        return new RoadDescription($profile, $this->shares($surfaceMetres), $cues);
+        return new RoadDescription($profile, $this->shares($surfaceMetres), $cues, $complete);
     }
 
     /**
