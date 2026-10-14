@@ -12,15 +12,16 @@ Valhalla adds more, and how much depends on the region. The first start download
 
 | Region | Download | Disk after the build | Memory to build | Memory to serve | First build, 2 CPUs |
 | --- | --- | --- | --- | --- | --- |
-| Belgium (default) | 0.7 GB | 2.0 GB | 2.8 GB | 0.2 GB | about 12 minutes |
-| Île-de-France | 0.3 GB | about 1 GB | 2 GB | under 0.2 GB | about 6 minutes |
+| Luxembourg | 45 MB | 0.4 GB | under 1 GB | under 0.1 GB | 1 minute |
+| Belgium (default) | 0.7 GB | 1.9 GB | 2.4 GB | 0.1 GB | 11 minutes |
+| Île-de-France | 0.3 GB | about 1 GB | about 1.5 GB | under 0.1 GB | about 5 minutes |
 | Netherlands | 1.3 GB | about 4.5 GB | 4–5 GB | about 0.5 GB | about 25 minutes |
 | Spain, Italy, Great Britain | 1.4–2.1 GB | about 5–7 GB | 5–7 GB | about 0.5 GB | 30–45 minutes |
-| France, Germany | 4.5–4.7 GB | about 15 GB | 10–12 GB | about 1 GB | 1.5–2 hours |
+| France, Germany | 4.5–4.7 GB | about 15 GB | 10–12 GB | about 1 GB | 1–2 hours |
 
-Belgium was measured on a Mac with Docker in Colima: the build took 6 minutes on 4 CPUs, so about twice that on the default 2. The other rows are estimates scaled from Belgium by the size of the download, so treat them as a guide. A whole continent is not worth building locally.
+Luxembourg and Belgium were measured on a Mac with Docker in Colima, with the default limits, download included. With 4 CPUs and no limit, Belgium built in 6 minutes and peaked at 2.8 GB. The other rows are estimates scaled from Belgium by the size of the download, so treat them as a guide. A whole continent is not worth building locally.
 
-Of the 2.0 GB for Belgium, the downloaded map is 0.7 GB, the tiles 0.9 GB (once loose and once packed), the heights 0.3 GB, and the time zones 0.1 GB. When the server only answers routes, it sits near 200 MB of memory and almost no CPU.
+Of the 1.9 GB for Belgium, the downloaded map is 0.7 GB, the tiles 0.9 GB (once loose and once packed), the heights 0.3 GB, and the time zones 0.1 GB. When the server only answers routes, it sits near 100 MB of memory and almost no CPU.
 
 The server starts with 2 CPUs and 3 GB of memory, so it cannot crowd out the rest of DDEV. That is enough for Belgium. Raise the limits before you build a bigger region, as shown below.
 
