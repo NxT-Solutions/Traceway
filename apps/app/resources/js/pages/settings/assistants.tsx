@@ -422,6 +422,7 @@ export default function Assistants({
                                 </span>
                                 <button
                                     type="button"
+                                    aria-label={`Disconnect ${app.name}`}
                                     onClick={() =>
                                         router.delete(
                                             `/settings/privacy/apps/${app.id}`,

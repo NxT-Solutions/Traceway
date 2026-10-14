@@ -550,11 +550,8 @@ function xml(value: string): string {
 }
 
 /**
- * One track per leg. A swim pin is a waypoint.
- */
-/**
- * One track per leg. With details for a leg, its points have heights and
- * its stops are waypoints.
+ * One track per leg. A swim pin is a waypoint. With details for a leg, its
+ * points have heights and its stops are waypoints.
  */
 export function multisportGpx(
     name: string,

@@ -67,6 +67,36 @@ it('keeps text at 4.5 to 1 and the focus ring at 3 to 1', function (): void {
     expect(contrastRatio($canonical['ink'], $canonical['paper']))->toBeGreaterThan(15);
 });
 
+it('keeps the settings pages at 4.5 to 1 in both themes', function (): void {
+    $css = file_get_contents(dirname(__DIR__, 5).'/apps/app/resources/css/settings-scene.css') ?: '';
+    $dark = oklchTokens(cssBlock($css, '.tw-settings'));
+    $light = [...$dark, ...oklchTokens(cssBlock($css, '.tw-settings[data-theme="light"]'))];
+
+    foreach ([$dark, $light] as $tokens) {
+        foreach ([['text', 'bg'], ['muted', 'bg'], ['muted', 'panel'], ['muted', 'icon-box'], ['chart-ink', 'chart']] as [$foreground, $background]) {
+            expect(contrastRatio($tokens[$foreground], $tokens[$background]))->toBeGreaterThanOrEqual(4.5);
+        }
+    }
+});
+
+it('keeps the card in a chat at 4.5 to 1', function (): void {
+    $view = file_get_contents(dirname(__DIR__, 5).'/apps/app/resources/views/mcp/route-map-app.blade.php') ?: '';
+    preg_match_all('/--([\w-]+):\s*(#[0-9a-f]{6}|rgba\([^)]*\))/i', cssBlock($view, ':root'), $matches, PREG_SET_ORDER);
+    $tokens = [];
+
+    foreach ($matches as $match) {
+        $tokens[$match[1]] = $match[2];
+    }
+
+    foreach (['ink', 'ink-2'] as $background) {
+        foreach (['paper', 'muted', 'faint', 'chart'] as $foreground) {
+            expect(srgbContrast($tokens[$foreground], $tokens[$background]))->toBeGreaterThanOrEqual(4.5);
+        }
+    }
+
+    expect(srgbContrast($tokens['ink'], $tokens['chart']))->toBeGreaterThanOrEqual(4.5);
+});
+
 it('replaces a removed outline with a visible ring', function (): void {
     $root = dirname(__DIR__, 5);
     $files = array_merge(
@@ -103,21 +133,22 @@ it('snaps motion when the visitor asks for less', function (): void {
     }
 });
 
-it('does not load type from a third party', function (): void {
+it('does not load type or code from a third party', function (): void {
     $root = dirname(__DIR__, 5);
     $files = array_merge(
         glob($root.'/apps/app/resources/css/*.css') ?: [],
         glob($root.'/apps/web/src/styles/*.css') ?: [],
         glob($root.'/apps/web/src/layouts/*.astro') ?: [],
-        [$root.'/apps/app/resources/views/app.blade.php'],
+        glob($root.'/apps/app/resources/mcp/*.js') ?: [],
+        [$root.'/apps/app/resources/views/app.blade.php', $root.'/apps/app/resources/views/mcp/route-map-app.blade.php'],
     );
 
     foreach ($files as $file) {
         $css = file_get_contents($file) ?: '';
 
-        expect($css)->not->toContain('fonts.googleapis.com')
-            ->and($css)->not->toContain('fonts.gstatic.com')
-            ->and($css)->not->toContain('use.typekit.net');
+        foreach (['fonts.googleapis.com', 'fonts.gstatic.com', 'use.typekit.net', 'fonts.bunny.net', 'unpkg.com', 'cdn.jsdelivr.net', 'cdnjs.cloudflare.com'] as $host) {
+            expect($css)->not->toContain($host);
+        }
     }
 });
 
@@ -197,4 +228,40 @@ function relativeLuminance(array $oklch): float
     $blue = max(0.0, min(1.0, (-0.0041960863 * $long) - (0.7034186147 * $medium) + (1.7076147010 * $short)));
 
     return (0.2126 * $red) + (0.7152 * $green) + (0.0722 * $blue);
+}
+
+/**
+ * The contrast of two sRGB colours, an rgba() one laid over the other.
+ */
+function srgbContrast(string $foreground, string $background): float
+{
+    $back = srgb($background);
+    $front = srgb($foreground);
+    $alpha = $front[3];
+    $over = [
+        $front[0] * $alpha + $back[0] * (1 - $alpha),
+        $front[1] * $alpha + $back[1] * (1 - $alpha),
+        $front[2] * $alpha + $back[2] * (1 - $alpha),
+    ];
+    $luminance = fn (array $rgb): float => array_sum(array_map(
+        fn (float $channel, float $weight): float => $weight * ($channel / 255 <= 0.04045 ? $channel / 255 / 12.92 : (($channel / 255 + 0.055) / 1.055) ** 2.4),
+        [$rgb[0], $rgb[1], $rgb[2]],
+        [0.2126, 0.7152, 0.0722],
+    ));
+    $lighter = max($luminance($over), $luminance($back));
+    $darker = min($luminance($over), $luminance($back));
+
+    return ($lighter + 0.05) / ($darker + 0.05);
+}
+
+/**
+ * @return array{0: float, 1: float, 2: float, 3: float}
+ */
+function srgb(string $colour): array
+{
+    if (preg_match('/rgba\(\s*(\d+),\s*(\d+),\s*(\d+),\s*([0-9.]+)\s*\)/', $colour, $match) === 1) {
+        return [(float) $match[1], (float) $match[2], (float) $match[3], (float) $match[4]];
+    }
+
+    return [(float) hexdec(substr($colour, 1, 2)), (float) hexdec(substr($colour, 3, 2)), (float) hexdec(substr($colour, 5, 2)), 1.0];
 }

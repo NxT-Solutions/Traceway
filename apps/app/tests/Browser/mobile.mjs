@@ -41,6 +41,9 @@ try {
         hasTouch: true,
     });
     const page = await context.newPage();
+    // An uncaught error on the page fails the run, even when it still looks right.
+    const pageErrors = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
     const cdp = await context.newCDPSession(page);
 
     async function touch(type, points) {
@@ -328,6 +331,11 @@ try {
     step('dragged a finish pin and the chain drew again, framed in the open map');
 
     await fits(page, 'Planner after every gesture');
+
+    if (pageErrors.length > 0) {
+        throw new Error(`Uncaught page errors:\n${pageErrors.join('\n')}`);
+    }
+
     console.log(`mobile gestures passed (${steps.length} steps)`);
 } catch (error) {
     if (process.env.SCREENSHOT) {

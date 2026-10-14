@@ -5,11 +5,11 @@
  * keeps the copy it was sent with for when Traceway cannot be reached.
  *
  * Chat apps let a card run code only from blob: addresses, so MapLibre and
- * its worker are fetched as text and run from there.
+ * its worker are fetched as text and run from there. They and the font come
+ * from Traceway itself, not a CDN, so no third party sees who opens a card.
+ * Only the map tiles come from OpenFreeMap, as they do in the planner.
  */
-const maplibreDist = 'https://unpkg.com/maplibre-gl@6.14.0/dist';
 const style = 'https://tiles.openfreemap.org/styles/dark';
-const fonts = 'https://fonts.bunny.net/outfit/files';
 const legColours = ['#38bdf8', '#f472b6', '#4ade80', '#c4b5fd', '#f6f3ea'];
 const ink = '#071f20';
 const paper = '#f6f3ea';
@@ -85,13 +85,16 @@ function blob(code) {
 }
 
 /** Outfit, the Traceway font, for the card. The system font stands in until then. */
-async function brandFont() {
+async function brandFont(files) {
     try {
         const faces = await Promise.all(
             ['400', '600'].map(async (weight) => {
-                const response = await fetch(
-                    `${fonts}/outfit-latin-${weight}-normal.woff2`,
-                );
+                const response = await fetch(`${files}/outfit-${weight}.woff2`);
+
+                if (!response.ok) {
+                    throw new Error('No font');
+                }
+
                 const face = new FontFace(
                     'Outfit',
                     await response.arrayBuffer(),
@@ -113,12 +116,12 @@ async function brandFont() {
 let loading = null;
 
 /** MapLibre, its worker, and its styles, loaded once per card. */
-function maplibre() {
+function maplibre(files) {
     loading ??= (async () => {
         const [main, worker, css] = await Promise.all([
-            text(`${maplibreDist}/maplibre-gl.mjs`),
-            text(`${maplibreDist}/maplibre-gl-worker.mjs`),
-            text(`${maplibreDist}/maplibre-gl.css`),
+            text(`${files}/maplibre-gl.mjs`),
+            text(`${files}/maplibre-gl-worker.mjs`),
+            text(`${files}/maplibre-gl.css`),
         ]);
         const sheet = document.createElement('style');
         sheet.textContent = `${css}
@@ -379,10 +382,10 @@ function addRoute(map, drawn, stops) {
  * Lays a map you can move and zoom over the drawing in the stage. Resolves
  * true once it shows, false when it could not, and leaves the drawing then.
  */
-export async function mount({ line, stage, status }) {
+export async function mount({ line, stage, status, files }) {
     const drawn = lines(line);
 
-    void brandFont();
+    void brandFont(files);
 
     stage.querySelector('.live-map')?.remove();
 
@@ -395,7 +398,7 @@ export async function mount({ line, stage, status }) {
     let maplibregl;
 
     try {
-        maplibregl = await maplibre();
+        maplibregl = await maplibre(files);
     } catch (error) {
         status(`The map library did not load: ${error.message}`);
 
@@ -412,11 +415,15 @@ export async function mount({ line, stage, status }) {
         new maplibregl.LngLatBounds(points[0], points[0]),
     );
 
+    const padding = { top: 36, bottom: 36, left: 36, right: 60 };
+
     return new Promise((resolve) => {
         let loaded = false;
+        let map = null;
         const giveUp = (reason) => {
             if (!loaded) {
                 loaded = true;
+                map?.remove();
                 holder.remove();
                 status(
                     `The map could not draw here, so the drawing stays. ${reason}`,
@@ -430,13 +437,11 @@ export async function mount({ line, stage, status }) {
         );
 
         try {
-            const map = new maplibregl.Map({
+            map = new maplibregl.Map({
                 container: holder,
                 style,
                 bounds,
-                fitBoundsOptions: {
-                    padding: { top: 36, bottom: 36, left: 36, right: 60 },
-                },
+                fitBoundsOptions: { padding },
                 maxZoom: 17,
                 cooperativeGestures: true,
                 dragRotate: false,
@@ -449,8 +454,24 @@ export async function mount({ line, stage, status }) {
                 new maplibregl.NavigationControl({ showCompass: false }),
                 'top-right',
             );
-            map.on('error', (event) => giveUp(event?.error?.message ?? ''));
+            // A tile that fails leaves a gap; only the style failing ends it.
+            map.on('error', (event) => {
+                if (event?.sourceId === undefined) {
+                    giveUp(event?.error?.message ?? '');
+                }
+            });
             map.on('style.load', () => brand(map));
+            // When the chat turns or resizes the card, the route stays in
+            // view, until the viewer moves the map themselves.
+            let moved = false;
+            map.on('movestart', (event) => {
+                moved = moved || event.originalEvent !== undefined;
+            });
+            map.on('resize', () => {
+                if (!moved) {
+                    map.fitBounds(bounds, { padding, duration: 0 });
+                }
+            });
             map.on('load', () => {
                 loaded = true;
                 window.clearTimeout(timer);

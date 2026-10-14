@@ -20,6 +20,8 @@ const routing = 90_000;
 const browser = await chromium.launch({ executablePath: executable, headless: true });
 const steps = [];
 const notes = [];
+// An uncaught error on a page fails the run, even when the page still looks right.
+const pageErrors = [];
 
 function step(name) {
     steps.push(name);
@@ -252,6 +254,7 @@ try {
     const desktop = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 860 }, acceptDownloads: true });
     const page = await desktop.newPage();
     const settle = watch(page, 'Desktop');
+    page.on('pageerror', (error) => pageErrors.push(`desktop: ${error.message}`));
 
     await page.goto(`${base}/login`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: /^Road\b/ }).click();
@@ -484,6 +487,7 @@ try {
     });
     const mobile = await phone.newPage();
     const settlePhone = watch(mobile, 'Phone');
+    mobile.on('pageerror', (error) => pageErrors.push(`phone: ${error.message}`));
     const cdp = await phone.newCDPSession(mobile);
     const touch = (type, points) =>
         cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(({ x, y }) => ({ x: Math.round(x), y: Math.round(y) })) });
@@ -687,6 +691,7 @@ try {
     settlePhone();
     await phone.close();
 
+    check(pageErrors.length === 0, `Uncaught page errors:\n${pageErrors.join('\n')}`);
     console.log(`\nroute details passed (${steps.length} steps${notes.length > 0 ? `, ${notes.length} note(s)` : ''})`);
 } catch (error) {
     if (process.env.SCREENSHOT) {

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\ShowChatCardFileController;
 use App\Http\Controllers\ShowRouteMapScriptController;
 use App\Mcp\Servers\TracewayServer;
 use Illuminate\Support\Facades\Route;
@@ -19,3 +20,7 @@ Mcp::web('mcp', TracewayServer::class)
 Route::get('mcp/apps/route-map.js', ShowRouteMapScriptController::class)
     ->middleware('throttle:60,1')
     ->name('mcp.apps.route-map');
+Route::get('mcp/apps/files/{file}', ShowChatCardFileController::class)
+    ->where('file', 'maplibre-gl\.mjs|maplibre-gl-worker\.mjs|maplibre-gl\.css|outfit-400\.woff2|outfit-600\.woff2')
+    ->middleware('throttle:120,1')
+    ->name('mcp.apps.file');

@@ -202,10 +202,12 @@ export default function Share({
         steepness,
     };
 
+    // The layers wait for nothing: before the map loads they are not there
+    // yet and this does nothing, and the load handler draws them then.
     useEffect(() => {
         const map = mapRef.current;
 
-        if (map?.isStyleLoaded()) {
+        if (map !== null) {
             syncDetailLayers(map, shownLine, shownDetails, steepness);
         }
     }, [shownLine, shownDetails, steepness]);
@@ -354,6 +356,22 @@ export default function Share({
             });
 
             if (embed) {
+                // When the chat turns or resizes the card, the route stays
+                // in view, until the viewer moves the map themselves.
+                let moved = false;
+                map.on('movestart', (event) => {
+                    moved = moved || event.originalEvent !== undefined;
+                });
+                map.on('resize', () => {
+                    if (!moved) {
+                        map.fitBounds(bounds, {
+                            padding: 28,
+                            maxZoom: 15,
+                            duration: 0,
+                        });
+                    }
+                });
+
                 // The card shows this map only once it is drawn, and keeps
                 // its own drawing until then.
                 map.once('idle', () =>

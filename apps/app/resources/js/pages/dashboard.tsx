@@ -1543,6 +1543,7 @@ export default function Dashboard() {
     const arrowLinesRef = useRef<Coordinate[][]>([]);
     const [routeSaved, setRouteSaved] = useState(false);
     const [exported, setExported] = useState(false);
+    const [exporting, setExporting] = useState(false);
     const [saving, setSaving] = useState(false);
     const [sending, setSending] = useState(false);
     modeRef.current = mode;
@@ -3082,7 +3083,8 @@ export default function Dashboard() {
 
     async function download(): Promise<void> {
         if (multisport) {
-            if (plan !== null) {
+            if (plan !== null && !exporting) {
+                setExporting(true);
                 // Each land leg gets its heights and stops. The server keeps
                 // them for an hour, so a leg already shown answers at once.
                 const controller = new AbortController();
@@ -3119,6 +3121,7 @@ export default function Dashboard() {
                     }),
                     'traceway.gpx',
                 );
+                setExporting(false);
                 setExported(true);
             }
 
@@ -3239,7 +3242,12 @@ export default function Dashboard() {
                       elevation,
                       roads,
                       distance_metres: preview.distance_metres,
-                      ascent_metres: details?.ascent_metres ?? 0,
+                      // Without heights the climb is unknown, not flat, so
+                      // the routing engine's figure stands.
+                      ascent_metres:
+                          details && details.profile.length > 0
+                              ? details.ascent_metres
+                              : preview.ascent_metres,
                       coordinates: preview.coordinates,
                       user_coordinates: preview.user_coordinates ?? null,
                       finish_coordinates: preview.finish_coordinates ?? null,
@@ -3314,9 +3322,12 @@ export default function Dashboard() {
                         sport: String(payload.sport ?? sport),
                         surface: String(payload.surface ?? surface),
                         distance_metres: Number(payload.distance_metres ?? 0),
-                        ascent_metres:
-                            details?.ascent_metres ??
-                            Number(payload.ascent_metres ?? 0),
+                        // A multisport plan climbs over all its legs; the
+                        // details on screen are one leg.
+                        ascent_metres: multisport
+                            ? Number(payload.ascent_metres ?? 0)
+                            : (details?.ascent_metres ??
+                              Number(payload.ascent_metres ?? 0)),
                         coordinates: (payload.coordinates ??
                             []) as Coordinate[],
                         legs: multisport
@@ -5281,10 +5292,13 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="outline"
-                                        disabled={shown === null}
+                                        disabled={shown === null || exporting}
+                                        aria-busy={exporting}
                                         onClick={() => void download()}
                                     >
-                                        Export GPX
+                                        {exporting
+                                            ? 'Reading the legs…'
+                                            : 'Export GPX'}
                                     </button>
                                     <button
                                         type="button"

@@ -211,7 +211,25 @@ export async function drawShareImage(
     });
 
     try {
-        await new Promise<void>((resolve) => map.once('load', () => resolve()));
+        // A style that never loads must not leave the hidden map behind,
+        // so the wait has an end, and the finally below always removes it.
+        await new Promise<void>((resolve, reject) => {
+            const timer = window.setTimeout(
+                () => reject(new Error('The map did not load.')),
+                15_000,
+            );
+            map.once('load', () => {
+                window.clearTimeout(timer);
+                resolve();
+            });
+            map.on('error', (event) => {
+                // A tile that fails is not the style failing.
+                if (!('sourceId' in event)) {
+                    window.clearTimeout(timer);
+                    reject(new Error('The map style did not load.'));
+                }
+            });
+        });
         map.addSource('share', {
             type: 'geojson',
             data: {

@@ -394,20 +394,25 @@ import Lenis from 'lenis';
     var stops = chat.querySelectorAll('.rcard-stop'), facts = chat.querySelectorAll('.rcard-facts li');
     var start = chat.querySelector('.rcard-start'), words = ask.getAttribute('data-text');
     var typed = { n: 0 }, counted = { v: 0 }, kmTo = parseFloat(km.textContent);
+    // The start of the scene, applied at once and again on every loop. A
+    // set inside a paused timeline waits for play, so the finished card
+    // would show until the chat is far enough in view to start.
+    var resetChat = function(){
+      ask.textContent = '\u00a0';
+      tool.classList.remove('done');
+      toolT.textContent = 'Traceway · planning a loop';
+      km.textContent = '0.0';
+      gsap.set([tool, card, reply], { autoAlpha: 0, y: 12 });
+      gsap.set(typing, { autoAlpha: 0, y: 8 });
+      gsap.set(loop, { strokeDashoffset: 1 });
+      gsap.set(stops, { autoAlpha: 0, scale: 0.3, transformOrigin: '50% 50%' });
+      gsap.set(start, { autoAlpha: 0, scale: 0.3, transformOrigin: '50% 50%' });
+      gsap.set(facts, { autoAlpha: 0, y: 6 });
+    };
+    resetChat();
     var chatTl = gsap.timeline({ paused: true, repeat: -1, repeatDelay: 3.5, defaults: { ease: 'power3.out' } });
     chatTl
-      .call(function(){
-        ask.textContent = ' ';
-        tool.classList.remove('done');
-        toolT.textContent = 'Traceway · planning a loop';
-        km.textContent = '0.0';
-      })
-      .set([tool, card, reply], { autoAlpha: 0, y: 12 })
-      .set(typing, { autoAlpha: 0, y: 8 })
-      .set(loop, { strokeDashoffset: 1 })
-      .set(stops, { autoAlpha: 0, scale: 0.3, transformOrigin: '50% 50%' })
-      .set(start, { autoAlpha: 0, scale: 0.3, transformOrigin: '50% 50%' })
-      .set(facts, { autoAlpha: 0, y: 6 })
+      .call(resetChat)
       .to(typed, { n: words.length, duration: 1.9, ease: 'none', onUpdate: function(){ ask.textContent = words.slice(0, Math.round(typed.n)) || ' '; } }, 0.4)
       .to(typing, { autoAlpha: 1, y: 0, duration: 0.35 }, '+=0.35')
       .to(typing, { autoAlpha: 0, duration: 0.2 }, '+=0.9')
