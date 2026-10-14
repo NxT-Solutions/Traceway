@@ -478,11 +478,13 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                     maxZoom: 15,
                 });
                 let shot = false;
+                let fallback = 0;
                 const shoot = (painted: boolean) => {
                     if (shot || stopped) {
                         return;
                     }
                     shot = true;
+                    window.clearTimeout(fallback);
 
                     // A canvas that never painted is empty, and an empty
                     // canvas is a black JPEG. The outline below stays then.
@@ -508,7 +510,13 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                     requestAnimationFrame(() => shoot(true));
                 });
                 map.triggerRepaint();
-                window.setTimeout(() => shoot(map.areTilesLoaded()), 6000);
+                // After the last route the map is gone, so a late timer
+                // must not ask it anything.
+                fallback = window.setTimeout(() => {
+                    if (!shot && !stopped) {
+                        shoot(map.areTilesLoaded());
+                    }
+                }, 6000);
             };
             // Resizing clears the canvas, so it happens once, before the
             // first shot, and never between two.
