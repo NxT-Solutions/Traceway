@@ -275,7 +275,6 @@
                         report.blocked.push('worker-src blob (threw)');
                     }
                 }
-                }
 
                 /** A tool result's data, whether it came as structured content or as JSON text. */
                 function data(result) {

@@ -17,6 +17,7 @@ use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 use Laravel\Mcp\Server\Testing\TestResponse;
@@ -349,6 +350,22 @@ it('sends the line for the map with the plan, outside what the model reads', fun
         ->and($loop['content'][0]['text'] ?? '')->not->toContain('/embed')
         ->and($brick['structuredContent']['drawing']['legs'] ?? [])->toHaveCount(2)
         ->and($brick['content'][0]['text'] ?? '')->not->toContain('drawing');
+});
+
+it('ships a card script that parses, since a broken one leaves the chat waiting', function (): void {
+    $html = view('mcp.route-map-app', ['showStatus' => true, 'traceway' => 'https://traceway.test'])->render();
+    preg_match_all('#<script type="module">(.*?)</script>#s', $html, $scripts);
+
+    expect($scripts[1])->not->toBeEmpty();
+
+    foreach ($scripts[1] as $script) {
+        $file = sys_get_temp_dir().'/traceway-card-'.Str::random(8).'.mjs';
+        file_put_contents($file, $script);
+        $check = Process::run(['node', '--check', $file]);
+        unlink($file);
+
+        expect($check->successful())->toBeTrue($check->errorOutput());
+    }
 });
 
 it('lets the card in the chat show the map from Traceway', function (): void {
