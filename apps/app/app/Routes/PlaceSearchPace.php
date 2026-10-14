@@ -35,7 +35,9 @@ final readonly class PlaceSearchPace
                 return false;
             }
 
-            if ($this->repository->add(self::TURN, value: true, ttl: 1)) {
+            // The cache counts whole seconds, so a turn kept for one second
+            // can end at once. Kept for two, it lasts at least a full second.
+            if ($this->repository->add(self::TURN, value: true, ttl: 2)) {
                 return true;
             }
 

@@ -1419,6 +1419,9 @@
                             }
                         }
                     },
+                    "429": {
+                        "description": "Too many searches in a minute."
+                    },
                     "503": {
                         "description": "The place search is busy or did not answer. Try again in a moment.",
                         "content": {
@@ -3250,11 +3253,6 @@
                                     "type": "number",
                                     "maximum": 180,
                                     "minimum": -180
-                                },
-                                "language": {
-                                    "description": "The language to name places in, like \"nl\" or \"en-GB\".",
-                                    "type": "string",
-                                    "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
                                 }
                             },
                             "type": "object"

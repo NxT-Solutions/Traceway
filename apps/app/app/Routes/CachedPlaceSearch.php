@@ -32,14 +32,14 @@ final readonly class CachedPlaceSearch implements PlaceSearch
     /**
      * @throws PlaceSearchBusy when no turn came
      */
-    public function search(string $query, float $nearLatitude, float $nearLongitude, string $language = 'en'): array
+    public function search(string $query, float $nearLatitude, float $nearLongitude): array
     {
         $query = mb_strtolower((string) preg_replace('/\s+/u', ' ', trim($query)));
         $nearLatitude = round($nearLatitude, 1);
         $nearLongitude = round($nearLongitude, 1);
         // The version changes whenever a match is named differently, so old
         // answers are not shown for a month.
-        $key = sprintf('place-search:v2:%s:%.1f,%.1f:%s', $language, $nearLatitude, $nearLongitude, hash('xxh128', $query));
+        $key = sprintf('place-search:v3:%.1f,%.1f:%s', $nearLatitude, $nearLongitude, hash('xxh128', $query));
         $cached = $this->repository->get($key);
 
         if (is_array($cached)) {
@@ -49,7 +49,7 @@ final readonly class CachedPlaceSearch implements PlaceSearch
         throw_unless($this->placeSearchPace->take(self::WAIT_MILLISECONDS), PlaceSearchBusy::noTurn());
 
         try {
-            $matches = $this->placeSearch->search($query, $nearLatitude, $nearLongitude, $language);
+            $matches = $this->placeSearch->search($query, $nearLatitude, $nearLongitude);
         } catch (Throwable $throwable) {
             $this->placeSearchPace->rest();
 

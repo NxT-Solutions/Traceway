@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Routing\PlaceMatch;
 use App\Domain\Routing\PlaceSearch;
+use App\Routes\PlaceSearchBusy;
 use App\Routes\RelaxedPlaceSearch;
 
 /**
@@ -24,9 +25,11 @@ function placeSearchAnswering(array $answers): PlaceSearch
         /**
          * @return list<PlaceMatch>
          */
-        public function search(string $query, float $nearLatitude, float $nearLongitude, string $language = 'en'): array
+        public function search(string $query, float $nearLatitude, float $nearLongitude): array
         {
             $this->asked[] = $query;
+
+            throw_if($query === 'busy', PlaceSearchBusy::noTurn());
 
             return $this->answers[$query] ?? [];
         }
@@ -49,6 +52,13 @@ it('asks only once when the search finds something', function (): void {
 
     expect(new RelaxedPlaceSearch($placeSearch)->search('Westerlo Belgium', 51.1, 4.9))->toBe([$westerlo])
         ->and($placeSearch->asked)->toHaveCount(1);
+});
+
+it('finds nothing, rather than busy, when the second try gets no turn', function (): void {
+    $placeSearch = placeSearchAnswering([]);
+
+    expect(new RelaxedPlaceSearch($placeSearch)->search('busy Hobokne', 51.1, 4.9))->toBe([])
+        ->and($placeSearch->asked)->toBe(['busy Hobokne', 'busy']);
 });
 
 it('does not shorten a single word', function (): void {

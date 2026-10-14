@@ -1456,7 +1456,11 @@ export default function Dashboard() {
     const fitRouteRef = useRef<(duration: number) => void>(() => {});
     const markerRef = useRef<maplibregl.Marker | null>(null);
     const viaMarkerRef = useRef<maplibregl.Marker | null>(null);
-    const buildMarkersRef = useRef<maplibregl.Marker[]>([]);
+    // Build pins by point, kept between renders so a late place name never
+    // rebuilds the pin under a finger that is dragging it.
+    const buildMarkersRef = useRef<
+        Map<string, { marker: maplibregl.Marker; at: Coordinate }>
+    >(new Map());
     const previewRef = useRef<Preview | null>(null);
     const placingViaRef = useRef(false);
     const onMapClickRef = useRef<(lng: number, lat: number) => void>(() => {});
@@ -1581,6 +1585,10 @@ export default function Dashboard() {
     } | null>(null);
     const tapAskRef = useRef(0);
     const startAskRef = useRef(0);
+    const viaAskRef = useRef(0);
+    // Each drawing takes a number; Undo moves it on, so a route still on
+    // its way for the undone pin is dropped when it lands.
+    const drawAskRef = useRef(0);
     const closeTapRef = useRef<() => void>(() => {});
     const moveStartRef = useRef<
         (
@@ -2672,12 +2680,19 @@ export default function Dashboard() {
 
     useEffect(() => {
         const map = mapRef.current;
+        const pins = buildMarkersRef.current;
+        const kept = new Set(
+            mode === 'build' && map !== null
+                ? buildPoints.map((point) => point.id)
+                : [],
+        );
 
-        for (const marker of buildMarkersRef.current) {
-            marker.remove();
+        for (const [id, pin] of pins) {
+            if (!kept.has(id)) {
+                pin.marker.remove();
+                pins.delete(id);
+            }
         }
-
-        buildMarkersRef.current = [];
 
         if (map === null) {
             return;
@@ -2722,26 +2737,46 @@ export default function Dashboard() {
         }
 
         buildPoints.forEach((point, index) => {
+            const at: Coordinate = [point.longitude, point.latitude];
+            const label = String(index + 1);
+            const known = pins.get(point.id);
+
+            if (known !== undefined) {
+                known.at = at;
+                const element = known.marker.getElement();
+                element.textContent = label;
+                element.title = `Drag to move point ${label}`;
+
+                if (!element.classList.contains('dragging')) {
+                    known.marker.setLngLat(at);
+                }
+
+                return;
+            }
+
             const marker = new maplibregl.Marker({
-                element: buildMarkerElement(String(index + 1)),
+                element: buildMarkerElement(label),
                 anchor: 'center',
                 draggable: true,
             })
-                .setLngLat([point.longitude, point.latitude])
+                .setLngLat(at)
                 .addTo(map);
+            const pin = { marker, at };
             marker.on('dragstart', () => {
+                marker.getElement().classList.add('dragging');
                 closeTapRef.current();
                 hideSnapRef.current();
             });
             marker.on('dragend', () => {
-                const at = marker.getLngLat();
+                marker.getElement().classList.remove('dragging');
+                const to = marker.getLngLat();
 
                 // Off every road, the point goes back where it was.
-                if (!moveBuildPointRef.current(point.id, at.lng, at.lat)) {
-                    marker.setLngLat([point.longitude, point.latitude]);
+                if (!moveBuildPointRef.current(point.id, to.lng, to.lat)) {
+                    marker.setLngLat(pin.at);
                 }
             });
-            buildMarkersRef.current.push(marker);
+            pins.set(point.id, pin);
         });
     }, [buildPoints, mode, longitude, latitude, preview]);
 
@@ -2949,6 +2984,8 @@ export default function Dashboard() {
         dirty.current = true;
         setBusy(true);
         setMessage('Drawing the loop…');
+        const ask = drawAskRef.current + 1;
+        drawAskRef.current = ask;
 
         const response = await fetch('/routes/preview', {
             method: 'POST',
@@ -2977,6 +3014,10 @@ export default function Dashboard() {
 
         const body: unknown = await response.json();
         setBusy(false);
+
+        if (drawAskRef.current !== ask) {
+            return;
+        }
 
         const lines = linesFrom(body);
 
@@ -3499,6 +3540,8 @@ export default function Dashboard() {
         dirty.current = true;
         setBusy(true);
         setMessage('Drawing the route…');
+        const ask = drawAskRef.current + 1;
+        drawAskRef.current = ask;
 
         const response = await fetch('/routes/build', {
             method: 'POST',
@@ -3525,6 +3568,10 @@ export default function Dashboard() {
         });
         const body: unknown = await response.json();
         setBusy(false);
+
+        if (drawAskRef.current !== ask) {
+            return;
+        }
 
         if (typeof body !== 'object' || body === null || !isPreview(body)) {
             const record =
@@ -3590,6 +3637,8 @@ export default function Dashboard() {
         dirty.current = true;
         setBusy(true);
         setMessage('Drawing every leg…');
+        const ask = drawAskRef.current + 1;
+        drawAskRef.current = ask;
 
         try {
             const response = await fetch('/routes/multisport', {
@@ -3623,6 +3672,10 @@ export default function Dashboard() {
                 }),
             });
             const body: unknown = await response.json().catch(() => null);
+
+            if (drawAskRef.current !== ask) {
+                return;
+            }
 
             if (!response.ok || !isPlan(body)) {
                 const record =
@@ -3880,6 +3933,9 @@ export default function Dashboard() {
             restore: () => {
                 dirty.current = true;
                 startAskRef.current += 1;
+                viaAskRef.current += 1;
+                drawAskRef.current += 1;
+                setBusy(false);
                 setLatitude(before.latitude);
                 setLongitude(before.longitude);
                 setStartName(before.startName);
@@ -3978,8 +4034,15 @@ export default function Dashboard() {
         setViaName(name ?? null);
         setPlacingVia(false);
 
+        const ask = viaAskRef.current + 1;
+        viaAskRef.current = ask;
+
         if (name === undefined) {
-            void labelPlace(point[0], point[1]).then(setViaName);
+            void labelPlace(point[0], point[1]).then((label) => {
+                if (viaAskRef.current === ask) {
+                    setViaName(label);
+                }
+            });
         }
 
         void generate({ via: point });
@@ -4340,9 +4403,12 @@ export default function Dashboard() {
         }
     }
 
+    // A move of the map puts the card away, and any card still on its way.
     closeTapRef.current = () => {
+        tapAskRef.current += 1;
+
         if (tapCard !== null) {
-            closeTapCard();
+            setTapCard(null);
         }
     };
 
@@ -4489,15 +4555,21 @@ export default function Dashboard() {
         const reduced = window.matchMedia(
             '(prefers-reduced-motion: reduce)',
         ).matches;
-        map.once('moveend', () =>
-            openTapCard(place.longitude, place.latitude, place.name),
-        );
+        // The card opens once the map got there. A rider who pans or zooms
+        // on the way starts a new move, which moves the number on.
+        let ask: number | null = null;
+        map.once('moveend', () => {
+            if (ask === null || tapAskRef.current === ask) {
+                openTapCard(place.longitude, place.latitude, place.name);
+            }
+        });
         map.easeTo({
             center: [place.longitude, place.latitude],
             zoom: Math.max(map.getZoom(), place.kind === 'town' ? 13 : 15),
             padding: framePadding(),
             duration: reduced ? 0 : 500,
         });
+        ask = tapAskRef.current;
     }
 
     /**
@@ -4507,13 +4579,24 @@ export default function Dashboard() {
     function snapOnScreen(lng: number, lat: number): Coordinate | null {
         const map = mapRef.current;
 
-        if (map === null || !map.getBounds().contains([lng, lat])) {
+        // Zoomed out, the map draws only the big roads, and a few pixels are
+        // kilometres: the routing engine knows the lanes and the sport.
+        if (
+            map === null ||
+            map.getZoom() < 13 ||
+            !map.getBounds().contains([lng, lat])
+        ) {
             return null;
         }
 
         const point = snapToRoad(map, lng, lat);
+        const snapped: Coordinate | null =
+            point === null ? null : [point.longitude, point.latitude];
 
-        return point === null ? null : [point.longitude, point.latitude];
+        return snapped === null ||
+            metresBetween([lng, lat], snapped) > farthestSnapMetres
+            ? null
+            : snapped;
     }
 
     /**
@@ -4572,15 +4655,19 @@ export default function Dashboard() {
     snapPointRef.current = snapPoint;
 
     const searchActions: SearchAction[] = [
-        {
-            label: 'Use my location',
-            detail: 'Where this device is now',
-            icon: LocateFixed,
-            onSelect: () => {
-                setSearchPurpose(null);
-                locateMe();
-            },
-        },
+        ...(purpose === 'start' || purpose === 'transition'
+            ? [
+                  {
+                      label: 'Use my location',
+                      detail: 'Where this device is now',
+                      icon: LocateFixed,
+                      onSelect: () => {
+                          setSearchPurpose(null);
+                          locateMe();
+                      },
+                  },
+              ]
+            : []),
         ...(purpose === 'via' && via !== null
             ? [
                   {

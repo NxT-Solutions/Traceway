@@ -36,6 +36,17 @@ final readonly class NominatimPlaceSearch implements PlaceSearch
     private const array REGION_PARTS = ['county', 'state'];
 
     /**
+     * Where a country goes by several names, which one its regions use, by
+     * the place of that name in the country's own name: "België / Belgique
+     * / Belgien" is Dutch in Flanders and French in Wallonia and Brussels.
+     * Any other region takes the first name.
+     */
+    private const array REGION_NAMES = [
+        'BE-VLG' => 0, 'BE-WAL' => 1, 'BE-BRU' => 1,
+        'CH-GE' => 1, 'CH-VD' => 1, 'CH-NE' => 1, 'CH-JU' => 1, 'CH-FR' => 1, 'CH-VS' => 1, 'CH-TI' => 2,
+    ];
+
+    /**
      * The parts of an address that name the street a house is on.
      */
     private const array STREET_PARTS = ['road', 'pedestrian', 'footway', 'cycleway', 'path', 'square', 'place'];
@@ -50,16 +61,17 @@ final readonly class NominatimPlaceSearch implements PlaceSearch
     /**
      * @return list<PlaceMatch>
      */
-    public function search(string $query, float $nearLatitude, float $nearLongitude, string $language = 'en'): array
+    public function search(string $query, float $nearLatitude, float $nearLongitude): array
     {
         $response = $this->nominatimConnector->send(new SearchRequest($query, self::LIMIT, [
             max(-180.0, $nearLongitude - self::NEAR),
             max(-90.0, $nearLatitude - self::NEAR),
             min(180.0, $nearLongitude + self::NEAR),
             min(90.0, $nearLatitude + self::NEAR),
-        ], $language));
+        ]));
 
-        throw_if($response->failed(), RuntimeException::class, 'The place search did not answer.');
+        // An empty page is not "nothing found", and must not be kept as one.
+        throw_if($response->failed() || ! is_array(json_decode($response->body())), RuntimeException::class, 'The place search did not answer.');
 
         $results = $response->json();
         $matches = [];
@@ -126,7 +138,7 @@ final readonly class NominatimPlaceSearch implements PlaceSearch
 
     /**
      * Where a match is: its town, or for a town its region, then the
-     * country. "Hoboken, België" or "Turnhout, Belgium".
+     * country. "Hoboken, België" or "Turnhout, België".
      *
      * @param  array<mixed>  $address
      * @param  list<string>  $parts
@@ -135,7 +147,7 @@ final readonly class NominatimPlaceSearch implements PlaceSearch
     {
         $place = $this->part($address, self::SETTLEMENT_PARTS, $name)
             ?? $this->part($address, self::REGION_PARTS, $name);
-        $country = $this->part($address, ['country'], $name);
+        $country = $this->country($address);
 
         if ($place !== null || $country !== null) {
             return implode(', ', array_filter([$place, $country], static fn (?string $part): bool => $part !== null));
@@ -147,6 +159,27 @@ final readonly class NominatimPlaceSearch implements PlaceSearch
         ));
 
         return implode(', ', count($rest) > 2 ? [$rest[0], $rest[count($rest) - 1]] : $rest);
+    }
+
+    /**
+     * The country the way people in the region name it, without a name only
+     * other regions of the country use.
+     *
+     * @param  array<mixed>  $address
+     */
+    private function country(array $address): ?string
+    {
+        $country = $this->part($address, ['country']);
+        $names = $country === null ? [] : preg_split('~\s*/\s*~u', $country, flags: PREG_SPLIT_NO_EMPTY);
+
+        if (! is_array($names) || count($names) < 2) {
+            return $country;
+        }
+
+        $region = $address['ISO3166-2-lvl4'] ?? null;
+        $index = is_string($region) ? (self::REGION_NAMES[$region] ?? 0) : 0;
+
+        return $names[$index] ?? $names[0];
     }
 
     /**

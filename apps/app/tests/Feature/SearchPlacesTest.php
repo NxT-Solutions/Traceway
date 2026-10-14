@@ -28,7 +28,7 @@ function findsPlaces(array|Throwable $answer): void
          */
         public function __construct(private array|Throwable $answer) {}
 
-        public function search(string $query, float $nearLatitude, float $nearLongitude, string $language = 'en'): array
+        public function search(string $query, float $nearLatitude, float $nearLongitude): array
         {
             throw_if($this->answer instanceof Throwable, $this->answer);
 
@@ -41,7 +41,7 @@ it('finds places by name for a rider', function (): void {
     findsPlaces([new PlaceMatch('Westerlo', 'Turnhout, Belgium', 51.0907, 4.9166, PlaceKind::Town)]);
 
     $this->actingAs(User::factory()->create())
-        ->postJson(route('routes.places'), ['query' => 'Westerlo', 'latitude' => 51.1, 'longitude' => 4.9, 'language' => 'nl'])
+        ->postJson(route('routes.places'), ['query' => 'Westerlo', 'latitude' => 51.1, 'longitude' => 4.9])
         ->assertOk()
         ->assertExactJson(['places' => [
             ['name' => 'Westerlo', 'area' => 'Turnhout, Belgium', 'latitude' => 51.0907, 'longitude' => 4.9166, 'kind' => 'town'],
@@ -106,9 +106,35 @@ it('turns away a search that is too short or a point that is not on the map', fu
     findsPlaces([]);
 
     $this->actingAs(User::factory()->create())
-        ->postJson(route('routes.places'), ['query' => 'W', 'latitude' => 91, 'longitude' => 4.9, 'language' => 'dutch'])
+        ->postJson(route('routes.places'), ['query' => 'W', 'latitude' => 91, 'longitude' => 4.9])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['query', 'latitude', 'language']);
+        ->assertJsonValidationErrors(['query', 'latitude']);
+});
+
+it('lets one rider search ten times a minute, so all of Traceway keeps its share', function (): void {
+    findsPlaces([]);
+    $user = User::factory()->create();
+
+    foreach (range(1, 10) as $search) {
+        $this->actingAs($user)
+            ->postJson(route('routes.places'), ['query' => 'Westerlo '.$search, 'latitude' => 51.1, 'longitude' => 4.9])
+            ->assertOk();
+    }
+
+    $this->actingAs($user)
+        ->postJson(route('routes.places'), ['query' => 'Westerlo', 'latitude' => 51.1, 'longitude' => 4.9])
+        ->assertTooManyRequests();
+});
+
+it('reports only the kind of failure, never what the rider typed', function (): void {
+    Exceptions::fake();
+    findsPlaces(new RuntimeException('cURL error 28: timed out for https://nominatim.test/search?q=Roodborstlaan+3'));
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.places'), ['query' => 'Roodborstlaan 3', 'latitude' => 51.1, 'longitude' => 4.9])
+        ->assertServiceUnavailable();
+
+    Exceptions::assertReported(fn (RuntimeException $runtimeException): bool => ! str_contains($runtimeException->getMessage(), 'Roodborstlaan'));
 });
 
 it('finds places only for a signed-in rider', function (): void {
