@@ -4626,21 +4626,28 @@ export default function Dashboard() {
         const reduced = window.matchMedia(
             '(prefers-reduced-motion: reduce)',
         ).matches;
-        // The card opens once the map got there. A rider who pans or zooms
-        // on the way starts a new move, which moves the number on.
-        let ask: number | null = null;
-        map.once('moveend', () => {
-            if (ask === null || tapAskRef.current === ask) {
-                openTapCard(place.longitude, place.latitude, place.name);
-            }
-        });
+        // The card opens once the map got there. The wait starts after the
+        // move does, so the end of a move still under way when the place was
+        // picked does not count. A rider who pans or zooms on the way starts
+        // a new move, which moves the number on.
         map.easeTo({
             center: [place.longitude, place.latitude],
             zoom: Math.max(map.getZoom(), place.kind === 'town' ? 13 : 15),
             padding: framePadding(),
             duration: reduced ? 0 : 500,
         });
-        ask = tapAskRef.current;
+        const ask = tapAskRef.current;
+        const open = (): void => {
+            if (tapAskRef.current === ask) {
+                openTapCard(place.longitude, place.latitude, place.name);
+            }
+        };
+
+        if (map.isMoving()) {
+            map.once('moveend', open);
+        } else {
+            open();
+        }
     }
 
     /**
