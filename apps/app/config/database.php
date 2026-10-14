@@ -40,10 +40,17 @@ return [
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', default: true),
-            'busy_timeout' => env('DB_BUSY_TIMEOUT'),
-            'journal_mode' => env('DB_JOURNAL_MODE'),
-            'synchronous' => env('DB_SYNCHRONOUS'),
-            'transaction_mode' => 'DEFERRED',
+            // The web, queue, and scheduler containers write to one file at
+            // once. A writer waits up to five seconds for its turn instead
+            // of failing, and readers never wait for writers (WAL, which the
+            // Litestream backup needs anyway). A transaction takes the write
+            // lock when it begins: one that reads and then writes, like a
+            // rate limit counting a request, would otherwise fail at once
+            // when another writer got there first.
+            'busy_timeout' => env('DB_BUSY_TIMEOUT', 5000),
+            'journal_mode' => env('DB_JOURNAL_MODE', 'wal'),
+            'synchronous' => env('DB_SYNCHRONOUS', 'normal'),
+            'transaction_mode' => env('DB_TRANSACTION_MODE', 'IMMEDIATE'),
         ],
 
         'mysql' => [
