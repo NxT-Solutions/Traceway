@@ -13,4 +13,6 @@ interface SavedRouteRepository
     public function store(SaveRouteCommand $saveRouteCommand): string;
 
     public function deleteOwned(RouteId $routeId, RiderId $riderId): void;
+
+    public function owns(RouteId $routeId, RiderId $riderId): bool;
 }

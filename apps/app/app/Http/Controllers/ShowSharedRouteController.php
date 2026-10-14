@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Responses\SharePreview;
+use App\Models\User;
 use App\Queries\Routes\SharedRouteQuery;
 use App\Routes\RouteId;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use OpenApi\Attributes\Get;
@@ -48,8 +51,19 @@ class ShowSharedRouteController extends Controller
         response: HttpResponse::HTTP_FORBIDDEN,
         description: 'The link is not signed.',
     )]
-    public function __invoke(string $savedRoute, SharedRouteQuery $sharedRouteQuery): Response
+    public function __invoke(Request $request, string $savedRoute, SharedRouteQuery $sharedRouteQuery): Response
     {
-        return Inertia::render('share', $sharedRouteQuery->page(new RouteId($savedRoute))->toArray());
+        $sharedRoutePage = $sharedRouteQuery->page(new RouteId($savedRoute));
+        $sharedRoute = $sharedRoutePage->route;
+        $viewer = $request->user();
+
+        return Inertia::render('share', [
+            ...$sharedRoutePage->toArray(),
+            // The rider who saved the route draws its picture the first time
+            // they open the link, since only a browser has the map.
+            'draw_image' => $viewer instanceof User && $viewer->id === $sharedRoute->riderId && ! $sharedRoute->imageDrawn,
+        ])->withViewData([
+            'sharePreview' => SharePreview::of($sharedRoute, $request->fullUrl())->toArray(),
+        ]);
     }
 }

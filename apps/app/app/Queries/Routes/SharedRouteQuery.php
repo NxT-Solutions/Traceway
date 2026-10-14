@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Queries\Routes;
 
+use App\Account\RiderId;
+use App\Contracts\Routes\RouteImageStore;
 use App\Domain\Routing\Sport;
 use App\Routes\RouteId;
 use App\Routes\SavedLeg;
 
-final class SharedRouteQuery
+final readonly class SharedRouteQuery
 {
+    public function __construct(private RouteImageStore $routeImageStore) {}
+
     public function page(RouteId $routeId): SharedRoutePage
     {
         return new SharedRoutePage($this->find($routeId));
@@ -18,6 +22,8 @@ final class SharedRouteQuery
     public function find(RouteId $routeId): SharedRoute
     {
         $rowReader = SavedRouteRow::find($routeId->value);
+        $riderId = $rowReader->int('user_id');
+        $drawnAt = $this->routeImageStore->drawnAt(new RiderId($riderId), $routeId);
 
         return new SharedRoute(
             name: $rowReader->string('name'),
@@ -33,6 +39,9 @@ final class SharedRouteQuery
             layout: $rowReader->optionalString('layout'),
             legs: $this->legs($routeId, $rowReader->legs('legs')),
             details: $rowReader->details('details')?->toArray(),
+            imageUrl: SignedRouteLink::image($routeId->value, $drawnAt),
+            imageDrawn: $drawnAt !== null,
+            riderId: $riderId,
         );
     }
 

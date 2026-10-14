@@ -27,6 +27,7 @@ final readonly class LibraryRoute
         public array $coordinates,
         public ?string $layout = null,
         public array $legs = [],
+        public bool $imageDrawn = false,
     ) {}
 
     /**
@@ -44,7 +45,8 @@ final readonly class LibraryRoute
      *     created_at: string|null,
      *     coordinates: list<array{0: float, 1: float}>,
      *     layout: string|null,
-     *     legs: list<array{discipline: string, distance_metres: int, fit_url: string|null}>
+     *     legs: list<array{discipline: string, distance_metres: int, fit_url: string|null}>,
+     *     image_drawn: bool
      * }
      */
     public function toArray(): array
@@ -64,6 +66,7 @@ final readonly class LibraryRoute
             'coordinates' => $this->coordinates,
             'layout' => $this->layout,
             'legs' => $this->legs,
+            'image_drawn' => $this->imageDrawn,
         ];
     }
 }

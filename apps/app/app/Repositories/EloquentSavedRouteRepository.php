@@ -43,6 +43,11 @@ final readonly class EloquentSavedRouteRepository implements SavedRouteRepositor
         });
     }
 
+    public function owns(RouteId $routeId, RiderId $riderId): bool
+    {
+        return DB::table('saved_routes')->where('id', $routeId->value)->where('user_id', $riderId->value)->exists();
+    }
+
     public function deleteOwned(RouteId $routeId, RiderId $riderId): void
     {
         DB::transaction(function () use ($routeId, $riderId): void {

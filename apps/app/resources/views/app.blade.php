@@ -31,6 +31,27 @@
         }
     </style>
 
+    @isset($sharePreview)
+        {{-- A shared route is private: chats show the preview, search engines leave it out. --}}
+        <meta name="robots" content="noindex, nofollow">
+        <meta name="description" content="{{ $sharePreview['description'] }}">
+        <meta name="theme-color" content="#071f20">
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="Traceway">
+        <meta property="og:title" content="{{ $sharePreview['title'] }}">
+        <meta property="og:description" content="{{ $sharePreview['description'] }}">
+        <meta property="og:url" content="{{ $sharePreview['url'] }}">
+        <meta property="og:image" content="{{ $sharePreview['image'] }}">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+        <meta property="og:image:alt" content="{{ $sharePreview['image_alt'] }}">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $sharePreview['title'] }}">
+        <meta name="twitter:description" content="{{ $sharePreview['description'] }}">
+        <meta name="twitter:image" content="{{ $sharePreview['image'] }}">
+        <meta name="twitter:image:alt" content="{{ $sharePreview['image_alt'] }}">
+    @endisset
+
     <link rel="icon" href="/favicon.ico?v=2" sizes="any">
     <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
@@ -40,7 +61,7 @@
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
     <x-inertia::head>
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>{{ $sharePreview['title'] ?? config('app.name', 'Laravel') }}</title>
     </x-inertia::head>
 </head>
 
