@@ -122,6 +122,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           INPUT_TITLE: ${{ inputs.title }}
           INPUT_SUMMARY: ${{ inputs.summary }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail
           title="${INPUT_TITLE}"
@@ -143,25 +144,37 @@ jobs:
               response_format: {type: "json_object"},
               messages: [{role: "system", content: $rules}, {role: "user", content: $notes}]
             }')"
-            answer="$(curl --silent --show-error --fail-with-body --max-time 60 \
+            reply="$(mktemp)"
+            status="$(curl --silent --show-error --max-time 60 --output "$reply" --write-out '%{http_code}' \
               https://models.github.ai/inference/chat/completions \
               -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               -H "Content-Type: application/json" \
-              -d "$request" | jq -r '.choices[0].message.content')"
+              -d "$request" || echo 000)"
 
-            if [ -z "$title" ]; then
-              title="$(jq -r '.title // empty' <<< "$answer")"
-            fi
-            if [ -z "$summary" ]; then
-              summary="$(jq -r '.summary // empty' <<< "$answer")"
+            if [ "$status" = "200" ]; then
+              # The answer is JSON, sometimes wrapped in a ```json fence.
+              answer="$(jq -r '.choices[0].message.content // empty' "$reply" | sed '/^```/d')"
+              if [ -z "$title" ]; then
+                title="$(jq -r '.title // empty' <<< "$answer" 2> /dev/null || true)"
+              fi
+              if [ -z "$summary" ]; then
+                summary="$(jq -r '.summary // empty' <<< "$answer" 2> /dev/null || true)"
+              fi
+            else
+              echo "::warning::GitHub Models answered ${status}: $(head -c 400 "$reply" | tr -s '[:space:]' ' ')"
             fi
           fi
 
           title="$(tr -s '[:space:]' ' ' <<< "$title" | sed 's/^ *//; s/ *$//')"
           summary="$(tr -s '[:space:]' ' ' <<< "$summary" | sed 's/^ *//; s/ *$//')"
           if [ -z "$title" ] || [ "${#title}" -gt 80 ]; then
-            echo "::error::No usable title. Run the workflow again with a title."
-            exit 1
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "::warning::No title yet. A release needs one: give it, or let GitHub Models write it."
+              title="(no title yet)"
+            else
+              echo "::error::No usable title. Run the workflow again with a title, or check the GitHub Models warning above."
+              exit 1
+            fi
           fi
           if [ "${#summary}" -gt 200 ]; then
             summary=""
