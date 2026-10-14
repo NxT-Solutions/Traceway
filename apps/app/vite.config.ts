@@ -12,9 +12,28 @@ const devOrigin = (
     process.env.DDEV_PRIMARY_URL ?? 'https://traceway.ddev.site'
 ).replace(/\/$/, '');
 const devPublic = new URL(devOrigin);
+const devBase = '/_app/';
 
 export default defineConfig(({ command }) => ({
     plugins: lazyPlugins(() => [
+        // laravel-vite-plugin writes dev font URLs under the base (/_app/),
+        // but its font middleware runs before Vite strips the base, so every
+        // font 404s. Drop the base from those requests first.
+        {
+            name: 'traceway:fonts-under-base',
+            apply: 'serve',
+            configureServer(server) {
+                const fonts = `${devBase}__laravel_vite_plugin__/fonts/`;
+
+                server.middlewares.use((request, _response, next) => {
+                    if (request.url?.startsWith(fonts)) {
+                        request.url = request.url.slice(devBase.length - 1);
+                    }
+
+                    next();
+                });
+            },
+        },
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
@@ -37,7 +56,7 @@ export default defineConfig(({ command }) => ({
     // Only the DDEV dev server sits behind nginx's /_app/ proxy path.
     // A production build is served from Laravel's own /build/ directory,
     // so baking /_app/ into it breaks every dynamically-imported chunk.
-    base: command === 'serve' ? '/_app/' : undefined,
+    base: command === 'serve' ? devBase : undefined,
     optimizeDeps: {
         exclude: ['maplibre-gl'],
     },
