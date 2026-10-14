@@ -34,6 +34,11 @@ const sidebarNavItems: NavItem[] = [
         icon: null,
     },
     {
+        title: 'AI assistants',
+        href: '/settings/assistants',
+        icon: null,
+    },
+    {
         title: 'Your data',
         href: '/settings/privacy',
         icon: null,

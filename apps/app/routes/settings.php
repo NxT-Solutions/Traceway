@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\PasskeyEndpointsController;
+use App\Http\Controllers\Settings\AssistantsController;
 use App\Http\Controllers\Settings\DevicesController;
 use App\Http\Controllers\Settings\PrivacyController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -17,6 +18,8 @@ Route::middleware(['auth'])->group(function (): void {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    Route::get('settings/assistants', [AssistantsController::class, 'edit'])->name('assistants.edit');
 
     Route::get('settings/privacy', [PrivacyController::class, 'edit'])->name('privacy.edit');
     Route::get('settings/privacy/export', [PrivacyController::class, 'export'])->name('privacy.export');

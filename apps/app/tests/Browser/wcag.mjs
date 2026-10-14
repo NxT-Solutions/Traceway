@@ -16,7 +16,7 @@ const executable = process.env.CHROMIUM_PATH || (existsSync(local) ? local : und
 const content = process.env.CONTENT_URL || base;
 const contentPages = ['/', '/support'];
 const authPages = ['/login', '/register', '/forgot-password'];
-const signedInPages = ['/dashboard', '/saved', '/settings/profile', '/settings/privacy', '/settings/appearance'];
+const signedInPages = ['/dashboard', '/saved', '/settings/profile', '/settings/privacy', '/settings/assistants', '/settings/appearance'];
 
 const browser = await chromium.launch({ executablePath: executable, headless: true });
 const failures = [];
