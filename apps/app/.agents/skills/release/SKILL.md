@@ -45,7 +45,7 @@ From the notes:
 - **Summary:** one sentence, at most 140 characters, on what changed for the rider.
 - **Style:** plain words for riders over 60. No technical terms, no version numbers, no emoji, and no hype. Never the words beacon, kudos, segment, or suffer.
 
-Show the version, the title, the summary, and the list of notes to the person, and wait for a go. Skip the wait only if they already said to release without asking. A release cut without a title, such as from the phone, is named by its first change, and the summary is optional.
+Show the version, the title, the summary, and the list of notes to the person, and wait for a go. Skip the wait only if they already said to release without asking. A release cut without a title or summary, such as from the phone, gets them from Copilot when the `COPILOT_TOKEN` secret is set. Without it, the release is named by its first change and has no summary.
 
 ## 4. Run it
 
