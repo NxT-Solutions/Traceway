@@ -281,6 +281,24 @@ it('shows the AI tools a rider connected, and disconnects one', function (): voi
         ->assertInertia(fn (AssertableInertia $assertableInertia): AssertableInertia => $assertableInertia->has('apps', 0));
 });
 
+it('shows a rider how to add the connector, and the apps they added', function (): void {
+    $this->get(route('assistants.edit'))->assertRedirect(route('login'));
+
+    $user = User::factory()->create();
+    $clientId = connectApp($user);
+    connectApp(User::factory()->create(), "Someone else's app");
+
+    $this->actingAs($user)
+        ->get(route('assistants.edit'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $assertableInertia): AssertableInertia => $assertableInertia
+            ->component('settings/assistants')
+            ->where('connector_url', url('/mcp'))
+            ->has('apps', 1)
+            ->where('apps.0.id', $clientId)
+            ->where('apps.0.name', 'Claude'));
+});
+
 it('cannot disconnect an app for someone else', function (): void {
     $clientId = connectApp(User::factory()->create());
 
