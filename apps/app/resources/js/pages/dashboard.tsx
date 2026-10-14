@@ -695,34 +695,32 @@ const emptyLine = {
     properties: {},
 };
 
+// The place is named through Traceway, so the browser never sends the pin to
+// the place search itself.
 async function labelPlace(
     longitude: number,
     latitude: number,
 ): Promise<string> {
     try {
-        const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=14`,
-            { headers: { Accept: 'application/json' } },
-        );
+        const response = await fetch('/routes/place', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-XSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({ latitude, longitude }),
+        });
         const body: unknown = await response.json();
 
-        if (typeof body === 'object' && body !== null) {
-            const record = body as {
-                name?: string;
-                address?: Record<string, string>;
-            };
-            const address = record.address ?? {};
-            const name =
-                address.village ||
-                address.hamlet ||
-                address.town ||
-                address.suburb ||
-                address.city ||
-                record.name;
-
-            if (typeof name === 'string' && name !== '') {
-                return name;
-            }
+        if (
+            typeof body === 'object' &&
+            body !== null &&
+            'name' in body &&
+            typeof body.name === 'string' &&
+            body.name !== ''
+        ) {
+            return body.name;
         }
     } catch {
         return 'Junction';

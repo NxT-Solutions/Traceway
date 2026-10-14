@@ -97,6 +97,7 @@ const pages = [
         url: () => shared,
         prepare: openLists,
     },
+    { name: 'register', url: '/register', full: true },
     { name: 'assistants', url: '/settings/assistants', auth: true, full: true },
     { name: 'privacy', url: '/settings/privacy', auth: true, full: true },
 ];

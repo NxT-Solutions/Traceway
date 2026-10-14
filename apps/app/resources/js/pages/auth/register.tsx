@@ -13,6 +13,11 @@ type Props = {
     passwordRules: string;
 };
 
+// The terms and the privacy policy are pages of the content site, not of
+// the planner, so they open as plain links, styled like a TextLink.
+const legalLink =
+    'text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500';
+
 export default function Register({ passwordRules }: Props) {
     return (
         <>
@@ -90,10 +95,30 @@ export default function Register({ passwordRules }: Props) {
                                 />
                             </div>
 
+                            <p className="text-sm text-muted-foreground">
+                                By creating an account, you accept the{' '}
+                                <a
+                                    className={legalLink}
+                                    href="/terms"
+                                    tabIndex={5}
+                                >
+                                    terms of use
+                                </a>{' '}
+                                and the{' '}
+                                <a
+                                    className={legalLink}
+                                    href="/privacy"
+                                    tabIndex={6}
+                                >
+                                    privacy policy
+                                </a>
+                                .
+                            </p>
+
                             <Button
                                 type="submit"
                                 className="mt-2 w-full"
-                                tabIndex={5}
+                                tabIndex={7}
                                 data-test="register-user-button"
                             >
                                 {processing && <Spinner />}
@@ -103,7 +128,7 @@ export default function Register({ passwordRules }: Props) {
 
                         <div className="text-center text-sm text-muted-foreground">
                             Already have an account?{' '}
-                            <TextLink href={login()} tabIndex={6}>
+                            <TextLink href={login()} tabIndex={8}>
                                 Log in
                             </TextLink>
                         </div>

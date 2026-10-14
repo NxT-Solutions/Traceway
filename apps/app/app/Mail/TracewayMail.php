@@ -15,7 +15,7 @@ final class TracewayMail
     {
         $replacements = [];
 
-        foreach ($values as $key => $value) {
+        foreach ([...self::footer(), ...$values] as $key => $value) {
             $replacements['%%'.strtoupper($key).'%%'] = e($value);
         }
 
@@ -51,7 +51,7 @@ final class TracewayMail
 
         $replacements = [];
 
-        foreach ($values as $key => $value) {
+        foreach ([...self::footer(), ...$values] as $key => $value) {
             $replacements['%%'.strtoupper($key).'%%'] = $value;
         }
 
@@ -63,6 +63,19 @@ final class TracewayMail
         $text = (string) preg_replace("/\n{3,}/", "\n\n", implode("\n", $lines));
 
         return trim($text)."\n";
+    }
+
+    /**
+     * Every message ends with links to the privacy policy and the terms.
+     *
+     * @return array<string, string>
+     */
+    private static function footer(): array
+    {
+        return [
+            'privacy' => url('/privacy'),
+            'terms' => url('/terms'),
+        ];
     }
 
     private static function compiled(string $template): string

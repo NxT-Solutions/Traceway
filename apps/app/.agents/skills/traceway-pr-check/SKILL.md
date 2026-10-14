@@ -73,7 +73,7 @@ They fail on an uncaught page error, not only on a failed step. A note in the de
 - **An endpoint that fans out to the map servers is capped and rate limited** (`LineWithinReach`, `throttle:map`), so one account cannot get Traceway's IP blocked.
 - **Local diagnostics stay local.** Anything that reports or logs extra (the card's report) is behind `app()->isLocal()`.
 
-There is no public privacy notice yet. If the branch adds a processor or a kind of data, say so in the PR, so the notice can be written with it.
+The privacy policy, the terms, and the cookies page are at `/privacy`, `/terms`, and `/cookies`, from `apps/web/src/legal.ts`. If the branch adds a processor, an outside host, a cookie, or a kind of stored data, update that text in the same branch and bump `legalUpdated`, and say so in the PR.
 
 ## 7. Review the branch
 

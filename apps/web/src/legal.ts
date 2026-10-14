@@ -81,8 +81,8 @@ export const privacy: LegalPage = {
                 '**Hetzner Online** hosts the server and the database, in Germany.',
                 '**Cloudflare** keeps the backup copies of the database.',
                 '**Resend** sends the account email. It gets your email address and the message. For a copy of your data, that includes the file.',
-                '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, the [Overpass API](https://overpass-api.de) for water, toilets, and cafés, and [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names. The Traceway server sends them the points of a route or the name of a place, never your name or email address.',
-                '**Your own browser** loads the map from [OpenFreeMap](https://openfreemap.org), and asks [Nominatim](https://osmfoundation.org/wiki/Privacy_Policy) to name the place where you drop a pin. Like any website, they see your IP address and the part of the map you look at.',
+                '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, the [Overpass API](https://overpass-api.de) for water, toilets, and cafés, and [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names. The Traceway server sends them the points of a route, the name of a place, or a pin rounded to about 100 metres. It never sends your name or email address.',
+                '**Your own browser** loads the map itself from [OpenFreeMap](https://openfreemap.org). Like any website, it sees your IP address and the part of the map you look at. Everything else goes through Traceway.',
             ],
             after: [
                 'Hetzner, Cloudflare, and Resend handle your data only on behalf of NxT-Solutions, under a data processing agreement.',
@@ -118,7 +118,7 @@ export const privacy: LegalPage = {
                 '**A pairing code:** 10 minutes.',
                 '**Unsaved routes and map answers:** up to an hour.',
                 '**Backups:** something you delete can stay in a backup for up to 14 days. Then it is gone.',
-                '**Error logs:** only as long as they are needed to fix a problem.',
+                '**Error logs:** only the latest. Older lines are overwritten automatically.',
             ],
         },
         {
@@ -146,7 +146,7 @@ export const privacy: LegalPage = {
         {
             heading: 'Children',
             paragraphs: [
-                `Traceway is for people aged 16 and over. If you think a child under 16 has an account, email ${email} and it will be deleted.`,
+                `Traceway is for people aged 13 and over. If you think a child under 13 has an account, email ${email} and it will be deleted.`,
             ],
         },
         {
@@ -184,7 +184,7 @@ export const terms: LegalPage = {
         {
             heading: 'Your account',
             paragraphs: [
-                'You must be 16 or older. Use your own email address, keep your password to yourself, and tell us if you think someone else is using your account. One account is for one person.',
+                'You must be 13 or older. Use your own email address, keep your password to yourself, and tell us if you think someone else is using your account. One account is for one person.',
             ],
         },
         {
@@ -285,7 +285,7 @@ export const cookies: LegalPage = {
         {
             heading: 'The map',
             paragraphs: [
-                'The map comes from OpenFreeMap, and place names come from Nominatim. Your browser fetches them directly, so they see your IP address, as any website does. Traceway shares nothing else about you with them. The [privacy policy](/privacy) has more.',
+                'The map itself comes from OpenFreeMap. Your browser fetches it directly, so OpenFreeMap sees your IP address, as any website does. Traceway shares nothing else about you with it, and place names come through Traceway. The [privacy policy](/privacy) has more.',
             ],
         },
         {

@@ -6,6 +6,7 @@ use App\Mail\AccountMessage;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 
@@ -183,4 +184,18 @@ it('does not put the owner on a shared multisport course or its leg files', func
     expect($this->get(URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $route->id, 'leg' => 2]))->getContent())
         ->not->toContain('owner-private@traceway.test')
         ->not->toContain('Owner');
+})->group('gdpr');
+
+it('has the browser fetch only from Traceway, apart from the map itself', function (): void {
+    // MapLibre loads the map from OpenFreeMap. Anything else the planner or
+    // the chat card needs, such as a place name, goes through Traceway, so
+    // no other company sees the rider's pins.
+    $files = [...File::allFiles(resource_path('js')), ...File::allFiles(resource_path('mcp'))];
+
+    foreach ($files as $file) {
+        $code = $file->getContents();
+
+        expect(preg_match('/fetch\(\s*[`\'"]https?:\/\//', $code))->toBe(0, $file->getRelativePathname().' fetches from another host')
+            ->and($code)->not->toContain('nominatim');
+    }
 })->group('gdpr');
