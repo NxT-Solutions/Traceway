@@ -15,6 +15,7 @@ export function MapTapCard({
     x,
     y,
     name,
+    note,
     actions,
     onClose,
 }: {
@@ -23,6 +24,8 @@ export function MapTapCard({
     y: number;
     /** The place around the tap, or null while it is being named. */
     name: string | null;
+    /** Said instead of the actions while the spot has no road yet. */
+    note: string | null;
     actions: TapAction[];
     onClose: () => void;
 }) {
@@ -34,6 +37,8 @@ export function MapTapCard({
     // The card sits above the ring, and below it near the top edge, always
     // inside the map.
     useLayoutEffect(() => {
+        // A note in place of the actions makes the card shorter.
+        void note;
         const card = cardRef.current;
         const map = card?.parentElement;
 
@@ -56,18 +61,19 @@ export function MapTapCard({
         );
 
         setPlace({ left, top: Math.max(edge, top) });
-    }, [x, y]);
+    }, [x, y, note]);
 
-    // Focus waits until the card is placed: a hidden button takes no focus.
-    const placed = place !== null;
+    // Focus waits until the card is placed and has its actions: a hidden
+    // button takes no focus.
+    const ready = place !== null && note === null;
 
     useEffect(() => {
-        if (placed) {
+        if (ready) {
             cardRef.current
                 ?.querySelector<HTMLButtonElement>('.fill')
                 ?.focus({ preventScroll: true });
         }
-    }, [placed]);
+    }, [ready]);
 
     return (
         <>
@@ -117,7 +123,12 @@ export function MapTapCard({
                         </svg>
                     </button>
                 </div>
-                <div className="tap-actions">
+                {note === null ? null : (
+                    <p className="tap-note" role="status">
+                        {note}
+                    </p>
+                )}
+                <div className="tap-actions" hidden={note !== null}>
                     {actions.map((action, index) => (
                         <button
                             key={action.label}

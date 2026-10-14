@@ -755,6 +755,8 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
 .tw-planner .tap-card .tap-head b{font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tw-planner .tap-card .ghostbtn{width:32px;height:32px;color:var(--muted)}
 .tw-planner .tap-card .tap-actions{display:flex;flex-direction:column;gap:8px}
+.tw-planner .tap-card .tap-actions[hidden]{display:none}
+.tw-planner .tap-card .tap-note{margin:0;font-size:14px;line-height:1.4;color:var(--muted)}
 .tw-planner .tap-card .fill{height:42px;min-height:42px;font-size:15px}
 .tw-planner .tap-card .outline{flex:none;width:100%}
 /* Undo after a pin moved or a point came or went */
