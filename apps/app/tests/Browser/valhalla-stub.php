@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 /*
 | A stand-in for the public Valhalla server, for the browser tests on a pull
-| request. It answers the two calls the planner makes with straight lines, so
-| a pull request does not wait on a fair-use router. A push to main keeps the
-| real one.
+| request. It answers the planner's routing calls with straight lines, and the
+| calls that describe a line with a hill, two turns, and a gravel end, so the
+| climb chart, the surfaces, and the turns show without a fair-use router. It
+| also stands in for Overpass with no stops, so no test waits on that server.
+| A push to main keeps the real ones.
 |
 |   php -S 127.0.0.1:8002 tests/Browser/valhalla-stub.php
 */
@@ -106,6 +108,66 @@ if ($path === '/route' && count($points) >= 2) {
     return;
 }
 
+// The line a describing call is about, as the planner sent it.
+$shape = is_array($request) && is_string($request['encoded_polyline'] ?? null) ? $request['encoded_polyline'] : null;
+$line = $shape === null ? [] : Polyline::decode($shape);
+
+if ($path === '/trace_route' && count($line) >= 2) {
+    $last = count($line) - 1;
+
+    reply(200, ['trip' => ['legs' => [[
+        'shape' => $shape,
+        'maneuvers' => [
+            ['type' => 1, 'begin_shape_index' => 0, 'street_names' => ['Kerkstraat']],
+            ['type' => 10, 'begin_shape_index' => intdiv($last, 3), 'street_names' => ['Molenweg']],
+            ['type' => 15, 'begin_shape_index' => intdiv($last * 2, 3), 'street_names' => ['Bosdreef']],
+            ['type' => 4, 'begin_shape_index' => $last],
+        ],
+    ]]]]);
+
+    return;
+}
+
+if ($path === '/trace_attributes' && count($line) >= 2) {
+    $metres = 0.0;
+
+    for ($index = 1, $count = count($line); $index < $count; $index++) {
+        $metres += metresBetween($line[$index - 1], $line[$index]);
+    }
+
+    reply(200, ['edges' => [
+        ['surface' => 'paved_smooth', 'length' => $metres * 0.8 / 1000],
+        ['surface' => 'gravel', 'length' => $metres * 0.2 / 1000],
+    ]]);
+
+    return;
+}
+
+if ($path === '/height' && count($line) >= 2) {
+    $total = 0.0;
+
+    for ($index = 1, $count = count($line); $index < $count; $index++) {
+        $total += metresBetween($line[$index - 1], $line[$index]);
+    }
+
+    $step = is_numeric($request['resample_distance'] ?? null) ? max(10.0, (float) $request['resample_distance']) : 30.0;
+    $heights = [];
+
+    for ($at = 0.0; $at <= $total; $at += $step) {
+        $heights[] = [round($at), round(20 + 25 * sin(M_PI * $at / max($total, 1.0)), 1)];
+    }
+
+    reply(200, ['range_height' => $heights]);
+
+    return;
+}
+
+if ($path === '/api/interpreter') {
+    reply(200, ['elements' => []]);
+
+    return;
+}
+
 reply(in_array($path, ['/route', '/locate'], strict: true) ? 400 : 404, [
-    'error' => 'The stub answers POST /route and POST /locate with at least one location.',
+    'error' => 'The stub answers /route, /locate, /trace_route, /trace_attributes, /height, and /api/interpreter.',
 ]);
