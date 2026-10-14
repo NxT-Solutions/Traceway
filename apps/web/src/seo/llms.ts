@@ -11,6 +11,7 @@ ${name} plans loop routes from a start pin. You pick a sport, a distance, a surf
 - Multisport plans: ${multisport.join(', ')}, at race distances from a super sprint to a full Ironman, or with a distance per leg.
 - Devices: ${devices.join(', ')}, and most others that can load a route. Garmin also gets a warning before each turn and each stop for water, a toilet, or a café, and the climbs ahead.
 - A via point bends the loop through a place. No loop doubles back on itself.
+- Claude, ChatGPT, Codex, Cursor, and VS Code can plan routes too: ${name} is an MCP connector. People connect it once, ask in their own words, and the route shows on a map in the chat.
 - A GPX file opens in the planner. It can be kept as it is, ridden the other way, or started from the pin.
 - No feed, no followers, no public routes. Planning needs an account.
 

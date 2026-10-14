@@ -376,6 +376,65 @@
   </div>
 </section>
 
+<section class="sec" id="ask">
+  <div class="wrap">
+    <div class="ask-grid">
+      <div class="ask-copy rv">
+        <p class="kicker">Ask your AI</p>
+        <h2>Or just ask for it.</h2>
+        <p class="lede">Use Claude or ChatGPT? Connect Traceway once. Then ask for a route in your own words, and it shows up on a map in the chat, saved and ready for your watch.</p>
+        <ul class="asks" aria-label="Things you can ask">
+          <li>“A 40 km gravel loop from Westerlo, past Tongerlo Abbey”</li>
+          <li>“A flat 10 km run from Gent-Sint-Pieters station”</li>
+          <li>“A sprint brick from Hofstade lake”</li>
+          <li>“Show my last five routes”</li>
+        </ul>
+        <div class="ask-acts">
+          <a class="fill" href="/settings/assistants">Connect your AI</a>
+          <small>Works in Claude, ChatGPT, Codex, Cursor, and VS Code. Traceway is an MCP connector, the open standard these apps use to work with other apps.</small>
+        </div>
+      </div>
+      <div class="chat rv" id="chat" style="--i:1" aria-hidden="true">
+        <div class="chat-bar"><i></i><i></i><i></i><span>Your AI</span></div>
+        <div class="chat-body">
+          <p class="bubble you" id="chat-ask" data-text="A 40 km gravel loop from Westerlo, past Tongerlo Abbey">A 40 km gravel loop from Westerlo, past Tongerlo Abbey</p>
+          <div class="slot">
+            <p class="bubble typing" id="chat-typing"><i></i><i></i><i></i></p>
+            <p class="tool done" id="chat-tool"><span class="spin"></span><span id="chat-tool-t">Traceway · loop planned and saved</span></p>
+          </div>
+          <div class="rcard" id="chat-card">
+            <div class="rcard-top">
+              <div>
+                <div class="rcard-brand"><svg viewBox="0 0 32 32" width="14" height="14" fill="none"><path d="M8.2 25.2 V15.4 a5.1 5.1 0 0 1 5.1 -5.1 h3.4 a5.1 5.1 0 0 1 5.1 5.1 v2.3" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="22.1" cy="23.5" r="2.45" fill="oklch(0.78 0.17 128)"></circle></svg>Traceway</div>
+                <b>Gravel loop past Tongerlo</b>
+              </div>
+              <div class="rcard-km"><span id="chat-km">40.8</span><small>km</small></div>
+            </div>
+            <div class="rcard-map">
+              <svg viewBox="540 96 300 264" preserveAspectRatio="xMidYMid slice">
+                <use href="#net"></use>
+                <use class="rcard-casing" href="#loop-gravel"></use>
+                <use class="rcard-loop" id="chat-loop" href="#loop-gravel"></use>
+                <g class="rcard-stop" style="--c:oklch(0.48 0.2 264)"><circle cx="592" cy="192" r="9"></circle><path d="M592 186 c-3 4 -4 6 -4 8 a4 4 0 0 0 8 0 c0 -2 -1 -4 -4 -8z"></path></g>
+                <g class="rcard-stop" style="--c:oklch(0.5 0.1 185)"><circle cx="690" cy="130" r="9"></circle><path d="M685.5 126.5 h7 v6.5 h-7z"></path><path class="h" d="M692.5 128 a2 2 0 0 1 0 4"></path></g>
+                <g class="rcard-stop" style="--c:oklch(0.45 0.22 295)"><circle cx="808" cy="170" r="9"></circle><text x="808" y="173.5">WC</text></g>
+                <circle class="rcard-start" cx="780" cy="322" r="8"></circle>
+              </svg>
+            </div>
+            <ul class="rcard-facts">
+              <li><b>Gravel ride</b></li>
+              <li><b>120 m</b> climb</li>
+              <li>3 stops on the way</li>
+            </ul>
+            <div class="rcard-acts"><span class="on">Open the map</span><span>Garmin file</span><span>GPX file</span></div>
+          </div>
+          <p class="bubble ai" id="chat-reply">Here is your loop. It is in your Traceway library, ready for your watch.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="sec stance">
   <div class="wrap">
     <h2 class="rv"><span>No feed.</span><span>No club.</span><span class="x">No public routes.</span></h2>
