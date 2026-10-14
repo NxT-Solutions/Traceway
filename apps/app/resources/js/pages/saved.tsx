@@ -484,12 +484,16 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
 
                     // A canvas that never painted is empty, and an empty
                     // canvas is a black JPEG. The outline below stays then.
+                    // The shot is taken here, not in the state update: React
+                    // runs that later, and after the last route the map is
+                    // already gone, so its canvas would come out black.
                     if (painted) {
+                        const image = map
+                            .getCanvas()
+                            .toDataURL('image/jpeg', 0.82);
                         setImages((current) => ({
                             ...current,
-                            [route.id]: map
-                                .getCanvas()
-                                .toDataURL('image/jpeg', 0.82),
+                            [route.id]: image,
                         }));
                     }
 
