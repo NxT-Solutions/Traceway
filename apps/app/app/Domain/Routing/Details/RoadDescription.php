@@ -18,5 +18,7 @@ final readonly class RoadDescription
         public array $profile,
         public array $surfaces,
         public array $cues,
+        // False when a part of the line got no heights, surfaces, or turns.
+        public bool $complete = true,
     ) {}
 }

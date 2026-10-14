@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Domain\Courses\DeviceName;
 use App\Domain\Routing\Sport;
+use App\Validation\LineWithinReach;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
@@ -43,7 +44,7 @@ class ExportFitCourseRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:80'],
             'sport' => ['required', Rule::enum(Sport::class)],
-            'coordinates' => ['required', 'array', 'min:2', 'max:8000'],
+            'coordinates' => ['required', 'array', 'min:2', 'max:8000', new LineWithinReach],
             'coordinates.*' => ['array', 'size:2'],
             'coordinates.*.0' => ['numeric', 'between:-180,180'],
             'coordinates.*.1' => ['numeric', 'between:-90,90'],

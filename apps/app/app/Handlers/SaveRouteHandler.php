@@ -17,6 +17,12 @@ use Throwable;
 
 final readonly class SaveRouteHandler
 {
+    /**
+     * How long a save waits on the map servers for its legs. Past it, the
+     * rest save without details, and `routes:details` reads them later.
+     */
+    private const float DETAILS_SECONDS = 20.0;
+
     public function __construct(
         private CurrentRider $currentRider,
         private SavedRouteRepository $savedRouteRepository,
@@ -47,8 +53,9 @@ final readonly class SaveRouteHandler
             );
         }
 
-        $legs = array_map(function (SavedLeg $savedLeg): SavedLeg {
-            if (! $savedLeg->sport instanceof Sport) {
+        $deadline = microtime(as_float: true) + self::DETAILS_SECONDS;
+        $legs = array_map(function (SavedLeg $savedLeg) use ($deadline): SavedLeg {
+            if (! $savedLeg->sport instanceof Sport || microtime(as_float: true) > $deadline) {
                 return $savedLeg;
             }
 

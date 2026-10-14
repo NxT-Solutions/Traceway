@@ -62,15 +62,15 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('routes/build', BuildRouteController::class)->name('routes.build');
     Route::post('routes/multisport', PreviewMultisportController::class)->name('routes.multisport');
     Route::post('routes/snap', SnapPointController::class)->name('routes.snap');
-    Route::post('routes/details', RouteDetailsController::class)->name('routes.details');
-    Route::post('routes/stops', RouteStopsController::class)->name('routes.stops');
-    Route::post('routes/fit', ExportFitCourseController::class)->name('routes.fit');
-    Route::post('routes/import', ImportRouteController::class)->name('routes.import');
-    Route::post('routes/import/redo', RedoImportedRouteController::class)->name('routes.import.redo');
+    Route::post('routes/details', RouteDetailsController::class)->middleware('throttle:map')->name('routes.details');
+    Route::post('routes/stops', RouteStopsController::class)->middleware('throttle:map')->name('routes.stops');
+    Route::post('routes/fit', ExportFitCourseController::class)->middleware('throttle:map')->name('routes.fit');
+    Route::post('routes/import', ImportRouteController::class)->middleware('throttle:map')->name('routes.import');
+    Route::post('routes/import/redo', RedoImportedRouteController::class)->middleware('throttle:map')->name('routes.import.redo');
     Route::post('routes/saved', StoreSavedRouteController::class)->name('routes.saved.store');
     Route::delete('routes/saved/{savedRoute}', DestroySavedRouteController::class)->name('routes.saved.destroy');
-    Route::get('routes/saved/{savedRoute}/details', ShowSavedRouteDetailsController::class)->name('routes.saved.details');
-    Route::post('routes/saved/{savedRoute}/image', StoreRouteImageController::class)->name('routes.saved.image');
+    Route::get('routes/saved/{savedRoute}/details', ShowSavedRouteDetailsController::class)->whereUuid('savedRoute')->name('routes.saved.details');
+    Route::post('routes/saved/{savedRoute}/image', StoreRouteImageController::class)->whereUuid('savedRoute')->name('routes.saved.image');
 });
 
 require __DIR__.'/settings.php';

@@ -75,6 +75,7 @@ final readonly class RouteDetailer implements RouteDetailsSource
             surfaces: $roadDescription->surfaces,
             cues: $this->cues($roadDescription->cues, LineDistance::of($line)),
             stops: [],
+            complete: $roadDescription->complete,
         );
     }
 

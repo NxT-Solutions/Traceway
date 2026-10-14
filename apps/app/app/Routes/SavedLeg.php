@@ -51,7 +51,9 @@ final readonly class SavedLeg
      */
     public function withDetails(RouteDetails $routeDetails): self
     {
-        return new self($this->sport, $this->distanceMetres, $routeDetails->ascentMetres, $this->coordinates, $this->color, $routeDetails);
+        $ascentMetres = $routeDetails->hasClimb() ? $routeDetails->ascentMetres : $this->ascentMetres;
+
+        return new self($this->sport, $this->distanceMetres, $ascentMetres, $this->coordinates, $this->color, $routeDetails);
     }
 
     public function discipline(): string

@@ -249,3 +249,63 @@ it('shows the climb of each land leg on a shared multisport plan', function (): 
             ->where('route.legs.1.details.ascent_metres', 40)
             ->has('route.legs.1.details.cues', 1));
 });
+
+it('keeps the planner climb when the heights do not come back', function (): void {
+    $fixedRouteDetails = new FixedRouteDetails;
+    $fixedRouteDetails->heights = false;
+
+    app()->instance(RouteDetailsSource::class, $fixedRouteDetails);
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->postJson(route('routes.saved.store'), [
+        'name' => 'Hills without heights',
+        'sport' => 'road',
+        'surface' => 'paved',
+        'elevation' => 'neutral',
+        'roads' => 'quiet',
+        'distance_metres' => 5_000,
+        'ascent_metres' => 450,
+        'coordinates' => detailsLine(),
+    ])->assertSuccessful();
+
+    expect(SavedRoute::query()->sole()->ascent_metres)->toBe(450);
+});
+
+it('refuses a line too long for the map servers', function (): void {
+    $line = [[3.0, 51.0], [12.0, 51.0], [3.0, 51.0]];
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.details'), ['sport' => 'road', 'coordinates' => $line])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['coordinates']);
+});
+
+it('answers a malformed route id with not found', function (): void {
+    $this->actingAs(User::factory()->create())
+        ->getJson('/routes/saved/not-a-route/details')
+        ->assertNotFound();
+});
+
+it('does not let routes that cannot be read hold back the ones that can', function (): void {
+    $fixedRouteDetails = new FixedRouteDetails;
+    app()->instance(RouteDetailsSource::class, $fixedRouteDetails);
+    $legDetails = $fixedRouteDetails->for(Sport::Run, detailsLine())->toArray();
+    SavedRoute::factory()->create([
+        'layout' => 'loops',
+        'legs' => [['discipline' => 'run', 'distance_metres' => 5_000, 'ascent_metres' => 40, 'coordinates' => detailsLine(), 'details' => $legDetails]],
+    ]);
+    $failing = SavedRoute::factory()->create();
+    $waiting = SavedRoute::factory()->create();
+    $fixedRouteDetails->complete = false;
+
+    $this->artisan('routes:details', ['--limit' => 1])->assertSuccessful();
+
+    $fixedRouteDetails->complete = true;
+
+    $this->artisan('routes:details', ['--limit' => 1])
+        ->expectsOutputToContain('1 of 1 routes')
+        ->assertSuccessful();
+
+    expect($failing->refresh()->details)->toBeNull()
+        ->and($waiting->refresh()->details)->not->toBeNull();
+});

@@ -71,3 +71,15 @@ it('fails when the server is busy', function (): void {
     expect(fn (): array => new OverpassStopFinder($connector)->along(Sport::Road, [[4.0, 51.0], [4.05, 51.0]]))
         ->toThrow(RuntimeException::class);
 });
+
+it('fails when the query ran out of time, rather than finding no stops', function (): void {
+    $mock = new MockClient([StopsAlongRequest::class => MockResponse::make([
+        'remark' => 'runtime error: Query timed out in "query" at line 1 after 10 seconds.',
+        'elements' => [],
+    ], 200)]);
+    $connector = new OverpassConnector('https://overpass.test/api');
+    $connector->withMockClient($mock);
+
+    expect(fn (): array => new OverpassStopFinder($connector)->along(Sport::Road, [[4.0, 51.0], [4.05, 51.0]]))
+        ->toThrow(RuntimeException::class);
+});

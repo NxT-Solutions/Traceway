@@ -25,6 +25,12 @@ final class FixedRouteDetails implements RouteDetailsSource
     /** @var list<array{sport: Sport, points: int}> */
     public array $asked = [];
 
+    /** When false, the heights do not come back, as when the height server is busy. */
+    public bool $heights = true;
+
+    /** When false, a part of the line came back without its details. */
+    public bool $complete = true;
+
     public function for(Sport $sport, array $line): RouteDetails
     {
         $this->asked[] = ['sport' => $sport, 'points' => count($line)];
@@ -32,12 +38,13 @@ final class FixedRouteDetails implements RouteDetailsSource
         $middle = $line[intdiv(count($line), 2)];
 
         return new RouteDetails(
-            profile: [new ProfilePoint(0, 10.0), new ProfilePoint(intdiv($metres, 2), 50.0), new ProfilePoint($metres, 10.0)],
-            ascentMetres: 40,
-            descentMetres: 40,
+            profile: $this->heights ? [new ProfilePoint(0, 10.0), new ProfilePoint(intdiv($metres, 2), 50.0), new ProfilePoint($metres, 10.0)] : [],
+            ascentMetres: $this->heights ? 40 : 0,
+            descentMetres: $this->heights ? 40 : 0,
             surfaces: [new SurfaceShare(RoadSurface::Paved, $metres)],
             cues: [new Cue(intdiv($metres, 2), $middle[0], $middle[1], Turn::Left, 'Mill Road')],
             stops: [new Stop(intdiv($metres, 3), $middle[0], $middle[1], StopKind::Water)],
+            complete: $this->complete,
         );
     }
 
