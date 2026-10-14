@@ -986,11 +986,31 @@ type SavedPlanner = {
      */
     mapStyleVersion?: 2;
     name: string;
+    nameFrom?: NameSource;
+    sessionName?: string | null;
     via: Coordinate | null;
     routes: Preview[];
     routeIndex: number;
     multisport?: SavedMultisport;
 };
+
+/**
+ * Where the route name came from. A name the rider typed is theirs. A
+ * session or race name belongs to Multisport, and a file's name to the line
+ * it opened, so they give way to the default once the rider moves on.
+ */
+type NameSource = 'default' | 'session' | 'file' | 'rider';
+
+const defaultRouteName = 'Morning loop';
+
+function isNameSource(value: unknown): value is NameSource {
+    return (
+        value === 'default' ||
+        value === 'session' ||
+        value === 'file' ||
+        value === 'rider'
+    );
+}
 
 type SavedMultisport = {
     legs: LandLeg[];
@@ -1551,13 +1571,66 @@ export default function Dashboard() {
     const [viaName, setViaName] = useState<string | null>(null);
     const [legMetres, setLegMetres] = useState<number[]>([]);
     const nameInputRef = useRef<HTMLInputElement>(null);
-    const nameBeforeEdit = useRef('Morning loop');
+    const nameBeforeEdit = useRef<{ name: string; from: NameSource }>({
+        name: defaultRouteName,
+        from: 'default',
+    });
     const geolocateRef = useRef<maplibregl.GeolocateControl | null>(null);
     const locateRef = useRef<() => void>(() => {});
     const [mapStyle, setMapStyle] = useState(
         saved?.mapStyleVersion === 2 ? saved.mapStyle : 'auto',
     );
-    const [name, setName] = useState(saved?.name ?? 'Morning loop');
+    const [name, setName] = useState(saved?.name ?? defaultRouteName);
+    const [nameFrom, setNameFrom] = useState<NameSource>(() => {
+        if (isNameSource(saved?.nameFrom)) {
+            return saved.nameFrom;
+        }
+
+        return saved === null || saved.name === defaultRouteName
+            ? 'default'
+            : 'rider';
+    });
+    const sessionNameRef = useRef<string | null>(
+        typeof saved?.sessionName === 'string' ? saved.sessionName : null,
+    );
+
+    /**
+     * Names the route for a session, a race, or a file, unless the rider
+     * named it.
+     */
+    function nameRoute(next: string, from: 'session' | 'file'): void {
+        if (nameFrom === 'rider' && from === 'session') {
+            return;
+        }
+
+        setName(next);
+        setNameFrom(from);
+    }
+
+    /**
+     * A new loop or built route is not the session or the file any more,
+     * so a name that came from them gives way to the default.
+     */
+    function leaveMultisportName(): void {
+        if (nameFrom === 'session') {
+            setName(defaultRouteName);
+            setNameFrom('default');
+        }
+    }
+
+    function returnToMultisportName(): void {
+        if (nameFrom === 'default' && sessionNameRef.current !== null) {
+            setName(sessionNameRef.current);
+            setNameFrom('session');
+        }
+    }
+
+    function forgetBorrowedName(): void {
+        if (nameFrom === 'session' || nameFrom === 'file') {
+            setName(defaultRouteName);
+            setNameFrom('default');
+        }
+    }
     const [renaming, setRenaming] = useState(false);
     const [sheet, setSheet] = useState<SheetName>(null);
     const [panelOpen, setPanelOpen] = useState(false);
@@ -2402,6 +2475,8 @@ export default function Dashboard() {
             mapStyle,
             mapStyleVersion: 2,
             name,
+            nameFrom,
+            sessionName: sessionNameRef.current,
             via,
             routes,
             routeIndex,
@@ -2428,6 +2503,7 @@ export default function Dashboard() {
         roads,
         mapStyle,
         name,
+        nameFrom,
         via,
         routes,
         routeIndex,
@@ -2719,6 +2795,7 @@ export default function Dashboard() {
         roads?: 'quiet' | 'any';
     }): Promise<void> {
         setRouteSaved(false);
+        forgetBorrowedName();
         const chosenSport = next?.sport ?? sport;
         const chosenSurface = next?.surface ?? surface;
         const chosenElevation = next?.elevation ?? elevation;
@@ -2932,7 +3009,7 @@ export default function Dashboard() {
         const line = body as Preview;
         setRoutes([line]);
         setRouteIndex(0);
-        setName(imported.name.slice(0, 80));
+        nameRoute(imported.name.slice(0, 80), 'file');
         setMessage(
             chosen === 'from_start'
                 ? 'From your pin, along the file, and home.'
@@ -3198,6 +3275,7 @@ export default function Dashboard() {
         }
 
         setRouteSaved(false);
+        forgetBorrowedName();
         const chosenSport = next?.sport ?? sport;
         const chosenSurface = next?.surface ?? surface;
         const chosenElevation = next?.elevation ?? elevation;
@@ -3412,7 +3490,8 @@ export default function Dashboard() {
                 ? { kind: 'swim' }
                 : null,
         );
-        setName(preset.label);
+        sessionNameRef.current = preset.label;
+        nameRoute(preset.label, 'session');
         setMessage(
             nextSwim !== null && nextSwim.length === 0
                 ? 'Tap the water to draw the swim, then draw the route.'
@@ -3423,7 +3502,8 @@ export default function Dashboard() {
     function chooseRace(chosen: RaceDistance): void {
         setSheet(null);
         setSwimTargetKm(chosen.swimKm);
-        setName(chosen.name);
+        sessionNameRef.current = chosen.name;
+        nameRoute(chosen.name, 'session');
         setMessage(
             chosen.swimKm === null
                 ? `${chosen.copy} Draw the route when you are ready.`
@@ -4097,13 +4177,19 @@ export default function Dashboard() {
                                             onChange={(event) => {
                                                 dirty.current = true;
                                                 setName(event.target.value);
+                                                setNameFrom('rider');
                                             }}
                                             onBlur={() => {
                                                 const trimmed = name.trim();
 
                                                 if (trimmed === '') {
                                                     setName(
-                                                        nameBeforeEdit.current,
+                                                        nameBeforeEdit.current
+                                                            .name,
+                                                    );
+                                                    setNameFrom(
+                                                        nameBeforeEdit.current
+                                                            .from,
                                                     );
                                                 } else if (trimmed !== name) {
                                                     setName(trimmed);
@@ -4114,7 +4200,12 @@ export default function Dashboard() {
                                             onKeyDown={(event) => {
                                                 if (event.key === 'Escape') {
                                                     setName(
-                                                        nameBeforeEdit.current,
+                                                        nameBeforeEdit.current
+                                                            .name,
+                                                    );
+                                                    setNameFrom(
+                                                        nameBeforeEdit.current
+                                                            .from,
                                                     );
                                                     setRenaming(false);
 
@@ -4150,7 +4241,10 @@ export default function Dashboard() {
                                             return;
                                         }
 
-                                        nameBeforeEdit.current = name;
+                                        nameBeforeEdit.current = {
+                                            name,
+                                            from: nameFrom,
+                                        };
                                         setRenaming(true);
                                     }}
                                 >
@@ -4181,6 +4275,7 @@ export default function Dashboard() {
                                     aria-selected={mode === 'generate'}
                                     onClick={() => {
                                         setPlacing(null);
+                                        leaveMultisportName();
                                         setMode('generate');
                                     }}
                                 >
@@ -4192,6 +4287,7 @@ export default function Dashboard() {
                                     aria-selected={mode === 'build'}
                                     onClick={() => {
                                         setPlacing(null);
+                                        leaveMultisportName();
                                         setMode('build');
                                     }}
                                 >
@@ -4202,6 +4298,7 @@ export default function Dashboard() {
                                     role="tab"
                                     aria-selected={mode === 'multisport'}
                                     onClick={() => {
+                                        returnToMultisportName();
                                         setMode('multisport');
                                         setMessage(
                                             plan === null
