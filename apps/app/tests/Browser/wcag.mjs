@@ -119,6 +119,9 @@ try {
     // A shared link, with how the ride was planned. Its address is signed,
     // so it comes from the library.
     await desktop.goto(`${base}/saved`, { waitUntil: 'networkidle' });
+    await desktop.getByText('Morning loop').first().click();
+    await openDetails(desktop);
+    await audit(desktop, '/saved route open');
     const shared = await desktop.getByRole('link', { name: 'Open' }).first().getAttribute('href', { timeout: 5000 }).catch(() => null);
 
     if (shared === null) {

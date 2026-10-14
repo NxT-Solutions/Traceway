@@ -26,7 +26,9 @@ class ShowChatCardFileController extends Controller
         $path = collect([public_path('build/chat/'.$file), base_path('node_modules/maplibre-gl/dist/'.$file)])
             ->first(fn (string $candidate): bool => is_file($candidate));
 
-        abort_unless(is_string($path), 404);
+        // The card asks from the chat app's own domain, so even a missing
+        // file says so in a way it can read.
+        abort_unless(is_string($path), 404, headers: ['Access-Control-Allow-Origin' => '*']);
 
         $binaryFileResponse = new BinaryFileResponse($path, headers: [
             'Content-Type' => self::TYPES[pathinfo($file, PATHINFO_EXTENSION)] ?? 'application/octet-stream',
