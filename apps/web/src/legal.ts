@@ -62,7 +62,7 @@ export const privacy: LegalPage = {
         {
             heading: 'Routes you do not save',
             paragraphs: [
-                'When you plan a route, the points and your settings go to the Traceway server, which asks the map services below to draw the route and read its climb and stops. A route you do not save is not stored with your account. The server keeps the answer for up to an hour, not linked to you, so the same request is quicker a second time.',
+                'When you plan a route, the points and your settings go to the Traceway server, which asks the map services below to draw the route and read its climb and stops. A route you do not save is not stored with your account. The server keeps the answer for up to two hours, not linked to you, so the same request is quicker a second time.',
                 'The planner also keeps your last plan in your own browser, so it is still there when you come back. See [cookies and storage](/cookies).',
             ],
         },
@@ -116,7 +116,9 @@ export const privacy: LegalPage = {
                 '**Your account and saved routes:** until you delete them, or your account.',
                 '**A session:** until you log out, or 2 hours after you last used Traceway. With “Remember me”, up to 400 days.',
                 '**A pairing code:** 10 minutes.',
-                '**Unsaved routes and map answers:** up to an hour.',
+                '**Unsaved routes and their details:** up to two hours, not linked to you.',
+                '**Place names:** 30 days, for a pin rounded to about 100 metres, not linked to you.',
+                '**An email that could not be sent:** up to a day, so the problem can be found. Then it is deleted.',
                 '**Backups:** something you delete can stay in a backup for up to 14 days. Then it is gone.',
                 '**Error logs:** only the latest. Older lines are overwritten automatically.',
             ],

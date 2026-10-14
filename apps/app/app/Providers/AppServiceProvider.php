@@ -74,6 +74,8 @@ use App\Repositories\EloquentSavedRouteRepository;
 use App\Repositories\EloquentUserRepository;
 use App\Routes\CachedPlaceNamer;
 use App\Routes\CachedRouteDetails;
+use App\Routes\PacedPlaceFinder;
+use App\Routes\PlaceSearchPace;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -155,11 +157,15 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(fn (): LineFollower => $this->lineFollower($this->app->make(RoutingEngine::class)));
 
-        $this->app->bind(fn (): PlaceFinder => new NominatimPlaceFinder($this->nominatimConnector()));
+        $this->app->bind(fn (): PlaceFinder => new PacedPlaceFinder(
+            new NominatimPlaceFinder($this->nominatimConnector()),
+            new PlaceSearchPace($this->app->make(CacheRepository::class)),
+        ));
 
         $this->app->bind(fn (): PlaceNamer => new CachedPlaceNamer(
             new NominatimPlaceNamer($this->nominatimConnector()),
             $this->app->make(CacheRepository::class),
+            new PlaceSearchPace($this->app->make(CacheRepository::class)),
         ));
 
         $this->app->bind(function (): RouteDetailsSource {
@@ -223,6 +229,13 @@ class AppServiceProvider extends ServiceProvider
             $id = $request->user()?->getAuthIdentifier();
 
             return Limit::perMinute(60)->by('map:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
+        });
+        // Naming a pin has its own bucket, so a rider who adds many points
+        // still gets the climb chart and the course file.
+        RateLimiter::for('places', function (Request $request): Limit {
+            $id = $request->user()?->getAuthIdentifier();
+
+            return Limit::perMinute(60)->by('places:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
         });
     }
 

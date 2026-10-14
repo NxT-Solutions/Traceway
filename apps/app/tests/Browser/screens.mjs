@@ -12,6 +12,9 @@ import { chromium } from 'playwright-core';
 // a good one.
 
 const base = process.env.BASE_URL || 'https://traceway.ddev.site:8443';
+// DDEV serves the content site and the planner from one host. CI runs them
+// apart, so the content pages can come from their own address.
+const content = process.env.CONTENT_URL || base;
 const out = process.env.SCREENS_DIR || join(tmpdir(), 'traceway-screens');
 const local = [
     process.env.HOME,
@@ -97,6 +100,8 @@ const pages = [
         url: () => shared,
         prepare: openLists,
     },
+    // The longest of the legal pages, from the content site.
+    { name: 'legal', url: () => `${content}/privacy`, full: true },
     { name: 'register', url: '/register', full: true },
     { name: 'assistants', url: '/settings/assistants', auth: true, full: true },
     { name: 'privacy', url: '/settings/privacy', auth: true, full: true },

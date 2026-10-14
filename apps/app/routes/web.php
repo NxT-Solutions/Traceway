@@ -63,7 +63,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('routes/build', BuildRouteController::class)->name('routes.build');
     Route::post('routes/multisport', PreviewMultisportController::class)->name('routes.multisport');
     Route::post('routes/snap', SnapPointController::class)->name('routes.snap');
-    Route::post('routes/place', NamePlaceController::class)->middleware('throttle:map')->name('routes.place');
+    Route::post('routes/place', NamePlaceController::class)->middleware('throttle:places')->name('routes.place');
     Route::post('routes/details', RouteDetailsController::class)->middleware('throttle:map')->name('routes.details');
     Route::post('routes/stops', RouteStopsController::class)->middleware('throttle:map')->name('routes.stops');
     Route::post('routes/fit', ExportFitCourseController::class)->middleware('throttle:map')->name('routes.fit');

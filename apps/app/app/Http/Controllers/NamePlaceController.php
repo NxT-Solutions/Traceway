@@ -58,7 +58,8 @@ class NamePlaceController extends Controller
     {
         try {
             $name = $placeNamer->nameAt($namePlaceRequest->float('latitude'), $namePlaceRequest->float('longitude'));
-        } catch (Throwable) {
+        } catch (Throwable $throwable) {
+            report($throwable);
             $name = null;
         }
 
