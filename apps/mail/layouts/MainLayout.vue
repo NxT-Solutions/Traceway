@@ -42,6 +42,7 @@ defineProps({
       .tw-link { color: #1d3338; text-decoration: underline; word-break: break-all; }
       .tw-rule { border-top: 1px solid #e6e1d4; font-size: 1px; line-height: 1px; }
       .tw-foot { padding: 20px 8px 0; font-family: 'Avenir Next', 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12px; line-height: 18px; color: #4f5f5a; mso-line-height-rule: exactly; }
+      .tw-foot-link { color: #4f5f5a; text-decoration: underline; }
     </style>
     <style raw embed>
       :root { color-scheme: light dark; supported-color-schemes: light dark; }
@@ -55,7 +56,7 @@ defineProps({
         .tw-body, .tw-canvas { background-color: #0e1f24 !important; }
         .tw-card { background-color: #16303a !important; border-color: #2a4752 !important; }
         .tw-pad, .tw-h1, .tw-p, .tw-brand, .tw-link { color: #f3f0e6 !important; }
-        .tw-muted, .tw-foot { color: #b4c2bd !important; }
+        .tw-muted, .tw-foot, .tw-foot-link { color: #b4c2bd !important; }
         .tw-rule { border-color: #2a4752 !important; }
         .tw-button { background-color: #c6df4a !important; }
         .tw-button-link { color: #12202a !important; }
@@ -63,7 +64,7 @@ defineProps({
       [data-ogsb] .tw-body, [data-ogsb] .tw-canvas { background-color: #0e1f24 !important; }
       [data-ogsb] .tw-card { background-color: #16303a !important; border-color: #2a4752 !important; }
       [data-ogsc] .tw-pad, [data-ogsc] .tw-h1, [data-ogsc] .tw-p, [data-ogsc] .tw-brand, [data-ogsc] .tw-link { color: #f3f0e6 !important; }
-      [data-ogsc] .tw-muted, [data-ogsc] .tw-foot { color: #b4c2bd !important; }
+      [data-ogsc] .tw-muted, [data-ogsc] .tw-foot, [data-ogsc] .tw-foot-link { color: #b4c2bd !important; }
       [data-ogsb] .tw-button { background-color: #c6df4a !important; }
       [data-ogsc] .tw-button-link { color: #12202a !important; }
     </style>
@@ -99,7 +100,7 @@ defineProps({
                 </td>
               </tr>
               <tr>
-                <td class="tw-foot">Traceway plans loops for any sport and writes the course file for your device. This message was sent to %%EMAIL%%.</td>
+                <td class="tw-foot">Traceway plans loops for any sport and writes the course file for your device. This message was sent to %%EMAIL%%.<br><a class="tw-foot-link" href="%%PRIVACY%%">Privacy policy</a> &middot; <a class="tw-foot-link" href="%%TERMS%%">Terms of use</a></td>
               </tr>
             </table>
           </div>

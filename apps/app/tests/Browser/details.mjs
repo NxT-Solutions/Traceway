@@ -381,10 +381,26 @@ try {
     await page.getByRole('tab', { name: 'Build' }).click();
     const map = await page.locator('.maplibregl-canvas').boundingBox();
 
+    const names = [];
+
+    // Each point is named through Traceway, not by the browser itself.
     for (const [x, y] of [[0.62, 0.35], [0.75, 0.55], [0.6, 0.7]]) {
+        const answer = page.waitForResponse((response) => new URL(response.url()).pathname === '/routes/place', { timeout: 15000 });
         await page.mouse.click(map.x + map.width * x, map.y + map.height * y);
+        const response = await answer;
+        check(response.status() === 200, `Naming a tapped point answered ${response.status()}`);
+        const body = await response.json();
+        check('name' in body, 'Naming a tapped point answered without a name field');
+        names.push(body.name);
+        // A person's next tap, not a double click.
         await page.waitForTimeout(900);
     }
+
+    if (names.every((name) => name === null)) {
+        note('the place search named none of the tapped points');
+    }
+
+    step('desktop: three tapped points are named through Traceway');
 
     await page.locator('button.fill').click();
     await detailsShown(page, 'Built route');

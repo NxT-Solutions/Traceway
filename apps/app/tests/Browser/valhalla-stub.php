@@ -7,7 +7,8 @@ declare(strict_types=1);
 | request. It answers the planner's routing calls with straight lines, and the
 | calls that describe a line with a hill, two turns, and a gravel end, so the
 | climb chart, the surfaces, and the turns show without a fair-use router. It
-| also stands in for Overpass with no stops, so no test waits on that server.
+| also stands in for Overpass with no stops, and for Nominatim with one
+| village name for every pin, so no test waits on those servers.
 | A push to main keeps the real ones.
 |
 |   php -S 127.0.0.1:8002 tests/Browser/valhalla-stub.php
@@ -168,6 +169,12 @@ if ($path === '/api/interpreter') {
     return;
 }
 
+if ($path === '/reverse') {
+    reply(200, ['name' => 'Stubbington', 'address' => ['village' => 'Stubbington']]);
+
+    return;
+}
+
 reply(in_array($path, ['/route', '/locate'], strict: true) ? 400 : 404, [
-    'error' => 'The stub answers /route, /locate, /trace_route, /trace_attributes, /height, and /api/interpreter.',
+    'error' => 'The stub answers /route, /locate, /trace_route, /trace_attributes, /height, /api/interpreter, and /reverse.',
 ]);

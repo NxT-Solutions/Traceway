@@ -34,6 +34,7 @@ use App\Domain\Routing\Details\RouteDetailer;
 use App\Domain\Routing\Details\RouteDetailsSource;
 use App\Domain\Routing\LineFollower;
 use App\Domain\Routing\PlaceFinder;
+use App\Domain\Routing\PlaceNamer;
 use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\TracingLineFollower;
 use App\Handlers\ChangePasswordHandler;
@@ -55,6 +56,7 @@ use App\Integrations\GraphHopper\GraphHopperConnector;
 use App\Integrations\GraphHopper\GraphHopperRoutingEngine;
 use App\Integrations\Nominatim\NominatimConnector;
 use App\Integrations\Nominatim\NominatimPlaceFinder;
+use App\Integrations\Nominatim\NominatimPlaceNamer;
 use App\Integrations\Osrm\OsrmConnector;
 use App\Integrations\Osrm\OsrmRoutingEngine;
 use App\Integrations\Overpass\OverpassConnector;
@@ -70,7 +72,10 @@ use App\Repositories\EloquentConnectedAppRepository;
 use App\Repositories\EloquentDeviceLinkRepository;
 use App\Repositories\EloquentSavedRouteRepository;
 use App\Repositories\EloquentUserRepository;
+use App\Routes\CachedPlaceNamer;
 use App\Routes\CachedRouteDetails;
+use App\Routes\PacedPlaceFinder;
+use App\Routes\PlaceSearchPace;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -152,13 +157,16 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(fn (): LineFollower => $this->lineFollower($this->app->make(RoutingEngine::class)));
 
-        $this->app->bind(function (): PlaceFinder {
-            $url = config('services.nominatim.url');
+        $this->app->bind(fn (): PlaceFinder => new PacedPlaceFinder(
+            new NominatimPlaceFinder($this->nominatimConnector()),
+            new PlaceSearchPace($this->app->make(CacheRepository::class)),
+        ));
 
-            return new NominatimPlaceFinder(new NominatimConnector(
-                is_string($url) && $url !== '' ? $url : 'https://nominatim.openstreetmap.org',
-            ));
-        });
+        $this->app->bind(fn (): PlaceNamer => new CachedPlaceNamer(
+            new NominatimPlaceNamer($this->nominatimConnector()),
+            $this->app->make(CacheRepository::class),
+            new PlaceSearchPace($this->app->make(CacheRepository::class)),
+        ));
 
         $this->app->bind(function (): RouteDetailsSource {
             $valhalla = config('services.valhalla.url');
@@ -180,6 +188,13 @@ class AppServiceProvider extends ServiceProvider
                 is_string($url) && $url !== '' ? $url : 'https://valhalla1.openstreetmap.de',
             );
         });
+    }
+
+    private function nominatimConnector(): NominatimConnector
+    {
+        $url = config('services.nominatim.url');
+
+        return new NominatimConnector(is_string($url) && $url !== '' ? $url : 'https://nominatim.openstreetmap.org');
     }
 
     /**
@@ -214,6 +229,13 @@ class AppServiceProvider extends ServiceProvider
             $id = $request->user()?->getAuthIdentifier();
 
             return Limit::perMinute(60)->by('map:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
+        });
+        // Naming a pin has its own bucket, so a rider who adds many points
+        // still gets the climb chart and the course file.
+        RateLimiter::for('places', function (Request $request): Limit {
+            $id = $request->user()?->getAuthIdentifier();
+
+            return Limit::perMinute(60)->by('places:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
         });
     }
 

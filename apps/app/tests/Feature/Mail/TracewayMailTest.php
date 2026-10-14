@@ -50,3 +50,12 @@ test('every template has a readable plain text part with real links', function (
         expect($text)->toContain('https://traceway.test/link?a=1&b=2');
     }
 })->with('templates');
+
+test('every template ends with the privacy policy and the terms', function (string $template) use ($values): void {
+    expect(TracewayMail::html($template, $values))
+        ->toContain('href="'.url('/privacy').'"')
+        ->toContain('href="'.url('/terms').'"')
+        ->and(TracewayMail::text($template, $values))
+        ->toContain('Privacy policy: '.url('/privacy'))
+        ->toContain('Terms of use: '.url('/terms'));
+})->with('templates');

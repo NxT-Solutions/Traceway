@@ -6,6 +6,7 @@ use App\Mail\AccountMessage;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 
@@ -183,4 +184,26 @@ it('does not put the owner on a shared multisport course or its leg files', func
     expect($this->get(URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $route->id, 'leg' => 2]))->getContent())
         ->not->toContain('owner-private@traceway.test')
         ->not->toContain('Owner');
+})->group('gdpr');
+
+it('has the browser talk only to Traceway, apart from the map itself', function (): void {
+    // MapLibre loads the map from OpenFreeMap. Anything else the planner or
+    // the chat card needs, such as a place name, goes through Traceway, so
+    // no other company sees the rider's pins. The other hosts are links a
+    // rider can follow, or code comments. A new host belongs here only once
+    // it is in the privacy policy, or when it is only a link.
+    $map = ['tiles.openfreemap.org'];
+    $links = ['github.com', 'www.paypal.com', 'paypal.me', 'claude.ai', 'chatgpt.com', 'laravel.com', 'usehooks-ts.com', 'www.w3.org', 'localhost'];
+    $files = [...File::allFiles(resource_path('js')), ...File::allFiles(resource_path('mcp'))];
+    $hosts = [];
+
+    foreach ($files as $file) {
+        preg_match_all('/https?:\/\/([a-z0-9.-]+)/i', $file->getContents(), $matches);
+
+        foreach ($matches[1] as $host) {
+            $hosts[strtolower($host)] = $file->getRelativePathname();
+        }
+    }
+
+    expect(array_diff(array_keys($hosts), [...$map, ...$links]))->toBe([]);
 })->group('gdpr');
