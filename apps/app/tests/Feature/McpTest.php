@@ -325,7 +325,7 @@ it('takes the AI tool access with a deleted account', function (): void {
 it('draws the plan in the chat with the Traceway map', function (): void {
     TracewayServer::actingAs(User::factory()->create())
         ->resource(RouteMapApp::class)
-        ->assertSee(['createMcpApp', 'route_drawing', 'Open the map', route('mcp.apps.route-map')]);
+        ->assertSee(['createMcpApp', 'route_drawing', 'Open the map', 'traceway:map-ready']);
 
     expect(new PlanLoopTool()->toArray()['_meta']['ui'] ?? null)->toBe(['resourceUri' => 'ui://traceway/route-map', 'visibility' => ['model', 'app']])
         ->and(new PlanMultisportTool()->toArray()['_meta']['ui']['resourceUri'] ?? null)->toBe('ui://traceway/route-map')
@@ -345,24 +345,14 @@ it('sends the line for the map with the plan, outside what the model reads', fun
         ->and($loop['structuredContent']['name'] ?? null)->toBe('40.4 km road ride from Westerlo')
         ->and($loop['content'][0]['text'] ?? '')->toContain('40.4 km road ride from Westerlo')
         ->and($loop['content'][0]['text'] ?? '')->not->toContain('drawing')
+        ->and($loop['structuredContent']['embed_url'] ?? '')->toContain('/embed?signature=')
+        ->and($loop['content'][0]['text'] ?? '')->not->toContain('/embed')
         ->and($brick['structuredContent']['drawing']['legs'] ?? [])->toHaveCount(2)
         ->and($brick['content'][0]['text'] ?? '')->not->toContain('drawing');
 });
 
-it('lets the chat map load its script and its tiles, fresh each time', function (): void {
-    $csp = new RouteMapApp()->resolvedAppMeta()['csp'] ?? [];
-
-    expect($csp['resourceDomains'] ?? [])->toContain(rtrim(url('/'), '/'), 'https://unpkg.com', 'https://tiles.openfreemap.org')
-        ->and($csp['connectDomains'] ?? [])->toContain('https://tiles.openfreemap.org');
-
-    $script = $this->get(route('mcp.apps.route-map'))->assertOk();
-
-    expect($script->headers->get('Content-Type'))->toBe('text/javascript; charset=utf-8')
-        ->and($script->headers->get('Access-Control-Allow-Origin'))->toBe('*')
-        ->and($script->headers->get('Cache-Control'))->toContain('no-cache');
-
-    $this->get(route('mcp.apps.route-map'), ['If-None-Match' => (string) $script->headers->get('ETag')])
-        ->assertStatus(304);
+it('lets the card in the chat show the map from Traceway', function (): void {
+    expect(new RouteMapApp()->resolvedAppMeta()['csp']['frameDomains'] ?? [])->toBe([rtrim(url('/'), '/')]);
 });
 
 it('gives the map the line of a route the rider saved', function (): void {

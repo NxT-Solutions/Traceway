@@ -38,6 +38,20 @@ it('gives chats a title, a line, and a picture for a shared route, and keeps sea
         ->and($html)->toContain('<meta property="og:image" content="'.e(URL::signedRoute('routes.share.image', ['savedRoute' => $savedRoute->id, 'v' => 0])).'">');
 });
 
+it('shows only the map of a shared route inside a chat card, and only on a signed link', function (): void {
+    $savedRoute = SavedRoute::factory()->create(['name' => 'Huy hills']);
+
+    $this->get(URL::signedRoute('routes.share.embed', $savedRoute))
+        ->assertOk()
+        ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->component('share')
+            ->where('embed', expected: true)
+            ->where('route.name', 'Huy hills'));
+
+    $this->get(route('routes.share.embed', $savedRoute))->assertForbidden();
+});
+
 it('names each leg of a shared multisport plan', function (): void {
     $savedRoute = SavedRoute::factory()->create([
         'name' => 'Sunday brick',

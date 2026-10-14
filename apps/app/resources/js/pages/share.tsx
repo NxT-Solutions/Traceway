@@ -67,9 +67,12 @@ const surfaceLabel: Record<string, string> = {
 export default function Share({
     route,
     draw_image: drawImage = false,
+    embed = false,
 }: {
     route: SharedRoute;
     draw_image?: boolean;
+    // Only the map, inside the card a chat app shows after a plan.
+    embed?: boolean;
 }) {
     const mapNode = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
@@ -155,6 +158,9 @@ export default function Share({
             center: first,
             zoom: 12,
             attributionControl: { compact: true },
+            // In a chat, scrolling moves the chat; a modifier key or two
+            // fingers move the map.
+            cooperativeGestures: embed,
         });
         mapRef.current = map;
         map.addControl(
@@ -242,7 +248,22 @@ export default function Share({
                 (box, coordinate) => box.extend(coordinate),
                 new maplibregl.LngLatBounds(first, first),
             );
-            map.fitBounds(bounds, { padding: 80, maxZoom: 15, duration: 0 });
+            map.fitBounds(bounds, {
+                padding: embed ? 28 : 80,
+                maxZoom: 15,
+                duration: 0,
+            });
+
+            if (embed) {
+                // The card shows this map only once it is drawn, and keeps
+                // its own drawing until then.
+                map.once('idle', () =>
+                    window.parent.postMessage(
+                        { type: 'traceway:map-ready' },
+                        '*',
+                    ),
+                );
+            }
         });
         const refreshArrows = () => {
             if (!map.isStyleLoaded()) {
@@ -261,7 +282,16 @@ export default function Share({
             map.remove();
             mapRef.current = null;
         };
-    }, [route]);
+    }, [route, embed]);
+
+    if (embed) {
+        return (
+            <div className="tw-share tw-share-embed">
+                <Head title={`${route.name} · ${kilometres} km`} />
+                <div ref={mapNode} className="map" />
+            </div>
+        );
+    }
 
     return (
         <div className="tw-share">

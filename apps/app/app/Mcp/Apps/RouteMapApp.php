@@ -18,9 +18,10 @@ use Laravel\Mcp\Server\Ui\Csp;
  * The route, drawn in the chat after a plan: the line, the start, each leg in
  * its own colour, and the links to take it to a watch.
  *
- * Chat apps keep this page for the whole session. So the page only draws a
- * plain card, then loads the map script from Traceway each time it shows, and
- * a change to the map reaches the chat without a restart.
+ * Chat apps keep this page for the whole session, and most do not let it run
+ * a map. So it draws the line itself, then lays the map from Traceway's own
+ * share page over it. That page is always the current one, so a change to the
+ * map reaches the chat without a restart.
  */
 #[Name(value: 'route-map')]
 #[Title(value: 'Traceway route')]
@@ -28,29 +29,17 @@ use Laravel\Mcp\Server\Ui\Csp;
 #[Uri(value: 'ui://traceway/route-map')]
 final class RouteMapApp extends AppResource
 {
-    /**
-     * Where the map library and the map tiles come from.
-     *
-     * @var list<string>
-     */
-    private const array MAP_DOMAINS = ['https://unpkg.com', 'https://tiles.openfreemap.org'];
-
     public function handle(Request $request): Response
     {
         return Response::view('mcp.route-map-app', [
-            'mapScript' => route('mcp.apps.route-map'),
             'showStatus' => app()->isLocal(),
         ]);
     }
 
     public function appMeta(): AppMeta
     {
-        $traceway = rtrim(url('/'), '/');
-
         return AppMeta::make()
             ->prefersBorder(prefersBorder: false)
-            ->csp(Csp::make()
-                ->resourceDomains([$traceway, ...self::MAP_DOMAINS])
-                ->connectDomains([$traceway, ...self::MAP_DOMAINS]));
+            ->csp(Csp::make()->frameDomains([rtrim(url('/'), '/')]));
     }
 }

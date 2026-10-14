@@ -16,6 +16,7 @@ use App\Http\Controllers\RouteStopsController;
 use App\Http\Controllers\SavedRouteLibraryController;
 use App\Http\Controllers\ShowSavedRouteDetailsController;
 use App\Http\Controllers\ShowSharedRouteController;
+use App\Http\Controllers\ShowSharedRouteEmbedController;
 use App\Http\Controllers\ShowSharedRouteImageController;
 use App\Http\Controllers\SnapPointController;
 use App\Http\Controllers\StoreRouteImageController;
@@ -34,6 +35,9 @@ Route::get('/', fn () => Inertia::render('welcome'))->name('home');
 Route::get('share/{savedRoute}', ShowSharedRouteController::class)
     ->middleware(['signed', KeepOutOfSearch::class])
     ->name('routes.share');
+Route::get('share/{savedRoute}/embed', ShowSharedRouteEmbedController::class)
+    ->middleware(['signed', KeepOutOfSearch::class])
+    ->name('routes.share.embed');
 Route::get('share/{savedRoute}/image', ShowSharedRouteImageController::class)
     ->middleware(['signed', KeepOutOfSearch::class])
     ->name('routes.share.image');

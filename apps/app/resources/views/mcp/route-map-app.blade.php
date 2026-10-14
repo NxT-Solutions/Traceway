@@ -168,6 +168,24 @@
                 position: relative;
             }
 
+            .stage.framed {
+                aspect-ratio: 600 / 340;
+            }
+
+            .live-map {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                border: 0;
+                opacity: 0;
+                transition: opacity 400ms ease;
+            }
+
+            .live-map.ready {
+                opacity: 1;
+            }
+
             .status {
                 margin: 0;
                 padding: 0 18px 14px;
@@ -195,33 +213,13 @@
                 };
                 const $ = (id) => document.getElementById(id);
 
-                /**
-                 * What the map script from Traceway reads: the plan and its line
-                 * once they are here, and a line of status on a local site.
-                 */
-                const hub = (window.traceway = {
-                    plan: null,
-                    line: null,
-                    listeners: [],
-                    show(listener) {
-                        this.listeners.push(listener);
-
-                        if (this.plan) {
-                            listener(this.plan, this.line);
-                        }
-                    },
-                    publish(plan, line) {
-                        this.plan = plan;
-                        this.line = line;
-                        this.listeners.forEach((listener) => listener(plan, line));
-                    },
-                    status(text) {
-                        if (document.querySelector('main').dataset.status === 'on') {
-                            $('status').textContent = text;
-                            $('status').hidden = false;
-                        }
-                    },
-                });
+                /** A line about the map, on a local site only. */
+                function status(text) {
+                    if (document.querySelector('main').dataset.status === 'on') {
+                        $('status').textContent = text;
+                        $('status').hidden = false;
+                    }
+                }
 
                 /** A tool result's data, whether it came as structured content or as JSON text. */
                 function data(result) {
@@ -315,7 +313,7 @@
                  * shows without a line when that fails too.
                  */
                 async function lineFor(app, result, plan) {
-                    const sent = plan.drawing ?? result?._meta?.['traceway/drawing'];
+                    const sent = plan.drawing;
 
                     if (sent?.line) {
                         return sent;
@@ -332,13 +330,45 @@
                     }
                 }
 
-                // The map itself comes from Traceway each time, so it is never
-                // older than the site. Without it, the drawing stays.
-                const mapScript = document.createElement('script');
-                mapScript.type = 'module';
-                mapScript.src = document.querySelector('main').dataset.mapScript;
-                mapScript.onerror = () => hub.status('This chat app did not load the live map.');
-                document.head.append(mapScript);
+                /**
+                 * Lays the map from Traceway over the drawing once it says it
+                 * is drawn. It is Traceway's own share page, so it is always the
+                 * current map. A chat app that does not allow it keeps the
+                 * drawing.
+                 */
+                function showMap(plan) {
+                    const stage = document.querySelector('.stage');
+
+                    document.querySelector('.live-map')?.remove();
+
+                    if (!plan.embed_url || stage === null) {
+                        return;
+                    }
+
+                    const frame = document.createElement('iframe');
+                    frame.className = 'live-map';
+                    frame.title = 'The route on a map you can move and zoom';
+                    frame.src = plan.embed_url;
+
+                    const giveUp = window.setTimeout(() => {
+                        frame.remove();
+                        status('The map from Traceway did not open here, so the drawing stays.');
+                    }, 15000);
+
+                    window.addEventListener('message', function ready(event) {
+                        if (event.source !== frame.contentWindow || event.data?.type !== 'traceway:map-ready') {
+                            return;
+                        }
+
+                        window.clearTimeout(giveUp);
+                        window.removeEventListener('message', ready);
+                        stage.classList.add('framed');
+                        frame.classList.add('ready');
+                        status('Map from Traceway.');
+                    });
+
+                    stage.append(frame);
+                }
 
                 createMcpApp(async (app) => {
                     let links = {};
@@ -377,16 +407,15 @@
                         }
 
                         links = plan;
-                        const line = await lineFor(app, result, plan);
-                        draw(plan, line);
-                        hub.publish(plan, line);
+                        draw(plan, await lineFor(app, result, plan));
+                        showMap(plan);
                     });
                 });
             </script>
         @endverbatim
     </x-slot:head>
 
-    <main class="card" data-map-script="{{ $mapScript }}" data-status="{{ $showStatus ? 'on' : 'off' }}">
+    <main class="card" data-status="{{ $showStatus ? 'on' : 'off' }}">
         <p id="wait" class="wait">Planning your route…</p>
 
         <section id="route" hidden>
