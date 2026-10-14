@@ -470,33 +470,43 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                     (box, coordinate) => box.extend(coordinate),
                     new maplibregl.LngLatBounds(first, first),
                 );
-                map.resize();
                 map.fitBounds(bounds, {
                     padding: 16,
                     duration: 0,
                     maxZoom: 15,
                 });
                 let shot = false;
-                const shoot = () => {
+                const shoot = (painted: boolean) => {
                     if (shot || stopped) {
                         return;
                     }
                     shot = true;
-                    setImages((current) => ({
-                        ...current,
-                        [route.id]: map
-                            .getCanvas()
-                            .toDataURL('image/jpeg', 0.82),
-                    }));
+
+                    // A canvas that never painted is empty, and an empty
+                    // canvas is a black JPEG. The outline below stays then.
+                    if (painted) {
+                        setImages((current) => ({
+                            ...current,
+                            [route.id]: map
+                                .getCanvas()
+                                .toDataURL('image/jpeg', 0.82),
+                        }));
+                    }
+
                     take(index + 1);
                 };
-                // "idle" waits for the tiles to load and paint. A shot taken
-                // before that is a blank canvas that hides the outline below.
+                // "idle" waits for the tiles to load and paint. A route with
+                // the same line as the one before changes nothing, so the
+                // map is asked to paint again, or "idle" would never come.
                 map.once('idle', () => {
-                    requestAnimationFrame(shoot);
+                    requestAnimationFrame(() => shoot(true));
                 });
-                window.setTimeout(shoot, 6000);
+                map.triggerRepaint();
+                window.setTimeout(() => shoot(map.areTilesLoaded()), 6000);
             };
+            // Resizing clears the canvas, so it happens once, before the
+            // first shot, and never between two.
+            map.resize();
             take(0);
         });
 
