@@ -1,16 +1,26 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import '../../css/planner.css';
-import { Bike, FileUp, Footprints, Mountain, Waves } from 'lucide-react';
+import {
+    Bike,
+    FileUp,
+    Footprints,
+    LocateFixed,
+    Mountain,
+    Waves,
+    X,
+} from 'lucide-react';
 import type { GeoJSONSource, MapMouseEvent } from 'maplibre-gl';
 import * as maplibregl from 'maplibre-gl';
 import {
     type ReactNode,
+    useCallback,
     useEffect,
     useMemo,
     useRef,
     useState,
     useSyncExternalStore,
 } from 'react';
+import { MapSearch, type SearchAction } from '@/components/map-search';
 import { MapTapCard, type TapAction } from '@/components/map-tap-card';
 import { MultisportIcon } from '@/components/multisport-icon';
 import {
@@ -19,7 +29,6 @@ import {
     MultisportLegs,
     type Placing,
 } from '@/components/multisport-legs';
-import { type PlaceAction, PlaceSearch } from '@/components/place-search';
 import {
     RouteCues,
     RouteProfile,
@@ -110,11 +119,10 @@ type SheetName =
     | 'race'
     | 'session'
     | 'import'
-    | 'start'
-    | 'via'
-    | 'point'
-    | 'finish'
     | null;
+
+/** What the search bar on the map finds a place for. */
+type SearchPurpose = 'start' | 'via' | 'point' | 'transition' | 'finish';
 
 type Preview = {
     distance_metres: number;
@@ -1547,8 +1555,12 @@ export default function Dashboard() {
     const [startName, setStartName] = useState<string | null>(
         typeof saved?.startName === 'string' ? saved.startName : null,
     );
-    // The next map tap sets the start, after "Pick on the map" in a sheet.
-    const [pickingStart, setPickingStart] = useState(false);
+    // What the search bar on the map is for, when a row asked.
+    const [searchPurpose, setSearchPurpose] = useState<SearchPurpose | null>(
+        null,
+    );
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const getMap = useCallback(() => mapRef.current, []);
     // A tap asks before it moves a pin: where it landed and what it is called.
     const [tapCard, setTapCard] = useState<{
         longitude: number;
@@ -2351,7 +2363,6 @@ export default function Dashboard() {
         const cursor =
             mode === 'build' ||
             (mode === 'multisport' && placing !== null) ||
-            pickingStart ||
             placingVia
                 ? 'crosshair'
                 : '';
@@ -2361,14 +2372,14 @@ export default function Dashboard() {
         if (mode !== 'build') {
             hideSnapRef.current();
         }
-    }, [mode, placing, pickingStart, placingVia]);
+    }, [mode, placing, placingVia]);
 
     // A card or a pick waiting for a tap belongs to the mode it was opened in.
     useEffect(() => {
         void mode;
         tapAskRef.current += 1;
         setTapCard(null);
-        setPickingStart(false);
+        setSearchPurpose(null);
     }, [mode]);
 
     // Undo stays a while, and as long as the rider points at it or tabs to it.
@@ -3878,7 +3889,6 @@ export default function Dashboard() {
         }
 
         dirty.current = true;
-        setPickingStart(false);
         setTapCard(null);
         setLongitude(lng);
         setLatitude(lat);
@@ -3941,16 +3951,11 @@ export default function Dashboard() {
 
     function placeFinish(index: number): void {
         setActiveLeg(index);
-        setSheet('finish');
-    }
-
-    function pickFinishOnMap(index: number): void {
-        setSheet(null);
-        setActiveLeg(index);
         setPlacing({ kind: 'finish', leg: index });
         setMessage(
-            `Tap the map where leg ${index + (swim === null ? 1 : 2)} ends.`,
+            `Search, or tap the map where leg ${index + (swim === null ? 1 : 2)} ends.`,
         );
+        focusSearch('finish');
     }
 
     /**
@@ -4186,9 +4191,10 @@ export default function Dashboard() {
     }
 
     /**
-     * Asks what a tap on the map should do, instead of moving a pin at once.
+     * Asks what a tap on the map, or a place found by name, should be,
+     * instead of moving a pin at once. A found place keeps its name.
      */
-    function openTapCard(lng: number, lat: number): void {
+    function openTapCard(lng: number, lat: number, name?: string): void {
         const map = mapRef.current;
 
         if (map === null) {
@@ -4203,14 +4209,21 @@ export default function Dashboard() {
             latitude: lat,
             x: at.x,
             y: at.y,
-            name: null,
+            name: name ?? null,
         });
-        void labelPlace(lng, lat).then((name) => {
-            if (tapAskRef.current !== ask || name === 'Junction') {
+
+        if (name !== undefined) {
+            return;
+        }
+
+        void labelPlace(lng, lat).then((label) => {
+            if (tapAskRef.current !== ask || label === 'Junction') {
                 return;
             }
 
-            setTapCard((card) => (card === null ? null : { ...card, name }));
+            setTapCard((card) =>
+                card === null ? null : { ...card, name: label },
+            );
         });
     }
 
@@ -4229,56 +4242,91 @@ export default function Dashboard() {
         }
     };
 
-    const tapActions: TapAction[] =
-        tapCard === null
-            ? []
-            : multisport
-              ? [
-                    {
-                        label: 'Move the transition here',
-                        onSelect: () =>
-                            moveStart(tapCard.longitude, tapCard.latitude, {
-                                name: tapCard.name ?? undefined,
-                            }),
-                    },
-                    ...(layout === 'chain'
-                        ? [
-                              {
-                                  label: `Leg ${activeLeg + (swim === null ? 1 : 2)} ends here`,
-                                  onSelect: () =>
-                                      setLegFinish(activeLeg, [
-                                          tapCard.longitude,
-                                          tapCard.latitude,
-                                      ]),
-                              },
-                          ]
-                        : []),
-                ]
-              : [
-                    {
-                        label: 'Start here',
-                        onSelect: () =>
-                            moveStart(tapCard.longitude, tapCard.latitude, {
-                                name: tapCard.name ?? undefined,
-                            }),
-                    },
-                    {
-                        label: 'Go via here',
-                        onSelect: () =>
-                            setViaPoint(
-                                [tapCard.longitude, tapCard.latitude],
-                                tapCard.name ?? undefined,
-                            ),
-                    },
-                ];
+    // What a search or a tap is for: the row that asked, or the mode's own.
+    const purpose: SearchPurpose =
+        searchPurpose ??
+        (mode === 'build'
+            ? 'point'
+            : mode === 'multisport'
+              ? placing?.kind === 'finish'
+                  ? 'finish'
+                  : 'transition'
+              : 'start');
+    const legNumber = activeLeg + (swim === null ? 1 : 2);
+    const purposeLabels: Record<SearchPurpose, string> = {
+        start: 'Start',
+        via: 'Via',
+        point: 'Point',
+        transition: 'Transition',
+        finish: `Leg ${legNumber} end`,
+    };
+    const searchPlaceholders: Record<SearchPurpose, string> = {
+        start: 'Search for your start',
+        via: 'Search for a place to pass',
+        point: 'Search for a point to add',
+        transition: 'Search for the transition',
+        finish: `Search where leg ${legNumber} ends`,
+    };
 
-    onMapClickRef.current = (lng, lat) => {
-        if (pickingStart) {
-            moveStart(lng, lat);
+    function tapActionsFor(card: NonNullable<typeof tapCard>): TapAction[] {
+        const name = card.name ?? undefined;
+        const point: Coordinate = [card.longitude, card.latitude];
+        const done = (act: () => void) => () => {
+            setSearchPurpose(null);
+            act();
+        };
+        const start: TapAction = {
+            label: 'Start here',
+            onSelect: done(() =>
+                moveStart(card.longitude, card.latitude, { name }),
+            ),
+        };
 
-            return;
+        if (mode === 'build') {
+            const add: TapAction = {
+                label: 'Add a point here',
+                onSelect: done(() => {
+                    setTapCard(null);
+                    void addSnappedPoint(card.longitude, card.latitude, name);
+                }),
+            };
+
+            return purpose === 'start' ? [start, add] : [add, start];
         }
 
+        if (mode === 'multisport') {
+            const transition: TapAction = {
+                label: 'Move the transition here',
+                onSelect: done(() =>
+                    moveStart(card.longitude, card.latitude, { name }),
+                ),
+            };
+            const finish: TapAction = {
+                label: `Leg ${legNumber} ends here`,
+                onSelect: done(() => setLegFinish(activeLeg, point)),
+            };
+
+            if (layout !== 'chain') {
+                return [transition];
+            }
+
+            return purpose === 'finish'
+                ? [finish, transition]
+                : [transition, finish];
+        }
+
+        const passing: TapAction = {
+            label: 'Go via here',
+            onSelect: done(() => setViaPoint(point, name)),
+        };
+
+        return purpose === 'via' ? [passing, start] : [start, passing];
+    }
+
+    const tapActions: TapAction[] =
+        tapCard === null ? [] : tapActionsFor(tapCard);
+
+    onMapClickRef.current = (lng, lat) => {
         if (mode === 'multisport') {
             clickMultisport(lng, lat);
 
@@ -4292,6 +4340,7 @@ export default function Dashboard() {
         }
 
         if (placingViaRef.current) {
+            setSearchPurpose(null);
             setViaPoint([lng, lat]);
 
             return;
@@ -4309,7 +4358,21 @@ export default function Dashboard() {
             : { latitude: centre.lat, longitude: centre.lng };
     }
 
-    function showPlace(place: FoundPlace): void {
+    /**
+     * Puts the cursor in the search bar on the map, for what a row asked.
+     * On a phone the drawer gets out of the way first.
+     */
+    function focusSearch(next: SearchPurpose): void {
+        setSearchPurpose(next);
+        setPanelOpen(false);
+        window.requestAnimationFrame(() => searchInputRef.current?.focus());
+    }
+
+    /**
+     * A place found by name: the map goes there, then asks what it is for,
+     * the same as a tap.
+     */
+    function showFoundPlace(place: FoundPlace): void {
         const map = mapRef.current;
 
         if (map === null) {
@@ -4319,40 +4382,26 @@ export default function Dashboard() {
         const reduced = window.matchMedia(
             '(prefers-reduced-motion: reduce)',
         ).matches;
+        map.once('moveend', () =>
+            openTapCard(place.longitude, place.latitude, place.name),
+        );
         map.easeTo({
             center: [place.longitude, place.latitude],
-            zoom: Math.max(map.getZoom(), 14),
+            zoom: Math.max(map.getZoom(), place.kind === 'town' ? 13 : 15),
             padding: framePadding(),
-            duration: reduced ? 0 : 400,
+            duration: reduced ? 0 : 500,
         });
-    }
-
-    function pickStartPlace(place: FoundPlace): void {
-        setSheet(null);
-        moveStart(place.longitude, place.latitude, { name: place.name });
-        showPlace(place);
-    }
-
-    function pickViaPlace(place: FoundPlace): void {
-        setSheet(null);
-        setViaPoint([place.longitude, place.latitude], place.name);
-        showPlace(place);
-    }
-
-    function pickFinishPlace(place: FoundPlace): void {
-        setSheet(null);
-        setLegFinish(activeLeg, [place.longitude, place.latitude]);
-        showPlace(place);
     }
 
     /**
      * A Build point found by name still sits on a road: Traceway moves it
      * onto the nearest one for the sport.
      */
-    async function pickBuildPlace(place: FoundPlace): Promise<void> {
-        setSheet(null);
-        showPlace(place);
-
+    async function addSnappedPoint(
+        lng: number,
+        lat: number,
+        name?: string,
+    ): Promise<void> {
         try {
             const response = await fetch('/routes/snap', {
                 method: 'POST',
@@ -4362,8 +4411,8 @@ export default function Dashboard() {
                     'X-XSRF-TOKEN': csrfToken(),
                 },
                 body: JSON.stringify({
-                    latitude: place.latitude,
-                    longitude: place.longitude,
+                    latitude: lat,
+                    longitude: lng,
                     sport,
                 }),
             });
@@ -4380,9 +4429,11 @@ export default function Dashboard() {
             ) {
                 addBuildPoint(
                     { latitude: body.latitude, longitude: body.longitude },
-                    place.name,
+                    name,
                 );
-                setMessage(`${place.name} added. It sits on the nearest road.`);
+                setMessage(
+                    `${name ?? 'The point'} is added. It sits on the nearest road.`,
+                );
 
                 return;
             }
@@ -4400,28 +4451,30 @@ export default function Dashboard() {
         }
     }
 
-    function pickStartOnMap(): void {
-        setSheet(null);
-        setPlacingVia(false);
-        setPickingStart(true);
-        setMessage(
-            multisport
-                ? 'Tap the map where the transition is.'
-                : 'Tap the map where you start.',
-        );
-    }
-
-    function pickViaOnMap(): void {
-        setSheet(null);
-        setPickingStart(false);
-        setPlacingVia(true);
-        setMessage('Tap the map where the loop should pass.');
-    }
-
-    function locateFromSheet(): void {
-        setSheet(null);
-        locateMe();
-    }
+    const searchActions: SearchAction[] = [
+        {
+            label: 'Use my location',
+            detail: 'Where this device is now',
+            icon: LocateFixed,
+            onSelect: () => {
+                setSearchPurpose(null);
+                locateMe();
+            },
+        },
+        ...(purpose === 'via' && via !== null
+            ? [
+                  {
+                      label: 'No via',
+                      detail: `Stop passing ${viaName ?? 'the via'}`,
+                      icon: X,
+                      onSelect: () => {
+                          setSearchPurpose(null);
+                          clearVia();
+                      },
+                  },
+              ]
+            : []),
+    ];
 
     function redraw(next: {
         sport?: string;
@@ -4590,6 +4643,24 @@ export default function Dashboard() {
                     >
                         <div ref={mapNode} className="h-full w-full" />
                         <div className="vig" />
+                        <MapSearch
+                            map={getMap}
+                            near={searchNear}
+                            storageKey={recentKey}
+                            placeholder={searchPlaceholders[purpose]}
+                            purpose={
+                                searchPurpose === null
+                                    ? null
+                                    : purposeLabels[searchPurpose]
+                            }
+                            inputRef={searchInputRef}
+                            actions={searchActions}
+                            onClearPurpose={() => {
+                                setSearchPurpose(null);
+                                setPlacingVia(false);
+                            }}
+                            onPick={showFoundPlace}
+                        />
                         {tapCard === null ? null : (
                             <MapTapCard
                                 key={`${tapCard.longitude},${tapCard.latitude}`}
@@ -4689,14 +4760,9 @@ export default function Dashboard() {
                                 point
                             </p>
                         ) : null}
-                        {(pickingStart || placingVia) && !mapKeyboard ? (
+                        {placingVia && !mapKeyboard ? (
                             <p className="maphint">
-                                <b>+</b>{' '}
-                                {pickingStart
-                                    ? multisport
-                                        ? 'Tap where the transition is'
-                                        : 'Tap where you start'
-                                    : 'Tap where the loop should pass'}
+                                <b>+</b> Tap where the loop should pass
                             </p>
                         ) : mode === 'build' && !mapKeyboard ? (
                             <p className="maphint">
@@ -4978,7 +5044,9 @@ export default function Dashboard() {
                                     onMove={moveLeg}
                                     onPlaceFinish={placeFinish}
                                     transitionName={startName}
-                                    onFindTransition={() => setSheet('start')}
+                                    onFindTransition={() =>
+                                        focusSearch('transition')
+                                    }
                                 />
                             ) : mode === 'generate' ? (
                                 <section aria-label="Ask">
@@ -4986,13 +5054,11 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
-                                        onClick={() => setSheet('start')}
+                                        onClick={() => focusSearch('start')}
                                     >
                                         <span className="k">Start</span>
                                         <span className="v">
-                                            {pickingStart
-                                                ? 'Tap the map'
-                                                : (startName ?? 'Your pin')}
+                                            {startName ?? 'Your pin'}
                                             <Chevron />
                                         </span>
                                     </button>
@@ -5065,7 +5131,13 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
-                                        onClick={() => setSheet('via')}
+                                        onClick={() => {
+                                            setPlacingVia(true);
+                                            setMessage(
+                                                'Search, or tap the map where the loop should pass.',
+                                            );
+                                            focusSearch('via');
+                                        }}
                                     >
                                         <span className="k">Via</span>
                                         <span className="v">
@@ -5112,14 +5184,11 @@ export default function Dashboard() {
                                                         longitude,
                                                         latitude,
                                                     );
-                                                    setSheet('start');
+                                                    focusSearch('start');
                                                 }}
                                             >
                                                 <span>
-                                                    {pickingStart
-                                                        ? 'Tap the map'
-                                                        : (startName ??
-                                                          'Your pin')}
+                                                    {startName ?? 'Your pin'}
                                                 </span>
                                                 <small>Start</small>
                                                 <span className="vh">
@@ -5344,7 +5413,7 @@ export default function Dashboard() {
                                         <button
                                             type="button"
                                             className="addrow"
-                                            onClick={() => setSheet('point')}
+                                            onClick={() => focusSearch('point')}
                                         >
                                             <span
                                                 className="mark add"
@@ -5918,121 +5987,6 @@ export default function Dashboard() {
                     </aside>
                 </main>
             </div>
-
-            {(
-                [
-                    {
-                        name: 'start',
-                        title: multisport
-                            ? 'Where is the transition?'
-                            : 'Where do you start?',
-                        label: multisport
-                            ? 'Search for the transition'
-                            : 'Search for the start',
-                        onPick: pickStartPlace,
-                        actions: [
-                            {
-                                label: 'Use my location',
-                                copy: 'Where this device is now',
-                                onSelect: locateFromSheet,
-                            },
-                            {
-                                label: 'Pick on the map',
-                                copy: 'Your next tap on the map sets it',
-                                onSelect: pickStartOnMap,
-                            },
-                        ],
-                    },
-                    {
-                        name: 'via',
-                        title: 'Where should the loop pass?',
-                        label: 'Search for a place to pass',
-                        onPick: pickViaPlace,
-                        actions: [
-                            {
-                                label: 'Pick on the map',
-                                copy: 'Your next tap on the map sets it',
-                                onSelect: pickViaOnMap,
-                            },
-                            ...(via === null
-                                ? []
-                                : [
-                                      {
-                                          label: 'No via',
-                                          copy: `Stop passing ${viaName ?? 'the via'}`,
-                                          onSelect: () => {
-                                              setSheet(null);
-                                              clearVia();
-                                          },
-                                      },
-                                  ]),
-                        ],
-                    },
-                    {
-                        name: 'point',
-                        title: 'Add a point',
-                        label: 'Search for a point',
-                        onPick: (place: FoundPlace) => {
-                            void pickBuildPlace(place);
-                        },
-                        actions: [
-                            {
-                                label: 'Tap a road on the map',
-                                copy: 'The point sits on the road you tap',
-                                onSelect: () => {
-                                    setSheet(null);
-                                    setMessage(
-                                        'Tap a road on the map. The point snaps onto the route.',
-                                    );
-                                },
-                            },
-                        ],
-                    },
-                    {
-                        name: 'finish',
-                        title: `Where does leg ${activeLeg + (swim === null ? 1 : 2)} end?`,
-                        label: 'Search for where the leg ends',
-                        onPick: pickFinishPlace,
-                        actions: [
-                            {
-                                label: 'Pick on the map',
-                                copy: 'Your next tap on the map sets it',
-                                onSelect: () => pickFinishOnMap(activeLeg),
-                            },
-                        ],
-                    },
-                ] satisfies {
-                    name: SheetName;
-                    title: string;
-                    label: string;
-                    onPick: (place: FoundPlace) => void;
-                    actions: PlaceAction[];
-                }[]
-            ).map((placeSheet) => (
-                <Sheet
-                    key={placeSheet.name}
-                    modal={!wide}
-                    open={sheet === placeSheet.name}
-                    onOpenChange={(open) => !open && setSheet(null)}
-                >
-                    <SheetContent side="bottom" className={choiceSheet}>
-                        <SheetHeader className={sheetHeading}>
-                            <SheetTitle className="pr-6">
-                                {placeSheet.title}
-                            </SheetTitle>
-                        </SheetHeader>
-                        {sheet === placeSheet.name ? (
-                            <PlaceSearch
-                                near={searchNear}
-                                storageKey={recentKey}
-                                label={placeSheet.label}
-                                onPick={placeSheet.onPick}
-                                actions={placeSheet.actions}
-                            />
-                        ) : null}
-                    </SheetContent>
-                </Sheet>
-            ))}
 
             <Sheet
                 modal={!wide}

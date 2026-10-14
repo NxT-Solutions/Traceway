@@ -1364,7 +1364,8 @@
                                                     "name",
                                                     "area",
                                                     "latitude",
-                                                    "longitude"
+                                                    "longitude",
+                                                    "kind"
                                                 ],
                                                 "properties": {
                                                     "name": {
@@ -1378,6 +1379,15 @@
                                                     },
                                                     "longitude": {
                                                         "type": "number"
+                                                    },
+                                                    "kind": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "address",
+                                                            "street",
+                                                            "town",
+                                                            "place"
+                                                        ]
                                                     }
                                                 },
                                                 "type": "object"
@@ -3240,6 +3250,11 @@
                                     "type": "number",
                                     "maximum": 180,
                                     "minimum": -180
+                                },
+                                "language": {
+                                    "description": "The language to name places in, like \"nl\" or \"en-GB\".",
+                                    "type": "string",
+                                    "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
                                 }
                             },
                             "type": "object"

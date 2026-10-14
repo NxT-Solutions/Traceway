@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Routes;
 
+use App\Domain\Routing\PlaceKind;
 use App\Domain\Routing\PlaceMatch;
 use App\Domain\Routing\PlaceSearch;
 use Illuminate\Contracts\Cache\Repository;
@@ -31,12 +32,12 @@ final readonly class CachedPlaceSearch implements PlaceSearch
     /**
      * @throws PlaceSearchBusy when no turn came
      */
-    public function search(string $query, float $nearLatitude, float $nearLongitude): array
+    public function search(string $query, float $nearLatitude, float $nearLongitude, string $language = 'en'): array
     {
         $query = mb_strtolower((string) preg_replace('/\s+/u', ' ', trim($query)));
         $nearLatitude = round($nearLatitude, 1);
         $nearLongitude = round($nearLongitude, 1);
-        $key = sprintf('place-search:%.1f,%.1f:%s', $nearLatitude, $nearLongitude, hash('xxh128', $query));
+        $key = sprintf('place-search:%s:%.1f,%.1f:%s', $language, $nearLatitude, $nearLongitude, hash('xxh128', $query));
         $cached = $this->repository->get($key);
 
         if (is_array($cached)) {
@@ -46,7 +47,7 @@ final readonly class CachedPlaceSearch implements PlaceSearch
         throw_unless($this->placeSearchPace->take(self::WAIT_MILLISECONDS), PlaceSearchBusy::noTurn());
 
         try {
-            $matches = $this->placeSearch->search($query, $nearLatitude, $nearLongitude);
+            $matches = $this->placeSearch->search($query, $nearLatitude, $nearLongitude, $language);
         } catch (Throwable $throwable) {
             $this->placeSearchPace->rest();
 
@@ -58,6 +59,7 @@ final readonly class CachedPlaceSearch implements PlaceSearch
             'area' => $placeMatch->area,
             'latitude' => $placeMatch->latitude,
             'longitude' => $placeMatch->longitude,
+            'kind' => $placeMatch->kind->value,
         ], $matches), self::SECONDS);
 
         return $matches;
@@ -74,7 +76,8 @@ final readonly class CachedPlaceSearch implements PlaceSearch
         foreach ($cached as $row) {
             if (is_array($row) && is_string($row['name'] ?? null) && is_string($row['area'] ?? null)
                 && is_float($row['latitude'] ?? null) && is_float($row['longitude'] ?? null)) {
-                $matches[] = new PlaceMatch($row['name'], $row['area'], $row['latitude'], $row['longitude']);
+                $kind = is_string($row['kind'] ?? null) ? PlaceKind::tryFrom($row['kind']) : null;
+                $matches[] = new PlaceMatch($row['name'], $row['area'], $row['latitude'], $row['longitude'], $kind ?? PlaceKind::Place);
             }
         }
 

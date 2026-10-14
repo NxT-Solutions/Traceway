@@ -136,13 +136,23 @@ try {
         throw new Error('Dragging the start pin did not move the start.');
     }
 
-    // A place found by name becomes the start, and the Start row names it.
+    // The search bar on the map forgives a typo with names from the map
+    // itself, before it asks anyone: the planner opens on Ghent.
+    const search = desktop.getByRole('combobox');
+    await search.click();
+    await search.fill('gentbruge');
+    await desktop.getByRole('option', { name: /^Gentbrugge\b/ }).first().waitFor({ timeout: 5000 });
+    await search.fill('');
+
+    // A place found by name: the Start row puts the cursor in the bar, the
+    // map goes to the pick, and the card asks before the start moves.
     await desktop.getByRole('button', { name: /^Start\b/ }).click();
-    await desktop.getByRole('searchbox', { name: 'Search for the start' }).fill('Westerlo');
+    await desktop.getByRole('combobox', { name: 'Search for your start' }).fill('Westerlo');
     await desktop.keyboard.press('Enter');
-    const westerlo = desktop.getByRole('button', { name: /^Westerlo\b/ }).first();
+    const westerlo = desktop.getByRole('option', { name: /^Westerlo\b/ }).first();
     await westerlo.waitFor({ timeout: 15000 });
     await westerlo.click();
+    await desktop.getByRole('button', { name: 'Start here' }).click();
     await desktop.getByRole('button', { name: /^Start\s*Westerlo/ }).waitFor({ timeout: 5000 });
 
     if (!(await startOf())?.startsWith('51.0')) {
@@ -152,11 +162,12 @@ try {
     // In Build, a point found by name sits on a road and joins the list.
     await desktop.getByRole('tab', { name: 'Build' }).click();
     await desktop.getByRole('button', { name: 'Add a point' }).click();
-    await desktop.getByRole('searchbox', { name: 'Search for a point' }).fill('Oevel');
+    await desktop.getByRole('combobox', { name: 'Search for a point to add' }).fill('Oevel');
     await desktop.keyboard.press('Enter');
-    const oevel = desktop.getByRole('button', { name: /^Oevel\b/ }).first();
+    const oevel = desktop.getByRole('option', { name: /^Oevel\b/ }).first();
     await oevel.waitFor({ timeout: 15000 });
     await oevel.click();
+    await desktop.getByRole('button', { name: 'Add a point here' }).click();
     await desktop.locator('.pts .pt[data-point]').first().waitFor({ timeout: 15000 });
     await desktop.getByRole('button', { name: 'Undo' }).click();
     await desktop.locator('.pts .pt[data-point]').first().waitFor({ state: 'detached', timeout: 3000 });
@@ -187,11 +198,12 @@ try {
 
     // The transition is found by name too.
     await desktop.getByRole('button', { name: /Change the transition/ }).click();
-    await desktop.getByRole('searchbox', { name: 'Search for the transition' }).fill('Oevel');
+    await desktop.getByRole('combobox', { name: 'Search for the transition' }).fill('Oevel');
     await desktop.keyboard.press('Enter');
-    const transition = desktop.getByRole('button', { name: /^Oevel\b/ }).first();
+    const transition = desktop.getByRole('option', { name: /^Oevel\b/ }).first();
     await transition.waitFor({ timeout: 15000 });
     await transition.click();
+    await desktop.getByRole('button', { name: 'Move the transition here' }).click();
     await desktop.locator('section[aria-label="Legs"]').getByText('Oevel').waitFor({ timeout: 5000 });
 
     await open(desktop, '/saved');
