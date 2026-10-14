@@ -2414,7 +2414,7 @@ export default function Dashboard() {
             chosenPointRef.current = null;
         }
 
-        syncHoverPoint(map, chosenPointRef.current?.point ?? null);
+        syncHoverPoint(map, chosenPointRef.current?.point ?? null, 'ring');
     }, [detailLine, details, steepness]);
 
     useEffect(() => {
@@ -2911,7 +2911,13 @@ export default function Dashboard() {
         const map = mapRef.current;
 
         if (map !== null) {
-            syncHoverPoint(map, point ?? chosenPointRef.current?.point ?? null);
+            const chosen = chosenPointRef.current?.point ?? null;
+
+            syncHoverPoint(
+                map,
+                point ?? chosen,
+                point === null ? 'ring' : 'dot',
+            );
         }
     }
 
@@ -2927,7 +2933,7 @@ export default function Dashboard() {
         }
 
         chosenPointRef.current = { point, line: detailLine };
-        syncHoverPoint(map, point);
+        syncHoverPoint(map, point, 'ring');
         const fly = (): void => {
             const reduced = window.matchMedia(
                 '(prefers-reduced-motion: reduce)',
