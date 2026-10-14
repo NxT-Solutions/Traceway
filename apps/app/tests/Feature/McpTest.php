@@ -383,6 +383,15 @@ it('ships a card script that parses, since a broken one leaves the chat waiting'
     }
 });
 
+it('keeps the card quiet outside a local site, with no rules report and nothing sent back', function (): void {
+    expect(app()->isLocal())->toBeFalse();
+
+    TracewayServer::actingAs(User::factory()->create())
+        ->resource(RouteMapApp::class)
+        ->assertSee('data-status="off"')
+        ->assertDontSee('data-status="on"');
+});
+
 it('lets the card in the chat fetch its map, fresh each time, from Traceway and the map tiles only', function (): void {
     $csp = new RouteMapApp()->resolvedAppMeta()['csp'] ?? [];
 
