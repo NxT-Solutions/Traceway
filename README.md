@@ -160,6 +160,18 @@ ddev valhalla planner local
 
 `ddev valhalla regions france` lists other regions, and `ddev valhalla use france` builds one. [docs/local-routing.md](docs/local-routing.md) covers the memory, disk, and time each region needs.
 
+### Plan from an AI assistant
+
+Traceway is an MCP connector at `/mcp`. Sign in and open **Settings → AI assistants** for the address and the steps for each app. `ddev start` creates the Passport keys the sign-in needs.
+
+Claude Code, Codex, Cursor, and VS Code run on your machine, so they reach the local address:
+
+```bash
+claude mcp add --transport http traceway https://traceway.ddev.site/mcp
+```
+
+Claude.ai and ChatGPT connect from their own servers, so they cannot reach `traceway.ddev.site`. Give the site a public address with `ddev share` first, and use that address in the app.
+
 ### If port 80 or 443 is already taken
 
 Add `.ddev/config.local.yaml` (this file stays on your machine):

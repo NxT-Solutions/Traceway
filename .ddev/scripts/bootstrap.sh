@@ -28,6 +28,11 @@ if ! grep -q '^APP_KEY=base64:' .env; then
     php artisan key:generate --force --no-interaction
 fi
 
+# AI assistants sign in through Passport, which signs its tokens with these.
+if [ ! -f storage/oauth-private.key ]; then
+    php artisan passport:keys --no-interaction
+fi
+
 mkdir -p database
 touch database/database.sqlite
 php artisan migrate --force --no-interaction
