@@ -28,14 +28,14 @@ class ShowChatCardFileController extends Controller
 
         abort_unless(is_string($path), 404);
 
-        $response = new BinaryFileResponse($path, headers: [
+        $binaryFileResponse = new BinaryFileResponse($path, headers: [
             'Content-Type' => self::TYPES[pathinfo($file, PATHINFO_EXTENSION)] ?? 'application/octet-stream',
             'Cache-Control' => 'public, max-age=86400',
             'Access-Control-Allow-Origin' => '*',
         ], autoEtag: true);
 
-        $response->isNotModified($request);
+        $binaryFileResponse->isNotModified($request);
 
-        return $response;
+        return $binaryFileResponse;
     }
 }
