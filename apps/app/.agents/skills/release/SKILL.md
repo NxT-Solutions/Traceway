@@ -27,7 +27,15 @@ git ls-tree --name-only origin/main apps/app/resources/releases/unreleased/
 - Read every note in `unreleased/` with `git show origin/main:apps/app/resources/releases/unreleased/<file>`.
 - Compare the notes with the commits. Every pull request that changed something riders use should have a note, or the `no-rider-notes` label.
   - If a change riders will notice has no note, say which one and stop. The note goes in through a pull request first, so nothing is lost.
-- Check that CI on `main` is green: `gh run list --repo NxT-Solutions/Traceway --branch main --workflow CI --limit 1`.
+- **Wait for CI on `main`, then go on by yourself.** A release follows the merge it ships, so CI is often still running. Watch it instead of asking:
+
+```bash
+run=$(gh run list --repo NxT-Solutions/Traceway --branch main --workflow CI --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run watch "$run" --repo NxT-Solutions/Traceway --exit-status
+```
+
+  - **Green:** go on to the next step without asking.
+  - **Red:** stop. Read the failed jobs (`gh run view "$run" --log-failed`), fix the cause in a pull request through the `pr` skill, and release once that is merged and `main` is green. Never release a red `main`.
 - No new commits since the last tag means there is nothing to release. Say so.
 
 ## 2. Pick the version
@@ -45,7 +53,7 @@ From the notes:
 - **Summary:** one sentence, at most 140 characters, on what changed for the rider.
 - **Style:** plain words for riders over 60. No technical terms, no version numbers, no emoji, and no hype. Never the words beacon, kudos, segment, or suffer.
 
-Show the version, the title, the summary, and the list of notes to the person, and wait for a go. Skip the wait only if they already said to release without asking. A release cut without a title or summary, such as from the phone, gets them from Copilot when the `COPILOT_TOKEN` secret is set. Without it, the release is named by its first change and has no summary.
+Show the version, the title, the summary, and the list of notes to the person, then run it. Do not wait for a go: asking for a release is the go. Wait only when the person asked to see it first, or asked for a dry run. A release cut without a title or summary, such as from the phone, gets them from Copilot when the `COPILOT_TOKEN` secret is set. Without it, the release is named by its first change and has no summary.
 
 ## 4. Run it
 
