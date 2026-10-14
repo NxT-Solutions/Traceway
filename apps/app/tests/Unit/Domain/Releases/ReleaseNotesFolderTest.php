@@ -78,3 +78,13 @@ it('writes the release file a new version starts with', function (): void {
         ->toBe("---\ntitle: Rivers, and stops\nsummary: Routes follow rivers.\n---\n")
         ->and(ReleaseNotesFolder::releaseFile('Rivers', summary: null))->toBe("---\ntitle: Rivers\n---\n");
 });
+
+it('names a release by its first change when it has no title, New before Fixes', function (): void {
+    expect(ReleaseNotesFolder::suggestedTitle([
+        'b-stops.md' => "---\nsection: Fixes\n---\n- **Stops load again.** The server was busy.\n",
+        'a-bell.md' => "---\nsection: New\n---\n- **A bell at the top of the planner** shows what is new.\n",
+    ]))->toBe('A bell at the top of the planner')
+        ->and(ReleaseNotesFolder::suggestedTitle(['fix.md' => "---\nsection: Fixes\n---\n- Routes avoid busy roads. Loops are rounder.\n"]))->toBe('Routes avoid busy roads')
+        ->and(ReleaseNotesFolder::suggestedTitle(['long.md' => "---\nsection: New\n---\n- ".str_repeat('word ', 30)."\n"]))->toEndWith('…')
+        ->and(ReleaseNotesFolder::suggestedTitle([]))->toBeNull();
+});

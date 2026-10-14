@@ -90,7 +90,7 @@ Artisan::command('releases:sync', function (DispatchesCommands $dispatchesComman
     return 0;
 })->purpose('Read the rider notes in resources/releases, so riders see what changed');
 
-Artisan::command('releases:prepare {version : The new version, such as v1.4.0} {--title= : The title riders see} {--summary= : One line riders see under the title}', function (ReleaseNotesDirectory $releaseNotesDirectory): int {
+Artisan::command('releases:prepare {version : The new version, such as v1.4.0} {--title= : The title riders see. Empty names the release by its first change} {--summary= : One line riders see under the title}', function (ReleaseNotesDirectory $releaseNotesDirectory): int {
     $version = is_string($this->argument('version')) ? $this->argument('version') : '';
     $title = $this->option('title');
     $summary = $this->option('summary');

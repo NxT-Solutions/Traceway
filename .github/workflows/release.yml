@@ -6,8 +6,8 @@
 # 1. Picks the version: the one given, or the next one after the latest tag.
 #    Rider notes under New make it a minor release, anything else a patch.
 # 2. Moves every branch's rider notes from apps/app/resources/releases/unreleased
-#    into the version's folder, with the title and summary riders see. A title or
-#    summary left empty is written by GitHub Models from the notes.
+#    into the version's folder, with the title and summary riders see. With no
+#    title, the release is named by its first change; the summary is optional.
 # 3. Commits that to main, then publishes the GitHub release with the generated
 #    technical notes. Publishing starts Production Deploy and the Garmin build.
 #
@@ -25,11 +25,11 @@ on:
         required: false
         type: string
       title:
-        description: Title riders see. Empty lets GitHub Models write one from the notes.
+        description: Title riders see. Empty names the release by its first change.
         required: false
         type: string
       summary:
-        description: One line riders see under the title. Empty lets GitHub Models write one.
+        description: One line riders see under the title. Optional.
         required: false
         type: string
       dry_run:
@@ -40,7 +40,6 @@ on:
 
 permissions:
   contents: read
-  models: read
 
 concurrency:
   group: release
@@ -115,78 +114,6 @@ jobs:
           echo "notes=${#notes[@]}" >> "$GITHUB_OUTPUT"
           echo "Releasing ${version} after ${latest}, with ${#notes[@]} rider notes."
 
-      - name: Write The Title And Summary
-        id: words
-        if: steps.plan.outputs.notes != '0'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          INPUT_TITLE: ${{ inputs.title }}
-          INPUT_SUMMARY: ${{ inputs.summary }}
-          DRY_RUN: ${{ inputs.dry_run }}
-        run: |
-          set -euo pipefail
-          title="${INPUT_TITLE}"
-          summary="${INPUT_SUMMARY}"
-
-          if [ -z "$title" ] || [ -z "$summary" ]; then
-            notes="$(for note in "${NOTES}"/unreleased/*.md; do cat "$note"; printf '\n'; done)"
-            rules="You write the title and the one-line summary of a Traceway release, for riders.
-          Traceway plans routes for running, walking, hiking, and cycling, and sends them to watches and bike computers.
-          Many riders are over 60 and just want routes. Use short, plain, everyday words.
-          No technical terms, no version numbers, no emoji, no exclamation marks, no hype.
-          Never use the words beacon, kudos, segment, or suffer.
-          The title has at most 60 characters, in sentence case, and names the one or two changes riders care about most, such as: Stops that load, and your privacy in writing.
-          The summary is one sentence of at most 140 characters that says what changed for the rider.
-          Answer only with JSON: {\"title\": \"...\", \"summary\": \"...\"}"
-            request="$(jq -n --arg rules "$rules" --arg notes "$notes" '{
-              model: "openai/gpt-4.1-mini",
-              temperature: 0.3,
-              response_format: {type: "json_object"},
-              messages: [{role: "system", content: $rules}, {role: "user", content: $notes}]
-            }')"
-            reply="$(mktemp)"
-            status="$(curl --silent --show-error --max-time 60 --output "$reply" --write-out '%{http_code}' \
-              https://models.github.ai/inference/chat/completions \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "$request" || echo 000)"
-
-            if [ "$status" = "200" ]; then
-              # The answer is JSON, sometimes wrapped in a ```json fence.
-              answer="$(jq -r '.choices[0].message.content // empty' "$reply" | sed '/^```/d')"
-              if [ -z "$title" ]; then
-                title="$(jq -r '.title // empty' <<< "$answer" 2> /dev/null || true)"
-              fi
-              if [ -z "$summary" ]; then
-                summary="$(jq -r '.summary // empty' <<< "$answer" 2> /dev/null || true)"
-              fi
-            else
-              echo "::warning::GitHub Models answered ${status}: $(head -c 400 "$reply" | tr -s '[:space:]' ' ')"
-            fi
-          fi
-
-          title="$(tr -s '[:space:]' ' ' <<< "$title" | sed 's/^ *//; s/ *$//')"
-          summary="$(tr -s '[:space:]' ' ' <<< "$summary" | sed 's/^ *//; s/ *$//')"
-          if [ -z "$title" ] || [ "${#title}" -gt 80 ]; then
-            if [ "$DRY_RUN" = "true" ]; then
-              echo "::warning::No title yet. A release needs one: give it, or let GitHub Models write it."
-              title="(no title yet)"
-            else
-              echo "::error::No usable title. Run the workflow again with a title, or check the GitHub Models warning above."
-              exit 1
-            fi
-          fi
-          if [ "${#summary}" -gt 200 ]; then
-            summary=""
-          fi
-
-          {
-            echo "title<<TRACEWAY_EOF"; echo "$title"; echo "TRACEWAY_EOF"
-            echo "summary<<TRACEWAY_EOF"; echo "$summary"; echo "TRACEWAY_EOF"
-          } >> "$GITHUB_OUTPUT"
-          echo "Title: ${title}"
-          echo "Summary: ${summary}"
-
       - name: Set Up PHP
         if: steps.plan.outputs.notes != '0'
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
@@ -209,8 +136,8 @@ jobs:
         working-directory: apps/app
         env:
           VERSION: ${{ steps.plan.outputs.version }}
-          TITLE: ${{ steps.words.outputs.title }}
-          SUMMARY: ${{ steps.words.outputs.summary }}
+          TITLE: ${{ inputs.title }}
+          SUMMARY: ${{ inputs.summary }}
         run: |
           set -euo pipefail
           composer install --no-interaction --prefer-dist --no-progress
