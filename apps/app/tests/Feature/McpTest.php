@@ -326,7 +326,7 @@ it('takes the AI tool access with a deleted account', function (): void {
 it('draws the plan in the chat with the Traceway map', function (): void {
     TracewayServer::actingAs(User::factory()->create())
         ->resource(RouteMapApp::class)
-        ->assertSee(['createMcpApp', 'route_drawing', 'Open the map', 'traceway:map-ready']);
+        ->assertSee(['createMcpApp', 'route_drawing', 'Open the map', 'traceway:map-ready', route('mcp.apps.route-map')]);
 
     expect(new PlanLoopTool()->toArray()['_meta']['ui'] ?? null)->toBe(['resourceUri' => 'ui://traceway/route-map', 'visibility' => ['model', 'app']])
         ->and(new PlanMultisportTool()->toArray()['_meta']['ui']['resourceUri'] ?? null)->toBe('ui://traceway/route-map')
@@ -353,12 +353,17 @@ it('sends the line for the map with the plan, outside what the model reads', fun
 });
 
 it('ships a card script that parses, since a broken one leaves the chat waiting', function (): void {
-    $html = view('mcp.route-map-app', ['showStatus' => true, 'traceway' => 'https://traceway.test'])->render();
+    $html = view('mcp.route-map-app', [
+        'showStatus' => true,
+        'traceway' => 'https://traceway.test',
+        'mapScript' => 'https://traceway.test/mcp/apps/route-map.js',
+        'mapCode' => '',
+    ])->render();
     preg_match_all('#<script type="module">(.*?)</script>#s', $html, $scripts);
 
     expect($scripts[1])->not->toBeEmpty();
 
-    foreach ($scripts[1] as $script) {
+    foreach ([...$scripts[1], (string) file_get_contents(resource_path('mcp/route-map.js'))] as $script) {
         $file = sys_get_temp_dir().'/traceway-card-'.Str::random(8).'.mjs';
         file_put_contents($file, $script);
         $check = Process::run(['node', '--check', $file]);
@@ -368,8 +373,21 @@ it('ships a card script that parses, since a broken one leaves the chat waiting'
     }
 });
 
-it('lets the card in the chat show the map from Traceway', function (): void {
-    expect(new RouteMapApp()->resolvedAppMeta()['csp']['frameDomains'] ?? [])->toBe([rtrim(url('/'), '/')]);
+it('lets the card in the chat fetch its map, fresh each time', function (): void {
+    $csp = new RouteMapApp()->resolvedAppMeta()['csp'] ?? [];
+
+    expect($csp['frameDomains'] ?? [])->toBe([rtrim(url('/'), '/')])
+        ->and($csp['connectDomains'] ?? [])->toBe([rtrim(url('/'), '/'), 'https://unpkg.com', 'https://tiles.openfreemap.org']);
+
+    $script = $this->get(route('mcp.apps.route-map'))->assertOk();
+
+    expect($script->headers->get('Content-Type'))->toBe('text/javascript; charset=utf-8')
+        ->and($script->headers->get('Access-Control-Allow-Origin'))->toBe('*')
+        ->and($script->headers->get('Cache-Control'))->toContain('no-cache')
+        ->and($script->getFile()->getContent())->toContain('export async function mount');
+
+    $this->get(route('mcp.apps.route-map'), ['If-None-Match' => (string) $script->headers->get('ETag')])
+        ->assertStatus(304);
 });
 
 it('gives the map the line of a route the rider saved', function (): void {
