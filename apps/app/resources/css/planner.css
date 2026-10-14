@@ -766,6 +766,7 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
 .tw-planner .tw-start-pin,.tw-planner .tw-via-pin{cursor:grab;touch-action:none}
 .tw-planner .tw-start-pin:active,.tw-planner .tw-via-pin:active{cursor:grabbing}
 /* Place search inside a sheet */
+body:has(.tw-planner) .tw-pop .place-search{margin-top:16px}
 body:has(.tw-planner) .tw-pop .place-form{display:flex;gap:8px;align-items:center}
 body:has(.tw-planner) .tw-pop .place-form .outline.sm{height:40px}
 body:has(.tw-planner) .tw-pop .place-search > .small{margin:8px 0 12px}
