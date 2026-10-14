@@ -33,6 +33,7 @@ final class RouteMapApp extends AppResource
     {
         return Response::view('mcp.route-map-app', [
             'showStatus' => app()->isLocal(),
+            'traceway' => $this->traceway(),
         ]);
     }
 
@@ -40,6 +41,14 @@ final class RouteMapApp extends AppResource
     {
         return AppMeta::make()
             ->prefersBorder(prefersBorder: false)
-            ->csp(Csp::make()->frameDomains([rtrim(url('/'), '/')]));
+            ->csp(Csp::make()
+                ->frameDomains([$this->traceway()])
+                // On a local site, the card reports what the chat app blocked.
+                ->resourceDomains([$this->traceway()]));
+    }
+
+    private function traceway(): string
+    {
+        return rtrim(url('/'), '/');
     }
 }

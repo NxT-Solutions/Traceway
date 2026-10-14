@@ -186,6 +186,17 @@
                 opacity: 1;
             }
 
+            .report {
+                margin: 0 18px 16px;
+                max-height: 180px;
+                overflow: auto;
+                font: 11px/1.45 ui-monospace, Menlo, monospace;
+                white-space: pre-wrap;
+                word-break: break-all;
+                color: var(--muted);
+                user-select: text;
+            }
+
             .status {
                 margin: 0;
                 padding: 0 18px 14px;
@@ -218,6 +229,50 @@
                     if (document.querySelector('main').dataset.status === 'on') {
                         $('status').textContent = text;
                         $('status').hidden = false;
+                    }
+                }
+
+                /**
+                 * On a local site only: what the chat app allows, shown under
+                 * the card and sent to Traceway's log, so a blocked map says why.
+                 */
+                const report = {
+                    worker: 'not tried',
+                    blocked: [],
+                    policy: ''
+                };
+
+                function sendReport(stage) {
+                    const main = document.querySelector('main');
+
+                    if (main.dataset.status !== 'on') {
+                        return;
+                    }
+
+                    $('report').hidden = false;
+                    $('report').textContent = [
+                        `Background worker: ${report.worker}`,
+                        `Blocked: ${report.blocked.join(', ') || 'nothing'}`,
+                        `Chat app rules: ${report.policy || 'none reported'}`,
+                    ].join('\n');
+
+                    const beacon = new Image();
+                    beacon.src = `${main.dataset.traceway}/up?widget=${encodeURIComponent(JSON.stringify({ stage, ...report }))}`;
+                }
+
+                document.addEventListener('securitypolicyviolation', (event) => {
+                    report.policy = event.originalPolicy;
+                    report.blocked.push(`${event.effectiveDirective} ${event.blockedURI}`);
+                });
+
+                if (document.querySelector('main').dataset.status === 'on') {
+                    try {
+                        new Worker(URL.createObjectURL(new Blob(['close()'], {
+                            type: 'text/javascript'
+                        }))).terminate();
+                        report.worker = 'allowed';
+                    } catch (error) {
+                        report.worker = `blocked (${error.name})`;
                     }
                 }
 
@@ -353,6 +408,7 @@
                     const giveUp = window.setTimeout(() => {
                         frame.remove();
                         status('The map from Traceway did not open here, so the drawing stays.');
+                        sendReport('map did not open');
                     }, 15000);
 
                     window.addEventListener('message', function ready(event) {
@@ -365,6 +421,7 @@
                         stage.classList.add('framed');
                         frame.classList.add('ready');
                         status('Map from Traceway.');
+                        sendReport('map shown');
                     });
 
                     stage.append(frame);
@@ -415,7 +472,7 @@
         @endverbatim
     </x-slot:head>
 
-    <main class="card" data-status="{{ $showStatus ? 'on' : 'off' }}">
+    <main class="card" data-status="{{ $showStatus ? 'on' : 'off' }}" data-traceway="{{ $traceway }}">
         <p id="wait" class="wait">Planning your route…</p>
 
         <section id="route" hidden>
@@ -452,5 +509,6 @@
         </section>
 
         <p id="status" class="status" hidden></p>
+        <pre id="report" class="report" hidden></pre>
     </main>
 </x-mcp::app>
