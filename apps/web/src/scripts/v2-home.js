@@ -386,6 +386,52 @@ import Lenis from 'lenis';
   window.addEventListener('scroll', function(){ if (reduce){ headerTheme(); syncHeaderCta(); } }, { passive: true });
   syncHeaderCta();
 
+  /* ---------- ask your AI: the chat plans a loop while it is on screen ---------- */
+  var chat = $('chat');
+  if (chat && !reduce){
+    var ask = $('chat-ask'), typing = $('chat-typing'), tool = $('chat-tool'), toolT = $('chat-tool-t');
+    var card = $('chat-card'), loop = $('chat-loop'), km = $('chat-km'), reply = $('chat-reply');
+    var stops = chat.querySelectorAll('.rcard-stop'), facts = chat.querySelectorAll('.rcard-facts li');
+    var start = chat.querySelector('.rcard-start'), words = ask.getAttribute('data-text');
+    var typed = { n: 0 }, counted = { v: 0 }, kmTo = parseFloat(km.textContent);
+    var chatTl = gsap.timeline({ paused: true, repeat: -1, repeatDelay: 3.5, defaults: { ease: 'power3.out' } });
+    chatTl
+      .call(function(){
+        ask.textContent = ' ';
+        tool.classList.remove('done');
+        toolT.textContent = 'Traceway · planning a loop';
+        km.textContent = '0.0';
+      })
+      .set([tool, card, reply], { autoAlpha: 0, y: 12 })
+      .set(typing, { autoAlpha: 0, y: 8 })
+      .set(loop, { strokeDashoffset: 1 })
+      .set(stops, { autoAlpha: 0, scale: 0.3, transformOrigin: '50% 50%' })
+      .set(start, { autoAlpha: 0, scale: 0.3, transformOrigin: '50% 50%' })
+      .set(facts, { autoAlpha: 0, y: 6 })
+      .to(typed, { n: words.length, duration: 1.9, ease: 'none', onUpdate: function(){ ask.textContent = words.slice(0, Math.round(typed.n)) || ' '; } }, 0.4)
+      .to(typing, { autoAlpha: 1, y: 0, duration: 0.35 }, '+=0.35')
+      .to(typing, { autoAlpha: 0, duration: 0.2 }, '+=0.9')
+      .to(tool, { autoAlpha: 1, y: 0, duration: 0.4 }, '<')
+      .to(card, { autoAlpha: 1, y: 0, duration: 0.6 }, '+=0.9')
+      .to(start, { autoAlpha: 1, scale: 1, duration: 0.4, ease: 'back.out(2)' }, '-=0.1')
+      .to(loop, { strokeDashoffset: 0, duration: 1.9, ease: 'power2.inOut' }, '<')
+      .fromTo(counted, { v: 0 }, { v: kmTo, duration: 1.9, ease: 'power2.inOut', onUpdate: function(){ km.textContent = counted.v.toFixed(1); } }, '<')
+      .to(stops, { autoAlpha: 1, scale: 1, duration: 0.45, ease: 'back.out(2.2)', stagger: 0.22 }, '-=1.1')
+      .call(function(){
+        tool.classList.add('done');
+        toolT.textContent = 'Traceway · loop planned and saved';
+      })
+      .to(facts, { autoAlpha: 1, y: 0, duration: 0.4, stagger: 0.12 }, '+=0.1')
+      .to(reply, { autoAlpha: 1, y: 0, duration: 0.5 }, '+=0.35');
+    if ('IntersectionObserver' in window){
+      new IntersectionObserver(function(entries){
+        entries.forEach(function(en){ if (en.isIntersecting) chatTl.play(); else chatTl.pause(); });
+      }, { threshold: 0.35 }).observe(chat);
+    } else {
+      chatTl.play();
+    }
+  }
+
   /* ---------- reveals ---------- */
   var rv = Array.prototype.slice.call(d.querySelectorAll('.rv'));
   if ('IntersectionObserver' in window && !reduce){
