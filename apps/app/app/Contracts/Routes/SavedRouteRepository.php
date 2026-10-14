@@ -6,7 +6,6 @@ namespace App\Contracts\Routes;
 
 use App\Account\RiderId;
 use App\Commands\SaveRouteCommand;
-use App\Domain\Routing\Details\RouteDetails;
 use App\Routes\RouteId;
 use App\Routes\SavedLeg;
 
@@ -19,12 +18,13 @@ interface SavedRouteRepository
     public function owns(RouteId $routeId, RiderId $riderId): bool;
 
     /**
-     * Keeps the details read later for a route saved without them. A null
-     * climb leaves the saved one as it is.
+     * Keeps the details read later for a route saved without them, as the
+     * details column stores them. A null climb leaves the saved one.
      *
+     * @param  array<string, mixed>|null  $details
      * @param  list<SavedLeg>  $legs
      */
-    public function storeDetails(RouteId $routeId, ?RouteDetails $routeDetails, array $legs, ?int $ascentMetres): void;
+    public function storeDetails(RouteId $routeId, ?array $details, array $legs, ?int $ascentMetres): void;
 
     public function noteDetailsTried(RouteId $routeId): void;
 }
