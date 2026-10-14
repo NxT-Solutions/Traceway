@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Commands\ReadRouteDetailsCommand;
+use App\Commands\SyncReleasesCommand;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Queries\Routes\UnreadRoutesQuery;
 use Illuminate\Foundation\Inspiring;
@@ -65,3 +66,24 @@ Schedule::command('cache:prune-expired')->hourly();
 // A message that could not be sent keeps its content, a data export
 // included, in failed_jobs. A day is long enough to see why.
 Schedule::command('queue:prune-failed', ['--hours' => 24])->hourly();
+
+Artisan::command('releases:sync', function (DispatchesCommands $dispatchesCommands): int {
+    try {
+        $saved = $dispatchesCommands->dispatch(new SyncReleasesCommand);
+    } catch (Throwable $throwable) {
+        $this->warn('The releases were not read from GitHub: '.$throwable->getMessage());
+
+        return 0;
+    }
+
+    $this->info('Read the notes of '.(is_int($saved) ? $saved : 0).' releases.');
+
+    return 0;
+})->purpose('Copy the release notes published on GitHub, so riders can read what changed');
+
+// A deploy reads the new notes before the site opens. This catches a
+// release edited on GitHub afterwards, and one the deploy could not reach.
+Schedule::command('releases:sync')
+    ->hourly()
+    ->withoutOverlapping(10)
+    ->runInBackground();

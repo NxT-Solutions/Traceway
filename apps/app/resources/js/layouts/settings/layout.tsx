@@ -8,9 +8,11 @@ import { toUrl } from '@/lib/utils';
 import { logout } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
+import { index as whatsNewPage } from '@/routes/releases';
 import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
 import '../../../css/settings-scene.css';
+import ReleaseBell from '@/components/release-bell';
 
 const sidebarNavItems: NavItem[] = [
     {
@@ -43,6 +45,11 @@ const sidebarNavItems: NavItem[] = [
         href: '/settings/privacy',
         icon: null,
     },
+    {
+        title: "What's new",
+        href: whatsNewPage(),
+        icon: null,
+    },
 ];
 
 function initials(name: string): string {
@@ -61,6 +68,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
     const { auth } = page.props;
     const { resolvedAppearance } = useAppearance();
     const name = auth.user.name;
+    const unread = page.props.whatsNew?.unread ?? 0;
 
     return (
         <div className="tw-settings" data-theme={resolvedAppearance}>
@@ -125,6 +133,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                             </svg>
                             <span>Saved routes</span>
                         </Link>
+                        <ReleaseBell />
                         <Link
                             className="acct"
                             href={edit()}
@@ -153,6 +162,13 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                                 }
                             >
                                 {item.title}
+                                {toUrl(item.href) === whatsNewPage.url() &&
+                                unread > 0 ? (
+                                    <span className="count">
+                                        {unread}
+                                        <span className="sr-only"> unread</span>
+                                    </span>
+                                ) : null}
                             </Link>
                         ))}
                         <div className="sep" />

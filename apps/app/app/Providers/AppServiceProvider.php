@@ -13,12 +13,15 @@ use App\Commands\DeleteRouteCommand;
 use App\Commands\DisconnectAppCommand;
 use App\Commands\ExportPersonalDataCommand;
 use App\Commands\LinkDeviceCommand;
+use App\Commands\MarkAllReleasesReadCommand;
+use App\Commands\MarkReleaseReadCommand;
 use App\Commands\OpenAccountCommand;
 use App\Commands\ReadRouteDetailsCommand;
 use App\Commands\RevokeDeviceCommand;
 use App\Commands\SaveRouteCommand;
 use App\Commands\StartDevicePairingCommand;
 use App\Commands\StoreRouteImageCommand;
+use App\Commands\SyncReleasesCommand;
 use App\Commands\UpdateProfileCommand;
 use App\Commands\WelcomeRiderCommand;
 use App\Contracts\Account\ConnectedAppRepository;
@@ -28,8 +31,10 @@ use App\Contracts\Account\UserRepository;
 use App\Contracts\Auth\CurrentRider;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Contracts\Mail\AccountMailer;
+use App\Contracts\Releases\ReleaseRepository;
 use App\Contracts\Routes\RouteImageStore;
 use App\Contracts\Routes\SavedRouteRepository;
+use App\Domain\Releases\ReleaseFeed;
 use App\Domain\Routing\Details\RouteDetailer;
 use App\Domain\Routing\Details\RouteDetailsSource;
 use App\Domain\Routing\LineFollower;
@@ -44,14 +49,19 @@ use App\Handlers\DeleteRouteHandler;
 use App\Handlers\DisconnectAppHandler;
 use App\Handlers\ExportPersonalDataHandler;
 use App\Handlers\LinkDeviceHandler;
+use App\Handlers\MarkAllReleasesReadHandler;
+use App\Handlers\MarkReleaseReadHandler;
 use App\Handlers\OpenAccountHandler;
 use App\Handlers\ReadRouteDetailsHandler;
 use App\Handlers\RevokeDeviceHandler;
 use App\Handlers\SaveRouteHandler;
 use App\Handlers\StartDevicePairingHandler;
 use App\Handlers\StoreRouteImageHandler;
+use App\Handlers\SyncReleasesHandler;
 use App\Handlers\UpdateProfileHandler;
 use App\Handlers\WelcomeRiderHandler;
+use App\Integrations\GitHub\GitHubConnector;
+use App\Integrations\GitHub\GitHubReleaseFeed;
 use App\Integrations\GraphHopper\GraphHopperConnector;
 use App\Integrations\GraphHopper\GraphHopperRoutingEngine;
 use App\Integrations\Nominatim\NominatimConnector;
@@ -70,6 +80,7 @@ use App\Notifications\RiderEmailConfirmation;
 use App\Repositories\DiskRouteImageStore;
 use App\Repositories\EloquentConnectedAppRepository;
 use App\Repositories\EloquentDeviceLinkRepository;
+use App\Repositories\EloquentReleaseRepository;
 use App\Repositories\EloquentSavedRouteRepository;
 use App\Repositories\EloquentUserRepository;
 use App\Routes\CachedPlaceNamer;
@@ -112,6 +123,9 @@ class AppServiceProvider extends ServiceProvider
             ClaimDevicePairingCommand::class => ClaimDevicePairingHandler::class,
             LinkDeviceCommand::class => LinkDeviceHandler::class,
             RevokeDeviceCommand::class => RevokeDeviceHandler::class,
+            SyncReleasesCommand::class => SyncReleasesHandler::class,
+            MarkReleaseReadCommand::class => MarkReleaseReadHandler::class,
+            MarkAllReleasesReadCommand::class => MarkAllReleasesReadHandler::class,
         ]);
         $this->app->instance(DispatchesCommands::class, $commandBus);
         $this->app->alias(DispatchesCommands::class, CommandBus::class);
@@ -121,6 +135,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(RouteImageStore::class, fn (): DiskRouteImageStore => new DiskRouteImageStore(Storage::disk('local')));
         $this->app->bind(ConnectedAppRepository::class, EloquentConnectedAppRepository::class);
         $this->app->bind(DeviceLinkRepository::class, EloquentDeviceLinkRepository::class);
+        $this->app->bind(ReleaseRepository::class, EloquentReleaseRepository::class);
         $this->app->bind(CurrentRider::class, SessionRider::class);
         $this->app->bind(AccountMailer::class, TracewayAccountMailer::class);
         $this->app->bind(EmailConfirmation::class, RiderEmailConfirmation::class);
@@ -167,6 +182,20 @@ class AppServiceProvider extends ServiceProvider
             $this->app->make(CacheRepository::class),
             new PlaceSearchPace($this->app->make(CacheRepository::class)),
         ));
+
+        $this->app->bind(function (): ReleaseFeed {
+            $url = config('services.github.url');
+            $repository = config('services.github.releases_repo');
+            $token = config('services.github.token');
+
+            return new GitHubReleaseFeed(
+                new GitHubConnector(
+                    is_string($url) && $url !== '' ? $url : 'https://api.github.com',
+                    is_string($token) && $token !== '' ? $token : null,
+                ),
+                is_string($repository) && $repository !== '' ? $repository : 'NxT-Solutions/Traceway',
+            );
+        });
 
         $this->app->bind(function (): RouteDetailsSource {
             $valhalla = config('services.valhalla.url');

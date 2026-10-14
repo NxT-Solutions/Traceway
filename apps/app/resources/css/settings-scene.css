@@ -61,6 +61,7 @@
 .tw-settings .snav a,.tw-settings .snav button{display:flex;align-items:center;justify-content:space-between;height:44px;padding:0 12px;border-radius:10px;color:var(--muted);font-weight:500;background:transparent;border:0;text-align:left;cursor:pointer;width:100%}
 .tw-settings .snav a:hover,.tw-settings .snav button:hover{color:var(--text);background:var(--hover)}
 .tw-settings .snav a[aria-current]{color:var(--seg-on-fg);background:var(--seg-on)}
+.tw-settings .snav .count{margin-left:8px;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--chart);color:var(--chart-ink);font-size:12px;font-weight:700;line-height:22px;text-align:center;font-variant-numeric:tabular-nums}
 .tw-settings .snav .sep{height:1px;background:var(--hair);margin:10px 12px}
 .tw-settings .snav a.out,.tw-settings .snav button.out{color:var(--muted)}
 .tw-settings .section{display:flex;flex-direction:column;gap:32px}
@@ -176,11 +177,29 @@
 .tw-settings .ai-local code{padding:1px 6px;border-radius:6px;background:var(--icon-box);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
 .tw-settings .ai-tag{margin-top:6px;padding:3px 8px;border-radius:999px;background:var(--icon-box);color:var(--muted);font-size:12px;font-weight:500;white-space:nowrap}
 .tw-settings .ai-pointer{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+/* What's new: one card per release, notes set large enough to read without glasses. */
+.tw-settings .release{scroll-margin-top:88px}
+.tw-settings .release-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px}
+.tw-settings .release-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0;color:var(--muted);font-size:14px}
+.tw-settings .release-head h2{margin:4px 0 0}
+.tw-settings .release-new{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:var(--chart);color:var(--chart-ink);font-size:12px;font-weight:700}
+.tw-settings .release-notes{max-width:62ch;font-size:16px;line-height:1.6;color:var(--text)}
+.tw-settings .release-notes h2,.tw-settings .release-notes h3{margin:18px 0 6px;font-size:15px;font-weight:600;letter-spacing:.01em;color:var(--muted);text-transform:uppercase}
+.tw-settings .release-notes > :first-child{margin-top:0}
+.tw-settings .release-notes p{margin:0 0 10px}
+.tw-settings .release-notes ul,.tw-settings .release-notes ol{margin:0 0 10px;padding-left:22px;list-style:disc}
+.tw-settings .release-notes ol{list-style:decimal}
+.tw-settings .release-notes li{margin:4px 0}
+.tw-settings .release-notes li::marker{color:var(--chart-dim)}
+.tw-settings .release-notes a{color:var(--text);text-decoration:underline;text-underline-offset:3px}
+.tw-settings .release-notes code{padding:1px 5px;border-radius:5px;background:var(--hover);font-size:.92em}
+
 @media (max-width: 640px){
   .tw-settings .fill .long,.tw-settings .plan-nav .long{display:none}
   .tw-settings .fill .short,.tw-settings .plan-nav .short{display:inline}
-  .tw-settings .hdr .wrap{gap:14px}
-  .tw-settings .hdr-r{gap:10px}
+  .tw-settings .hdr .wrap{gap:8px}
+  .tw-settings .plan-nav{padding:0 12px}
+  .tw-settings .hdr-r{gap:6px}
 }
 @media (max-width: 1023px){
   .tw-settings .nav{display:flex;gap:14px}

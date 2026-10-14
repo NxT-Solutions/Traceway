@@ -1,0 +1,35 @@
+/* The bell in the header: how many releases a rider has not read, and a short list of them. It sits inside the planner, library, and settings headers, so it reads their colour tokens. */
+.release-bell{position:relative;display:inline-flex}
+.release-bell .rb-button{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:10px;background:transparent;color:var(--muted);cursor:pointer;transition:background-color 180ms var(--ease),color 180ms var(--ease),opacity 80ms var(--ease)}
+.release-bell .rb-button svg{display:block}
+.release-bell .rb-button:hover,.release-bell .rb-button[aria-expanded="true"]{background:var(--hover);color:var(--text)}
+.release-bell .rb-button:active{transition-duration:80ms;opacity:.72}
+.release-bell .rb-button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.release-bell .rb-count{position:absolute;top:6px;right:5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--chart);color:var(--chart-ink);box-shadow:0 0 0 2px var(--bg);font-size:11px;font-weight:700;line-height:17px;text-align:center;font-variant-numeric:tabular-nums}
+
+.release-bell .rb-panel{position:absolute;top:calc(100% + 8px);right:0;z-index:50;width:360px;max-height:min(520px,calc(100dvh - 96px));overflow:auto;display:flex;flex-direction:column;border:1px solid var(--panel-b);border-radius:14px;background:var(--panel);color:var(--text);box-shadow:var(--shadow,0 24px 48px -24px oklch(0 0 0 / .45));text-align:left}
+.release-bell .rb-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 12px 10px 16px;border-bottom:1px solid var(--hair)}
+.release-bell .rb-head h2{margin:0;font-size:16px;font-weight:600;letter-spacing:-0.01em}
+.release-bell .rb-all{height:36px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--text);font-size:14px;font-weight:500;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.release-bell .rb-all:hover{background:var(--hover)}
+.release-bell .rb-empty{margin:0;padding:20px 16px;color:var(--muted);font-size:15px}
+.release-bell .rb-list{margin:0;padding:6px;list-style:none;display:flex;flex-direction:column;gap:2px}
+.release-bell .rb-item{display:flex;align-items:flex-start;gap:4px;border-radius:10px}
+.release-bell .rb-item:hover{background:var(--hover)}
+.release-bell .rb-link{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px;padding:10px 4px 10px 10px;border-radius:10px;color:var(--text);text-decoration:none}
+.release-bell .rb-meta{font-size:13px;color:var(--muted)}
+.release-bell .rb-name{font-size:15px;font-weight:600}
+.release-bell .rb-line{font-size:14px;color:var(--muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.release-bell .rb-check{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin-top:4px;border:0;border-radius:10px;background:transparent;color:var(--muted);cursor:pointer}
+.release-bell .rb-check:hover{color:var(--text);background:var(--field,var(--hover))}
+.release-bell .rb-link:focus-visible,.release-bell .rb-check:focus-visible,.release-bell .rb-all:focus-visible,.release-bell .rb-foot:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
+.release-bell .rb-foot{display:flex;align-items:center;justify-content:center;min-height:48px;border-top:1px solid var(--hair);color:var(--text);font-size:15px;font-weight:500;text-decoration:none}
+.release-bell .rb-foot:hover{background:var(--hover)}
+
+@media (max-width: 760px){
+  .release-bell .rb-panel{position:fixed;top:calc(64px + env(safe-area-inset-top,0px) + 6px);left:16px;right:16px;width:auto}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .release-bell .rb-button,.release-bell .rb-check{transition:none}
+}

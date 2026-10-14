@@ -24,6 +24,7 @@ import { isRouteDetails, type RouteDetails } from '@/lib/route-details';
 import { keepShareImage, shareImageRoute } from '@/lib/share-image';
 import '../../css/planner.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import ReleaseBell from '@/components/release-bell';
 
 type Coordinate = [number, number];
 
@@ -981,6 +982,7 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                         </svg>
                         <span>Saved routes</span>
                     </Link>
+                    <ReleaseBell />
                     <Link
                         className="acct"
                         href="/settings/profile"

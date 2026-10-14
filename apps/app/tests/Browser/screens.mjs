@@ -105,6 +105,18 @@ const pages = [
     { name: 'register', url: '/register', full: true },
     { name: 'assistants', url: '/settings/assistants', auth: true, full: true },
     { name: 'privacy', url: '/settings/privacy', auth: true, full: true },
+    { name: 'whats-new', url: '/settings/whats-new', auth: true, full: true },
+    // The bell in the header, open over the map.
+    {
+        name: 'whats-new-bell',
+        url: '/dashboard',
+        auth: true,
+        prepare: async (page) => {
+            await page.locator('.maplibregl-canvas').waitFor();
+            await page.getByRole('button', { name: /^What's new/ }).click();
+            await page.locator('.rb-panel').waitFor();
+        },
+    },
 ];
 
 for (const spec of pages) {
