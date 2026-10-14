@@ -164,6 +164,17 @@
                 font-size: 15px;
             }
 
+            .stage {
+                position: relative;
+            }
+
+            .status {
+                margin: 0;
+                padding: 0 18px 14px;
+                font-size: 12px;
+                color: var(--chart);
+            }
+
             [hidden] {
                 display: none !important;
             }
@@ -183,6 +194,34 @@
                     swim: 'Swim',
                 };
                 const $ = (id) => document.getElementById(id);
+
+                /**
+                 * What the map script from Traceway reads: the plan and its line
+                 * once they are here, and a line of status on a local site.
+                 */
+                const hub = (window.traceway = {
+                    plan: null,
+                    line: null,
+                    listeners: [],
+                    show(listener) {
+                        this.listeners.push(listener);
+
+                        if (this.plan) {
+                            listener(this.plan, this.line);
+                        }
+                    },
+                    publish(plan, line) {
+                        this.plan = plan;
+                        this.line = line;
+                        this.listeners.forEach((listener) => listener(plan, line));
+                    },
+                    status(text) {
+                        if (document.querySelector('main').dataset.status === 'on') {
+                            $('status').textContent = text;
+                            $('status').hidden = false;
+                        }
+                    },
+                });
 
                 /** A tool result's data, whether it came as structured content or as JSON text. */
                 function data(result) {
@@ -271,12 +310,12 @@
                 }
 
                 /**
-                 * The line, sent along with the plan. A host that leaves it out
-                 * gets one try at asking the server, and the card shows without
-                 * a line when that fails too.
+                 * The line, sent in the plan's structured content. A chat app that
+                 * leaves it out gets one try at asking the server, and the card
+                 * shows without a line when that fails too.
                  */
                 async function lineFor(app, result, plan) {
-                    const sent = result?._meta?.['traceway/drawing'];
+                    const sent = plan.drawing ?? result?._meta?.['traceway/drawing'];
 
                     if (sent?.line) {
                         return sent;
@@ -292,6 +331,14 @@
                         return null;
                     }
                 }
+
+                // The map itself comes from Traceway each time, so it is never
+                // older than the site. Without it, the drawing stays.
+                const mapScript = document.createElement('script');
+                mapScript.type = 'module';
+                mapScript.src = document.querySelector('main').dataset.mapScript;
+                mapScript.onerror = () => hub.status('This chat app did not load the live map.');
+                document.head.append(mapScript);
 
                 createMcpApp(async (app) => {
                     let links = {};
@@ -330,14 +377,16 @@
                         }
 
                         links = plan;
-                        draw(plan, await lineFor(app, result, plan));
+                        const line = await lineFor(app, result, plan);
+                        draw(plan, line);
+                        hub.publish(plan, line);
                     });
                 });
             </script>
         @endverbatim
     </x-slot:head>
 
-    <main class="card">
+    <main class="card" data-map-script="{{ $mapScript }}" data-status="{{ $showStatus ? 'on' : 'off' }}">
         <p id="wait" class="wait">Planning your route…</p>
 
         <section id="route" hidden>
@@ -357,8 +406,10 @@
                 <div id="km" class="km"><span></span> <small>km</small></div>
             </div>
 
-            <svg id="map" class="map" viewBox="0 0 600 340" role="img"
-                aria-label="The route on a map"></svg>
+            <div class="stage">
+                <svg id="map" class="map" viewBox="0 0 600 340" role="img"
+                    aria-label="The route on a map"></svg>
+            </div>
 
             <ul id="legs" class="legs"></ul>
 
@@ -370,5 +421,7 @@
 
             <p class="note">Saved to your Traceway library.</p>
         </section>
+
+        <p id="status" class="status" hidden></p>
     </main>
 </x-mcp::app>

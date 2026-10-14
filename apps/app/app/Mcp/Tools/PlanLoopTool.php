@@ -45,8 +45,8 @@ use Throwable;
 #[RendersApp(resource: RouteMapApp::class)]
 final class PlanLoopTool extends Tool
 {
+    use AnswersWithDrawing;
     use ReadsArguments;
-    use SendsDrawing;
 
     public function handle(
         Request $request,
@@ -144,7 +144,7 @@ final class PlanLoopTool extends Tool
         $links = RouteLinks::for($saved->id);
         $kilometres = RouteLinks::kilometres($route->distanceMetres);
 
-        return $this->withDrawing(Response::structured([
+        return $this->withDrawing([
             'id' => $saved->id,
             'name' => $name,
             'sport' => $sport->value,
@@ -162,7 +162,7 @@ final class PlanLoopTool extends Tool
                 $links['garmin_url'],
                 $links['gpx_url'],
             ),
-        ]), $routeDrawingQuery, $saved->id, $riderId);
+        ], $routeDrawingQuery, $saved->id, $riderId);
     }
 
     /**
