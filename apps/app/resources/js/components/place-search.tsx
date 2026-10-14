@@ -138,7 +138,7 @@ export function PlaceSearch({
 
     return (
         // biome-ignore lint/a11y/noStaticElementInteractions: the arrow keys walk the list.
-        <div className="place-search px-4 pb-4" onKeyDown={walk}>
+        <div className="place-search" onKeyDown={walk}>
             <form
                 className="place-form"
                 role="search"

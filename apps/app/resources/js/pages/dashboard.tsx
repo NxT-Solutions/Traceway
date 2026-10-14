@@ -6015,10 +6015,7 @@ export default function Dashboard() {
                     open={sheet === placeSheet.name}
                     onOpenChange={(open) => !open && setSheet(null)}
                 >
-                    <SheetContent
-                        side="bottom"
-                        className="tw-pop top-auto block h-fit max-h-[80vh] gap-0 overflow-y-auto rounded-t-[10px] bg-background pb-4 text-foreground shadow-sm"
-                    >
+                    <SheetContent side="bottom" className={choiceSheet}>
                         <SheetHeader className={sheetHeading}>
                             <SheetTitle className="pr-6">
                                 {placeSheet.title}
