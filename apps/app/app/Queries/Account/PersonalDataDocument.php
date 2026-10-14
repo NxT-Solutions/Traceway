@@ -12,7 +12,7 @@ use OpenApi\Attributes\Schema;
 
 #[Schema(
     schema: 'PersonalDataDocument',
-    required: ['exported_at', 'account', 'saved_routes', 'withheld'],
+    required: ['exported_at', 'account', 'saved_routes', 'release_notes_read', 'withheld'],
     properties: [
         new Property(property: 'exported_at', type: 'string', format: 'date-time'),
         new Property(
@@ -29,6 +29,18 @@ use OpenApi\Attributes\Schema;
         ),
         new Property(property: 'saved_routes', type: 'array', items: new Items(type: 'object')),
         new Property(
+            property: 'release_notes_read',
+            type: 'array',
+            items: new Items(
+                required: ['tag', 'read_at'],
+                properties: [
+                    new Property(property: 'tag', type: 'string'),
+                    new Property(property: 'read_at', type: 'string', nullable: true),
+                ],
+                type: 'object',
+            ),
+        ),
+        new Property(
             property: 'withheld',
             type: 'array',
             items: new Items(type: 'string', enum: ['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token']),
@@ -39,6 +51,7 @@ final readonly class PersonalDataDocument
 {
     /**
      * @param  list<ExportedRoute>  $routes
+     * @param  list<array{tag: string, read_at: string|null}>  $releaseNotesRead
      */
     public function __construct(
         public string $exportedAt,
@@ -49,6 +62,7 @@ final readonly class PersonalDataDocument
         public ?string $createdAt,
         public ?string $updatedAt,
         public array $routes,
+        public array $releaseNotesRead,
     ) {}
 
     /**
@@ -70,6 +84,7 @@ final readonly class PersonalDataDocument
                 fn (ExportedRoute $exportedRoute): array => $exportedRoute->toArray(),
                 $this->routes,
             ),
+            'release_notes_read' => $this->releaseNotesRead,
             'withheld' => [
                 'password',
                 'two_factor_secret',

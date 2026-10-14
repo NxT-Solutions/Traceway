@@ -7,6 +7,7 @@ use App\Http\Controllers\Settings\AssistantsController;
 use App\Http\Controllers\Settings\DevicesController;
 use App\Http\Controllers\Settings\PrivacyController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\ReleasesController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Http\RedirectResponse;
@@ -34,6 +35,15 @@ Route::middleware(['auth'])->group(function (): void {
     Route::delete('settings/devices/{deviceLink}', [DevicesController::class, 'destroy'])
         ->whereUuid('deviceLink')
         ->name('devices.destroy');
+
+    Route::get('settings/whats-new', [ReleasesController::class, 'index'])->name('releases.index');
+    Route::post('settings/whats-new/read', [ReleasesController::class, 'readAll'])
+        ->middleware('throttle:30,1')
+        ->name('releases.read-all');
+    Route::post('settings/whats-new/{release}/read', [ReleasesController::class, 'read'])
+        ->whereNumber('release')
+        ->middleware('throttle:60,1')
+        ->name('releases.read');
 });
 
 Route::middleware(['auth', 'verified'])->group(function (): void {

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Mail\AccountMessage;
+use App\Models\Release;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -58,6 +59,39 @@ it('keeps the password and sign-in secrets out of the download', function (): vo
             && ! str_contains($attachment, 'totp-secret-should-stay')
             && ! str_contains($attachment, (string) $stored->password);
     });
+})->group('gdpr');
+
+it('puts the release notes a person has read in the download', function (): void {
+    Mail::fake();
+
+    $user = User::factory()->create(['created_at' => now()->subYear()]);
+    $other = User::factory()->create(['created_at' => now()->subYear()]);
+    $read = Release::factory()->create(['tag' => 'v0.2.0']);
+    $othersOnly = Release::factory()->create(['tag' => 'v0.1.0']);
+    $this->actingAs($user)->post(route('releases.read', $read->id));
+    $this->actingAs($other)->post(route('releases.read', $othersOnly->id));
+
+    $document = json_decode($this->actingAs($user)->get(route('privacy.export'))->streamedContent(), associative: true);
+
+    expect($document['release_notes_read'])->toHaveCount(1)
+        ->and($document['release_notes_read'][0]['tag'])->toBe('v0.2.0');
+})->group('gdpr');
+
+it('forgets which release notes a person read when the account is deleted', function (): void {
+    Mail::fake();
+
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+    $release = Release::factory()->create();
+    $this->actingAs($other)->post(route('releases.read', $release->id));
+    $this->actingAs($user)->post(route('releases.read', $release->id));
+
+    $this->actingAs($user)->delete(route('profile.destroy'), [
+        'password' => 'password',
+    ])->assertRedirect('/');
+
+    $this->assertDatabaseMissing('release_reads', ['user_id' => $user->id]);
+    $this->assertDatabaseHas('release_reads', ['user_id' => $other->id]);
 })->group('gdpr');
 
 it('gives a person only their own download', function (): void {

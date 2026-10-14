@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
+use App\Queries\Releases\ReleaseNotesQuery;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Override;
@@ -39,12 +41,18 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
             ],
+            // What changed in Traceway since the rider last looked, for the bell in the header.
+            'whatsNew' => fn (): ?array => $user instanceof User
+                ? resolve(ReleaseNotesQuery::class)->summaryFor($user->id)
+                : null,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

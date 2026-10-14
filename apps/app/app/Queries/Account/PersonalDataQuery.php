@@ -43,7 +43,32 @@ final class PersonalDataQuery
             $account->iso('created_at'),
             $account->iso('updated_at'),
             $this->routes($riderId),
+            $this->releaseNotesRead($riderId),
         );
+    }
+
+    /**
+     * @return list<array{tag: string, read_at: string|null}>
+     */
+    private function releaseNotesRead(int $riderId): array
+    {
+        $rows = DB::table('release_reads')
+            ->join('releases', 'releases.id', '=', 'release_reads.release_id')
+            ->where('release_reads.user_id', $riderId)
+            ->oldest('release_reads.read_at')
+            ->get(['releases.tag', 'release_reads.read_at']);
+
+        $read = [];
+
+        foreach ($rows as $row) {
+            $reader = new RowReader($row);
+            $read[] = [
+                'tag' => $reader->string('tag'),
+                'read_at' => $reader->iso('read_at'),
+            ];
+        }
+
+        return $read;
     }
 
     private function account(int $riderId): RowReader

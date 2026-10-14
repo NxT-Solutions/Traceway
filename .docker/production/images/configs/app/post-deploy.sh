@@ -53,3 +53,8 @@ php artisan optimize
 # save left for later. A route the map servers cannot read is reported and
 # skipped, not a failed deploy; the scheduler tries it again later.
 php artisan routes:details --limit=1000
+
+# The release that started this deploy has notes for riders. Read them now,
+# so the bell shows them as soon as the site opens. GitHub being slow does not
+# fail a deploy; the scheduler reads them again every hour.
+php artisan releases:sync || true

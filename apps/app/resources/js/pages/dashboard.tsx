@@ -88,6 +88,7 @@ import { keepShareImage, shareImageRoute } from '@/lib/share-image';
 import { support } from '@/lib/support';
 import { cn } from '@/lib/utils';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import ReleaseBell from '@/components/release-bell';
 
 type Coordinate = [number, number];
 type SheetName =
@@ -4076,6 +4077,7 @@ export default function Dashboard() {
                             </svg>
                             <span>Saved routes</span>
                         </Link>
+                        <ReleaseBell />
                         <Link
                             className="acct"
                             href="/settings/profile"
