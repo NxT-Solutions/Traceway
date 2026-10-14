@@ -58,6 +58,8 @@ try {
     const phoneContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
     const desktop = await desktopContext.newPage();
     const phone = await phoneContext.newPage();
+    desktop.on('pageerror', (error) => failures.push(`desktop page error: ${error.message}`));
+    phone.on('pageerror', (error) => failures.push(`phone page error: ${error.message}`));
 
     for (const path of contentPages) {
         await scan(desktop, path, content);
@@ -91,6 +93,43 @@ try {
     await desktop.getByRole('button', { name: /^Colours\b/ }).click();
     await desktop.getByRole('radiogroup', { name: 'Colour set' }).waitFor();
     await audit(desktop, '/dashboard colour sheet');
+
+    // A route with what it shows about itself: the climb, the steepness on
+    // the map, and the stops and turns, opened.
+    async function openDetails(page) {
+        await page.locator('.tw-details-chart').first().waitFor({ timeout: 120000 });
+
+        for (const summary of await page.locator('.tw-details-lists summary').all()) {
+            await summary.click();
+        }
+
+        const steepness = page.getByRole('checkbox', { name: /steepness/i }).first();
+
+        if ((await steepness.count()) > 0) {
+            await steepness.check();
+        }
+    }
+
+    await desktop.goto(`${base}/dashboard`, { waitUntil: 'domcontentloaded' });
+    await desktop.getByRole('tab', { name: 'Generate' }).click();
+    await desktop.locator('button.fill').click();
+    await openDetails(desktop);
+    await audit(desktop, '/dashboard route details');
+
+    // A shared link, with how the ride was planned. Its address is signed,
+    // so it comes from the library.
+    await desktop.goto(`${base}/saved`, { waitUntil: 'networkidle' });
+    const shared = await desktop.getByRole('link', { name: 'Open' }).first().getAttribute('href', { timeout: 5000 }).catch(() => null);
+
+    if (shared === null) {
+        failures.push('/share: the road rider has no saved route to open');
+    } else {
+        for (const page of [desktop, phone]) {
+            await page.goto(shared, { waitUntil: 'domcontentloaded' });
+            await openDetails(page);
+            await audit(page, '/share');
+        }
+    }
 
     await phone.goto(`${base}/login`, { waitUntil: 'domcontentloaded' });
     await phone.getByRole('button', { name: /^Road\b/ }).click();

@@ -716,7 +716,11 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
 .tw-details-lists{display:flex;flex-direction:column;gap:4px}
 .tw-details-lists details{border-top:1px solid var(--hair,#e4e0d4)}
 .tw-details-lists details:last-child{border-bottom:1px solid var(--hair,#e4e0d4)}
-.tw-details-lists summary{display:flex;align-items:center;min-height:40px;font-size:14px;font-weight:500;cursor:pointer;list-style-position:inside}
+.tw-details-lists summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;font-size:14px;font-weight:500;cursor:pointer;list-style:none}
+.tw-details-lists summary::-webkit-details-marker{display:none}
+.tw-details-lists summary::after{content:"";flex:0 0 auto;width:7px;height:7px;margin:0 6px 4px 0;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);opacity:.7;transition:transform .2s ease}
+.tw-details-lists details[open]>summary::after{margin-bottom:-4px;transform:rotate(-135deg)}
+@media (prefers-reduced-motion: reduce){.tw-details-lists summary::after{transition:none}}
 .tw-details-lists ol{max-height:220px;overflow:auto;margin:0 0 8px;padding:0;list-style:none}
 .tw-details-lists li button{display:flex;align-items:center;gap:8px;width:100%;min-height:32px;padding:0 4px;border:0;border-radius:6px;background:transparent;color:inherit;font:inherit;font-size:13px;text-align:left;cursor:pointer}
 .tw-details-lists li button:hover,.tw-details-lists li button:focus-visible{background:var(--hover,#efece2)}

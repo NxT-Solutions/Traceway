@@ -39,6 +39,9 @@ try {
         ignoreHTTPSErrors: true,
         viewport: { width: 1280, height: 800 },
     });
+    // An uncaught error on a page fails the run, even when the page still looks right.
+    const pageErrors = [];
+    desktop.on('pageerror', (error) => pageErrors.push(`desktop: ${error.message}`));
 
     await open(desktop, '/dashboard');
     if (!desktop.url().includes('/login')) {
@@ -107,6 +110,7 @@ try {
         ignoreHTTPSErrors: true,
         viewport: { width: 390, height: 844 },
     });
+    phone.on('pageerror', (error) => pageErrors.push(`phone: ${error.message}`));
     await open(phone, '/login');
     const phoneRoad = phone.getByRole('button', { name: /^Road\b/ });
     await phoneRoad.waitFor();
@@ -115,6 +119,10 @@ try {
         throw new Error('Road is not tappable on a phone');
     }
     await fits(phone, 'Login on a phone');
+
+    if (pageErrors.length > 0) {
+        throw new Error(`Uncaught page errors:\n${pageErrors.join('\n')}`);
+    }
 
     console.log('browser smoke passed');
 } finally {

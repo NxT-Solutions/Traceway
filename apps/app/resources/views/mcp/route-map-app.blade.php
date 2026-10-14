@@ -6,7 +6,7 @@
                 --ink-2: #0b2829;
                 --paper: #f6f3ea;
                 --muted: rgba(246, 243, 234, 0.66);
-                --faint: rgba(246, 243, 234, 0.44);
+                --faint: rgba(246, 243, 234, 0.58);
                 --hair: rgba(246, 243, 234, 0.12);
                 --edge: rgba(246, 243, 234, 0.22);
                 --chart: #97cb46;
@@ -520,31 +520,44 @@
 
                 /**
                  * The map script, fresh from Traceway so it is never older than
-                 * the site, or the copy this card came with when Traceway cannot
-                 * be reached from here.
+                 * the site. Null when Traceway cannot be reached from here.
                  */
-                async function mapCode() {
-                    const main = document.querySelector('main');
-
+                async function freshCode() {
                     try {
-                        const response = await fetch(main.dataset.mapScript, {
+                        const response = await fetch(document.querySelector('main').dataset.mapScript, {
                             cache: 'no-cache'
                         });
 
-                        if (response.ok) {
-                            report.script = 'fresh from Traceway';
-
-                            return await response.text();
-                        }
-
-                        report.script = `copy in the card (Traceway answered ${response.status})`;
-                    } catch (error) {
-                        report.script = `copy in the card (${error.message})`;
+                        return response.ok ? await response.text() : null;
+                    } catch {
+                        return null;
                     }
+                }
 
-                    const bytes = Uint8Array.from(atob(main.dataset.mapCode), (character) => character.charCodeAt(0));
+                /** The copy of the map script this card came with. */
+                function cardCode() {
+                    const bytes = Uint8Array.from(atob(document.querySelector('main').dataset.mapCode), (character) =>
+                        character.charCodeAt(0));
 
                     return new TextDecoder().decode(bytes);
+                }
+
+                /**
+                 * Runs a map script. Resolves true when its map shows, false
+                 * when the chat app kept it from drawing, and throws when the
+                 * script itself is broken.
+                 */
+                async function runMap(code, line, stage) {
+                    const map = await import(URL.createObjectURL(new Blob([code], {
+                        type: 'text/javascript'
+                    })));
+
+                    return map.mount({
+                        line,
+                        stage,
+                        status,
+                        files: `${document.querySelector('main').dataset.traceway}/mcp/apps/files`,
+                    });
                 }
 
                 /**
@@ -564,20 +577,25 @@
                     let shown = await framed(plan, stage);
                     report.map = shown ? 'Traceway page in a frame' : 'no frame';
 
-                    if (!shown) {
+                    // The fresh script first. A broken one, an error page served
+                    // as a script, or one that no longer fits this card, falls
+                    // back to the copy the card came with.
+                    for (const [source, code] of shown ? [] : [
+                            ['fresh from Traceway', await freshCode()],
+                            ['copy in the card', cardCode()],
+                        ]) {
+                        if (code === null) {
+                            continue;
+                        }
+
                         try {
-                            const code = await mapCode();
-                            const map = await import(URL.createObjectURL(new Blob([code], {
-                                type: 'text/javascript'
-                            })));
-                            shown = await map.mount({
-                                line,
-                                stage,
-                                status
-                            });
+                            shown = await runMap(code, line, stage);
+                            report.script = source;
                             report.map = shown ? 'map script in the card' : 'map script could not draw';
+
+                            break;
                         } catch (error) {
-                            report.map = `map script failed (${error.message})`;
+                            report.script = `${source} failed (${error.message})`;
                         }
                     }
 

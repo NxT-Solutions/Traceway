@@ -5,6 +5,8 @@ import tailwindcss from '@tailwindcss/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, lazyPlugins } from 'vite-plus';
 
 // The browser talks to DDEV's HTTPS router. Nginx proxies /_app/ to this server.
@@ -43,6 +45,48 @@ export default defineConfig(({ command }) => ({
                 }),
             ],
         }),
+        // The map in a chat card loads MapLibre and the font from Traceway,
+        // not from a CDN, so no third party sees who opens it. The build
+        // keeps copies under fixed names; ShowChatCardFileController serves
+        // them.
+        {
+            name: 'traceway:chat-card-files',
+            apply: 'build',
+            generateBundle(_options, bundle) {
+                const maplibre = fileURLToPath(
+                    new URL('./node_modules/maplibre-gl/dist/', import.meta.url),
+                );
+
+                for (const file of [
+                    'maplibre-gl.mjs',
+                    'maplibre-gl-worker.mjs',
+                    'maplibre-gl.css',
+                ]) {
+                    this.emitFile({
+                        type: 'asset',
+                        fileName: `chat/${file}`,
+                        source: readFileSync(`${maplibre}${file}`),
+                    });
+                }
+
+                for (const weight of ['400', '600']) {
+                    const font = Object.values(bundle).find(
+                        (item) =>
+                            item.type === 'asset' &&
+                            item.fileName.includes(`outfit-${weight}-normal`) &&
+                            item.fileName.endsWith('.woff2'),
+                    );
+
+                    if (font?.type === 'asset') {
+                        this.emitFile({
+                            type: 'asset',
+                            fileName: `chat/outfit-${weight}.woff2`,
+                            source: font.source,
+                        });
+                    }
+                }
+            },
+        },
         inertia(),
         react(),
         babel({

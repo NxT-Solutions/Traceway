@@ -30,11 +30,12 @@ use Laravel\Mcp\Server\Ui\Csp;
 final class RouteMapApp extends AppResource
 {
     /**
-     * Where the map script fetches MapLibre, the map tiles, and the font from.
+     * Where the map tiles come from. MapLibre and the font come from
+     * Traceway itself.
      *
      * @var list<string>
      */
-    private const array MAP_DOMAINS = ['https://unpkg.com', 'https://tiles.openfreemap.org', 'https://fonts.bunny.net'];
+    private const array MAP_DOMAINS = ['https://tiles.openfreemap.org'];
 
     public function handle(Request $request): Response
     {

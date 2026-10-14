@@ -383,11 +383,11 @@ it('ships a card script that parses, since a broken one leaves the chat waiting'
     }
 });
 
-it('lets the card in the chat fetch its map, fresh each time', function (): void {
+it('lets the card in the chat fetch its map, fresh each time, from Traceway and the map tiles only', function (): void {
     $csp = new RouteMapApp()->resolvedAppMeta()['csp'] ?? [];
 
     expect($csp['frameDomains'] ?? [])->toBe([rtrim(url('/'), '/')])
-        ->and($csp['connectDomains'] ?? [])->toBe([rtrim(url('/'), '/'), 'https://unpkg.com', 'https://tiles.openfreemap.org', 'https://fonts.bunny.net']);
+        ->and($csp['connectDomains'] ?? [])->toBe([rtrim(url('/'), '/'), 'https://tiles.openfreemap.org']);
 
     $script = $this->get(route('mcp.apps.route-map'))->assertOk();
 
@@ -398,6 +398,16 @@ it('lets the card in the chat fetch its map, fresh each time', function (): void
 
     $this->get(route('mcp.apps.route-map'), ['If-None-Match' => (string) $script->headers->get('ETag')])
         ->assertStatus(304);
+});
+
+it('serves MapLibre for the card itself, so no CDN sees who opens it', function (): void {
+    $library = $this->get(route('mcp.apps.file', ['file' => 'maplibre-gl.mjs']))->assertOk();
+
+    expect($library->headers->get('Content-Type'))->toBe('text/javascript; charset=utf-8')
+        ->and($library->headers->get('Access-Control-Allow-Origin'))->toBe('*');
+
+    $this->get('/mcp/apps/files/secrets.php')->assertNotFound();
+    $this->get('/mcp/apps/files/..%2F..%2F.env')->assertNotFound();
 });
 
 it('gives the map the line of a route the rider saved', function (): void {
