@@ -72,7 +72,10 @@ final class PlanLoopTool extends Tool
             'name' => ['nullable', 'string', 'max:80'],
         ], [
             'start.required' => 'Say where the loop starts, like "Westerlo, Belgium" or a street address.',
+            'sport.required' => 'Say which sport: road, gravel, mtb, run, trail_run, walk, or hike.',
             'sport.in' => 'Pick one sport: road, gravel, mtb, run, trail_run, walk, or hike.',
+            'distance_km.required' => 'Say how far, in kilometres.',
+            'distance_km.numeric' => 'Say how far, in kilometres.',
             'distance_km.min' => 'A loop is at least 1 km.',
             'distance_km.max' => 'A loop is at most 300 km.',
         ]);
