@@ -24,12 +24,15 @@ export function MapTapCard({
     y: number;
     /** The place around the tap, or null while it is being named. */
     name: string | null;
-    /** Said instead of the actions while the spot has no road yet. */
+    /** Said while the spot has no road yet, above any actions. */
     note: string | null;
+    /** What the tap can do there, or none while the spot has no road. */
     actions: TapAction[];
     onClose: () => void;
 }) {
     const cardRef = useRef<HTMLDivElement>(null);
+    const closeRef = useRef<HTMLButtonElement>(null);
+    const hadActions = useRef(false);
     const [place, setPlace] = useState<{ left: number; top: number } | null>(
         null,
     );
@@ -84,9 +87,23 @@ export function MapTapCard({
         return () => document.removeEventListener('keydown', away);
     }, [onClose]);
 
+    // Try again takes its own button away while the card asks again: focus
+    // waits on the close button instead of falling to the page.
+    useLayoutEffect(() => {
+        if (
+            hadActions.current &&
+            actions.length === 0 &&
+            document.activeElement === document.body
+        ) {
+            closeRef.current?.focus({ preventScroll: true });
+        }
+
+        hadActions.current = actions.length > 0;
+    }, [actions.length]);
+
     // Focus waits until the card is placed and has its actions: a hidden
     // button takes no focus.
-    const ready = place !== null && note === null;
+    const ready = place !== null && actions.length > 0;
 
     useEffect(() => {
         // A rider typing in the search keeps the cursor there.
@@ -122,6 +139,7 @@ export function MapTapCard({
                 <div className="tap-head">
                     <b>{name ?? 'This spot'}</b>
                     <button
+                        ref={closeRef}
                         type="button"
                         className="ghostbtn"
                         aria-label="Close"
@@ -148,7 +166,7 @@ export function MapTapCard({
                         {note}
                     </p>
                 )}
-                <div className="tap-actions" hidden={note !== null}>
+                <div className="tap-actions" hidden={actions.length === 0}>
                     {actions.map((action, index) => (
                         <button
                             key={action.label}

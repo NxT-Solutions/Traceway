@@ -2,6 +2,7 @@ import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
+import Turnstile from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +12,7 @@ import { store } from '@/routes/register';
 
 type Props = {
     passwordRules: string;
+    turnstileSiteKey: string | null;
 };
 
 // The terms and the privacy policy are pages of the content site, not of
@@ -18,7 +20,7 @@ type Props = {
 const legalLink =
     'text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500';
 
-export default function Register({ passwordRules }: Props) {
+export default function Register({ passwordRules, turnstileSiteKey }: Props) {
     return (
         <>
             <Head title="Register" />
@@ -114,6 +116,12 @@ export default function Register({ passwordRules }: Props) {
                                 </a>
                                 .
                             </p>
+
+                            <Turnstile
+                                siteKey={turnstileSiteKey}
+                                error={errors.turnstile}
+                                attempt={errors}
+                            />
 
                             <Button
                                 type="submit"

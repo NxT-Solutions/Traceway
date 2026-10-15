@@ -1,0 +1,109 @@
+---
+// Asks before the site counts visits. Nothing from Cloudflare loads until a visitor says yes.
+// The privacy policy and the cookies page describe it, and list the pages this runs on, so change them together.
+---
+
+<section class="consent" data-consent data-lenis-prevent aria-labelledby="consent-title" hidden>
+    <h2 id="consent-title" tabindex="-1">Can we count your visit?</h2>
+    <p>
+        It shows us how many people visit and which pages they read, so we can make the site better. Cloudflare counts
+        it, without cookies. Never for ads, never sold. Change your mind any time under Cookie choice, at the bottom.{' '}
+        <a href="/cookies">Read more about cookies</a>
+    </p>
+    <div class="consent-actions">
+        <button type="button" data-consent-choice="yes">Yes, that’s fine</button>
+        <button type="button" data-consent-choice="no">No, thanks</button>
+    </div>
+</section>
+
+<script>
+    type Choice = 'yes' | 'no';
+
+    const key = 'traceway.consent';
+    const year = 365 * 24 * 60 * 60 * 1000;
+    const cloudflare = '48021b81dbb740c78f318d6b00df30d1';
+
+    // A choice is kept as "yes:<when>" or "no:<when>", and asked again after a year.
+    const read = (): Choice | null => {
+        try {
+            const [choice, when] = (localStorage.getItem(key) ?? '').split(':');
+            const fresh = Date.now() - Number(when) < year;
+            return fresh && (choice === 'yes' || choice === 'no') ? choice : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const keep = (choice: Choice): void => {
+        try {
+            localStorage.setItem(key, `${choice}:${Date.now()}`);
+        } catch {
+            // Without storage the question comes back on the next page, which is the safe side.
+        }
+    };
+
+    // Only the live site counts, so local work and test runs never reach Cloudflare.
+    const live = import.meta.env.PROD && location.hostname === 'traceway.online';
+    let started = false;
+
+    // Cloudflare keeps nothing in the browser. After a no it is simply not loaded on the next page.
+    const start = (): void => {
+        if (!live || started) {
+            return;
+        }
+        started = true;
+
+        const counter = document.createElement('script');
+        counter.defer = true;
+        counter.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+        counter.dataset.cfBeacon = JSON.stringify({ token: cloudflare });
+        document.body.append(counter);
+    };
+
+    const banner = document.querySelector<HTMLElement>('[data-consent]');
+
+    if (banner) {
+        let opener: HTMLElement | null = null;
+
+        const close = (): void => {
+            banner.hidden = true;
+            opener?.focus();
+            opener = null;
+        };
+
+        const choice = read();
+
+        if (choice === 'yes') {
+            start();
+        } else if (choice === null) {
+            banner.hidden = false;
+        }
+
+        for (const button of banner.querySelectorAll<HTMLButtonElement>('[data-consent-choice]')) {
+            button.addEventListener('click', () => {
+                const picked: Choice = button.dataset.consentChoice === 'yes' ? 'yes' : 'no';
+                keep(picked);
+                close();
+
+                if (picked === 'yes') {
+                    start();
+                }
+            });
+        }
+
+        // Escape puts the question away for this page without answering it.
+        banner.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                close();
+            }
+        });
+
+        for (const button of document.querySelectorAll<HTMLElement>('[data-consent-open]')) {
+            button.addEventListener('click', () => {
+                opener = button;
+                banner.hidden = false;
+                banner.querySelector<HTMLElement>('#consent-title')?.focus();
+            });
+        }
+    }
+</script>

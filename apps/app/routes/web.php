@@ -36,27 +36,27 @@ Route::post('login/demo/{rider}', DemoLoginController::class)
 Route::get('/', fn () => Inertia::render('welcome'))->name('home');
 
 Route::get('share/{savedRoute}', ShowSharedRouteController::class)
-    ->middleware(['signed', KeepOutOfSearch::class])
+    ->middleware(['throttle:share', 'signed', KeepOutOfSearch::class])
     ->name('routes.share');
 Route::get('share/{savedRoute}/embed', ShowSharedRouteEmbedController::class)
-    ->middleware(['signed', KeepOutOfSearch::class])
+    ->middleware(['throttle:share', 'signed', KeepOutOfSearch::class])
     ->name('routes.share.embed');
 Route::get('share/{savedRoute}/image', ShowSharedRouteImageController::class)
-    ->middleware(['signed', KeepOutOfSearch::class])
+    ->middleware(['throttle:share', 'signed', KeepOutOfSearch::class])
     ->name('routes.share.image');
 Route::get('share/{savedRoute}/gpx', [ExportSharedCourseController::class, 'gpx'])
-    ->middleware(['signed', KeepOutOfSearch::class])
+    ->middleware(['throttle:share', 'signed', KeepOutOfSearch::class])
     ->name('routes.share.gpx');
 Route::get('share/{savedRoute}/fit', [ExportSharedCourseController::class, 'fit'])
-    ->middleware(['signed', KeepOutOfSearch::class])
+    ->middleware(['throttle:share', 'signed', KeepOutOfSearch::class])
     ->name('routes.share.fit');
 Route::get('share/{savedRoute}/fit/{leg}', [ExportSharedCourseController::class, 'fitLeg'])
     ->whereNumber('leg')
-    ->middleware(['signed', KeepOutOfSearch::class])
+    ->middleware(['throttle:share', 'signed', KeepOutOfSearch::class])
     ->name('routes.share.fit.leg');
 Route::get('share/{savedRoute}/gpx/{leg}', [ExportSharedCourseController::class, 'gpxLeg'])
     ->whereNumber('leg')
-    ->middleware(['signed', KeepOutOfSearch::class])
+    ->middleware(['throttle:share', 'signed', KeepOutOfSearch::class])
     ->name('routes.share.gpx.leg');
 
 Route::get('docs/public', fn (): RedirectResponse => redirect()->to('/docs'));
@@ -65,9 +65,9 @@ Route::get('docs/account', fn (): RedirectResponse => redirect()->to('/docs'));
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('dashboard', fn () => Inertia::render('dashboard'))->name('dashboard');
     Route::get('saved', SavedRouteLibraryController::class)->name('routes.library');
-    Route::post('routes/preview', PreviewRouteController::class)->name('routes.preview');
-    Route::post('routes/build', BuildRouteController::class)->name('routes.build');
-    Route::post('routes/multisport', PreviewMultisportController::class)->name('routes.multisport');
+    Route::post('routes/preview', PreviewRouteController::class)->middleware('throttle:routing')->name('routes.preview');
+    Route::post('routes/build', BuildRouteController::class)->middleware('throttle:routing')->name('routes.build');
+    Route::post('routes/multisport', PreviewMultisportController::class)->middleware('throttle:routing')->name('routes.multisport');
     Route::post('routes/snap', SnapPointController::class)->middleware('throttle:map')->name('routes.snap');
     Route::post('routes/place', NamePlaceController::class)->middleware('throttle:places')->name('routes.place');
     Route::post('routes/places', SearchPlacesController::class)->middleware('throttle:place-search')->name('routes.places');
@@ -76,10 +76,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('routes/fit', ExportFitCourseController::class)->middleware('throttle:map')->name('routes.fit');
     Route::post('routes/import', ImportRouteController::class)->middleware('throttle:map')->name('routes.import');
     Route::post('routes/import/redo', RedoImportedRouteController::class)->middleware('throttle:map')->name('routes.import.redo');
-    Route::post('routes/saved', StoreSavedRouteController::class)->name('routes.saved.store');
-    Route::delete('routes/saved/{savedRoute}', DestroySavedRouteController::class)->name('routes.saved.destroy');
+    Route::post('routes/saved', StoreSavedRouteController::class)->middleware('throttle:saving')->name('routes.saved.store');
+    Route::delete('routes/saved/{savedRoute}', DestroySavedRouteController::class)->middleware('throttle:saving')->name('routes.saved.destroy');
     Route::get('routes/saved/{savedRoute}/details', ShowSavedRouteDetailsController::class)->whereUuid('savedRoute')->name('routes.saved.details');
-    Route::post('routes/saved/{savedRoute}/image', StoreRouteImageController::class)->whereUuid('savedRoute')->name('routes.saved.image');
+    Route::post('routes/saved/{savedRoute}/image', StoreRouteImageController::class)->whereUuid('savedRoute')->middleware('throttle:saving')->name('routes.saved.image');
     Route::post('routes/saved/{savedRoute}/send/{service}', SendRouteToServiceController::class)
         ->whereUuid('savedRoute')
         ->whereIn('service', ['wahoo', 'ride_with_gps'])

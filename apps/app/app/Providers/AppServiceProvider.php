@@ -39,6 +39,8 @@ use App\Contracts\Mail\AccountMailer;
 use App\Contracts\Releases\ReleaseRepository;
 use App\Contracts\Routes\RouteImageStore;
 use App\Contracts\Routes\SavedRouteRepository;
+use App\Domain\Access\HumanCheck;
+use App\Domain\Access\NoHumanCheck;
 use App\Domain\Courses\Services\CourseServices;
 use App\Domain\Releases\ReleaseFeed;
 use App\Domain\Routing\Details\RouteDetailer;
@@ -70,6 +72,8 @@ use App\Handlers\StoreRouteImageHandler;
 use App\Handlers\SyncReleasesHandler;
 use App\Handlers\UpdateProfileHandler;
 use App\Handlers\WelcomeRiderHandler;
+use App\Integrations\Cloudflare\TurnstileConnector;
+use App\Integrations\Cloudflare\TurnstileHumanCheck;
 use App\Integrations\GraphHopper\GraphHopperConnector;
 use App\Integrations\GraphHopper\GraphHopperRoutingEngine;
 use App\Integrations\Nominatim\NominatimConnector;
@@ -109,6 +113,7 @@ use Carbon\CarbonInterval;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -229,6 +234,17 @@ class AppServiceProvider extends ServiceProvider
             );
         });
 
+        // Turnstile asks Cloudflare on every sign-up. With no keys, as in
+        // development and tests, the forms keep only their rate limits.
+        $this->app->bind(function (): HumanCheck {
+            $siteKey = config('services.turnstile.site_key');
+            $secret = config('services.turnstile.secret_key');
+
+            return is_string($siteKey) && $siteKey !== '' && is_string($secret) && $secret !== ''
+                ? new TurnstileHumanCheck($this->app->make(TurnstileConnector::class), $secret)
+                : new NoHumanCheck;
+        });
+
         $this->app->bind(function (): ValhallaConnector {
             $url = config('services.valhalla.url');
 
@@ -273,37 +289,73 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('device-pairing', fn (Request $request): Limit => Limit::perMinute(6)->by($request->ip()));
         // Each of these asks the map servers several times. A rider redraws
         // often, so the limit is generous, but one account cannot flood them.
-        RateLimiter::for('map', function (Request $request): Limit {
-            $id = $request->user()?->getAuthIdentifier();
+        RateLimiter::for('map', fn (Request $request): Limit => Limit::perMinute(60)->by('map:'.$this->caller($request)));
+        // Drawing a route asks the routing engine for the whole line, and a
+        // loop asks it several times. A rider draws when they ask for it, not
+        // on every tap, so thirty a minute leaves plenty.
+        RateLimiter::for('routing', fn (Request $request): Limit => Limit::perMinute(30)
+            ->by('routing:'.$this->caller($request))
+            ->response(fn (Request $request, array $headers): JsonResponse => $this->slowDown(
+                'You have drawn a lot of routes this minute. You can draw again in %d seconds.',
+                $headers,
+            )));
+        // Saving writes the route and its picture to the database.
+        RateLimiter::for('saving', fn (Request $request): Limit => Limit::perMinute(30)->by('saving:'.$this->caller($request)));
+        // A shared link is public. Anyone with it may download the course, but
+        // one address cannot pull it over and over.
+        RateLimiter::for('share', fn (Request $request): Limit => Limit::perMinute(60)->by('share:'.$request->ip()));
+        // A copy of all your data is built in one go.
+        RateLimiter::for('export', fn (Request $request): Limit => Limit::perMinute(3)->by('export:'.$this->caller($request)));
+        // Each sign-up and each reset link sends an email, so a script must
+        // not fill these forms by the thousand.
+        RateLimiter::for('signup', fn (Request $request): Limit => Limit::perMinute(5)
+            ->by('signup:'.$request->ip())
+            ->response(static function (Request $request, array $headers): RedirectResponse {
+                $seconds = $headers['Retry-After'] ?? 60;
 
-            return Limit::perMinute(60)->by('map:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
-        });
+                return back()->withInput($request->except('password', 'password_confirmation'))->withErrors([
+                    'email' => sprintf(
+                        'There were too many tries from here. Please wait %d seconds, then try again.',
+                        is_numeric($seconds) ? (int) $seconds : 60,
+                    ),
+                ]);
+            }));
         // Naming a pin has its own bucket, so a rider who adds many points
         // still gets the climb chart and the course file.
-        RateLimiter::for('places', function (Request $request): Limit {
-            $id = $request->user()?->getAuthIdentifier();
-
-            return Limit::perMinute(60)->by('places:'.(is_scalar($id) ? (string) $id : (string) $request->ip()));
-        });
+        RateLimiter::for('places', fn (Request $request): Limit => Limit::perMinute(60)->by('places:'.$this->caller($request)));
         // The place search's own pace keeps Traceway at one request a second;
         // this only stops one rider taking every turn. A search can cost two
         // or three requests with its retries, so a rider gets plenty.
-        RateLimiter::for('place-search', function (Request $request): Limit {
-            $id = $request->user()?->getAuthIdentifier();
+        RateLimiter::for('place-search', fn (Request $request): Limit => Limit::perMinute(30)
+            ->by('place-search:'.$this->caller($request))
+            ->response(fn (Request $request, array $headers): JsonResponse => $this->slowDown(
+                'You have used all 30 searches for this minute. You can search again in %d seconds.',
+                $headers,
+            )));
+    }
 
-            return Limit::perMinute(30)
-                ->by('place-search:'.(is_scalar($id) ? (string) $id : (string) $request->ip()))
-                ->response(static function (Request $request, array $headers): JsonResponse {
-                    $seconds = $headers['Retry-After'] ?? 60;
+    /**
+     * The signed-in rider, or the address of a visitor.
+     */
+    private function caller(Request $request): string
+    {
+        $id = $request->user()?->getAuthIdentifier();
 
-                    return new JsonResponse([
-                        'message' => sprintf(
-                            'You have used all 30 searches for this minute. You can search again in %d seconds.',
-                            is_numeric($seconds) ? (int) $seconds : 60,
-                        ),
-                    ], 429, $headers);
-                });
-        });
+        return is_scalar($id) ? (string) $id : (string) $request->ip();
+    }
+
+    /**
+     * A 429 the planner shows as it is, with the seconds left to wait.
+     *
+     * @param  array<mixed>  $headers  the limiter's Retry-After and limit headers
+     */
+    private function slowDown(string $message, array $headers): JsonResponse
+    {
+        $seconds = $headers['Retry-After'] ?? 60;
+
+        return new JsonResponse([
+            'message' => sprintf($message, is_numeric($seconds) ? (int) $seconds : 60),
+        ], 429, $headers);
     }
 
     /**
@@ -316,9 +368,15 @@ class AppServiceProvider extends ServiceProvider
         Passport::tokensExpireIn(CarbonInterval::days(30));
         Passport::refreshTokensExpireIn(CarbonInterval::days(90));
 
+        // An AI tool registers itself once, before the person signs in. Each
+        // registration is a row, so one address cannot add them without end.
+        // The sign-in metadata in the same group is not counted.
+        RateLimiter::for('oauth-register', fn (Request $request): Limit => $request->isMethod('POST')
+            ? Limit::perMinute(30)->by('oauth-register:'.$request->ip())
+            : Limit::none());
+
         RateLimiter::for('mcp', function (Request $request): array {
-            $id = $request->user()?->getAuthIdentifier();
-            $caller = is_scalar($id) ? (string) $id : (string) $request->ip();
+            $caller = $this->caller($request);
 
             return [
                 Limit::perMinute(20)->by('mcp:'.$caller),

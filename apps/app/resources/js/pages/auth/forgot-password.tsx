@@ -3,13 +3,20 @@ import { Form, Head } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
+import Turnstile from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { login } from '@/routes';
 import { email } from '@/routes/password';
 
-export default function ForgotPassword({ status }: { status?: string }) {
+export default function ForgotPassword({
+    status,
+    turnstileSiteKey,
+}: {
+    status?: string;
+    turnstileSiteKey: string | null;
+}) {
     return (
         <>
             <Head title="Forgot password" />
@@ -37,6 +44,13 @@ export default function ForgotPassword({ status }: { status?: string }) {
 
                                 <InputError message={errors.email} />
                             </div>
+
+                            <Turnstile
+                                siteKey={turnstileSiteKey}
+                                error={errors.turnstile}
+                                attempt={errors}
+                                className="mt-6"
+                            />
 
                             <div className="my-6 flex items-center justify-start">
                                 <Button

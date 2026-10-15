@@ -727,6 +727,20 @@ const snapRadius = 36;
 const farthestSnapMetres = 500;
 const farFromRoad =
     'No road or path is close enough there. Pick a spot nearer one.';
+// The routing engine did not answer, which says nothing about the spot.
+const mapBusy = 'The map is busy. Try again in a moment.';
+
+/**
+ * Why a spot found no road: none near it, no answer in time, or a sign-in
+ * that ran out while the planner was open.
+ */
+type SnapMiss = 'far' | 'busy' | 'signed-out';
+
+const snapMissNotes: Record<SnapMiss, string> = {
+    far: farFromRoad,
+    busy: mapBusy,
+    'signed-out': 'You were signed out. Reload the page to sign in again.',
+};
 const snapReach = 180;
 
 type SnapSegment = {
@@ -1556,8 +1570,8 @@ export default function Dashboard() {
     // it lands where the rider sees it, not with a jump on release.
     const dragSnapRef = useRef<(marker: maplibregl.Marker) => void>(() => {});
     const snapPointRef = useRef<
-        (longitude: number, latitude: number) => Promise<Coordinate | null>
-    >(() => Promise.resolve(null));
+        (longitude: number, latitude: number) => Promise<Coordinate | SnapMiss>
+    >(() => Promise.resolve('busy'));
     const multisportRef = useRef<{
         plan: MultisportPlan | null;
         swim: Coordinate[] | null;
@@ -1618,7 +1632,7 @@ export default function Dashboard() {
         y: number;
         name: string | null;
         /** Ready once the spot sits on a road or path. */
-        status: 'ready' | 'snapping' | 'far';
+        status: 'ready' | 'snapping' | SnapMiss;
     } | null>(null);
     const tapAskRef = useRef(0);
     const startAskRef = useRef(0);
@@ -2612,10 +2626,12 @@ export default function Dashboard() {
                     void snapPointRef
                         .current(at.lng, at.lat)
                         .then((snapped) => {
-                            if (snapped === null) {
+                            if (typeof snapped === 'string') {
                                 if (from !== null) {
                                     marker.setLngLat(from);
                                 }
+
+                                setMessage(snapMissNotes[snapped]);
 
                                 return;
                             }
@@ -4123,9 +4139,9 @@ export default function Dashboard() {
     ): Promise<void> {
         const snapped = await snapPoint(lng, lat);
 
-        if (snapped === null) {
+        if (typeof snapped === 'string') {
             markerRef.current?.setLngLat([longitude, latitude]);
-            setMessage(farFromRoad);
+            setMessage(snapMissNotes[snapped]);
 
             return;
         }
@@ -4165,12 +4181,12 @@ export default function Dashboard() {
 
     moveViaRef.current = (point) => {
         void snapPoint(point[0], point[1]).then((snapped) => {
-            if (snapped === null) {
+            if (typeof snapped === 'string') {
                 if (via !== null) {
                     viaMarkerRef.current?.setLngLat(via);
                 }
 
-                setMessage(farFromRoad);
+                setMessage(snapMissNotes[snapped]);
 
                 return;
             }
@@ -4308,10 +4324,10 @@ export default function Dashboard() {
 
                 pending.delete(leg);
 
-                if (snapped === null) {
+                if (typeof snapped === 'string') {
                     setActiveLeg(leg);
                     setPlacing({ kind: 'finish', leg });
-                    setMessage(farFromRoad);
+                    setMessage(snapMissNotes[snapped]);
 
                     return;
                 }
@@ -4490,7 +4506,7 @@ export default function Dashboard() {
         tapAskRef.current = ask;
         const show = (
             at: Coordinate,
-            status: 'ready' | 'snapping' | 'far',
+            status: 'ready' | 'snapping' | SnapMiss,
         ): void => {
             const point = map.project(at);
             setTapCard((card) => ({
@@ -4536,8 +4552,8 @@ export default function Dashboard() {
                 return;
             }
 
-            if (snapped === null) {
-                show([lng, lat], 'far');
+            if (typeof snapped === 'string') {
+                show([lng, lat], snapped);
 
                 return;
             }
@@ -4649,8 +4665,24 @@ export default function Dashboard() {
         return purpose === 'via' ? [passing, start] : [start, passing];
     }
 
+    // A card shows its actions once its spot is on a road, and a way to ask
+    // again when the routing engine did not answer.
     const tapActions: TapAction[] =
-        tapCard === null ? [] : tapActionsFor(tapCard);
+        tapCard?.status === 'ready'
+            ? tapActionsFor(tapCard)
+            : tapCard?.status === 'busy'
+              ? [
+                    {
+                        label: 'Try again',
+                        onSelect: () =>
+                            openTapCard(
+                                tapCard.longitude,
+                                tapCard.latitude,
+                                tapCard.name ?? undefined,
+                            ),
+                    },
+                ]
+              : [];
 
     onMapClickRef.current = (lng, lat) => {
         if (mode === 'multisport') {
@@ -4761,12 +4793,13 @@ export default function Dashboard() {
 
     /**
      * The nearest road or path for the sport, from the routing engine, when
-     * none is drawn near the spot. Null when the nearest one is too far.
+     * none is drawn near the spot. Far when the nearest one is too far, busy
+     * when the engine did not answer, and signed out when the session ended.
      */
     async function snapFromServer(
         lng: number,
         lat: number,
-    ): Promise<Coordinate | null> {
+    ): Promise<Coordinate | SnapMiss> {
         try {
             const response = await fetch('/routes/snap', {
                 method: 'POST',
@@ -4777,6 +4810,14 @@ export default function Dashboard() {
                 },
                 body: JSON.stringify({ latitude: lat, longitude: lng, sport }),
             });
+            if (response.status === 422) {
+                return 'far';
+            }
+
+            if (response.status === 401 || response.status === 419) {
+                return 'signed-out';
+            }
+
             const body: unknown = await response.json();
 
             if (
@@ -4788,16 +4829,16 @@ export default function Dashboard() {
                 typeof body.latitude !== 'number' ||
                 typeof body.longitude !== 'number'
             ) {
-                return null;
+                return 'busy';
             }
 
             const snapped: Coordinate = [body.longitude, body.latitude];
 
             return metresBetween([lng, lat], snapped) > farthestSnapMetres
-                ? null
+                ? 'far'
                 : snapped;
         } catch {
-            return null;
+            return 'busy';
         }
     }
 
@@ -4808,7 +4849,7 @@ export default function Dashboard() {
     async function snapPoint(
         lng: number,
         lat: number,
-    ): Promise<Coordinate | null> {
+    ): Promise<Coordinate | SnapMiss> {
         return snapOnScreen(lng, lat) ?? (await snapFromServer(lng, lat));
     }
 
@@ -5044,11 +5085,11 @@ export default function Dashboard() {
                                 y={tapCard.y}
                                 name={tapCard.name}
                                 note={
-                                    tapCard.status === 'snapping'
-                                        ? 'Finding the nearest road or path…'
-                                        : tapCard.status === 'far'
-                                          ? farFromRoad
-                                          : null
+                                    tapCard.status === 'ready'
+                                        ? null
+                                        : tapCard.status === 'snapping'
+                                          ? 'Finding the nearest road or path…'
+                                          : snapMissNotes[tapCard.status]
                                 }
                                 actions={tapActions}
                                 onClose={() => closeTapCard(true)}

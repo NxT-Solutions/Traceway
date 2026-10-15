@@ -5,6 +5,7 @@ import '@fontsource/outfit/600.css';
 import 'lenis/dist/lenis.css';
 import '../styles/global.css';
 import '../styles/v2.css';
+import Consent from '../components/Consent.astro';
 import { questions } from '../seo/home';
 import * as about from '../seo/site';
 
@@ -86,6 +87,7 @@ const data = {
         <script type="application/ld+json" set:html={JSON.stringify(data).replace(/</g, '\\u003c')} />
     </head>
     <body id="top">
+        <Consent />
         <slot />
     </body>
 </html>

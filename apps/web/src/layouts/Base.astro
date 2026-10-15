@@ -4,6 +4,7 @@ import '@fontsource/outfit/500.css';
 import '@fontsource/outfit/600.css';
 import '../styles/global.css';
 import '../styles/page.css';
+import Consent from '../components/Consent.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import { absolute } from '../seo/site';
@@ -52,6 +53,7 @@ const canonical = absolute(Astro.site, Astro.url.pathname.replace(/\/$/, '') || 
         <meta name="twitter:card" content="summary_large_image" />
     </head>
     <body id="top">
+        <Consent />
         <SiteHeader />
         <slot />
         <SiteFooter />

@@ -33,7 +33,7 @@ export const privacy: LegalPage = {
         'What Traceway keeps about you, why, who else handles it, and how to download or delete it.',
     heading: 'Privacy policy',
     intro: [
-        'Traceway plans routes. To do that, it keeps your account and the routes you save, and no more than it needs. There are no ads, no tracking, and no analytics, and your data is never sold.',
+        'Traceway plans routes. To do that, it keeps your account and the routes you save, and no more than it needs. There are no ads, and your data is never sold. The pages of this site count visits only if you agree, as explained below.',
         'This page explains what is kept, why, who else handles it, and what you can do about it.',
     ],
     sections: [
@@ -68,6 +68,23 @@ export const privacy: LegalPage = {
             ],
         },
         {
+            heading: 'Counting visits',
+            paragraphs: [
+                'The pages of this site, such as the home page, help, and this page, ask whether they may count your visit. Nothing is counted until you say yes. If you say no, nothing from Cloudflare is loaded. The planner itself never counts visits.',
+                'Traceway uses the counts for two things only: to know how many people visit, and to make the site better. For example, if few people read a page, it may need clearer words. The counts are never used for ads, never sold, and never shared with partners. Cloudflare counts them on behalf of NxT-Solutions, under a data processing agreement.',
+                'To be exact about where it runs and what it sees:',
+            ],
+            items: [
+                '**Where it runs:** the home page (/), Support Traceway (/support), and the legal pages: privacy (/privacy), terms (/terms), cookies (/cookies), and legal notice (/legal).',
+                '**Where it never runs:** the planner and everything you reach after you log in, such as your routes, your library, and your settings. Also the log in and sign up pages, shared route links, error pages, the Traceway watch app, AI assistants connected to Traceway, and the emails Traceway sends.',
+                '**What Cloudflare gets:** which page you opened, the site that sent you there, your browser and device type, and how fast the page loaded. Like any website, it sees your IP address. It sets no cookie and keeps nothing in your browser.',
+                '**What Traceway sees:** only totals, such as how many people opened a page and from which country. Never your name, your email address, or your routes, and a visit is not linked to your Traceway account.',
+            ],
+            after: [
+                'You can change your mind at any time with **Cookie choice** at the bottom of every page. After a no, nothing is counted from the next page on. It does not undo what was counted before, including the page you are on.',
+            ],
+        },
+        {
             heading: 'Shared links',
             paragraphs: [
                 'Anyone who has a shared link can see that route, its picture, and how it was planned. They do not see your name or your email address. Shared links are kept out of search engines. Delete the route, and its link stops working.',
@@ -80,7 +97,7 @@ export const privacy: LegalPage = {
             ],
             items: [
                 '**Hetzner Online** hosts the server and the database, in Germany.',
-                '**Cloudflare** keeps the backup copies of the database.',
+                '**Cloudflare** passes every visit to traceway.online on to the server, to keep the site fast and to stop attacks, so it sees your IP address and the pages you ask for. It checks that a person, not a script, fills in the sign-up and password reset forms. It also keeps the backup copies of the database, and counts visits to the pages of this site when you agree.',
                 '**Resend** sends the account email. It gets your email address and the message. For a copy of your data, that includes the file.',
                 '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names, and the [OpenFreeMap](https://openfreemap.org) map tiles for water, toilets, and cafés. The Traceway server sends them the points of a route, the name of a place, a place you search for with the middle of your map rounded to about 10 kilometres, a pin rounded to about 100 metres, or which map tiles a route crosses. It never sends your name or email address.',
                 '**Your own browser** loads the map itself from [OpenFreeMap](https://openfreemap.org). Like any website, it sees your IP address and the part of the map you look at. Everything else goes through Traceway.',
@@ -108,7 +125,8 @@ export const privacy: LegalPage = {
             heading: 'The legal grounds',
             items: [
                 '**The service you asked for** (GDPR article 6(1)(b)): your account, your routes, your watches, the AI assistants and route services you connect, and the account email.',
-                '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs, backups, and limits on how often the map services are asked.',
+                '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs, backups, protection against attacks and scripts, and limits on how often the map services are asked.',
+                '**Your consent** (article 6(1)(a)): counting visits to the pages of this site with Cloudflare, to know how many people visit and to make the site better. You can take it back at any time with Cookie choice at the bottom of every page.',
                 '**A legal duty** (article 6(1)(c)): when the law requires NxT-Solutions to keep something or hand it over.',
             ],
         },
@@ -122,6 +140,7 @@ export const privacy: LegalPage = {
                 '**Place names:** 30 days, for a pin rounded to about 100 metres, not linked to you.',
                 '**Place searches:** 30 days, for the words you typed and the middle of your map rounded to about 10 kilometres, not linked to you.',
                 '**An email that could not be sent:** up to a day, so the problem can be found. Then it is deleted.',
+                '**Your yes or no to counting visits:** in your own browser, for up to a year. Then the pages ask again.',
                 '**Backups:** something you delete can stay in a backup for up to 14 days. Then it is gone.',
                 '**Error logs:** only the latest. Older lines are overwritten automatically.',
             ],
@@ -260,11 +279,11 @@ export const cookies: LegalPage = {
     path: '/cookies',
     title: 'Cookies',
     description:
-        'The few cookies and browser storage Traceway uses to keep you signed in and remember your choices. No tracking.',
+        'The cookies and browser storage Traceway uses to keep you signed in and remember your choices, and the visit counting it asks you about first.',
     heading: 'Cookies and storage',
     intro: [
-        'Traceway uses only the cookies it needs to work. There are no advertising, analytics, or tracking cookies, and none from another company. That is why there is no cookie banner.',
-        'The pages of this site, like this one, set no cookies. The planner sets the ones below.',
+        'Traceway uses only the cookies it needs to work. There are no advertising, analytics, or tracking cookies, and none from another company.',
+        'The pages of this site, like this one, set no cookies. They ask before they count your visit with Cloudflare Web Analytics, which sets no cookie either. The planner sets the cookies below, and never counts visits.',
     ],
     sections: [
         {
@@ -285,6 +304,7 @@ export const cookies: LegalPage = {
                 '**traceway.planner…** keeps the route you were planning, so it is still there when you come back, and the last few places you picked in a search. It is cleared when you log out.',
                 '**traceway.library.layout** remembers whether your library shows a grid, a map, or a list.',
                 '**appearance** keeps your light or dark choice here too.',
+                '**traceway.consent** remembers whether you said yes or no to counting your visit, and when, so the pages of this site do not ask again for a year.',
             ],
         },
         {
@@ -296,8 +316,8 @@ export const cookies: LegalPage = {
         {
             heading: 'Your choice',
             paragraphs: [
-                'These cookies are needed for Traceway to work, or keep a choice you made, so EU and Belgian law does not ask for your consent. You can still delete them in your browser settings at any time. You will then be logged out, and the planner forgets your choices.',
-                'If Traceway ever wants a cookie that is not needed, such as for analytics, it will ask you first.',
+                'The planner’s cookies are needed for Traceway to work, or keep a choice you made, so EU and Belgian law does not ask for your consent. You can still delete them in your browser settings at any time. You will then be logged out, and the planner forgets your choices.',
+                'Counting your visit is up to you. Say yes or no when the pages of this site ask, and change your mind at any time with **Cookie choice** at the bottom of every page. The [privacy policy](/privacy) has more.',
             ],
         },
     ],

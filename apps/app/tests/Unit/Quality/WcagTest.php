@@ -14,6 +14,7 @@ it('keeps text at 4.5 to 1 and the focus ring at 3 to 1', function (): void {
     $paperPairs = [
         ['ink', 'paper', 4.5],
         ['ink', 'card', 4.5],
+        ['ink-soft', 'card', 4.5],
         ['muted', 'paper', 4.5],
         ['chartreuse-ink', 'chartreuse', 4.5],
         ['chart-ink', 'chart', 4.5],

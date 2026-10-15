@@ -55,6 +55,8 @@ jobs:
           RIDEWITHGPS_API_KEY: ${{ secrets.RIDEWITHGPS_API_KEY }}
           PASSPORT_PRIVATE_KEY: ${{ secrets.PASSPORT_PRIVATE_KEY }}
           PASSPORT_PUBLIC_KEY: ${{ secrets.PASSPORT_PUBLIC_KEY }}
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
         run: |
           set -euo pipefail
 
@@ -91,6 +93,14 @@ jobs:
           upsert_env "RIDEWITHGPS_CLIENT_ID" "${RIDEWITHGPS_CLIENT_ID:-}" "$runtime_env"
           upsert_env "RIDEWITHGPS_CLIENT_SECRET" "${RIDEWITHGPS_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "RIDEWITHGPS_API_KEY" "${RIDEWITHGPS_API_KEY:-}" "$runtime_env"
+
+          # The check under the sign-up form. Without both keys it stays off
+          # and the forms keep only their rate limits.
+          upsert_env "TURNSTILE_SITE_KEY" "${TURNSTILE_SITE_KEY:-}" "$runtime_env"
+          upsert_env "TURNSTILE_SECRET_KEY" "${TURNSTILE_SECRET_KEY:-}" "$runtime_env"
+          if [ -z "${TURNSTILE_SITE_KEY:-}" ] || [ -z "${TURNSTILE_SECRET_KEY:-}" ]; then
+            echo "::warning::TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are not set. Sign-up runs without the person check."
+          fi
 
           # AI tools sign in with OAuth. Passport signs their tokens with this
           # key pair. The PEM goes on one line, and the quotes turn \n back
