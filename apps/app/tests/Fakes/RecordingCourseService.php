@@ -60,11 +60,11 @@ final class RecordingCourseService implements CourseService
 
         $this->published[] = ['tokens' => $serviceTokens, 'upload' => $courseUpload, 'previous' => $previousId];
 
-        if (! $this->ready) {
-            return new PublishedCourse(id: null);
-        }
-
         $id = (string) (100 + count($this->published));
+
+        if (! $this->ready) {
+            return new PublishedCourse('task:'.$id, processing: true);
+        }
 
         return new PublishedCourse($id, 'https://'.$this->slug.'.test/routes/'.$id);
     }

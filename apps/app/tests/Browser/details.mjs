@@ -346,6 +346,7 @@ try {
     step(`desktop: the exported GPX has heights${gpx.includes('<wpt') ? ' and stop waypoints' : ''}`);
 
     await page.getByRole('button', { name: 'Send to device' }).click();
+    await page.getByRole('button', { name: 'Garmin', exact: true }).click();
     const fit = readFit(await downloaded(page, () => page.getByRole('button', { name: 'Download FIT' }).click()));
     await page.keyboard.press('Escape');
     check(fit.crcOk, 'The FIT file CRC is wrong');

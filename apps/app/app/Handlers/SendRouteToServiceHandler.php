@@ -78,7 +78,7 @@ final readonly class SendRouteToServiceHandler
             $published->url,
         );
 
-        return new SentRoute($published->processing(), $published->url);
+        return new SentRoute($published->processing, $published->url);
     }
 
     /**

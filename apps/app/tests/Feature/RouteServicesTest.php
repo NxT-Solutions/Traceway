@@ -9,6 +9,7 @@ use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Inertia\Support\SessionKey;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Fakes\RecordingCourseService;
 
@@ -93,6 +94,18 @@ it('says the service was not connected when the rider declined there', function 
         ->assertRedirect(route('devices.edit'));
 
     expect(RouteServiceAccount::query()->count())->toBe(0);
+});
+
+it('brings the rider back with a message when the service turns the sign-in down', function (): void {
+    fakeRouteServices();
+
+    $this->actingAs(User::factory()->create())->get(route('services.connect', ['service' => 'wahoo', 'return' => '/saved']));
+
+    $this->get(route('services.callback', ['service' => 'wahoo', 'state' => session('route_services.state.wahoo'), 'code' => 'refused']))
+        ->assertRedirect('/saved');
+
+    expect(RouteServiceAccount::query()->count())->toBe(0)
+        ->and(session(SessionKey::FLASH_DATA)['toast'] ?? null)->toBe(['type' => 'error', 'message' => 'Wahoo could not be connected. Try again in a minute.']);
 });
 
 it('hides a service this Traceway has no credentials for', function (): void {
@@ -229,6 +242,13 @@ it('tells the rider Ride with GPS is still reading a slow upload', function (): 
         ->postJson(route('routes.saved.send', ['savedRoute' => $route->id, 'service' => 'ride_with_gps']))
         ->assertOk()
         ->assertJson(['status' => 'processing', 'url' => null]);
+
+    $this->actingAs($user)
+        ->postJson(route('routes.saved.send', ['savedRoute' => $route->id, 'service' => 'ride_with_gps']))
+        ->assertOk();
+
+    // The slow upload is kept by its handle, so the next send replaces it instead of adding a copy.
+    expect($services['ride_with_gps']->published[1]['previous'])->toBe('task:101');
 });
 
 it('sends a multisport plan one land leg at a time', function (): void {
@@ -277,6 +297,17 @@ it('withdraws access and forgets what was sent when the rider disconnects', func
     expect($services['wahoo']->revoked)->toBe(['the-token'])
         ->and(RouteServiceAccount::query()->count())->toBe(0)
         ->and(DB::table('sent_routes')->count())->toBe(0);
+});
+
+it("refreshes a token that ran out before withdrawing it, so the service does not keep Traceway's access", function (): void {
+    $services = fakeRouteServices();
+    $user = User::factory()->create();
+    connectWahoo($user, ['access_token' => 'stale', 'expires_at' => now()->subHour()]);
+
+    $this->actingAs($user)->delete(route('services.destroy', ['service' => 'wahoo']))->assertRedirect();
+
+    expect($services['wahoo']->refreshed)->toBe(1)
+        ->and($services['wahoo']->revoked)->toBe(['access-refreshed']);
 });
 
 it('withdraws access at each service before the account is deleted', function (): void {

@@ -24,6 +24,8 @@ use Saloon\Http\Response;
  */
 final readonly class RideWithGpsCourseService implements CourseService
 {
+    private const string PENDING = 'task:';
+
     /**
      * @param  int  $pauseMilliseconds  how long to wait between looks at the upload task
      */
@@ -58,15 +60,13 @@ final readonly class RideWithGpsCourseService implements CourseService
         return $serviceTokens;
     }
 
+    /**
+     * Uploads the new copy first and only then deletes the one sent before, so a failed upload leaves the
+     * rider's pinned route in place. An upload still being read is kept as "task:{id}" and looked up next time.
+     */
     public function publish(ServiceTokens $serviceTokens, CourseUpload $courseUpload, ?string $previousId): PublishedCourse
     {
-        if ($previousId !== null) {
-            $deleted = $this->send(new DeleteRouteRequest($previousId), $serviceTokens);
-
-            if (! $deleted->successful() && $deleted->status() !== 404) {
-                throw $this->failure($deleted);
-            }
-        }
+        $previousRoute = $previousId === null ? null : $this->routeFor($previousId, $serviceTokens);
 
         $response = $this->send(new UploadRouteRequest(
             $courseUpload->gpx,
@@ -84,6 +84,15 @@ final readonly class RideWithGpsCourseService implements CourseService
 
         throw_if(! is_array($task) || (! is_int($taskId) && ! is_string($taskId)), ServiceUnavailable::class, 'Ride with GPS did not say how to follow the upload.');
 
+        // Ride with GPS took the new copy, so the old one can go.
+        if ($previousRoute !== null) {
+            try {
+                $this->send(new DeleteRouteRequest($previousRoute), $serviceTokens);
+            } catch (ServiceRefused|ServiceUnavailable) {
+                // The new copy is in; an old one left behind is the lesser harm.
+            }
+        }
+
         return $this->follow((string) $taskId, $task, $serviceTokens);
     }
 
@@ -97,6 +106,30 @@ final readonly class RideWithGpsCourseService implements CourseService
             ));
         } catch (FatalRequestException) {
             // The rider is disconnecting either way.
+        }
+    }
+
+    /**
+     * The route id behind an id from an earlier publish. An upload that was still being read is looked up;
+     * if it is still not done, or failed, there is nothing to delete.
+     */
+    private function routeFor(string $previousId, ServiceTokens $serviceTokens): ?string
+    {
+        if (! str_starts_with($previousId, self::PENDING)) {
+            return $previousId;
+        }
+
+        $response = $this->send(new GetTaskRequest(substr($previousId, strlen(self::PENDING))), $serviceTokens);
+        $task = $response->json('task');
+
+        if (! $response->successful() || ! is_array($task) || ($task['status'] ?? null) !== 'completed') {
+            return null;
+        }
+
+        try {
+            return $this->created($task)->id;
+        } catch (ServiceUnavailable) {
+            return null;
         }
     }
 
@@ -129,7 +162,7 @@ final readonly class RideWithGpsCourseService implements CourseService
             $task = is_array($next) ? $next : [];
         }
 
-        return new PublishedCourse(id: null);
+        return new PublishedCourse(self::PENDING.$taskId, processing: true);
     }
 
     /**

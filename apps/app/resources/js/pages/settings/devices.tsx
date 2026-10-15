@@ -173,7 +173,7 @@ export default function Devices({
                                     <p className="text-muted-foreground">
                                         {service.connected
                                             ? service.needs_reconnect
-                                                ? `${service.label} stopped accepting Traceway. Connect it again.`
+                                                ? `Traceway lost its link to ${service.label}. Connect it again.`
                                                 : `Connected ${written(service.connected_at)}. ${service.last_sent_at === null ? 'No route sent yet.' : `Last route sent ${written(service.last_sent_at)}.`}`
                                             : serviceNote[service.service]}
                                     </p>
@@ -190,17 +190,20 @@ export default function Devices({
                                             )
                                         }
                                     >
-                                        Disconnect
+                                        Disconnect {service.label}
                                     </Button>
                                 ) : (
-                                    <Button asChild>
-                                        <a
-                                            href={`/settings/services/${service.service}/connect`}
-                                        >
-                                            {service.connected
-                                                ? 'Connect again'
-                                                : 'Connect'}
-                                        </a>
+                                    <Button
+                                        type="button"
+                                        onClick={() =>
+                                            window.location.assign(
+                                                `/settings/services/${service.service}/connect`,
+                                            )
+                                        }
+                                    >
+                                        {service.connected
+                                            ? `Connect ${service.label} again`
+                                            : `Connect ${service.label}`}
                                     </Button>
                                 )}
                             </li>

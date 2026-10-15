@@ -34,7 +34,7 @@ final readonly class DisconnectRouteServiceHandler
 
         if ($tokens instanceof RouteServiceTokens && $this->courseServices->has($service->value)) {
             try {
-                $this->courseServices->for($service->value)->revoke(new ServiceTokens($tokens->accessToken, $tokens->refreshToken, $tokens->expiresAt));
+                $this->courseServices->withdraw($service->value, new ServiceTokens($tokens->accessToken, $tokens->refreshToken, $tokens->expiresAt), now()->getTimestamp());
             } catch (ServiceRefused|ServiceUnavailable) {
                 // Gone at the service already, or out of reach. The rider is disconnected here either way.
             }

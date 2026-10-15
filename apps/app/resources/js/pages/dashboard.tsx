@@ -930,6 +930,25 @@ function snapToRoad(
     return { longitude: snapped.lng, latitude: snapped.lat };
 }
 
+/**
+ * A short fingerprint of a line: its length and a few of its points. Two
+ * lines with the same one are, for saving, the same route.
+ */
+function lineKey(coordinates: unknown): string {
+    if (!Array.isArray(coordinates) || coordinates.length === 0) {
+        return '';
+    }
+
+    const middle = coordinates[Math.floor(coordinates.length / 2)];
+
+    return JSON.stringify([
+        coordinates.length,
+        coordinates[0],
+        middle,
+        coordinates[coordinates.length - 1],
+    ]);
+}
+
 function isCoordinate(value: unknown): value is Coordinate {
     return (
         Array.isArray(value) &&
@@ -1548,6 +1567,10 @@ export default function Dashboard() {
     const [routeSaved, setRouteSaved] = useState(false);
     // The id of the route as saved, so Send to device can send it to a service.
     const [savedRouteId, setSavedRouteId] = useState<string | null>(null);
+    // Which line that id belongs to, and a save on its way, so two quick
+    // sends save once and a send after another loop was picked saves anew.
+    const savedLineRef = useRef<string | null>(null);
+    const saveInFlightRef = useRef<Promise<string | null> | null>(null);
     const [exported, setExported] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -3098,6 +3121,8 @@ export default function Dashboard() {
         }
 
         dirty.current = true;
+        setRouteSaved(false);
+        setSavedRouteId(null);
         setRouteIndex(index);
         setMessage(describe(shape, viaName));
     }
@@ -3493,17 +3518,36 @@ export default function Dashboard() {
      * Saves the route to the rider's profile and gives back its id, or the id
      * it already has. Null when it could not be saved.
      */
-    async function saveRoute(): Promise<string | null> {
+    function saveRoute(): Promise<string | null> {
         const payload = savePayload();
 
-        if (routeSaved) {
-            return savedRouteId;
+        if (payload === null) {
+            return Promise.resolve(null);
         }
 
-        if (payload === null || saving) {
-            return null;
+        const line = lineKey(payload.coordinates);
+
+        if (
+            routeSaved &&
+            savedRouteId !== null &&
+            savedLineRef.current === line
+        ) {
+            return Promise.resolve(savedRouteId);
         }
 
+        if (saveInFlightRef.current === null) {
+            saveInFlightRef.current = storeRoute(payload, line).finally(() => {
+                saveInFlightRef.current = null;
+            });
+        }
+
+        return saveInFlightRef.current;
+    }
+
+    async function storeRoute(
+        payload: Record<string, unknown>,
+        line: string,
+    ): Promise<string | null> {
         setSaving(true);
 
         try {
@@ -3533,6 +3577,7 @@ export default function Dashboard() {
 
             setRouteSaved(true);
             setSavedRouteId(id);
+            savedLineRef.current = line;
             setMessage('Saved. Share it from Saved routes.');
 
             // The shared link shows the route on the map in a chat. Only the

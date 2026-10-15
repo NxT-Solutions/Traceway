@@ -80,13 +80,13 @@ const brands: Brand[] = [
         intro: 'The Karoo picks up routes you pin in Ride with GPS.',
         steps: [
             {
-                title: 'Once',
+                title: 'First time only',
                 items: [
                     'On dashboard.hammerhead.io, link your Ride with GPS account.',
                 ],
             },
             {
-                title: 'Each route',
+                title: 'For each route',
                 items: [
                     'Send it to Ride with GPS here.',
                     'Pin it in Ride with GPS. The Karoo syncs it.',
@@ -109,13 +109,13 @@ const brands: Brand[] = [
         intro: 'Bryton Active brings in routes from Ride with GPS.',
         steps: [
             {
-                title: 'Once',
+                title: 'First time only',
                 items: [
                     'In the Bryton Active app, link your Ride with GPS account.',
                 ],
             },
             {
-                title: 'Each route',
+                title: 'For each route',
                 items: [
                     'Send it to Ride with GPS here.',
                     'Sync the route to the device in Bryton Active. If it does not show, make it public in Ride with GPS.',
@@ -213,6 +213,28 @@ const brands: Brand[] = [
 
 const brandKey = 'traceway.send-to-device.brand';
 
+/** What to tell the rider when a send did not go through. */
+function sendFailure(status: number, message: string | null): string {
+    if (status === 429) {
+        return 'That was a lot of sends. Try again in a minute.';
+    }
+
+    if (status === 404) {
+        return 'This route is gone. Reload the page.';
+    }
+
+    if ((status === 409 || status === 422) && message !== null) {
+        return message;
+    }
+
+    return 'The route could not be sent. Try again in a minute.';
+}
+
+/** Only a link to a web page the service gave, never a script. */
+function isWebLink(value: unknown): value is string {
+    return typeof value === 'string' && value.startsWith('https://');
+}
+
 function rememberedBrand(): string | null {
     try {
         return window.localStorage.getItem(brandKey);
@@ -272,6 +294,14 @@ export function SendToDevice({
         }
     }, [open, brandId]);
 
+    // What a send said belongs to that route. The dialog is reused for the
+    // next route, so it starts clean each time it opens.
+    useEffect(() => {
+        if (!open) {
+            setSends({});
+        }
+    }, [open]);
+
     function pick(id: string): void {
         setBrandId(id);
         rememberBrand(id);
@@ -287,7 +317,7 @@ export function SendToDevice({
                     </DialogDescription>
                 </DialogHeader>
                 <div
-                    role="radiogroup"
+                    role="group"
                     aria-label="Your device"
                     className="grid grid-cols-2 gap-2 sm:grid-cols-3"
                 >
@@ -295,8 +325,7 @@ export function SendToDevice({
                         <button
                             key={candidate.id}
                             type="button"
-                            role="radio"
-                            aria-checked={candidate.id === brandId}
+                            aria-pressed={candidate.id === brandId}
                             onClick={() => pick(candidate.id)}
                             className={cn(
                                 'min-h-11 rounded-lg border px-3 py-2 text-left text-sm font-medium outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
@@ -403,7 +432,7 @@ function BrandSteps({
             update({
                 sending: false,
                 ok: false,
-                message: 'Save the route first.',
+                message: 'The route could not be saved. Try again.',
                 url: null,
             });
 
@@ -440,15 +469,8 @@ function BrandSteps({
                 ok: response.ok,
                 message: response.ok
                     ? (message ?? 'Sent.')
-                    : response.status === 429
-                      ? 'That was a lot of sends. Try again in a minute.'
-                      : response.status === 409 && message !== null
-                        ? message
-                        : 'The route could not be sent. Try again in a minute.',
-                url:
-                    response.ok && typeof record.url === 'string'
-                        ? record.url
-                        : null,
+                    : sendFailure(response.status, message),
+                url: response.ok && isWebLink(record.url) ? record.url : null,
             });
         } catch {
             update({
@@ -477,6 +499,14 @@ function BrandSteps({
                     legs={legs}
                     sent={sent}
                     sends={sends}
+                    notice={
+                        Object.entries(sends).find(
+                            ([key, state]) =>
+                                key.startsWith(`${service.service}:`) &&
+                                !state.ok &&
+                                state.message !== '',
+                        )?.[1].message ?? ''
+                    }
                 />
             ) : null}
             <section className="grid gap-2">
@@ -517,6 +547,7 @@ function CloudSend({
     legs,
     sent,
     sends,
+    notice,
 }: {
     service: RouteServiceStatus;
     needsConnecting: boolean;
@@ -526,14 +557,22 @@ function CloudSend({
     legs: DeviceLeg[];
     sent: boolean;
     sends: Record<string, SendState>;
+    /** Why the last send failed, kept when the section turns into Connect. */
+    notice: string;
 }) {
+    // One send at a time, so two sends never refresh the same sign-in at once.
+    const busy = Object.values(sends).some((state) => state.sending);
+
     if (needsConnecting) {
         return (
             <section className="grid gap-2 rounded-lg border p-3">
                 <p className="text-sm">
                     {service.connected
-                        ? `${service.label} stopped accepting Traceway. Connect it again.`
+                        ? `Traceway lost its link to ${service.label}. Connect it again.`
                         : `Connect your ${service.label} account once. Then a route goes there in one tap.`}
+                </p>
+                <p role="status" className="text-sm text-destructive">
+                    {notice}
                 </p>
                 <Button
                     type="button"
@@ -575,7 +614,7 @@ function CloudSend({
                     <div key={target.leg} className="grid gap-1">
                         <Button
                             type="button"
-                            disabled={state?.sending === true}
+                            disabled={busy}
                             aria-busy={state?.sending === true}
                             onClick={() => onSend(target.leg)}
                         >
@@ -583,29 +622,28 @@ function CloudSend({
                                 ? 'Sending…'
                                 : target.label}
                         </Button>
-                        {state !== undefined && state.message !== '' ? (
-                            <p
-                                role="status"
-                                className={cn(
-                                    'text-sm',
-                                    state.ok
-                                        ? 'text-muted-foreground'
-                                        : 'text-destructive',
-                                )}
-                            >
-                                {state.message}{' '}
-                                {state.url !== null ? (
-                                    <a
-                                        className="underline"
-                                        href={state.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        Open in {service.label}
-                                    </a>
-                                ) : null}
-                            </p>
-                        ) : null}
+                        {/* Kept in place while empty, so a screen reader reads the result when it comes. */}
+                        <p
+                            role="status"
+                            className={cn(
+                                'text-sm',
+                                state?.ok === false
+                                    ? 'text-destructive'
+                                    : 'text-muted-foreground',
+                            )}
+                        >
+                            {state?.message}{' '}
+                            {state !== undefined && state.url !== null ? (
+                                <a
+                                    className="underline"
+                                    href={state.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    Open in {service.label}
+                                </a>
+                            ) : null}
+                        </p>
                     </div>
                 );
             })}

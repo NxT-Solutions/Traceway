@@ -45,11 +45,26 @@ use OpenApi\Attributes\Schema;
             description: 'The services the rider connected so Traceway can send routes to them. Their tokens are withheld.',
             type: 'array',
             items: new Items(
-                required: ['service', 'connected_at', 'last_sent_at'],
+                required: ['service', 'connected_at', 'last_sent_at', 'sent'],
                 properties: [
                     new Property(property: 'service', type: 'string', enum: ['wahoo', 'ride_with_gps']),
                     new Property(property: 'connected_at', type: 'string', nullable: true),
                     new Property(property: 'last_sent_at', type: 'string', nullable: true),
+                    new Property(
+                        property: 'sent',
+                        description: 'Each saved route, or leg, sent to the service. Leg 0 is the whole route.',
+                        type: 'array',
+                        items: new Items(
+                            required: ['saved_route_id', 'leg', 'url', 'sent_at'],
+                            properties: [
+                                new Property(property: 'saved_route_id', type: 'string', format: 'uuid'),
+                                new Property(property: 'leg', type: 'integer'),
+                                new Property(property: 'url', type: 'string', nullable: true),
+                                new Property(property: 'sent_at', type: 'string', nullable: true),
+                            ],
+                            type: 'object',
+                        ),
+                    ),
                 ],
                 type: 'object',
             ),
@@ -66,7 +81,7 @@ final readonly class PersonalDataDocument
     /**
      * @param  list<ExportedRoute>  $routes
      * @param  list<array{tag: string, read_at: string|null}>  $releaseNotesRead
-     * @param  list<array{service: string, connected_at: string|null, last_sent_at: string|null}>  $routeServices
+     * @param  list<array{service: string, connected_at: string|null, last_sent_at: string|null, sent: list<array{saved_route_id: string, leg: int, url: string|null, sent_at: string|null}>}>  $routeServices
      */
     public function __construct(
         public string $exportedAt,

@@ -8,6 +8,7 @@ use App\Models\RouteServiceAccount;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
@@ -24,9 +25,18 @@ it('keeps the password and sign-in secrets out of the download', function (): vo
         'two_factor_secret' => 'totp-secret-should-stay',
         'two_factor_recovery_codes' => 'recovery-code-should-stay',
     ]);
-    SavedRoute::factory()->create([
+    $savedRoute = SavedRoute::factory()->create([
         'user_id' => $user->id,
         'name' => 'Morning loop',
+    ]);
+    DB::table('sent_routes')->insert([
+        'user_id' => $user->id,
+        'saved_route_id' => $savedRoute->id,
+        'leg' => 0,
+        'service' => 'wahoo',
+        'external_id' => '4711',
+        'external_url' => null,
+        'sent_at' => now(),
     ]);
     RouteServiceAccount::factory()->create([
         'user_id' => $user->id,
@@ -58,6 +68,7 @@ it('keeps the password and sign-in secrets out of the download', function (): vo
         'remember_token',
         'route_service_tokens',
     ])->and($document['route_services'][0]['service'])->toBe('wahoo')
+        ->and($document['route_services'][0]['sent'][0]['saved_route_id'])->toBe($savedRoute->id)
         ->and(array_keys($document['account']))->not->toContain('password', 'two_factor_secret', 'remember_token');
 
     Mail::assertQueued(AccountMessage::class, function (AccountMessage $accountMessage) use ($stored): bool {

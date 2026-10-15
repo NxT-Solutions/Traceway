@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Domain\Courses\Services\CourseUpload;
+use App\Domain\Courses\Services\PublishedCourse;
 use App\Domain\Courses\Services\ServiceRefused;
 use App\Domain\Courses\Services\ServiceTokens;
+use App\Domain\Courses\Services\ServiceUnavailable;
 use App\Domain\Routing\Sport;
 use App\Integrations\RideWithGps\Requests\DeleteRouteRequest;
 use App\Integrations\RideWithGps\Requests\GetAccessTokenRequest;
@@ -95,13 +97,13 @@ it('reports a slow upload as still being read', function (): void {
 
     $publishedCourse = rideWithGpsService($mock, attempts: 2)->publish(new ServiceTokens('access'), rideWithGpsUpload(), previousId: null);
 
-    expect($publishedCourse->processing())->toBeTrue();
+    expect($publishedCourse->processing)->toBeTrue()->and($publishedCourse->id)->toBe('task:99');
 });
 
-it('replaces the route it sent before, even when the rider already deleted it', function (int $status): void {
+it('replaces the route it sent before once the new copy is in, even when the rider already deleted it', function (int $status): void {
     $mock = new MockClient([
-        MockResponse::make([], $status),
-        rideWithGpsTask('completed', [['item_type' => 'route', 'item_id' => 322]]),
+        UploadRouteRequest::class => rideWithGpsTask('completed', [['item_type' => 'route', 'item_id' => 322]]),
+        DeleteRouteRequest::class => MockResponse::make([], $status),
     ]);
 
     $publishedCourse = rideWithGpsService($mock)->publish(new ServiceTokens('access'), rideWithGpsUpload(), '321');
@@ -111,7 +113,38 @@ it('replaces the route it sent before, even when the rider already deleted it', 
 })->with([
     'deleted now' => 204,
     'already gone' => 404,
+    'delete failed' => 500,
 ]);
+
+it('keeps the route it sent before when the new upload fails', function (): void {
+    $mock = new MockClient([
+        UploadRouteRequest::class => MockResponse::make([], 503),
+    ]);
+
+    expect(fn (): PublishedCourse => rideWithGpsService($mock)->publish(new ServiceTokens('access'), rideWithGpsUpload(), '321'))
+        ->toThrow(ServiceUnavailable::class);
+    $mock->assertNotSent(DeleteRouteRequest::class);
+});
+
+it('keeps a slow upload by its task, and replaces the route it became on the next send', function (): void {
+    $slow = new MockClient([
+        UploadRouteRequest::class => rideWithGpsTask('pending'),
+        GetTaskRequest::class => rideWithGpsTask('pending'),
+    ]);
+
+    $publishedCourse = rideWithGpsService($slow, attempts: 1)->publish(new ServiceTokens('access'), rideWithGpsUpload(), previousId: null);
+
+    expect($publishedCourse->id)->toBe('task:99')->and($publishedCourse->processing)->toBeTrue();
+
+    $next = new MockClient([
+        GetTaskRequest::class => rideWithGpsTask('completed', [['item_type' => 'route', 'item_id' => 321]]),
+        UploadRouteRequest::class => rideWithGpsTask('completed', [['item_type' => 'route', 'item_id' => 322]]),
+        DeleteRouteRequest::class => MockResponse::make([], 204),
+    ]);
+
+    expect(rideWithGpsService($next)->publish(new ServiceTokens('access'), rideWithGpsUpload(), 'task:99')->id)->toBe('322');
+    $next->assertSent(fn (DeleteRouteRequest $deleteRouteRequest, Response $response): bool => str_ends_with($response->getPendingRequest()->getUrl(), '/api/v1/routes/321.json'));
+});
 
 it('asks to connect again when Ride with GPS no longer accepts the token', function (): void {
     rideWithGpsService(new MockClient([

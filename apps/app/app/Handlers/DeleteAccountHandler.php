@@ -53,7 +53,7 @@ final readonly class DeleteAccountHandler
             }
 
             try {
-                $this->courseServices->for($routeService->value)->revoke(new ServiceTokens($tokens->accessToken, $tokens->refreshToken, $tokens->expiresAt));
+                $this->courseServices->withdraw($routeService->value, new ServiceTokens($tokens->accessToken, $tokens->refreshToken, $tokens->expiresAt), now()->getTimestamp());
             } catch (ServiceRefused|ServiceUnavailable) {
                 continue;
             }

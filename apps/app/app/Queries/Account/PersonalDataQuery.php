@@ -49,9 +49,9 @@ final class PersonalDataQuery
     }
 
     /**
-     * The services the rider connected, without their tokens.
+     * The services the rider connected and what went to each, without their tokens.
      *
-     * @return list<array{service: string, connected_at: string|null, last_sent_at: string|null}>
+     * @return list<array{service: string, connected_at: string|null, last_sent_at: string|null, sent: list<array{saved_route_id: string, leg: int, url: string|null, sent_at: string|null}>}>
      */
     private function routeServices(int $riderId): array
     {
@@ -60,14 +60,28 @@ final class PersonalDataQuery
             ->orderBy('service')
             ->get(['service', 'connected_at', 'last_sent_at']);
 
+        $sent = [];
+
+        foreach (DB::table('sent_routes')->where('user_id', $riderId)->oldest('sent_at')->get(['service', 'saved_route_id', 'leg', 'external_url', 'sent_at']) as $row) {
+            $reader = new RowReader($row);
+            $sent[$reader->string('service')][] = [
+                'saved_route_id' => $reader->string('saved_route_id'),
+                'leg' => $reader->int('leg'),
+                'url' => $reader->optionalString('external_url'),
+                'sent_at' => $reader->iso('sent_at'),
+            ];
+        }
+
         $services = [];
 
         foreach ($rows as $row) {
             $reader = new RowReader($row);
+            $service = $reader->string('service');
             $services[] = [
-                'service' => $reader->string('service'),
+                'service' => $service,
                 'connected_at' => $reader->iso('connected_at'),
                 'last_sent_at' => $reader->iso('last_sent_at'),
+                'sent' => $sent[$service] ?? [],
             ];
         }
 

@@ -75,7 +75,7 @@ it('adds a new route to the library as a FIT file with the sport Wahoo knows', f
 
     $publishedCourse = wahooService($mock)->publish(new ServiceTokens('access'), wahooUpload($sport), previousId: null);
 
-    expect($publishedCourse->id)->toBe('4711')->and($publishedCourse->processing())->toBeFalse();
+    expect($publishedCourse->id)->toBe('4711')->and($publishedCourse->processing)->toBeFalse();
     $mock->assertSent(function (CreateRouteRequest $createRouteRequest, Response $response) use ($family): bool {
         $body = wahooBody($response);
 

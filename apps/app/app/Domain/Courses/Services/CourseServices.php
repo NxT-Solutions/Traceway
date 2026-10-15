@@ -27,6 +27,24 @@ final readonly class CourseServices
     }
 
     /**
+     * Asks the service to withdraw Traceway's access. A token that ran out is refreshed first, or the service
+     * would refuse the request and keep the access.
+     *
+     * @throws ServiceRefused when the service no longer accepts the token
+     * @throws ServiceUnavailable when the service cannot be reached
+     */
+    public function withdraw(string $slug, ServiceTokens $serviceTokens, int $now): void
+    {
+        $courseService = $this->for($slug);
+
+        if ($serviceTokens->expiresBy($now)) {
+            $serviceTokens = $courseService->refresh($serviceTokens);
+        }
+
+        $courseService->revoke($serviceTokens);
+    }
+
+    /**
      * @return list<string>
      */
     public function available(): array

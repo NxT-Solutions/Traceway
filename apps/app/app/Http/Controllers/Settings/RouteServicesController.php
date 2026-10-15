@@ -22,6 +22,7 @@ use OpenApi\Attributes\Parameter;
 use OpenApi\Attributes\Response as OpenApiResponse;
 use OpenApi\Attributes\Schema;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
  * Connects and disconnects the services a rider sends routes to, through each service's own sign-in.
@@ -60,11 +61,18 @@ class RouteServicesController extends Controller
             return redirect()->to($target);
         }
 
-        $dispatchesCommands->dispatch(new ConnectRouteServiceCommand(
-            new RiderId($this->user($request)->id),
-            $routeService,
-            $code,
-        ));
+        try {
+            $dispatchesCommands->dispatch(new ConnectRouteServiceCommand(
+                new RiderId($this->user($request)->id),
+                $routeService,
+                $code,
+            ));
+        } catch (HttpExceptionInterface) {
+            // The sign-in ran out, was used twice, or the service is down. The rider tries again from here.
+            Inertia::flash('toast', ['type' => 'error', 'message' => __(':service could not be connected. Try again in a minute.', ['service' => $routeService->label()])]);
+
+            return redirect()->to($target);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __(':service connected. Send a route to it from Send to device.', ['service' => $routeService->label()])]);
 
