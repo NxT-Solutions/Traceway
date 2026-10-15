@@ -1969,6 +1969,16 @@
                                 }
                             }
                         }
+                    },
+                    "503": {
+                        "description": "The routing engine is busy or did not answer. Try again in a moment.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [

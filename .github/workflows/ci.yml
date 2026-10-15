@@ -263,14 +263,29 @@ jobs:
           done
 
       # Two lanes of about the same length. The phone test is the long one.
+      # On main they take turns: both use the public router, and the brick
+      # the phone lane draws slows the desktop lane's road lookups.
       - name: Run Browser Tests
         run: |
-          status=0
-          { node tests/Browser/planner.mjs && node tests/Browser/wcag.mjs; } > "$RUNNER_TEMP/browser-desktop.log" 2>&1 & desktop=$!
-          node tests/Browser/mobile.mjs > "$RUNNER_TEMP/browser-mobile.log" 2>&1 & mobile=$!
+          desktop() { node tests/Browser/planner.mjs && node tests/Browser/wcag.mjs; }
+          mobile() { node tests/Browser/mobile.mjs; }
+          declare -A pid result
           for lane in desktop mobile; do
-            if wait "${!lane}"; then result=passed; else result=FAILED; status=1; fi
-            echo "::group::$lane lane ($result)"
+            if [ "$USE_ROUTER_STUB" = "true" ]; then
+              "$lane" > "$RUNNER_TEMP/browser-$lane.log" 2>&1 & pid[$lane]=$!
+            elif "$lane" > "$RUNNER_TEMP/browser-$lane.log" 2>&1; then
+              result[$lane]=passed
+            else
+              result[$lane]=FAILED
+            fi
+          done
+          status=0
+          for lane in desktop mobile; do
+            if [ -n "${pid[$lane]:-}" ]; then
+              if wait "${pid[$lane]}"; then result[$lane]=passed; else result[$lane]=FAILED; fi
+            fi
+            [ "${result[$lane]}" = passed ] || status=1
+            echo "::group::$lane lane (${result[$lane]})"
             cat "$RUNNER_TEMP/browser-$lane.log"
             echo "::endgroup::"
           done

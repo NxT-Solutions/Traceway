@@ -26,6 +26,38 @@ async function open(page, path) {
     return response;
 }
 
+// A card asks the routing engine for the nearest road. When the public
+// router is busy, the card says so and offers Try again, and the walk
+// presses it as a rider would, up to twice. A spot with no road near it
+// fails at once.
+async function answered(page, action, label) {
+    const card = page.locator('.tap-card');
+    const missed = card.locator('.tap-note', { hasText: /busy|close enough/ });
+
+    for (let asked = 0; ; asked++) {
+        try {
+            await action.or(missed).first().waitFor({ timeout: 30000 });
+        } catch (error) {
+            const said = await card.allInnerTexts();
+            const status = await page.locator('.map-search-note, .note[role="status"]').allInnerTexts();
+            throw new Error(`${label}. Card: ${JSON.stringify(said)}. Status: ${JSON.stringify(status)}. ${error.message}`);
+        }
+
+        if (await action.isVisible()) {
+            return action;
+        }
+
+        const note = await missed.innerText();
+
+        if (!note.includes('busy') || asked === 2) {
+            throw new Error(`${label}. Card: ${note}`);
+        }
+
+        await card.getByRole('button', { name: 'Try again' }).click();
+        await missed.waitFor({ state: 'hidden', timeout: 2000 }).catch(() => {});
+    }
+}
+
 async function fits(page, label) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
@@ -80,7 +112,7 @@ try {
         throw new Error('Enter on the map moved the start before the rider chose to.');
     }
 
-    await desktop.locator('.tap-card .fill:focus').waitFor({ timeout: 10000 });
+    await answered(desktop, desktop.locator('.tap-card .fill:focus', { hasText: 'Start here' }), 'No focused "Start here" after Enter on the map');
     await desktop.keyboard.press('Enter');
     await desktop.waitForTimeout(300);
 
@@ -95,7 +127,7 @@ try {
     await desktop.waitForTimeout(400);
     await desktop.keyboard.press('Enter');
     // The card finds the nearest road first, then offers its actions.
-    await desktop.locator('.tap-card .fill:focus').waitFor({ timeout: 10000 });
+    await answered(desktop, desktop.locator('.tap-card .fill:focus', { hasText: 'Start here' }), 'No focused "Start here" after a second Enter');
     await desktop.keyboard.press('Enter');
     await desktop.waitForTimeout(300);
 
@@ -140,7 +172,8 @@ try {
     }
 
     if ((await startOf()) === placed) {
-        throw new Error('Dragging the start pin did not move the start.');
+        const status = await desktop.locator('.note[role="status"]').allInnerTexts();
+        throw new Error(`Dragging the start pin did not move the start. Status: ${JSON.stringify(status)}`);
     }
 
     // The search bar on the map forgives a typo with names from the map
@@ -159,7 +192,7 @@ try {
     const westerlo = desktop.getByRole('option', { name: /^Westerlo\b/ }).first();
     await westerlo.waitFor({ timeout: 15000 });
     await westerlo.click();
-    await desktop.getByRole('button', { name: 'Start here' }).click();
+    await (await answered(desktop, desktop.getByRole('button', { name: 'Start here' }), 'No "Start here" for Westerlo')).click();
     await desktop.getByRole('button', { name: /^Start\s*Westerlo/ }).waitFor({ timeout: 5000 });
 
     if (!(await startOf())?.startsWith('51.0')) {
@@ -174,12 +207,7 @@ try {
     const oevel = desktop.getByRole('option', { name: /^Oevel\b/ }).first();
     await oevel.waitFor({ timeout: 15000 });
     await oevel.click();
-    // On failure, say what the card and the planner said instead.
-    await desktop.getByRole('button', { name: 'Add a point here' }).click({ timeout: 30000 }).catch(async (error) => {
-        const card = await desktop.locator('.tap-card').allInnerTexts();
-        const note = await desktop.locator('.map-search-note, .note[role="status"]').allInnerTexts();
-        throw new Error(`No "Add a point here" for Oevel. Card: ${JSON.stringify(card)}. Status: ${JSON.stringify(note)}. ${error.message}`);
-    });
+    await (await answered(desktop, desktop.getByRole('button', { name: 'Add a point here' }), 'No "Add a point here" for Oevel')).click();
     await desktop.locator('.pts .pt[data-point]').first().waitFor({ timeout: 15000 });
     await desktop.getByRole('button', { name: 'Undo' }).click();
     await desktop.locator('.pts .pt[data-point]').first().waitFor({ state: 'detached', timeout: 3000 });
@@ -215,7 +243,7 @@ try {
     const transition = desktop.getByRole('option', { name: /^Oevel\b/ }).first();
     await transition.waitFor({ timeout: 15000 });
     await transition.click();
-    await desktop.getByRole('button', { name: 'Move the transition here' }).click();
+    await (await answered(desktop, desktop.getByRole('button', { name: 'Move the transition here' }), 'No "Move the transition here" for Oevel')).click();
     await desktop.locator('section[aria-label="Legs"]').getByText('Oevel').waitFor({ timeout: 5000 });
 
     await open(desktop, '/saved');
