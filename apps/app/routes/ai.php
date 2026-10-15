@@ -10,7 +10,9 @@ use Laravel\Mcp\Facades\Mcp;
 
 // ChatGPT, Claude, and other AI tools find the sign-in through these routes,
 // register themselves, and ask the person for permission.
-Mcp::oauthRoutes();
+Route::middleware('throttle:oauth-register')->group(function (): void {
+    Mcp::oauthRoutes();
+});
 
 Mcp::web('mcp', TracewayServer::class)
     ->middleware(['auth:api', 'throttle:mcp'])
