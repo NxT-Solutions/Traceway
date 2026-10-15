@@ -1,13 +1,13 @@
 ---
-// Asks before the site counts visits. Nothing from Cloudflare or Microsoft loads until a visitor says yes.
-// The privacy policy and the cookies page describe both, and list the pages this runs on, so change them together.
+// Asks before the site counts visits. Nothing from Cloudflare loads until a visitor says yes.
+// The privacy policy and the cookies page describe it, and list the pages this runs on, so change them together.
 ---
 
 <section class="consent" data-consent data-lenis-prevent aria-labelledby="consent-title" hidden>
-    <h2 id="consent-title" tabindex="-1">Can we count your visit and see how you use these pages?</h2>
+    <h2 id="consent-title" tabindex="-1">Can we count your visit?</h2>
     <p>
-        It helps us make them easier to use. Cloudflare counts visits. Microsoft Clarity sets cookies and records how
-        you move around. Never for ads, never sold. Change your mind any time under Cookie choice, at the bottom.{' '}
+        It shows us how many people visit and which pages they read, so we can make the site better. Cloudflare counts
+        it, without cookies. Never for ads, never sold. Change your mind any time under Cookie choice, at the bottom.{' '}
         <a href="/cookies">Read more about cookies</a>
     </p>
     <div class="consent-actions">
@@ -18,13 +18,10 @@
 
 <script>
     type Choice = 'yes' | 'no';
-    type Clarity = ((...args: unknown[]) => void) & { q?: unknown[] };
 
     const key = 'traceway.consent';
     const year = 365 * 24 * 60 * 60 * 1000;
     const cloudflare = '48021b81dbb740c78f318d6b00df30d1';
-    const clarityProject = 'yy1yc3xnwl';
-    const site = window as Window & { clarity?: Clarity };
 
     // A choice is kept as "yes:<when>" or "no:<when>", and asked again after a year.
     const read = (): Choice | null => {
@@ -45,17 +42,13 @@
         }
     };
 
-    // Only the live site counts, so local work and test runs never reach Cloudflare or Microsoft.
+    // Only the live site counts, so local work and test runs never reach Cloudflare.
     const live = import.meta.env.PROD && location.hostname === 'traceway.online';
     let started = false;
 
+    // Cloudflare keeps nothing in the browser. After a no it is simply not loaded on the next page.
     const start = (): void => {
-        if (!live) {
-            return;
-        }
-
-        if (started) {
-            site.clarity?.('consentv2', { ad_Storage: 'denied', analytics_Storage: 'granted' });
+        if (!live || started) {
             return;
         }
         started = true;
@@ -65,27 +58,6 @@
         counter.src = 'https://static.cloudflareinsights.com/beacon.min.js';
         counter.dataset.cfBeacon = JSON.stringify({ token: cloudflare });
         document.body.append(counter);
-
-        // Clarity's own loader queues calls until its tag arrives, so consent goes in first.
-        site.clarity =
-            site.clarity ||
-            function (this: unknown) {
-                const clarity = site.clarity as Clarity;
-                clarity.q = clarity.q || [];
-                // biome-ignore lint/complexity/noArguments: Clarity's queue expects the arguments object.
-                clarity.q.push(arguments);
-            };
-        site.clarity('consentv2', { ad_Storage: 'denied', analytics_Storage: 'granted' });
-        const tag = document.createElement('script');
-        tag.async = true;
-        tag.src = `https://www.clarity.ms/tag/${clarityProject}`;
-        document.head.append(tag);
-    };
-
-    // Clarity deletes its cookies and ends the recording. Cloudflare keeps nothing, and is not loaded on the next page.
-    const stop = (): void => {
-        site.clarity?.('consentv2', { ad_Storage: 'denied', analytics_Storage: 'denied' });
-        site.clarity?.('consent', false);
     };
 
     const banner = document.querySelector<HTMLElement>('[data-consent]');
@@ -115,8 +87,6 @@
 
                 if (picked === 'yes') {
                     start();
-                } else {
-                    stop();
                 }
             });
         }
