@@ -95,6 +95,32 @@ try {
         await page.waitForTimeout(200);
     }
 
+    // A card asks the routing engine for the nearest road. When the public
+    // router is busy, the card says so and offers Try again, and the walk
+    // presses it as a rider would, up to twice. A spot with no road near it
+    // fails at once.
+    async function answered(action, label) {
+        const card = page.locator('.tap-card');
+        const missed = card.locator('.tap-note', { hasText: /busy|close enough/ });
+
+        for (let asked = 0; ; asked++) {
+            await action.or(missed).first().waitFor({ timeout: 30000 });
+
+            if (await action.isVisible()) {
+                return action;
+            }
+
+            const note = await missed.innerText();
+
+            if (!note.includes('busy') || asked === 2) {
+                throw new Error(`${label}. Card: ${note}`);
+            }
+
+            await tap(card.getByRole('button', { name: 'Try again' }));
+            await missed.waitFor({ state: 'hidden', timeout: 2000 }).catch(() => {});
+        }
+    }
+
     async function draft() {
         return page.evaluate(() => {
             const key = Object.keys(localStorage).find((name) => /^traceway\.planner\.v1\.\d+$/.test(name));
@@ -248,7 +274,7 @@ try {
         throw new Error('A tap on the map moved the transition before the rider chose to.');
     }
 
-    await tap(page.getByRole('button', { name: 'Move the transition here' }));
+    await tap(await answered(page.getByRole('button', { name: 'Move the transition here' }), 'No "Move the transition here" after a tap'));
     await page.waitForTimeout(400);
     const after = await draft();
 

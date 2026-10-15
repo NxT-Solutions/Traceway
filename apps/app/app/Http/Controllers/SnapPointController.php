@@ -14,6 +14,7 @@ use OpenApi\Attributes\Post;
 use OpenApi\Attributes\Property;
 use OpenApi\Attributes\RequestBody;
 use OpenApi\Attributes\Response;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Throwable;
 
@@ -53,6 +54,11 @@ class SnapPointController extends Controller
         description: 'Nothing is close enough.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
+    #[Response(
+        response: HttpResponse::HTTP_SERVICE_UNAVAILABLE,
+        description: 'The routing engine is busy or did not answer. Try again in a moment.',
+        content: new JsonContent(ref: '#/components/schemas/Error'),
+    )]
     public function __invoke(SnapPointRequest $snapPointRequest, ValhallaConnector $valhallaConnector): JsonResponse
     {
         $sport = $snapPointRequest->sport();
@@ -63,20 +69,30 @@ class SnapPointController extends Controller
             Sport::Road, Sport::Gravel, Sport::Mtb => false,
         };
 
+        // A router that did not answer is not a spot without roads: the
+        // rider tries again rather than looking for another spot.
         try {
             $response = $valhallaConnector->send(new LocateRequest(
                 latitude: $latitude,
                 longitude: $longitude,
                 costing: $onFoot ? 'pedestrian' : 'bicycle',
             ));
-        } catch (Throwable) {
-            return $this->miss();
+
+            if ($response->failed()) {
+                return $this->busy();
+            }
+
+            $latitude = $response->json('0.edges.0.correlated_lat');
+            $longitude = $response->json('0.edges.0.correlated_lon');
+        } catch (Throwable $throwable) {
+            // A timeout or a lost connection. Only the kind of failure: the
+            // request holds where the rider is.
+            report(new RuntimeException('The road snap failed with '.$throwable::class.'.'));
+
+            return $this->busy();
         }
 
-        $latitude = $response->json('0.edges.0.correlated_lat');
-        $longitude = $response->json('0.edges.0.correlated_lon');
-
-        if (! $response->successful() || ! is_numeric($latitude) || ! is_numeric($longitude)) {
+        if (! is_numeric($latitude) || ! is_numeric($longitude)) {
             return $this->miss();
         }
 
@@ -90,6 +106,13 @@ class SnapPointController extends Controller
     {
         return response()->json([
             'message' => 'No road or path is close enough to put a point there.',
-        ], 422);
+        ], HttpResponse::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    private function busy(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'The map is busy. Try again in a moment.',
+        ], HttpResponse::HTTP_SERVICE_UNAVAILABLE);
     }
 }

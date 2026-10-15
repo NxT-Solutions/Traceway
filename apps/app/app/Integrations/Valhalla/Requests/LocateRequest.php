@@ -7,6 +7,8 @@ namespace App\Integrations\Valhalla\Requests;
 use Override;
 use Saloon\Contracts\Body\HasBody;
 use Saloon\Enums\Method;
+use Saloon\Exceptions\Request\FatalRequestException;
+use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Request;
 use Saloon\Traits\Body\HasJsonBody;
 use Saloon\Traits\Plugins\HasTimeout;
@@ -21,7 +23,27 @@ final class LocateRequest extends Request implements HasBody
 
     protected int $connectTimeout = 2;
 
-    protected int $requestTimeout = 4;
+    /**
+     * The public router answers a busy caller late rather than not at all:
+     * a lookup queued behind a long route takes seconds, not milliseconds.
+     */
+    protected int $requestTimeout = 8;
+
+    /**
+     * A router that turns the lookup away gets one more go, a second later.
+     */
+    #[Override]
+    public ?int $tries = 2;
+
+    #[Override]
+    public ?int $retryInterval = 1000;
+
+    /**
+     * A router that kept saying no is busy, not broken: its last answer
+     * comes back instead of an exception.
+     */
+    #[Override]
+    public ?bool $throwOnMaxTries = false;
 
     public function __construct(
         private readonly float $latitude,
@@ -32,6 +54,23 @@ final class LocateRequest extends Request implements HasBody
     public function resolveEndpoint(): string
     {
         return '/locate';
+    }
+
+    /**
+     * Only a refusal or an error from the router. A timeout has already
+     * waited its whole time, and a refused connection stays refused for a
+     * while.
+     */
+    #[Override]
+    public function handleRetry(FatalRequestException|RequestException $exception, Request $request): bool
+    {
+        if (! $exception instanceof RequestException) {
+            return false;
+        }
+
+        $status = $exception->getStatus();
+
+        return $status === 429 || $status >= 500;
     }
 
     /**
