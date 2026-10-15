@@ -45,6 +45,7 @@ final readonly class LibraryQuery
                 'legs',
             ]);
 
+        $sent = $this->sentTo($riderId);
         $routes = [];
 
         foreach ($rows as $row) {
@@ -68,6 +69,8 @@ final readonly class LibraryQuery
                 $reader->optionalString('layout'),
                 $this->legs($id, $reader->legs('legs')),
                 $this->routeImageStore->drawnAt(new RiderId($riderId), new RouteId($id)) !== null,
+                SignedRouteLink::gpx($id),
+                $sent[$id] ?? [],
             );
         }
 
@@ -75,8 +78,31 @@ final readonly class LibraryQuery
     }
 
     /**
+     * The services each route went to, by route id.
+     *
+     * @return array<string, list<string>>
+     */
+    private function sentTo(int $riderId): array
+    {
+        $rows = DB::table('sent_routes')
+            ->where('user_id', $riderId)
+            ->distinct()
+            ->orderBy('service')
+            ->get(['saved_route_id', 'service']);
+
+        $sent = [];
+
+        foreach ($rows as $row) {
+            $reader = new RowReader($row);
+            $sent[$reader->string('saved_route_id')][] = $reader->string('service');
+        }
+
+        return $sent;
+    }
+
+    /**
      * @param  list<SavedLeg>  $savedLegs
-     * @return list<array{discipline: string, distance_metres: int, fit_url: string|null}>
+     * @return list<array{discipline: string, distance_metres: int, fit_url: string|null, gpx_url: string|null}>
      */
     private function legs(string $id, array $savedLegs): array
     {
@@ -87,6 +113,7 @@ final readonly class LibraryQuery
                 'discipline' => $savedLeg->discipline(),
                 'distance_metres' => $savedLeg->distanceMetres,
                 'fit_url' => $savedLeg->sport instanceof Sport ? SignedRouteLink::fitLeg($id, $index + 1) : null,
+                'gpx_url' => $savedLeg->sport instanceof Sport ? SignedRouteLink::gpxLeg($id, $index + 1) : null,
             ];
         }
 

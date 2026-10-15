@@ -48,6 +48,11 @@ jobs:
         env:
           APP_KEY: ${{ secrets.APP_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          WAHOO_CLIENT_ID: ${{ secrets.WAHOO_CLIENT_ID }}
+          WAHOO_CLIENT_SECRET: ${{ secrets.WAHOO_CLIENT_SECRET }}
+          RIDEWITHGPS_CLIENT_ID: ${{ secrets.RIDEWITHGPS_CLIENT_ID }}
+          RIDEWITHGPS_CLIENT_SECRET: ${{ secrets.RIDEWITHGPS_CLIENT_SECRET }}
+          RIDEWITHGPS_API_KEY: ${{ secrets.RIDEWITHGPS_API_KEY }}
           PASSPORT_PRIVATE_KEY: ${{ secrets.PASSPORT_PRIVATE_KEY }}
           PASSPORT_PUBLIC_KEY: ${{ secrets.PASSPORT_PUBLIC_KEY }}
         run: |
@@ -78,6 +83,14 @@ jobs:
 
           upsert_env "APP_KEY" "$APP_KEY" "$runtime_env"
           upsert_env "RESEND_API_KEY" "${RESEND_API_KEY:-}" "$runtime_env"
+
+          # Send to device pushes routes to these services. A service whose
+          # client is not set stays hidden, so each can go live on its own.
+          upsert_env "WAHOO_CLIENT_ID" "${WAHOO_CLIENT_ID:-}" "$runtime_env"
+          upsert_env "WAHOO_CLIENT_SECRET" "${WAHOO_CLIENT_SECRET:-}" "$runtime_env"
+          upsert_env "RIDEWITHGPS_CLIENT_ID" "${RIDEWITHGPS_CLIENT_ID:-}" "$runtime_env"
+          upsert_env "RIDEWITHGPS_CLIENT_SECRET" "${RIDEWITHGPS_CLIENT_SECRET:-}" "$runtime_env"
+          upsert_env "RIDEWITHGPS_API_KEY" "${RIDEWITHGPS_API_KEY:-}" "$runtime_env"
 
           # AI tools sign in with OAuth. Passport signs their tokens with this
           # key pair. The PEM goes on one line, and the quotes turn \n back

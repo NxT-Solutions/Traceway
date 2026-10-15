@@ -8,6 +8,7 @@ use App\Http\Controllers\Settings\DevicesController;
 use App\Http\Controllers\Settings\PrivacyController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ReleasesController;
+use App\Http\Controllers\Settings\RouteServicesController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Http\RedirectResponse;
@@ -35,6 +36,17 @@ Route::middleware(['auth'])->group(function (): void {
     Route::delete('settings/devices/{deviceLink}', [DevicesController::class, 'destroy'])
         ->whereUuid('deviceLink')
         ->name('devices.destroy');
+
+    Route::get('settings/services/{service}/connect', [RouteServicesController::class, 'connect'])
+        ->whereIn('service', ['wahoo', 'ride_with_gps'])
+        ->name('services.connect');
+    Route::get('settings/services/{service}/callback', [RouteServicesController::class, 'callback'])
+        ->whereIn('service', ['wahoo', 'ride_with_gps'])
+        ->middleware('throttle:10,1')
+        ->name('services.callback');
+    Route::delete('settings/services/{service}', [RouteServicesController::class, 'destroy'])
+        ->whereIn('service', ['wahoo', 'ride_with_gps'])
+        ->name('services.destroy');
 
     Route::get('settings/whats-new', [ReleasesController::class, 'index'])->name('releases.index');
     Route::post('settings/whats-new/read', [ReleasesController::class, 'readAll'])

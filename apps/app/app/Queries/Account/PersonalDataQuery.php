@@ -44,7 +44,34 @@ final class PersonalDataQuery
             $account->iso('updated_at'),
             $this->routes($riderId),
             $this->releaseNotesRead($riderId),
+            $this->routeServices($riderId),
         );
+    }
+
+    /**
+     * The services the rider connected, without their tokens.
+     *
+     * @return list<array{service: string, connected_at: string|null, last_sent_at: string|null}>
+     */
+    private function routeServices(int $riderId): array
+    {
+        $rows = DB::table('route_service_accounts')
+            ->where('user_id', $riderId)
+            ->orderBy('service')
+            ->get(['service', 'connected_at', 'last_sent_at']);
+
+        $services = [];
+
+        foreach ($rows as $row) {
+            $reader = new RowReader($row);
+            $services[] = [
+                'service' => $reader->string('service'),
+                'connected_at' => $reader->iso('connected_at'),
+                'last_sent_at' => $reader->iso('last_sent_at'),
+            ];
+        }
+
+        return $services;
     }
 
     /**

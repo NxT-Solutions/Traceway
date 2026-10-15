@@ -12,7 +12,7 @@ use OpenApi\Attributes\Schema;
 
 #[Schema(
     schema: 'PersonalDataDocument',
-    required: ['exported_at', 'account', 'saved_routes', 'release_notes_read', 'withheld'],
+    required: ['exported_at', 'account', 'saved_routes', 'release_notes_read', 'route_services', 'withheld'],
     properties: [
         new Property(property: 'exported_at', type: 'string', format: 'date-time'),
         new Property(
@@ -41,9 +41,23 @@ use OpenApi\Attributes\Schema;
             ),
         ),
         new Property(
+            property: 'route_services',
+            description: 'The services the rider connected so Traceway can send routes to them. Their tokens are withheld.',
+            type: 'array',
+            items: new Items(
+                required: ['service', 'connected_at', 'last_sent_at'],
+                properties: [
+                    new Property(property: 'service', type: 'string', enum: ['wahoo', 'ride_with_gps']),
+                    new Property(property: 'connected_at', type: 'string', nullable: true),
+                    new Property(property: 'last_sent_at', type: 'string', nullable: true),
+                ],
+                type: 'object',
+            ),
+        ),
+        new Property(
             property: 'withheld',
             type: 'array',
-            items: new Items(type: 'string', enum: ['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token']),
+            items: new Items(type: 'string', enum: ['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'route_service_tokens']),
         ),
     ],
 )]
@@ -52,6 +66,7 @@ final readonly class PersonalDataDocument
     /**
      * @param  list<ExportedRoute>  $routes
      * @param  list<array{tag: string, read_at: string|null}>  $releaseNotesRead
+     * @param  list<array{service: string, connected_at: string|null, last_sent_at: string|null}>  $routeServices
      */
     public function __construct(
         public string $exportedAt,
@@ -63,6 +78,7 @@ final readonly class PersonalDataDocument
         public ?string $updatedAt,
         public array $routes,
         public array $releaseNotesRead,
+        public array $routeServices = [],
     ) {}
 
     /**
@@ -85,11 +101,13 @@ final readonly class PersonalDataDocument
                 $this->routes,
             ),
             'release_notes_read' => $this->releaseNotesRead,
+            'route_services' => $this->routeServices,
             'withheld' => [
                 'password',
                 'two_factor_secret',
                 'two_factor_recovery_codes',
                 'remember_token',
+                'route_service_tokens',
             ],
         ];
     }

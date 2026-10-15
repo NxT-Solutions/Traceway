@@ -10,7 +10,8 @@ final readonly class LibraryRoute
 {
     /**
      * @param  list<array{0: float, 1: float}>  $coordinates
-     * @param  list<array{discipline: string, distance_metres: int, fit_url: string|null}>  $legs
+     * @param  list<array{discipline: string, distance_metres: int, fit_url: string|null, gpx_url: string|null}>  $legs
+     * @param  list<string>  $sentTo  the services the route, or a leg of it, went to
      */
     public function __construct(
         public RouteId $id,
@@ -28,6 +29,8 @@ final readonly class LibraryRoute
         public ?string $layout = null,
         public array $legs = [],
         public bool $imageDrawn = false,
+        public ?string $gpxUrl = null,
+        public array $sentTo = [],
     ) {}
 
     /**
@@ -45,8 +48,10 @@ final readonly class LibraryRoute
      *     created_at: string|null,
      *     coordinates: list<array{0: float, 1: float}>,
      *     layout: string|null,
-     *     legs: list<array{discipline: string, distance_metres: int, fit_url: string|null}>,
-     *     image_drawn: bool
+     *     legs: list<array{discipline: string, distance_metres: int, fit_url: string|null, gpx_url: string|null}>,
+     *     image_drawn: bool,
+     *     gpx_url: string|null,
+     *     sent_to: list<string>
      * }
      */
     public function toArray(): array
@@ -67,6 +72,8 @@ final readonly class LibraryRoute
             'layout' => $this->layout,
             'legs' => $this->legs,
             'image_drawn' => $this->imageDrawn,
+            'gpx_url' => $this->gpxUrl,
+            'sent_to' => $this->sentTo,
         ];
     }
 }

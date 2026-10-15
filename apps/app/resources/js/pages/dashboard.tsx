@@ -1546,6 +1546,8 @@ export default function Dashboard() {
     }>({ plan: null, swim: null, colours: [] });
     const arrowLinesRef = useRef<Coordinate[][]>([]);
     const [routeSaved, setRouteSaved] = useState(false);
+    // The id of the route as saved, so Send to device can send it to a service.
+    const [savedRouteId, setSavedRouteId] = useState<string | null>(null);
     const [exported, setExported] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -2011,6 +2013,22 @@ export default function Dashboard() {
 
     const sportLabel =
         sports.find((item) => item.value === sport)?.label ?? 'Road';
+    // The land legs of a multisport plan, each sent to a device on its own.
+    const deviceLegs = multisport
+        ? (plan?.legs ?? []).flatMap((leg, index) =>
+              leg.discipline === 'swim' || leg.coordinates.length < 2
+                  ? []
+                  : [
+                        {
+                            n: index + 1,
+                            label:
+                                sports.find(
+                                    (item) => item.value === leg.discipline,
+                                )?.label ?? leg.discipline,
+                        },
+                    ],
+          )
+        : [];
     const shapeLabel =
         shapes.find((item) => item.value === shape)?.label ?? 'Loop';
     const surfaceLabel =
@@ -2996,6 +3014,7 @@ export default function Dashboard() {
         roads?: 'quiet' | 'any';
     }): Promise<void> {
         setRouteSaved(false);
+        setSavedRouteId(null);
         forgetBorrowedName();
         const chosenSport = next?.sport ?? sport;
         const chosenSurface = next?.surface ?? surface;
@@ -3202,6 +3221,7 @@ export default function Dashboard() {
 
         setSheet(null);
         setRouteSaved(false);
+        setSavedRouteId(null);
         dirty.current = true;
         setBusy(true);
         setMessage(
@@ -3469,11 +3489,19 @@ export default function Dashboard() {
         };
     }
 
-    async function saveRoute(): Promise<void> {
+    /**
+     * Saves the route to the rider's profile and gives back its id, or the id
+     * it already has. Null when it could not be saved.
+     */
+    async function saveRoute(): Promise<string | null> {
         const payload = savePayload();
 
-        if (payload === null || saving || routeSaved) {
-            return;
+        if (routeSaved) {
+            return savedRouteId;
+        }
+
+        if (payload === null || saving) {
+            return null;
         }
 
         setSaving(true);
@@ -3498,10 +3526,13 @@ export default function Dashboard() {
             if (!response.ok || url === null) {
                 setMessage('The route could not be saved.');
 
-                return;
+                return null;
             }
 
+            const id = typeof record.id === 'string' ? record.id : null;
+
             setRouteSaved(true);
+            setSavedRouteId(id);
             setMessage('Saved. Share it from Saved routes.');
 
             // The shared link shows the route on the map in a chat. Only the
@@ -3533,8 +3564,12 @@ export default function Dashboard() {
                     }),
                 );
             }
+
+            return id;
         } catch {
             setMessage('The route could not be saved.');
+
+            return null;
         } finally {
             setSaving(false);
         }
@@ -3554,6 +3589,7 @@ export default function Dashboard() {
         }
 
         setRouteSaved(false);
+        setSavedRouteId(null);
         forgetBorrowedName();
         const chosenSport = next?.sport ?? sport;
         const chosenSurface = next?.surface ?? surface;
@@ -3657,6 +3693,7 @@ export default function Dashboard() {
         }
 
         setRouteSaved(false);
+        setSavedRouteId(null);
         setPlacing(null);
         dirty.current = true;
         setBusy(true);
@@ -6209,16 +6246,31 @@ export default function Dashboard() {
                                 <SendToDevice
                                     open={sending}
                                     onOpenChange={setSending}
-                                >
-                                    <Button
-                                        type="button"
-                                        onClick={() => void downloadFit()}
-                                    >
-                                        {multisport
-                                            ? 'Download a FIT for each leg'
-                                            : 'Download FIT'}
-                                    </Button>
-                                </SendToDevice>
+                                    fit={
+                                        <Button
+                                            type="button"
+                                            onClick={() => void downloadFit()}
+                                        >
+                                            {multisport
+                                                ? 'Download a FIT for each leg'
+                                                : 'Download FIT'}
+                                        </Button>
+                                    }
+                                    gpx={
+                                        <Button
+                                            type="button"
+                                            disabled={exporting}
+                                            aria-busy={exporting}
+                                            onClick={() => void download()}
+                                        >
+                                            {exporting
+                                                ? 'Reading the legs…'
+                                                : 'Download GPX'}
+                                        </Button>
+                                    }
+                                    legs={deviceLegs}
+                                    savedRouteId={saveRoute}
+                                />
                                 <div className="btns one">
                                     <button
                                         type="button"

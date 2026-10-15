@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Mail\AccountMessage;
 use App\Models\Release;
+use App\Models\RouteServiceAccount;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +28,11 @@ it('keeps the password and sign-in secrets out of the download', function (): vo
         'user_id' => $user->id,
         'name' => 'Morning loop',
     ]);
+    RouteServiceAccount::factory()->create([
+        'user_id' => $user->id,
+        'access_token' => 'wahoo-token-should-stay',
+        'refresh_token' => 'wahoo-refresh-should-stay',
+    ]);
 
     $response = $this->actingAs($user)->get(route('privacy.export'));
     $download = $response->streamedContent();
@@ -38,6 +44,8 @@ it('keeps the password and sign-in secrets out of the download', function (): vo
         ->not->toContain('totp-secret-should-stay')
         ->not->toContain('recovery-code-should-stay')
         ->not->toContain('remember-token-should-stay')
+        ->not->toContain('wahoo-token-should-stay')
+        ->not->toContain('wahoo-refresh-should-stay')
         ->not->toContain((string) $stored?->password)
         ->not->toContain((string) $stored?->getRawOriginal('two_factor_secret'))
         ->not->toContain((string) $stored?->getRawOriginal('two_factor_recovery_codes'));
@@ -48,7 +56,9 @@ it('keeps the password and sign-in secrets out of the download', function (): vo
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',
-    ])->and(array_keys($document['account']))->not->toContain('password', 'two_factor_secret', 'remember_token');
+        'route_service_tokens',
+    ])->and($document['route_services'][0]['service'])->toBe('wahoo')
+        ->and(array_keys($document['account']))->not->toContain('password', 'two_factor_secret', 'remember_token');
 
     Mail::assertQueued(AccountMessage::class, function (AccountMessage $accountMessage) use ($stored): bool {
         $attachment = json_encode($accountMessage->attachment);

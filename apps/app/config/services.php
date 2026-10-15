@@ -58,6 +58,21 @@ return [
         'url' => env('OPENFREEMAP_URL', 'https://tiles.openfreemap.org'),
     ],
 
+    // Services a rider connects so Traceway can send a route to their device.
+    // A service without a client id stays hidden.
+    'wahoo' => [
+        'client_id' => env('WAHOO_CLIENT_ID'),
+        'client_secret' => env('WAHOO_CLIENT_SECRET'),
+        'url' => env('WAHOO_URL', 'https://api.wahooligan.com'),
+    ],
+
+    'ride_with_gps' => [
+        'client_id' => env('RIDEWITHGPS_CLIENT_ID'),
+        'client_secret' => env('RIDEWITHGPS_CLIENT_SECRET'),
+        'api_key' => env('RIDEWITHGPS_API_KEY'),
+        'url' => env('RIDEWITHGPS_URL', 'https://ridewithgps.com'),
+    ],
+
     'valhalla' => [
         'url' => env('VALHALLA_URL', 'https://valhalla1.openstreetmap.de'),
         // The public server refuses a request whose points span more than

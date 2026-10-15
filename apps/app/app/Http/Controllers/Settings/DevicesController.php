@@ -15,6 +15,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\LinkDeviceRequest;
 use App\Models\User;
 use App\Queries\Account\DeviceLinksQuery;
+use App\Queries\Account\RouteServicesQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -30,10 +31,13 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class DevicesController extends Controller
 {
-    public function edit(Request $request, DeviceLinksQuery $deviceLinksQuery): Response
+    public function edit(Request $request, DeviceLinksQuery $deviceLinksQuery, RouteServicesQuery $routeServicesQuery): Response
     {
+        $riderId = $this->user($request)->id;
+
         return Inertia::render('settings/devices', [
-            'devices' => $deviceLinksQuery->forRider($this->user($request)->id),
+            'devices' => $deviceLinksQuery->forRider($riderId),
+            'services' => $routeServicesQuery->forRider($riderId),
         ]);
     }
 
