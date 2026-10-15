@@ -96,7 +96,7 @@ export const privacy: LegalPage = {
             ],
             items: [
                 '**Hetzner Online** hosts the server and the database, in Germany.',
-                '**Cloudflare** keeps the backup copies of the database, and counts visits to the pages of this site when you agree.',
+                '**Cloudflare** passes every visit to traceway.online on to the server, to keep the site fast and to stop attacks, so it sees your IP address and the pages you ask for. It checks that a person, not a script, fills in the sign-up and password reset forms. It also keeps the backup copies of the database, and counts visits to the pages of this site when you agree.',
                 '**Resend** sends the account email. It gets your email address and the message. For a copy of your data, that includes the file.',
                 '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names, and the [OpenFreeMap](https://openfreemap.org) map tiles for water, toilets, and cafés. The Traceway server sends them the points of a route, the name of a place, a place you search for with the middle of your map rounded to about 10 kilometres, a pin rounded to about 100 metres, or which map tiles a route crosses. It never sends your name or email address.',
                 '**Your own browser** loads the map itself from [OpenFreeMap](https://openfreemap.org). Like any website, it sees your IP address and the part of the map you look at. Everything else goes through Traceway.',
@@ -123,7 +123,7 @@ export const privacy: LegalPage = {
             heading: 'The legal grounds',
             items: [
                 '**The service you asked for** (GDPR article 6(1)(b)): your account, your routes, your watches, the AI assistants you connect, and the account email.',
-                '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs, backups, and limits on how often the map services are asked.',
+                '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs, backups, protection against attacks and scripts, and limits on how often the map services are asked.',
                 '**Your consent** (article 6(1)(a)): counting visits to the pages of this site with Cloudflare, to know how many people visit and to make the site better. You can take it back at any time with Cookie choice at the bottom of every page.',
                 '**A legal duty** (article 6(1)(c)): when the law requires NxT-Solutions to keep something or hand it over.',
             ],

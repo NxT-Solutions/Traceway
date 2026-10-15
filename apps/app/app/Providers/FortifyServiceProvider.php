@@ -66,6 +66,7 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::requestPasswordResetLinkView(fn (Request $request) => Inertia::render('auth/forgot-password', [
             'status' => $request->session()->get('status'),
+            'turnstileSiteKey' => $this->turnstileSiteKey(),
         ]));
 
         Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/verify-email', [
@@ -74,11 +75,24 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::registerView(fn () => Inertia::render('auth/register', [
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            'turnstileSiteKey' => $this->turnstileSiteKey(),
         ]));
 
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
 
         Fortify::confirmPasswordView(fn () => Inertia::render('auth/confirm-password'));
+    }
+
+    /**
+     * The public Turnstile key, or null when the check is off. Both keys are
+     * needed, the same as for the check itself.
+     */
+    private function turnstileSiteKey(): ?string
+    {
+        $siteKey = config('services.turnstile.site_key');
+        $secret = config('services.turnstile.secret_key');
+
+        return is_string($siteKey) && $siteKey !== '' && is_string($secret) && $secret !== '' ? $siteKey : null;
     }
 
     /**

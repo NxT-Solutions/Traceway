@@ -227,6 +227,9 @@ it('has the browser talk only to Traceway, apart from the map itself', function 
     // rider can follow, or code comments. A new host belongs here only once
     // it is in the privacy policy, or when it is only a link.
     $map = ['tiles.openfreemap.org'];
+    // Turnstile runs in the browser on the sign-up and password reset forms
+    // only. The privacy policy names Cloudflare for it.
+    $personCheck = ['challenges.cloudflare.com'];
     $links = ['github.com', 'www.paypal.com', 'paypal.me', 'claude.ai', 'chatgpt.com', 'laravel.com', 'usehooks-ts.com', 'www.w3.org', 'localhost'];
     $files = [...File::allFiles(resource_path('js')), ...File::allFiles(resource_path('mcp'))];
     $hosts = [];
@@ -239,5 +242,11 @@ it('has the browser talk only to Traceway, apart from the map itself', function 
         }
     }
 
-    expect(array_diff(array_keys($hosts), [...$map, ...$links]))->toBe([]);
+    expect(array_diff(array_keys($hosts), [...$map, ...$personCheck, ...$links]))->toBe([]);
+})->group('gdpr');
+
+it('names the sign-up check in the privacy policy', function (): void {
+    $legal = file_get_contents(dirname(base_path(), 1).'/web/src/legal.ts') ?: '';
+
+    expect($legal)->toContain('checks that a person, not a script, fills in the sign-up and password reset forms');
 })->group('gdpr');

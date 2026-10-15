@@ -23,7 +23,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('settings/assistants', [AssistantsController::class, 'edit'])->name('assistants.edit');
 
     Route::get('settings/privacy', [PrivacyController::class, 'edit'])->name('privacy.edit');
-    Route::get('settings/privacy/export', [PrivacyController::class, 'export'])->name('privacy.export');
+    Route::get('settings/privacy/export', [PrivacyController::class, 'export'])->middleware('throttle:export')->name('privacy.export');
     Route::delete('settings/privacy/apps/{client}', [PrivacyController::class, 'disconnect'])
         ->whereUuid('client')
         ->name('privacy.apps.disconnect');

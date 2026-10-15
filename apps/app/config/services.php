@@ -58,6 +58,13 @@ return [
         'url' => env('OPENFREEMAP_URL', 'https://tiles.openfreemap.org'),
     ],
 
+    // Cloudflare Turnstile under the sign-up and password-reset forms. Both
+    // keys empty turns it off.
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
     'valhalla' => [
         'url' => env('VALHALLA_URL', 'https://valhalla1.openstreetmap.de'),
         // The public server refuses a request whose points span more than
