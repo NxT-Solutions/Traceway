@@ -67,20 +67,27 @@ export const privacy: LegalPage = {
             ],
         },
         {
-            heading: 'Counting visits to this site',
+            heading: 'Counting visits and improving the pages',
             paragraphs: [
-                'The pages of this site, such as the home page, help, and this page, ask whether they may count your visit. Nothing is counted until you say yes. If you say no, nothing from Cloudflare or Microsoft is loaded. The planner itself never counts visits.',
-                'Traceway uses what it learns for two things only: to count how many people visit, and to make the site easier to use. For example, if people keep missing a button or stop halfway down a page, the design changes. It is not used for ads, not sold, and not passed on by Traceway to anyone else.',
-                'If you say yes, two services are used:',
+                'The pages of this site, such as the home page, help, and this page, ask whether they may count your visit and see how you use them. Nothing is counted until you say yes. If you say no, nothing from Cloudflare or Microsoft is loaded. The planner itself never counts visits.',
+                'Traceway uses what it learns for two things only: to count how many people visit, and to make the site easier to use. For example, if people keep missing a button or stop halfway down a page, the design changes. It is never used for ads, never sold, and Traceway does not share it with partners. Only Cloudflare and Microsoft receive it, as set out below.',
+                'To be exact about where this happens: it runs only on these pages of traceway.online, and only after you say yes there:',
             ],
             items: [
+                '**Where it runs:** the home page (/), Support Traceway (/support), and the legal pages: privacy (/privacy), terms (/terms), cookies (/cookies), and legal notice (/legal).',
+                '**Where it never runs:** the planner and everything you reach after you log in, such as your routes, your library, and your settings. Also the log in and sign up pages, shared route links, error pages, the Traceway watch app, AI assistants connected to Traceway, and the emails Traceway sends.',
+            ],
+        },
+        {
+            heading: 'What is used if you say yes',
+            items: [
                 '**Cloudflare Web Analytics** counts visits. Your browser tells Cloudflare which page you opened, the site that sent you there, your browser and device type, and how fast the page loaded. It sets no cookie. Traceway sees only totals, such as how many people opened a page and from which country.',
-                '**Microsoft Clarity** shows how people use the pages: where they click and how far they scroll, as heat maps and as recordings of a visit. Anything typed into a form is hidden from the recording. Clarity sets cookies, listed on the [cookies page](/cookies), to link the pages of one visit. Traceway does not use it for ads, and tells Clarity so.',
+                '**Microsoft Clarity** shows how people use the pages: where they click and how far they scroll, as heat maps and as recordings of a visit. Clarity sets cookies, listed on the [cookies page](/cookies), to link the pages of one visit. Traceway does not use it for ads, and tells Clarity so.',
             ],
             after: [
                 'Both see your IP address, as any website does. Neither gets your name, your email address, or your routes, and a visit is not linked to your Traceway account.',
-                'Microsoft decides for itself how it uses Clarity data, under the [Microsoft Privacy Statement](https://www.microsoft.com/privacy/privacystatement). It is a separate controller, not a processor for NxT-Solutions.',
-                'You can change your mind at any time with **Cookie choice** at the bottom of every page. Saying no deletes the Clarity cookies and stops the recording.',
+                'Microsoft decides for itself how it uses Clarity data, under the [Microsoft Privacy Statement](https://www.microsoft.com/privacy/privacystatement). It is a separate controller, not a processor for NxT-Solutions. NxT-Solutions decides to collect it on these pages. What Microsoft then does with it is up to Microsoft.',
+                'You can change your mind at any time with **Cookie choice** at the bottom of every page. Saying no deletes Clarity’s cookies on this site and stops the recording, and nothing is counted from the next page on. It does not undo what was counted before, including the page you are on.',
             ],
         },
         {
@@ -97,7 +104,7 @@ export const privacy: LegalPage = {
             items: [
                 '**Hetzner Online** hosts the server and the database, in Germany.',
                 '**Cloudflare** keeps the backup copies of the database, and counts visits to the pages of this site when you agree.',
-                '**Microsoft** runs Clarity, which shows how visitors use the pages of this site when they agree. See “Counting visits to this site” above.',
+                '**Microsoft** runs Clarity, which shows how visitors use the pages of this site when they agree. See “Counting visits and improving the pages” above.',
                 '**Resend** sends the account email. It gets your email address and the message. For a copy of your data, that includes the file.',
                 '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names, and the [OpenFreeMap](https://openfreemap.org) map tiles for water, toilets, and cafés. The Traceway server sends them the points of a route, the name of a place, a place you search for with the middle of your map rounded to about 10 kilometres, a pin rounded to about 100 metres, or which map tiles a route crosses. It never sends your name or email address.',
                 '**Your own browser** loads the map itself from [OpenFreeMap](https://openfreemap.org). Like any website, it sees your IP address and the part of the map you look at. Everything else goes through Traceway.',
@@ -140,6 +147,7 @@ export const privacy: LegalPage = {
                 '**Place searches:** 30 days, for the words you typed and the middle of your map rounded to about 10 kilometres, not linked to you.',
                 '**An email that could not be sent:** up to a day, so the problem can be found. Then it is deleted.',
                 '**Clarity recordings:** 30 days. Microsoft may keep a small sample for up to 9 months.',
+                '**Your yes or no to counting visits:** in your own browser, for up to a year. Then the pages ask again.',
                 '**Backups:** something you delete can stay in a backup for up to 14 days. Then it is gone.',
                 '**Error logs:** only the latest. Older lines are overwritten automatically.',
             ],
@@ -281,7 +289,7 @@ export const cookies: LegalPage = {
         'The cookies and browser storage Traceway uses to keep you signed in and remember your choices, and the visit counting it asks you about first.',
     heading: 'Cookies and storage',
     intro: [
-        'The planner uses only the cookies it needs to work. There are no advertising cookies.',
+        'The planner uses only the cookies it needs to work. Traceway sets no advertising cookies, and asks Microsoft not to use its cookies for ads.',
         'The pages of this site, like this one, ask before they count your visit. Only if you say yes do they load Cloudflare Web Analytics and Microsoft Clarity, and only Clarity sets cookies. The planner never counts visits.',
     ],
     sections: [
@@ -302,7 +310,7 @@ export const cookies: LegalPage = {
             items: [
                 '**_clck** remembers that the same browser came back, so visits are not counted twice. It lasts a year.',
                 '**_clsk** links the pages of one visit into one recording. It lasts a day.',
-                '**CLID, MUID, MR, SM, and ANONCHK** are Microsoft’s own cookies, on Microsoft’s sites. Traceway tells Clarity not to use them for ads. Many browsers block them anyway.',
+                '**CLID, MUID, MR, SM, and ANONCHK** are set by Microsoft on its own sites, not on Traceway’s, and Microsoft decides how long they last. Traceway tells Clarity not to use them for ads. Many browsers block them anyway.',
             ],
         },
         {
@@ -314,7 +322,7 @@ export const cookies: LegalPage = {
                 '**traceway.planner…** keeps the route you were planning, so it is still there when you come back, and the last few places you picked in a search. It is cleared when you log out.',
                 '**traceway.library.layout** remembers whether your library shows a grid, a map, or a list.',
                 '**appearance** keeps your light or dark choice here too.',
-                '**traceway.consent** remembers whether you said yes or no to counting your visit, so the pages of this site do not ask again.',
+                '**traceway.consent** remembers whether you said yes or no to counting your visit, and when, so the pages of this site do not ask again for a year.',
             ],
         },
         {
@@ -327,7 +335,7 @@ export const cookies: LegalPage = {
             heading: 'Your choice',
             paragraphs: [
                 'The planner’s cookies are needed for Traceway to work, or keep a choice you made, so EU and Belgian law does not ask for your consent. You can still delete them in your browser settings at any time. You will then be logged out, and the planner forgets your choices.',
-                'Counting your visit is up to you. Say yes or no when the pages of this site ask, and change your mind at any time with **Cookie choice** at the bottom of every page. Saying no deletes the Clarity cookies. The [privacy policy](/privacy) has more.',
+                'Counting your visit is up to you. Say yes or no when the pages of this site ask, and change your mind at any time with **Cookie choice** at the bottom of every page. Saying no deletes Clarity’s cookies on this site. Microsoft’s own cookies stay until you delete them in your browser settings. The [privacy policy](/privacy) has more.',
             ],
         },
     ],

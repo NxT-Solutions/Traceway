@@ -87,7 +87,7 @@ const data = {
         <script type="application/ld+json" set:html={JSON.stringify(data).replace(/</g, '\\u003c')} />
     </head>
     <body id="top">
-        <slot />
         <Consent />
+        <slot />
     </body>
 </html>

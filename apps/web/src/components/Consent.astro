@@ -1,14 +1,14 @@
 ---
 // Asks before the site counts visits. Nothing from Cloudflare or Microsoft loads until a visitor says yes.
-// The privacy policy and the cookies page describe both, so change them together with this.
+// The privacy policy and the cookies page describe both, and list the pages this runs on, so change them together.
 ---
 
-<section class="consent" data-consent aria-labelledby="consent-title" hidden>
-    <h2 id="consent-title" tabindex="-1">Can we count your visit?</h2>
+<section class="consent" data-consent data-lenis-prevent aria-labelledby="consent-title" hidden>
+    <h2 id="consent-title" tabindex="-1">Can we count your visit and see how you use these pages?</h2>
     <p>
-        Saying yes lets us count visits and see where these pages are hard to use, so we can make them better. It uses Cloudflare
-        and Microsoft Clarity, which sets cookies and records how you move around the pages. Never for ads, never
-        sold. <a href="/cookies">More</a>
+        It helps us make them easier to use. Cloudflare counts visits. Microsoft Clarity sets cookies and records how
+        you move around. Never for ads, never sold. Change your mind any time under Cookie choice, at the bottom.{' '}
+        <a href="/cookies">Read more about cookies</a>
     </p>
     <div class="consent-actions">
         <button type="button" data-consent-choice="yes">Yes, that’s fine</button>
@@ -21,14 +21,17 @@
     type Clarity = ((...args: unknown[]) => void) & { q?: unknown[] };
 
     const key = 'traceway.consent';
+    const year = 365 * 24 * 60 * 60 * 1000;
     const cloudflare = '48021b81dbb740c78f318d6b00df30d1';
     const clarityProject = 'yy1yc3xnwl';
     const site = window as Window & { clarity?: Clarity };
 
+    // A choice is kept as "yes:<when>" or "no:<when>", and asked again after a year.
     const read = (): Choice | null => {
         try {
-            const value = localStorage.getItem(key);
-            return value === 'yes' || value === 'no' ? value : null;
+            const [choice, when] = (localStorage.getItem(key) ?? '').split(':');
+            const fresh = Date.now() - Number(when) < year;
+            return fresh && (choice === 'yes' || choice === 'no') ? choice : null;
         } catch {
             return null;
         }
@@ -36,17 +39,18 @@
 
     const keep = (choice: Choice): void => {
         try {
-            localStorage.setItem(key, choice);
+            localStorage.setItem(key, `${choice}:${Date.now()}`);
         } catch {
             // Without storage the question comes back on the next page, which is the safe side.
         }
     };
 
+    // Only the live site counts, so local work and test runs never reach Cloudflare or Microsoft.
+    const live = import.meta.env.PROD && location.hostname === 'traceway.online';
     let started = false;
 
-    // Only the built site loads them, so local work is not counted.
     const start = (): void => {
-        if (!import.meta.env.PROD) {
+        if (!live) {
             return;
         }
 
@@ -87,6 +91,14 @@
     const banner = document.querySelector<HTMLElement>('[data-consent]');
 
     if (banner) {
+        let opener: HTMLElement | null = null;
+
+        const close = (): void => {
+            banner.hidden = true;
+            opener?.focus();
+            opener = null;
+        };
+
         const choice = read();
 
         if (choice === 'yes') {
@@ -99,7 +111,7 @@
             button.addEventListener('click', () => {
                 const picked: Choice = button.dataset.consentChoice === 'yes' ? 'yes' : 'no';
                 keep(picked);
-                banner.hidden = true;
+                close();
 
                 if (picked === 'yes') {
                     start();
@@ -109,8 +121,16 @@
             });
         }
 
-        for (const opener of document.querySelectorAll<HTMLElement>('[data-consent-open]')) {
-            opener.addEventListener('click', () => {
+        // Escape puts the question away for this page without answering it.
+        banner.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                close();
+            }
+        });
+
+        for (const button of document.querySelectorAll<HTMLElement>('[data-consent-open]')) {
+            button.addEventListener('click', () => {
+                opener = button;
                 banner.hidden = false;
                 banner.querySelector<HTMLElement>('#consent-title')?.focus();
             });
