@@ -730,12 +730,16 @@ const farFromRoad =
 // The routing engine did not answer, which says nothing about the spot.
 const mapBusy = 'The map is busy. Try again in a moment.';
 
-/** Why a spot found no road: none near it, or no answer in time. */
-type SnapMiss = 'far' | 'busy';
+/**
+ * Why a spot found no road: none near it, no answer in time, or a sign-in
+ * that ran out while the planner was open.
+ */
+type SnapMiss = 'far' | 'busy' | 'signed-out';
 
 const snapMissNotes: Record<SnapMiss, string> = {
     far: farFromRoad,
     busy: mapBusy,
+    'signed-out': 'You were signed out. Reload the page to sign in again.',
 };
 const snapReach = 180;
 
@@ -4582,11 +4586,9 @@ export default function Dashboard() {
     // A card shows its actions once its spot is on a road, and a way to ask
     // again when the routing engine did not answer.
     const tapActions: TapAction[] =
-        tapCard === null ||
-        tapCard.status === 'snapping' ||
-        tapCard.status === 'far'
-            ? []
-            : tapCard.status === 'busy'
+        tapCard?.status === 'ready'
+            ? tapActionsFor(tapCard)
+            : tapCard?.status === 'busy'
               ? [
                     {
                         label: 'Try again',
@@ -4598,7 +4600,7 @@ export default function Dashboard() {
                             ),
                     },
                 ]
-              : tapActionsFor(tapCard);
+              : [];
 
     onMapClickRef.current = (lng, lat) => {
         if (mode === 'multisport') {
@@ -4709,8 +4711,8 @@ export default function Dashboard() {
 
     /**
      * The nearest road or path for the sport, from the routing engine, when
-     * none is drawn near the spot. Far when the nearest one is too far, and
-     * busy when the engine did not answer.
+     * none is drawn near the spot. Far when the nearest one is too far, busy
+     * when the engine did not answer, and signed out when the session ended.
      */
     async function snapFromServer(
         lng: number,
@@ -4728,6 +4730,10 @@ export default function Dashboard() {
             });
             if (response.status === 422) {
                 return 'far';
+            }
+
+            if (response.status === 401 || response.status === 419) {
+                return 'signed-out';
             }
 
             const body: unknown = await response.json();
