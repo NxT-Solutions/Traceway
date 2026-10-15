@@ -1,0 +1,118 @@
+---
+// Asks before the site counts visits. Nothing from Cloudflare or Microsoft loads until a visitor says yes.
+// The privacy policy and the cookies page describe both, so change them together with this.
+---
+
+<section class="consent" data-consent aria-labelledby="consent-title" hidden>
+    <h2 id="consent-title" tabindex="-1">Can we count your visit?</h2>
+    <p>
+        Saying yes lets Traceway see which pages help people, with Cloudflare and Microsoft Clarity. Clarity sets
+        cookies and records how you move around these pages. Nothing is used for ads. <a href="/cookies">More</a>
+    </p>
+    <div class="consent-actions">
+        <button type="button" data-consent-choice="yes">Yes, that’s fine</button>
+        <button type="button" data-consent-choice="no">No, thanks</button>
+    </div>
+</section>
+
+<script>
+    type Choice = 'yes' | 'no';
+    type Clarity = ((...args: unknown[]) => void) & { q?: unknown[] };
+
+    const key = 'traceway.consent';
+    const cloudflare = '48021b81dbb740c78f318d6b00df30d1';
+    const clarityProject = 'yy1yc3xnwl';
+    const site = window as Window & { clarity?: Clarity };
+
+    const read = (): Choice | null => {
+        try {
+            const value = localStorage.getItem(key);
+            return value === 'yes' || value === 'no' ? value : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const keep = (choice: Choice): void => {
+        try {
+            localStorage.setItem(key, choice);
+        } catch {
+            // Without storage the question comes back on the next page, which is the safe side.
+        }
+    };
+
+    let started = false;
+
+    // Only the built site loads them, so local work is not counted.
+    const start = (): void => {
+        if (!import.meta.env.PROD) {
+            return;
+        }
+
+        if (started) {
+            site.clarity?.('consentv2', { ad_Storage: 'denied', analytics_Storage: 'granted' });
+            return;
+        }
+        started = true;
+
+        const counter = document.createElement('script');
+        counter.defer = true;
+        counter.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+        counter.dataset.cfBeacon = JSON.stringify({ token: cloudflare });
+        document.body.append(counter);
+
+        // Clarity's own loader queues calls until its tag arrives, so consent goes in first.
+        site.clarity =
+            site.clarity ||
+            function (this: unknown) {
+                const clarity = site.clarity as Clarity;
+                clarity.q = clarity.q || [];
+                // biome-ignore lint/complexity/noArguments: Clarity's queue expects the arguments object.
+                clarity.q.push(arguments);
+            };
+        site.clarity('consentv2', { ad_Storage: 'denied', analytics_Storage: 'granted' });
+        const tag = document.createElement('script');
+        tag.async = true;
+        tag.src = `https://www.clarity.ms/tag/${clarityProject}`;
+        document.head.append(tag);
+    };
+
+    // Clarity deletes its cookies and ends the recording. Cloudflare keeps nothing, and is not loaded on the next page.
+    const stop = (): void => {
+        site.clarity?.('consentv2', { ad_Storage: 'denied', analytics_Storage: 'denied' });
+        site.clarity?.('consent', false);
+    };
+
+    const banner = document.querySelector<HTMLElement>('[data-consent]');
+
+    if (banner) {
+        const choice = read();
+
+        if (choice === 'yes') {
+            start();
+        } else if (choice === null) {
+            banner.hidden = false;
+        }
+
+        for (const button of banner.querySelectorAll<HTMLButtonElement>('[data-consent-choice]')) {
+            button.addEventListener('click', () => {
+                const picked: Choice = button.dataset.consentChoice === 'yes' ? 'yes' : 'no';
+                keep(picked);
+                banner.hidden = true;
+
+                if (picked === 'yes') {
+                    start();
+                } else {
+                    stop();
+                }
+            });
+        }
+
+        for (const opener of document.querySelectorAll<HTMLElement>('[data-consent-open]')) {
+            opener.addEventListener('click', () => {
+                banner.hidden = false;
+                banner.querySelector<HTMLElement>('#consent-title')?.focus();
+            });
+        }
+    }
+</script>
