@@ -5,6 +5,7 @@ import '@fontsource/outfit/600.css';
 import 'lenis/dist/lenis.css';
 import '../styles/global.css';
 import '../styles/v2.css';
+import Consent from '../components/Consent.astro';
 import { questions } from '../seo/home';
 import * as about from '../seo/site';
 
@@ -87,5 +88,6 @@ const data = {
     </head>
     <body id="top">
         <slot />
+        <Consent />
     </body>
 </html>

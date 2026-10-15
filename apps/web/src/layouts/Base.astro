@@ -4,6 +4,7 @@ import '@fontsource/outfit/500.css';
 import '@fontsource/outfit/600.css';
 import '../styles/global.css';
 import '../styles/page.css';
+import Consent from '../components/Consent.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import { absolute } from '../seo/site';
@@ -55,5 +56,6 @@ const canonical = absolute(Astro.site, Astro.url.pathname.replace(/\/$/, '') || 
         <SiteHeader />
         <slot />
         <SiteFooter />
+        <Consent />
     </body>
 </html>
