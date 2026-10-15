@@ -70,7 +70,7 @@ export const privacy: LegalPage = {
             heading: 'Counting visits to this site',
             paragraphs: [
                 'The pages of this site, such as the home page, help, and this page, ask whether they may count your visit. Nothing is counted until you say yes. If you say no, nothing from Cloudflare or Microsoft is loaded. The planner itself never counts visits.',
-                'Traceway uses what it learns for one thing only: to make the site easier to use. For example, if people keep missing a button or stop halfway down a page, the design changes. It is not used for ads, not sold, and not passed on by Traceway to anyone else.',
+                'Traceway uses what it learns for two things only: to count how many people visit, and to make the site easier to use. For example, if people keep missing a button or stop halfway down a page, the design changes. It is not used for ads, not sold, and not passed on by Traceway to anyone else.',
                 'If you say yes, two services are used:',
             ],
             items: [
@@ -125,7 +125,7 @@ export const privacy: LegalPage = {
             items: [
                 '**The service you asked for** (GDPR article 6(1)(b)): your account, your routes, your watches, the AI assistants you connect, and the account email.',
                 '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs, backups, and limits on how often the map services are asked.',
-                '**Your consent** (article 6(1)(a)): counting visits to the pages of this site, with Cloudflare and Microsoft Clarity, to make the site easier to use. You can take it back at any time with Cookie choice at the bottom of every page.',
+                '**Your consent** (article 6(1)(a)): counting visits to the pages of this site, with Cloudflare and Microsoft Clarity, to know how many people visit and to make the site easier to use. You can take it back at any time with Cookie choice at the bottom of every page.',
                 '**A legal duty** (article 6(1)(c)): when the law requires NxT-Solutions to keep something or hand it over.',
             ],
         },
