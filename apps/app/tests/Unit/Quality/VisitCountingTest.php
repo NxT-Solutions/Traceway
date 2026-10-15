@@ -7,7 +7,7 @@ declare(strict_types=1);
  */
 uses()->group('gdpr');
 
-it('loads the visit counters only from the consent question', function (): void {
+it('loads the visit counter only from the consent question', function (): void {
     $web = dirname(__DIR__, 5).'/apps/web/src';
     $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($web, FilesystemIterator::SKIP_DOTS));
 
@@ -15,16 +15,16 @@ it('loads the visit counters only from the consent question', function (): void 
         $path = $file->getPathname();
         $source = file_get_contents($path) ?: '';
 
-        foreach (['cloudflareinsights.com', 'clarity.ms'] as $host) {
-            if (str_contains($source, $host)) {
-                expect($path)->toEndWith('/components/Consent.astro');
-            }
+        if (str_contains($source, 'cloudflareinsights.com')) {
+            expect($path)->toEndWith('/components/Consent.astro');
         }
+
+        // Session recording was tried and dropped. The policy promises counts only.
+        expect($source)->not->toContain('clarity.ms');
     }
 
     expect(file_get_contents($web.'/components/Consent.astro'))
-        ->toContain("location.hostname === 'traceway.online'")
-        ->toContain("ad_Storage: 'denied'");
+        ->toContain("location.hostname === 'traceway.online'");
 });
 
 it('names every page that asks in the privacy policy', function (): void {
