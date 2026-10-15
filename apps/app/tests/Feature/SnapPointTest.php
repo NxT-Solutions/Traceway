@@ -153,6 +153,44 @@ it('says the map is busy, not that no road is near, when the routing engine keep
     Exceptions::assertNothingReported();
 });
 
+it('says the map is busy, without asking again, when the routing engine refuses the request', function (): void {
+    $slept = [];
+    Config::sleepUsing(function (int $microseconds) use (&$slept): void {
+        $slept[] = $microseconds;
+    });
+    $mockClient = snapConnector(
+        MockResponse::make(['error' => 'Bad request'], 400),
+        MockResponse::make(['error' => 'Bad request'], 400),
+    );
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.snap'), [
+            'latitude' => 51.05,
+            'longitude' => 3.72,
+            'sport' => 'road',
+        ])
+        ->assertServiceUnavailable()
+        ->assertJsonPath('message', 'The map is busy. Try again in a moment.');
+
+    $mockClient->assertSentCount(1);
+    expect($slept)->toBe([]);
+});
+
+it('says the map is busy when the routing engine answers something that is not a road', function (): void {
+    Exceptions::fake();
+    snapConnector(MockResponse::make('<html>Maintenance</html>', 200));
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.snap'), [
+            'latitude' => 51.05,
+            'longitude' => 3.72,
+            'sport' => 'road',
+        ])
+        ->assertServiceUnavailable();
+
+    Exceptions::assertReportedCount(1);
+});
+
 it('says the map is busy after a timeout, without asking again', function (): void {
     Config::sleepUsing(static function (): void {});
     $attempts = 0;

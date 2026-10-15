@@ -120,14 +120,44 @@ try {
         throw new Error('Enter on "Start here" did not place the start.');
     }
 
-    // Undo puts the start back where it was.
+    // Undo puts the start back where it was. On the way, the router is busy
+    // the first time it is asked: the card says so and offers Try again, and
+    // focus waits on the card's close button while it asks again.
     const placed = await startOf();
+    let snaps = 0;
+    await desktop.route('**/routes/snap', async (route) => {
+        snaps += 1;
+
+        if (snaps === 1) {
+            await route.fulfill({
+                status: 503,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'The map is busy. Try again in a moment.' }),
+            });
+
+            return;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await route.continue();
+    });
     await canvas.focus();
     await desktop.keyboard.press('ArrowRight');
     await desktop.waitForTimeout(400);
     await desktop.keyboard.press('Enter');
-    // The card finds the nearest road first, then offers its actions.
-    await answered(desktop, desktop.locator('.tap-card .fill:focus', { hasText: 'Start here' }), 'No focused "Start here" after a second Enter');
+    await desktop.locator('.tap-card .tap-note', { hasText: 'The map is busy' }).waitFor({ timeout: 10000 });
+    await desktop.locator('.tap-card .fill:focus', { hasText: 'Try again' }).waitFor({ timeout: 3000 });
+    await desktop.keyboard.press('Enter');
+    await desktop.waitForTimeout(200);
+    const asking = await desktop.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.tagName);
+
+    if (asking !== 'Close') {
+        throw new Error(`While the card asked again, focus was on ${asking}, not its close button.`);
+    }
+
+    // The card finds the nearest road, then offers its actions.
+    await answered(desktop, desktop.locator('.tap-card .fill:focus', { hasText: 'Start here' }), 'No focused "Start here" after Try again');
+    await desktop.unroute('**/routes/snap');
     await desktop.keyboard.press('Enter');
     await desktop.waitForTimeout(300);
 
@@ -158,22 +188,28 @@ try {
         throw new Error('Panning or a stray tap moved the start.');
     }
 
-    // The start pin drags.
-    const pin = await desktop.locator('.tw-start-pin').boundingBox();
-    await desktop.mouse.move(pin.x + pin.width / 2, pin.y + pin.height / 2);
-    await desktop.mouse.down();
-    await desktop.mouse.move(pin.x + pin.width / 2 + 80, pin.y + pin.height / 2 + 40, { steps: 8 });
-    await desktop.mouse.up();
+    // The start pin drags. The dropped pin finds its road first, which takes
+    // a moment on the public router, and up to 17 s when a busy router is
+    // asked twice. A busy answer puts the pin back, and the walk drags it
+    // again, as a rider would, up to twice.
+    const status = desktop.locator('.note[role="status"]');
 
-    // The dropped pin finds its road first, which takes a moment on the
-    // public router.
-    for (let waited = 0; waited < 15000 && (await startOf()) === placed; waited += 250) {
-        await desktop.waitForTimeout(250);
-    }
+    for (let dragged = 0; (await startOf()) === placed; dragged++) {
+        const said = await status.allInnerTexts();
 
-    if ((await startOf()) === placed) {
-        const status = await desktop.locator('.note[role="status"]').allInnerTexts();
-        throw new Error(`Dragging the start pin did not move the start. Status: ${JSON.stringify(status)}`);
+        if (dragged === 3 || (dragged > 0 && !said.some((text) => text.includes('The map is busy')))) {
+            throw new Error(`Dragging the start pin did not move the start. Status: ${JSON.stringify(said)}`);
+        }
+
+        const pin = await desktop.locator('.tw-start-pin').boundingBox();
+        await desktop.mouse.move(pin.x + pin.width / 2, pin.y + pin.height / 2);
+        await desktop.mouse.down();
+        await desktop.mouse.move(pin.x + pin.width / 2 + 80, pin.y + pin.height / 2 + 40, { steps: 8 });
+        await desktop.mouse.up();
+
+        for (let waited = 0; waited < 20000 && (await startOf()) === placed; waited += 250) {
+            await desktop.waitForTimeout(250);
+        }
     }
 
     // The search bar on the map forgives a typo with names from the map
