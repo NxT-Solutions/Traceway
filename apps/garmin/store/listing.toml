@@ -1,0 +1,87 @@
+# The Traceway listing on the Connect IQ Store. Git is its source: change it
+# here, never under Edit Details, or the next sync puts this back.
+#
+# CI makes the store match this file (tools/connectiq_store.py):
+# - A pull request shows what it would change on the store, and changes nothing.
+# - A merge to main that changes this folder updates the listing.
+# - A release that changes the Garmin app uploads it as a new version, with
+#   What's New taken from the release's Devices notes.
+#
+# Images are paths from this folder. An SVG is drawn at the size the store asks for.
+
+[[languages]]
+locale = "en"
+# At most 50 characters.
+title = "Traceway"
+# At most 4000 characters.
+description = """
+Plan a route on traceway.online and ride, run or hike it from your Garmin.
+
+Traceway plans routes for road, gravel and mountain bike, and for running, trail running, walking and hiking. This app puts the routes you saved there on your device:
+
+- See your saved routes in a list, with distance and climb.
+- Open one to see the whole route on the map.
+- Start it right away, or save it to the device's courses for later.
+- Works with buttons too, so older Edge models without a touch screen are fine.
+
+How to link it:
+1. Open Traceway on your device. It shows a six-character code.
+2. On traceway.online, go to Settings, then Devices, and type the code.
+3. Your saved routes appear on the device. You only link it once.
+
+The device follows the route on its own map, with turns and climbs. Traceway only reads the routes you saved, and you can unlink the device at any time under Settings, then Devices.
+"""
+# 1440 × 720, under 2 MB. Leave it empty for none.
+hero_image = "hero.svg"
+
+[images]
+# 500 × 500, under 300 KB.
+cover = "icon.svg"
+# 128 × 128, under 150 KB. The 64-colour icon is drawn in the 64 colours older devices show.
+device_icon_64_color = "icon.svg"
+device_icon_24_bit = "icon.svg"
+# One to five, in this order, each a PNG, JPG or GIF under 150 KB.
+screens = [
+  "screens/1-edge-routes.png",
+  "screens/2-edge-route-map.jpg",
+  "screens/3-edge-link.png",
+  "screens/4-forerunner-routes.png",
+  "screens/5-forerunner-run-it.jpg",
+]
+
+[category]
+name = "Navigation"
+# Empty for none.
+subcategory = ""
+
+[privacy]
+collects_user_data = true
+policy_url = "https://traceway.online/privacy"
+
+[hardware]
+# ANT+ profiles the app reads or writes, by name. Empty for none.
+ant_plus_profiles = []
+# A page that sells hardware the app needs. Empty for none.
+product_url = ""
+
+[regions]
+# The only countries the app is offered in. Empty for every country.
+countries = []
+
+[contact]
+# Shown on the listing.
+email = "hello@nxt-solutions.com"
+source_url = "https://github.com/NxT-Solutions/Traceway"
+# YouTube or Vimeo.
+video_url = "https://youtu.be/R9ZrjQsZiGU"
+# Email about new reviews.
+review_notifications = true
+# Let the store add newly compatible devices.
+app_migration = true
+
+[monetization]
+paid = false
+
+[companion]
+ios_url = ""
+android_url = ""
