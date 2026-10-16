@@ -104,14 +104,25 @@ class Store:
             raise StoreError("Garmin accepted the sign-in, but the store gave no session.")
 
     def developer_id(self):
+        """The developer the dashboard puts in its paths: the one whose apps include the Traceway listing."""
         user = self.json("GET", API + "/developers")
-        for key in ("developerId", "id", "userId"):
-            if isinstance(user, dict) and isinstance(user.get(key), str):
-                return user[key]
-        raise StoreError(f"The store did not say which developer this is (fields: {keys(user)}).")
+        if not isinstance(user, dict):
+            raise StoreError("The store did not say who is signed in.")
+        print(f"Developer fields: {keys(user)}")
+
+        candidates = []
+        for key, value in user.items():
+            if isinstance(value, str) and re.fullmatch(r"[0-9a-f-]{36}", value):
+                candidates.append((key, value))
+        for key, value in candidates:
+            status, _, _ = self.request("GET", f"{API}/developers/{value}/apps?" + urllib.parse.urlencode({"locale": LOCALE}), expect=(200, 400, 403, 404))
+            print(f"Apps under {key}: {status}")
+            if status == 200:
+                return value
+        raise StoreError(f"None of the signed-in account's ids lists apps (fields: {keys(user)}).")
 
     def metadata(self, developer):
-        return self.json("GET", f"{API}/developers/{developer}/apps/{APP_ID}/metadata")
+        return self.json("GET", f"{API}/developers/{developer}/apps/{APP_ID}/metadata?isShadowApp=false")
 
     def upload(self, developer, package, version):
         """The dashboard's two calls: the package as a temporary file, then a new version made of it."""
