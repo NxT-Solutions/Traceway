@@ -166,40 +166,85 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # Signs in to the Connect IQ Store and reads the listing, changing nothing.
-  # Run weekly and on pull requests, it shows a broken sign-in or a changed
-  # dashboard before a release needs the automatic upload.
+  # Keeps the Connect IQ Store listing in step with apps/garmin/store/listing.toml.
+  # A pull request and the weekly run compare it with the store and change
+  # nothing, so a broken sign-in or a changed dashboard shows before a release.
+  # A push to main, or a manual run on main, makes the store match.
   store:
-    name: Connect IQ Store sign-in
-    if: github.event_name != 'release' && github.event_name != 'push'
+    name: Connect IQ Store listing
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    # One sync at a time, and never cut off halfway.
+    concurrency:
+      group: garmin-store
+      cancel-in-progress: false
     # The account that owns the store listing. It can differ from the one CI
     # downloads the SDK with, so it has its own secrets and falls back to those.
     env:
       GARMIN_USERNAME: ${{ secrets.GARMIN_STORE_USERNAME || secrets.GARMIN_USERNAME }}
       GARMIN_PASSWORD: ${{ secrets.GARMIN_STORE_PASSWORD || secrets.GARMIN_PASSWORD }}
+      SYNC: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
 
     steps:
       - name: Check Out Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Forks and Dependabot get no secrets, so their pull requests skip it.
-      - name: Check The Listing
+      - name: Check Garmin Login
+        id: login
+        run: |
+          if [ -n "$GARMIN_USERNAME" ] && [ -n "$GARMIN_PASSWORD" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No Garmin login in this run, so the store was not checked."
+          fi
+
+      # The listing's SVG images are drawn at the store's sizes.
+      - name: Install librsvg
+        if: steps.login.outputs.ready == 'true'
+        run: sudo apt-get install --yes --no-install-recommends librsvg2-bin > /dev/null
+
+      - name: Compare The Listing
+        if: steps.login.outputs.ready == 'true' && env.SYNC != 'true'
+        run: python3 apps/garmin/tools/connectiq_store.py check
+
+      - name: Sync The Listing
+        if: steps.login.outputs.ready == 'true' && env.SYNC == 'true'
+        run: python3 apps/garmin/tools/connectiq_store.py sync
+
+      - name: Open Store Sync Issue
+        if: failure() && env.SYNC == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          if [ -z "$GARMIN_USERNAME" ] || [ -z "$GARMIN_PASSWORD" ]; then
-            echo "::notice::No Garmin login in this run, so the store was not checked."
+          title="The Connect IQ Store listing did not sync"
+          if gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"${title}\" in:title" --json number --jq '.[].number' | grep -q .; then
+            echo "::notice::The sync issue is already open."
             exit 0
           fi
-          python3 apps/garmin/tools/connectiq_store.py check
+          body_file="$(mktemp)"
+          {
+            echo "[The sync](${RUN_URL}) could not make the store match \`apps/garmin/store/listing.toml\`. Its log says why."
+            echo
+            echo "Fix the cause, then run **Garmin App** on \`main\` under Actions, or merge the fix. Each sync sends only what still differs. Close this issue when the run is green."
+          } > "$body_file"
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$body_file"
 
   release:
     name: Attach Garmin app to release
     needs: build
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    concurrency:
+      group: garmin-store
+      cancel-in-progress: false
     permissions:
       contents: write
       issues: write
@@ -269,9 +314,14 @@ jobs:
           [ -n "$whats_new" ] || whats_new="- Small fixes and improvements."
           printf '%s\n' "$whats_new" > dist/whats-new.txt
 
+      - name: Install librsvg
+        if: steps.changed.outputs.app == 'true'
+        run: sudo apt-get install --yes --no-install-recommends librsvg2-bin > /dev/null
+
       # Garmin has no public upload API. This uses the developer dashboard's own
       # endpoints with the developer's Garmin login, so it can break when Garmin
       # changes the dashboard. Then the reminder below asks for a manual upload.
+      # After the version it syncs the whole listing, with What's New.
       - name: Publish To Connect IQ Store
         id: publish
         if: steps.changed.outputs.app == 'true'
@@ -281,7 +331,7 @@ jobs:
           GARMIN_PASSWORD: ${{ secrets.GARMIN_STORE_PASSWORD || secrets.GARMIN_PASSWORD }}
         run: |
           set -euo pipefail
-          python3 apps/garmin/tools/connectiq_store.py upload \
+          python3 apps/garmin/tools/connectiq_store.py sync \
             --iq "dist/traceway-garmin-${TAG}.iq" \
             --version "${TAG#v}" \
             --whats-new dist/whats-new.txt \
@@ -309,7 +359,7 @@ jobs:
           progress="$(cat dist/store-result.txt 2>/dev/null || echo none)"
           if [ "$progress" = "uploaded" ]; then
             {
-              echo "[The automatic upload](${RUN_URL}) put ${TAG} on the Connect IQ Store, but could not set What's New."
+              echo "[The automatic upload](${RUN_URL}) put ${TAG} on the Connect IQ Store, but could not finish the listing. Its log says why."
               echo
               echo "1. Open [the Traceway store page](${STORE_PAGE}) and choose **Edit Details**. Do not upload the version again: it is already there."
               echo "2. Paste this under What's New, then submit:"
