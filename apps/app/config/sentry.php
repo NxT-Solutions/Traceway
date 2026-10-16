@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Monitoring\SentryScrubber;
+
 /**
  * Sentry Laravel SDK configuration file.
  *
@@ -75,6 +77,16 @@ return [
         'frame_context_lines' => 5,
     ],
 
+    // Page addresses go out as their route, and the rider's id leaves logs and breadcrumbs.
+    'before_send' => SentryScrubber::class.'::event',
+    'before_send_transaction' => SentryScrubber::class.'::event',
+    'before_send_log' => SentryScrubber::class.'::log',
+    'before_breadcrumb' => SentryScrubber::class.'::breadcrumb',
+
+    // A slow or unreachable Sentry holds a PHP worker for at most three seconds.
+    'http_connect_timeout' => 1,
+    'http_timeout' => 2,
+
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#ignore_exceptions
     // 'ignore_exceptions' => [],
 
@@ -90,7 +102,8 @@ return [
         'logs' => env('SENTRY_BREADCRUMBS_LOGS_ENABLED', default: true),
 
         // Capture Laravel cache events (hits, writes etc.) as breadcrumbs
-        'cache' => env('SENTRY_BREADCRUMBS_CACHE_ENABLED', default: true),
+        // Off: a cache key can hold the position of a rider's pin
+        'cache' => env('SENTRY_BREADCRUMBS_CACHE_ENABLED', default: false),
 
         // Capture Livewire components like routes as breadcrumbs
         'livewire' => env('SENTRY_BREADCRUMBS_LIVEWIRE_ENABLED', default: true),
@@ -112,7 +125,8 @@ return [
         'http_client_requests' => env('SENTRY_BREADCRUMBS_HTTP_CLIENT_REQUESTS_ENABLED', default: true),
 
         // Capture send notifications as breadcrumbs
-        'notifications' => env('SENTRY_BREADCRUMBS_NOTIFICATIONS_ENABLED', default: true),
+        // Off: a notification names the rider's account
+        'notifications' => env('SENTRY_BREADCRUMBS_NOTIFICATIONS_ENABLED', default: false),
     ],
 
     // Performance monitoring specific configuration
@@ -152,7 +166,8 @@ return [
         'http_client_requests_origin_threshold_ms' => env('SENTRY_TRACE_HTTP_CLIENT_REQUESTS_ORIGIN_THRESHOLD_MS', 250),
 
         // Capture Laravel cache events (hits, writes etc.) as spans
-        'cache' => env('SENTRY_TRACE_CACHE_ENABLED', default: true),
+        // Off: a cache key can hold the position of a rider's pin
+        'cache' => env('SENTRY_TRACE_CACHE_ENABLED', default: false),
 
         // Capture Redis operations as spans (this enables Redis events in Laravel)
         'redis_commands' => env('SENTRY_TRACE_REDIS_COMMANDS', default: false),
@@ -161,7 +176,8 @@ return [
         'redis_origin' => env('SENTRY_TRACE_REDIS_ORIGIN_ENABLED', default: true),
 
         // Capture send notifications as spans
-        'notifications' => env('SENTRY_TRACE_NOTIFICATIONS_ENABLED', default: true),
+        // Off: a notification names the rider's account
+        'notifications' => env('SENTRY_TRACE_NOTIFICATIONS_ENABLED', default: false),
 
         // Enable tracing for requests without a matching route (404's)
         'missing_routes' => env('SENTRY_TRACE_MISSING_ROUTES_ENABLED', default: false),

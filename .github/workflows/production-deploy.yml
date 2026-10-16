@@ -107,9 +107,18 @@ jobs:
           # Errors, traces and logs go to Sentry. Without the DSN nothing is sent.
           upsert_env "SENTRY_LARAVEL_DSN" "${SENTRY_LARAVEL_DSN:-}" "$runtime_env"
           upsert_env "SENTRY_RELEASE" "${SENTRY_RELEASE}" "$runtime_env"
-          if [ -z "${SENTRY_LARAVEL_DSN:-}" ]; then
-            echo "::warning::SENTRY_LARAVEL_DSN is not set. Errors are not sent to Sentry."
-          fi
+          # The privacy policy says Sentry keeps the reports in Germany, so only
+          # a DSN for the EU region may go out.
+          case "${SENTRY_LARAVEL_DSN:-}" in
+            "")
+              echo "::warning::SENTRY_LARAVEL_DSN is not set. Errors are not sent to Sentry."
+              ;;
+            https://*.ingest.de.sentry.io/*) ;;
+            *)
+              echo "::error::SENTRY_LARAVEL_DSN must be a DSN for Sentry's EU region (ingest.de.sentry.io)." >&2
+              exit 1
+              ;;
+          esac
 
           # AI tools sign in with OAuth. Passport signs their tokens with this
           # key pair. The PEM goes on one line, and the quotes turn \n back

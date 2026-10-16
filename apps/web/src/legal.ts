@@ -99,7 +99,7 @@ export const privacy: LegalPage = {
                 '**Hetzner Online** hosts the server and the database, in Germany.',
                 '**Cloudflare** passes every visit to traceway.online on to the server, to keep the site fast and to stop attacks, so it sees your IP address and the pages you ask for. It checks that a person, not a script, fills in the sign-up and password reset forms. It also keeps the backup copies of the database, and counts visits to the pages of this site when you agree.',
                 '**Resend** sends the account email. It gets your email address and the message. For a copy of your data, that includes the file.',
-                '**Sentry** tells NxT-Solutions when something in the planner breaks or runs slowly. It gets the address of the page without its search part, your browser type, how long each step took, and what went wrong, which can hold the points or the place name the server was asking a map service about. It never gets your name, email address, IP address, cookies, or what you type into a form. Sentry keeps it in Germany.',
+                '**Sentry** tells NxT-Solutions when something in Traceway breaks or runs slowly. It gets the address of the page without its search part, your browser type and language, how long each step took, and what went wrong, which can hold the points or the place name the server was asking a map service about. It never gets your name, email address, IP address, cookies, or what you type into a form. Sentry keeps it in Germany.',
                 '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names, and the [OpenFreeMap](https://openfreemap.org) map tiles for water, toilets, and cafés. The Traceway server sends them the points of a route, the name of a place, a place you search for with the middle of your map rounded to about 10 kilometres, a pin rounded to about 100 metres, or which map tiles a route crosses. It never sends your name or email address.',
                 '**Your own browser** loads the map itself from [OpenFreeMap](https://openfreemap.org). Like any website, it sees your IP address and the part of the map you look at. Everything else goes through Traceway.',
             ],
@@ -126,7 +126,7 @@ export const privacy: LegalPage = {
             heading: 'The legal grounds',
             items: [
                 '**The service you asked for** (GDPR article 6(1)(b)): your account, your routes, your watches, the AI assistants and route services you connect, and the account email.',
-                '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs, backups, protection against attacks and scripts, and limits on how often the map services are asked.',
+                '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs and reports, speed checks, backups, protection against attacks and scripts, and limits on how often the map services are asked.',
                 '**Your consent** (article 6(1)(a)): counting visits to the pages of this site with Cloudflare, to know how many people visit and to make the site better. You can take it back at any time with Cookie choice at the bottom of every page.',
                 '**A legal duty** (article 6(1)(c)): when the law requires NxT-Solutions to keep something or hand it over.',
             ],
@@ -144,6 +144,7 @@ export const privacy: LegalPage = {
                 '**Your yes or no to counting visits:** in your own browser, for up to a year. Then the pages ask again.',
                 '**Backups:** something you delete can stay in a backup for up to 14 days. Then it is gone.',
                 '**Error logs:** only the latest. Older lines are overwritten automatically.',
+                '**Error reports at Sentry:** 90 days at most. Then Sentry deletes them.',
             ],
         },
         {
