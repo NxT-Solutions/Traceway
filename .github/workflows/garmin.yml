@@ -174,9 +174,11 @@ jobs:
     if: github.event_name != 'release' && github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # The account that owns the store listing. It can differ from the one CI
+    # downloads the SDK with, so it has its own secrets and falls back to those.
     env:
-      GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}
-      GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+      GARMIN_USERNAME: ${{ secrets.GARMIN_STORE_USERNAME || secrets.GARMIN_USERNAME }}
+      GARMIN_PASSWORD: ${{ secrets.GARMIN_STORE_PASSWORD || secrets.GARMIN_PASSWORD }}
 
     steps:
       - name: Check Out Repository
@@ -275,8 +277,8 @@ jobs:
         if: steps.changed.outputs.app == 'true'
         continue-on-error: true
         env:
-          GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}
-          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          GARMIN_USERNAME: ${{ secrets.GARMIN_STORE_USERNAME || secrets.GARMIN_USERNAME }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_STORE_PASSWORD || secrets.GARMIN_PASSWORD }}
         run: |
           set -euo pipefail
           python3 apps/garmin/tools/connectiq_store.py upload \
