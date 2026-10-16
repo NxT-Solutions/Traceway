@@ -98,17 +98,17 @@ module Brand {
         return "Ride it";
     }
 
-    // A small sport tile for a menu row.
-    function sportIcon(sport) {
+    // A small sport tile for a menu row. A route saved in the device's Courses gets the tile in green.
+    function sportIcon(sport, saved) {
         if (sport.equals("road") || sport.equals("gravel")) {
-            return Rez.Drawables.SportRoad;
+            return saved ? Rez.Drawables.SportRoadSaved : Rez.Drawables.SportRoad;
         }
 
         if (sport.equals("mtb")) {
-            return Rez.Drawables.SportMtb;
+            return saved ? Rez.Drawables.SportMtbSaved : Rez.Drawables.SportMtb;
         }
 
-        return Rez.Drawables.SportFoot;
+        return saved ? Rez.Drawables.SportFootSaved : Rez.Drawables.SportFoot;
     }
 }
 

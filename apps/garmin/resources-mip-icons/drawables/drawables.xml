@@ -1,0 +1,6 @@
+<drawables>
+    <!-- The 64-colour watches: the saved sport tiles in lime, on the centred canvas. -->
+    <bitmap id="SportRoadSaved" dithering="none" filename="sport_road_saved.svg" scaleX="12%" scaleRelativeTo="screen"/>
+    <bitmap id="SportMtbSaved" dithering="none" filename="sport_mtb_saved.svg" scaleX="12%" scaleRelativeTo="screen"/>
+    <bitmap id="SportFootSaved" dithering="none" filename="sport_foot_saved.svg" scaleX="12%" scaleRelativeTo="screen"/>
+</drawables>

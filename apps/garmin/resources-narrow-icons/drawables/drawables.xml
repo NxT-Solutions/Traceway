@@ -3,4 +3,7 @@
     <bitmap id="SportRoad" dithering="none" filename="../../resources/drawables/sport_road.svg" scaleX="8%" scaleRelativeTo="screen"/>
     <bitmap id="SportMtb" dithering="none" filename="../../resources/drawables/sport_mtb.svg" scaleX="8%" scaleRelativeTo="screen"/>
     <bitmap id="SportFoot" dithering="none" filename="../../resources/drawables/sport_foot.svg" scaleX="8%" scaleRelativeTo="screen"/>
+    <bitmap id="SportRoadSaved" dithering="none" filename="../../resources/drawables/sport_road_saved.svg" scaleX="8%" scaleRelativeTo="screen"/>
+    <bitmap id="SportMtbSaved" dithering="none" filename="../../resources/drawables/sport_mtb_saved.svg" scaleX="8%" scaleRelativeTo="screen"/>
+    <bitmap id="SportFootSaved" dithering="none" filename="../../resources/drawables/sport_foot_saved.svg" scaleX="8%" scaleRelativeTo="screen"/>
 </drawables>

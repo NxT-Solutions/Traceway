@@ -11,9 +11,9 @@ fr265.excludeAnnotations = mip;maps;mapcontrols
 edge840.excludeAnnotations = mip;nomaps;nomapcontrols
 edge850.excludeAnnotations = mip;nomaps;nomapcontrols
 edge1050.excludeAnnotations = mip;nomaps;nomapcontrols
-fenix7.resourcePath = $(fenix7.resourcePath);resources-mip;resources-centred-icons
-fr255.resourcePath = $(fr255.resourcePath);resources-mip;resources-centred-icons
-fr955.resourcePath = $(fr955.resourcePath);resources-mip;resources-centred-icons
+fenix7.resourcePath = $(fenix7.resourcePath);resources-mip;resources-centred-icons;resources-mip-icons
+fr255.resourcePath = $(fr255.resourcePath);resources-mip;resources-centred-icons;resources-mip-icons
+fr955.resourcePath = $(fr955.resourcePath);resources-mip;resources-centred-icons;resources-mip-icons
 
 # The Edge 1030 family and the 1040 cut a menu icon off at a narrow slot on the right, so they get smaller sport icons.
 edge1030.resourcePath = $(edge1030.resourcePath);resources-narrow-icons

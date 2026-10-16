@@ -5,13 +5,14 @@ A device app for Garmin bike computers and watches. It lists the rider's saved T
 ## How it works
 
 1. The app asks `POST /api/device/pairings` for a code and shows it. The rider types it on the site, under Settings, then Devices, and the app collects its token.
-2. The route list shows every saved route with its sport, distance, and climb. A multisport plan shows one entry per land leg.
+2. The route list shows every saved route with its sport, distance, and climb. A multisport plan shows one entry per land leg. A route that is in the device's Courses has its sport tile in green.
 3. Choosing a route opens its detail:
    - The route is drawn on the device's own map, framed by the `bounds` from the list. A device without maps (Forerunner 255 and 265) gets the shape drawn on ink.
    - Under it come the name and numbers, and two buttons:
      - The sport's own action: **Ride it**, **Run it**, **Hike it**, or **Walk it**. It loads the course with `HTTP_RESPONSE_CONTENT_TYPE_FIT` and opens it in the device's navigation.
      - **Save**, which only puts the course in Courses.
-   - A route already in Courses says so and starts straight away.
+   - A route already in Courses says so, starts straight away, and swaps Save for **Remove**. Remove asks first, then calls `Course.remove()`. The device only lets the app remove a course it saved itself, so a course that came from Garmin Connect or a cable gets a note to remove it under Courses instead.
+   - The app remembers which course it saved for which route (`Application.Storage` key `courses`: download path to course id), so two routes with the same name stay apart, and a course deleted on the device shows as not saved. A course saved before the app kept that link is found by name.
 4. Removing the device in Settings stops its token. The app then asks for a new code.
 
 ### Buttons and touch
@@ -33,10 +34,10 @@ The manifest covers every Edge from the 520 Plus, 820, Explore, and 1030 onward,
 
 The app follows the planner: an ink ground (`#071f20`), paper type (`#f7f5ec`), and the marker green (`#97cb46`) used sparingly. It uses the device's own fonts.
 
-The drawables in `resources/drawables` are SVG sources, and the compiler renders them at each device's size. `resources-mip` holds the lime versions for 64-colour screens.
+The drawables in `resources/drawables` are SVG sources, and the compiler renders them at each device's size. `resources-mip` holds the lime versions for 64-colour screens, and `resources-mip-icons` the lime saved tiles for those watches.
 - the wordmark, Outfit 600 drawn as outlines, so no font is needed at build time;
 - the launcher icon, which is the favicon;
-- the sport tiles, the library's lucide glyphs on ink;
+- the sport tiles, the library's lucide glyphs on ink, and in ink on green for a route in Courses;
 - the green check.
 
 ## Build and release
