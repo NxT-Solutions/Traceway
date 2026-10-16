@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <!-- icon.svg in colours older devices show: 0, 85, 170, or 255 per channel. -->
+  <rect width="500" height="500" fill="#ffffff"/>
+  <g transform="translate(73.4 50.3) scale(11.25)">
+    <path d="M8.2 25.2 V15.4 a5.1 5.1 0 0 1 5.1 -5.1 h3.4 a5.1 5.1 0 0 1 5.1 5.1 v2.3" fill="none" stroke="#000000" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="22.1" cy="23.5" r="2.45" fill="#aaff55"/>
+  </g>
+</svg>

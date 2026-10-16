@@ -145,15 +145,14 @@ jobs:
           mkdir -p dist
           monkeyc -f monkey.jungle -e -r -w -y "$DEVELOPER_KEY" -o dist/traceway.iq
 
-      # The store listing images are SVG sources. They are drawn here, so nothing rendered is committed.
+      # The store listing images are SVG sources. They are drawn here, as the
+      # store sync draws them, so nothing rendered is committed.
       - name: Render Store Images
         if: steps.login.outputs.ready == 'true'
         run: |
           set -euo pipefail
           sudo apt-get install --yes --no-install-recommends librsvg2-bin > /dev/null
-          mkdir -p dist/store
-          rsvg-convert --width 500 --height 500 store/icon.svg --output dist/store/traceway-store-icon.png
-          rsvg-convert --width 1440 --height 720 store/hero.svg --output dist/store/traceway-store-hero.png
+          python3 tools/connectiq_store.py render --out dist/store
 
       - name: Upload Store Package
         if: steps.login.outputs.ready == 'true'

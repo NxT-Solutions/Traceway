@@ -20,6 +20,10 @@ its CI logs.
         Uploads the package as a new version first, then syncs the listing with
         What's New set in English.
 
+    connectiq_store.py render --out dist/store
+        Draws the listing's images as the store gets them, for the release.
+        Needs no sign-in.
+
 The dashboard is Garmin's, not a public API, so it can change under us. Every
 step checks what came back and stops with a plain message when it is not what
 the dashboard itself expects.
@@ -608,6 +612,25 @@ def read_listing():
         raise StoreError(f"listing.toml could not be read: {error}") from None
 
 
+def render(listing, folder):
+    """The listing's drawn images, named as the release attaches them."""
+    base = os.path.dirname(os.path.abspath(LISTING))
+    images = listing.get("images", {})
+    wanted = [(slot, images.get(slot, "").strip(), f"traceway-{slot.replace('_', '-')}.png") for slot in ICON_FIELDS]
+    wanted = [("cover" if slot == "cover" else slot, name, "traceway-store-icon.png" if slot == "cover" else file) for slot, name, file in wanted]
+    for language in listing.get("languages", []):
+        suffix = "" if is_english(language.get("locale")) else "-" + language.get("locale", "")
+        wanted.append(("hero", language.get("hero_image", "").strip(), f"traceway-store-hero{suffix}.png"))
+    os.makedirs(folder, exist_ok=True)
+    for slot, name, file in wanted:
+        if not name.endswith(".svg"):
+            continue
+        image = Image(slot, os.path.join(base, name))
+        with open(os.path.join(folder, file), "wb") as handle:
+            handle.write(image.content)
+        print(f"{file}: {len(image.content) // 1024} KB")
+
+
 def report(plan):
     if plan.changes:
         print("The store differs from git in: " + ", ".join(plan.changes) + ".")
@@ -619,6 +642,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("check")
+    drawing = commands.add_parser("render")
+    drawing.add_argument("--out", required=True, help="the folder to draw the images into")
     sync = commands.add_parser("sync")
     sync.add_argument("--iq", help="a package to upload as a new version first")
     sync.add_argument("--version", help="the new version, X.Y.Z")
@@ -630,6 +655,9 @@ def main():
     progress = "none"
     try:
         listing = read_listing()
+        if arguments.command == "render":
+            render(listing, arguments.out)
+            return 0
         if arguments.command == "sync" and arguments.iq:
             if not arguments.version or not re.fullmatch(r"\d+\.\d+\.\d+", arguments.version):
                 raise StoreError(f"The version {arguments.version} is not X.Y.Z.")

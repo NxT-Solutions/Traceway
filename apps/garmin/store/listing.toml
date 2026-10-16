@@ -37,8 +37,8 @@ hero_image = "hero.svg"
 [images]
 # 500 × 500, under 300 KB.
 cover = "icon.svg"
-# 128 × 128, under 150 KB. The 64-colour icon is drawn in the 64 colours older devices show.
-device_icon_64_color = "icon.svg"
+# 128 × 128, under 150 KB. The 64-colour icon keeps to the 64 colours older devices show.
+device_icon_64_color = "device-icon-64.svg"
 device_icon_24_bit = "icon.svg"
 # One to five, in this order, each a PNG, JPG or GIF under 150 KB.
 screens = [
