@@ -10,3 +10,9 @@ fr265.excludeAnnotations = mip;maps
 fenix7.resourcePath = $(fenix7.resourcePath);resources-mip
 fr255.resourcePath = $(fr255.resourcePath);resources-mip
 fr955.resourcePath = $(fr955.resourcePath);resources-mip
+
+# The Edge 1030 family and the 1040 cut a menu icon off at a narrow slot on the right, so they get smaller sport icons.
+edge1030.resourcePath = $(edge1030.resourcePath);resources-narrow-icons
+edge1030bontrager.resourcePath = $(edge1030bontrager.resourcePath);resources-narrow-icons
+edge1030plus.resourcePath = $(edge1030plus.resourcePath);resources-narrow-icons
+edge1040.resourcePath = $(edge1040.resourcePath);resources-narrow-icons

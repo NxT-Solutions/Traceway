@@ -174,19 +174,105 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event.release.tag_name }}
+      # The store listing. Each new version is an upload on this page, under Upload New Version.
+      STORE_PAGE: https://apps.garmin.com/apps/a0c32e89-323f-4522-9ee8-c6af6cce14c3
 
     steps:
+      - name: Check Out Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # Garmin has no upload API, so a person uploads each new version. Most
+      # releases change only the planner or the site, and need no upload.
+      - name: Check Whether The App Changed
+        id: changed
+        run: |
+          set -euo pipefail
+          # The last release that attached the app is the one riders have. A
+          # release whose Garmin build failed attached nothing, so it is skipped.
+          previous=""
+          for tag in $(git tag --list 'v*' --sort=-v:refname); do
+            [ "$tag" = "$TAG" ] && continue
+            git merge-base --is-ancestor "$tag" "$TAG" 2>/dev/null || continue
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -q '^traceway-garmin-.*\.iq$'; then
+              previous="$tag"
+              break
+            fi
+          done
+
+          # Everything under apps/garmin ships, except the notes and the store images.
+          if [ -z "$previous" ] || ! git diff --quiet "$previous" "$TAG" -- apps/garmin ':!apps/garmin/README.md' ':!apps/garmin/store'; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "app=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::The Garmin app is the same as in ${previous}, so ${TAG} has nothing to upload to the Connect IQ Store."
+          fi
+
       - name: Download Store Package
+        if: steps.changed.outputs.app == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: traceway-garmin
           path: dist
 
       - name: Attach To Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
+        if: steps.changed.outputs.app == 'true'
         run: |
           set -euo pipefail
           mv dist/traceway.iq "dist/traceway-garmin-${TAG}.iq"
           gh release upload "$TAG" "dist/traceway-garmin-${TAG}.iq" dist/store/*.png --clobber --repo "$GITHUB_REPOSITORY"
+
+      # An issue for the person who published the release, open until the
+      # upload is done. It says what to choose, type, and paste.
+      - name: Open Store Upload Reminder
+        if: steps.changed.outputs.app == 'true'
+        env:
+          AUTHOR: ${{ github.event.release.author.login }}
+          AUTHOR_TYPE: ${{ github.event.release.author.type }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          title="Upload Traceway for Garmin ${TAG} to the Connect IQ Store"
+
+          if gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"${title}\" in:title" --json number --jq '.[].number' | grep -q .; then
+            echo "::notice::The upload reminder for ${TAG} is already open."
+            exit 0
+          fi
+
+          # What's new comes from this release's rider notes in the Devices section.
+          whats_new="$(
+            for note in apps/app/resources/releases/"${TAG}"/*.md; do
+              [ -e "$note" ] || continue
+              [ "$(basename "$note")" = "_release.md" ] && continue
+              tr -d '\r' < "$note" | awk 'NR==1 && $0=="---" {front=1; next} front && $0=="---" {front=0; next} front && /^section:/ {section=$2} !front && section=="Devices" && /^[[:space:]]*- / {print}'
+            done | sed -E 's/\*\*//g'
+          )"
+          [ -n "$whats_new" ] || whats_new="- Small fixes and improvements."
+
+          body_file="$(mktemp)"
+          {
+            echo "${TAG} changed the Garmin app. Garmin has no upload API, so upload it by hand. It takes about two minutes."
+            echo
+            echo "1. Download [traceway-garmin-${TAG}.iq](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/traceway-garmin-${TAG}.iq)."
+            echo "2. Open [the Traceway store page](${STORE_PAGE}) and choose **Upload New Version**. Not Upload an App: that would make a second listing."
+            echo "3. Pick the file, and type the version: \`${version}\`"
+            echo "4. Paste this under What's New, then submit:"
+            echo
+            echo '```'
+            echo "$whats_new"
+            echo '```'
+            echo
+            echo "Close this issue when Garmin has the new version. Riders' devices update by themselves once Garmin approves it."
+          } > "$body_file"
+
+          assignee=()
+          if [ "$AUTHOR_TYPE" = "User" ]; then
+            assignee=(--assignee "$AUTHOR")
+          fi
+
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$body_file" "${assignee[@]}"

@@ -1,0 +1,6 @@
+<drawables>
+    <!-- These Edges give a menu icon a narrow slot on the right and cut off anything wider, so the sport icons are smaller here. -->
+    <bitmap id="SportRoad" dithering="none" filename="../../resources/drawables/sport_road.svg" scaleX="8%" scaleRelativeTo="screen"/>
+    <bitmap id="SportMtb" dithering="none" filename="../../resources/drawables/sport_mtb.svg" scaleX="8%" scaleRelativeTo="screen"/>
+    <bitmap id="SportFoot" dithering="none" filename="../../resources/drawables/sport_foot.svg" scaleX="8%" scaleRelativeTo="screen"/>
+</drawables>

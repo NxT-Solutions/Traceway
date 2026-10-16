@@ -44,7 +44,8 @@ The drawables in `resources/drawables` are SVG sources, and the compiler renders
 CI builds the app, and nothing built is committed. `.github/workflows/garmin.yml` handles it:
 
 - **Every pull request and push to main that changes `apps/garmin` or the workflow, and one run a week:** it installs the pinned Connect IQ SDK and the manifest's devices, then exports `traceway.iq` for every product. The file is uploaded as the `traceway-garmin` artifact and signed with a throwaway key.
-- **A published release (`vX.Y.Z`):** it stamps that version into `manifest.xml` and signs the package with the real key. It then attaches `traceway-garmin-vX.Y.Z.iq` and the store images to the release. Upload them at the Connect IQ developer dashboard. Garmin has no API for store uploads.
+- **A published release (`vX.Y.Z`) that changes the app since the last release that attached one:** it stamps that version into `manifest.xml` and signs the package with the real key. It then attaches `traceway-garmin-vX.Y.Z.iq` and the store images to the release, and opens an issue for whoever published it: download the file, choose **Upload New Version** on [the store page](https://apps.garmin.com/apps/a0c32e89-323f-4522-9ee8-c6af6cce14c3), type the version, and paste the What's New text it gives. Garmin has no API for store uploads.
+- **A release that leaves the app alone** (a planner or site change, or only this README or the store images) builds the app as a check, but attaches nothing and opens no issue: there is nothing new to upload. Riders keep the version they have.
 
 ### Store listing
 
