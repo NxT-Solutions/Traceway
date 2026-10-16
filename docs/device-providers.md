@@ -1,6 +1,6 @@
 # Device providers
 
-Traceway sends a saved route to a device as a course file. Garmin is the only provider today. This note shows where the next one plugs in.
+Traceway gets a saved route onto a device in three ways: a device app that pulls it (Garmin), a service account Traceway pushes it to (Wahoo, Ride with GPS), or a FIT or GPX file with steps for the brand. This note shows where the next provider plugs in.
 
 ## What is shared
 
@@ -16,10 +16,27 @@ Traceway sends a saved route to a device as a course file. Garmin is the only pr
 ## Two shapes a provider can take
 
 1. **A device app that pulls.** This is how Garmin works: the Connect IQ app in `apps/garmin`. A Karoo or Wear OS app would work the same way. Add a `DeviceProvider` case, and the new app sends it when it pairs. It picks `fit` or `gpx` in the course path. No backend change is needed beyond that case.
-2. **A cloud account we push to.** This shape is for providers whose cloud API accepts routes from partners. Each needs its own approval.
-   - Put a Saloon connector in `app/Integrations/<Provider>`.
-   - Add a port in `app/Contracts` that publishes a course for a rider.
-   - Store the rider's OAuth connection, then dispatch a command from Send to device.
-   - The course still comes from `CourseDownload`'s encoders. The routing engine still owns the geometry.
+2. **A service account Traceway pushes to.** Wahoo and Ride with GPS work this way.
+   - The port is `App\Domain\Courses\Services\CourseService`: sign-in URL, code for tokens, refresh, publish, revoke. `CourseUpload` carries both files, the full title, the device name, the sport, and an `externalId` (the route id, plus `-{leg}` for a leg).
+   - Each service is a Saloon connector and a `CourseService` in `app/Integrations/<Provider>`. `AppServiceProvider` puts it in the `CourseServices` registry only when its client id and secret are set, so a service without credentials stays hidden.
+   - `App\Account\RouteService` has one case per service. `route_service_accounts` keeps the encrypted tokens. `sent_routes` keeps the id each route got at each service, so a second send updates it there.
+   - The rider connects under Settings, then Devices (`/settings/services/{service}/connect`, with a state in the session). Send to device posts `/routes/saved/{id}/send/{service}`, with `leg` for a multisport plan.
+   - A service that refuses the token marks the account for reconnecting. Disconnecting, or deleting the account, revokes the token first.
+   - The routing engine still owns the geometry. The files come from the same encoders as the downloads.
+3. **A file with steps.** Every brand in Send to device gets the FIT or GPX download it reads and short steps. This needs no account and is the fallback for every other shape.
 
-Garmin's own Courses API is a push provider of the second kind. It needs an approved business account, which is why Garmin ships as a device app first.
+## Where each brand stands (October 2026)
+
+| Brand | Today | Next |
+| --- | --- | --- |
+| Garmin | Traceway app (pull), FIT with steps | Courses API push when Garmin takes applications again |
+| Wahoo ELEMNT and ACE | Push to the Wahoo app (FIT) | Production access needs Wahoo's review |
+| Hammerhead Karoo | Push to Ride with GPS, the rider sends it on with Ride with GPS's Send to Device; or GPX in the Hammerhead Dashboard | Suunto push also reaches a Karoo. A Karoo extension once it can load routes |
+| Bryton | Push to Ride with GPS, synced by Bryton Active; or GPX | None without an API |
+| COROS | GPX with steps | Partner API `route/push` after the partner application |
+| Suunto | GPX with steps | Route import API after the partner program |
+| Polar | GPX with steps (Flow web) | AccessLink cannot write routes |
+| Amazfit (Zepp) | GPX with steps | None without an API |
+| Apple Watch, Wear OS | GPX into a watch app that follows routes | A native app only with demand |
+
+A new push service is a `RouteService` case, an `app/Integrations/<Provider>` adapter, a config block, a secret in `production-deploy.yml`, and its `service` on the brand in `send-to-device.tsx`. Terra's Routes API could push to Garmin and COROS through Terra's approvals; weigh its price before the direct applications.

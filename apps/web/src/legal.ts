@@ -51,6 +51,7 @@ export const privacy: LegalPage = {
                 '**Your saved routes.** The name, the sport, what you asked the planner for, the line itself, its start and finish, every leg of a multisport plan, and the climb, surfaces, turns, and stops along it. Each saved route also gets a picture of the route on the map, for shared links.',
                 '**Your watches.** The name you give a watch, a pairing code that works for 10 minutes, the key the watch uses to fetch your routes (stored only as a hash), and when it last did.',
                 '**AI assistants you connect.** Which app you connected, the sign-in keys it uses, and when they run out.',
+                '**Services you send routes to.** If you connect Wahoo or Ride with GPS, which one, the sign-in keys it gave Traceway (kept encrypted), when you connected, and which routes you sent there.',
                 '**Signing in.** While you are signed in, the server keeps a session with your IP address and the name of your browser. It keeps you signed in and helps stop someone else from using your account.',
                 '**Error logs.** When something breaks, the server writes down what happened so it can be fixed. A log line can include your account number. It never includes your password.',
                 '**Account email.** Traceway only emails you about your account: the welcome, confirming your address, resetting your password, a change of email or password, a copy of your data when you ask for it, and the goodbye when you delete your account. No newsletters, no marketing.',
@@ -106,10 +107,11 @@ export const privacy: LegalPage = {
             ],
         },
         {
-            heading: 'AI assistants, watches, and donations',
+            heading: 'AI assistants, watches, route services, and donations',
             paragraphs: [
                 'If you connect an AI assistant, such as Claude or ChatGPT, what you type there is handled by the company behind it, under its own privacy policy. Traceway gives the assistant only what you ask it for: the routes it plans for you and the list of your saved routes.',
                 'The Traceway watch app fetches your routes straight from Traceway. A route file you open in Garmin Connect, or in any other app, is handled by that app’s maker.',
+                'If you connect Wahoo or Ride with GPS, Traceway sends that service the route you send: its name, sport, line, distance, and climb. It sends nothing else about you. From there, the service handles the route under its own privacy policy. Both are American companies. Disconnect, or delete your account, and Traceway asks the service to withdraw its keys.',
                 'Donations go through PayPal or GitHub Sponsors, on their own sites. Traceway never sees your card or bank details. They may pass your name and email address to NxT-Solutions, which keeps them only for its records.',
             ],
         },
@@ -122,7 +124,7 @@ export const privacy: LegalPage = {
         {
             heading: 'The legal grounds',
             items: [
-                '**The service you asked for** (GDPR article 6(1)(b)): your account, your routes, your watches, the AI assistants you connect, and the account email.',
+                '**The service you asked for** (GDPR article 6(1)(b)): your account, your routes, your watches, the AI assistants and route services you connect, and the account email.',
                 '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs, backups, protection against attacks and scripts, and limits on how often the map services are asked.',
                 '**Your consent** (article 6(1)(a)): counting visits to the pages of this site with Cloudflare, to know how many people visit and to make the site better. You can take it back at any time with Cookie choice at the bottom of every page.',
                 '**A legal duty** (article 6(1)(c)): when the law requires NxT-Solutions to keep something or hand it over.',

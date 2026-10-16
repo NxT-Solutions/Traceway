@@ -141,4 +141,53 @@ class ExportSharedCourseController extends Controller
     {
         return CourseDownload::leg($sharedCourseQuery->find(new RouteId($savedRoute)), $leg, CourseFormat::Fit);
     }
+
+    #[Get(
+        path: '/share/{savedRoute}/gpx/{leg}',
+        operationId: 'sharedGpxLeg',
+        summary: 'Download one leg of a shared multisport plan as GPX',
+        security: [],
+        tags: ['Share'],
+    )]
+    #[Parameter(
+        name: 'savedRoute',
+        description: 'The saved route.',
+        in: 'path',
+        required: true,
+        schema: new Schema(type: 'string', format: 'uuid'),
+    )]
+    #[Parameter(
+        name: 'leg',
+        description: 'The leg, counted from 1. The swim has no course.',
+        in: 'path',
+        required: true,
+        schema: new Schema(type: 'integer', maximum: 5, minimum: 1),
+    )]
+    #[Parameter(
+        name: 'signature',
+        description: 'The signature on the share link.',
+        in: 'query',
+        required: true,
+        schema: new Schema(type: 'string'),
+    )]
+    #[Response(
+        response: HttpResponse::HTTP_OK,
+        description: 'A GPX file named for the leg.',
+        content: new MediaType(
+            mediaType: 'application/gpx+xml',
+            schema: new Schema(type: 'string', format: 'binary'),
+        ),
+    )]
+    #[Response(
+        response: HttpResponse::HTTP_FORBIDDEN,
+        description: 'The link is not signed.',
+    )]
+    #[Response(
+        response: HttpResponse::HTTP_NOT_FOUND,
+        description: 'No such land leg.',
+    )]
+    public function gpxLeg(string $savedRoute, int $leg, SharedCourseQuery $sharedCourseQuery): HttpResponse
+    {
+        return CourseDownload::leg($sharedCourseQuery->find(new RouteId($savedRoute)), $leg, CourseFormat::Gpx);
+    }
 }

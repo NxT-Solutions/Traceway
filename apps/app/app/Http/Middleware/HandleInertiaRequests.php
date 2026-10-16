@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Queries\Account\RouteServicesQuery;
 use App\Queries\Releases\ReleaseNotesQuery;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -53,6 +54,10 @@ class HandleInertiaRequests extends Middleware
             'whatsNew' => fn (): ?array => $user instanceof User
                 ? resolve(ReleaseNotesQuery::class)->summaryFor($user->id, $user->created_at)
                 : null,
+            // The services this rider can send a route to from Send to device, and whether each is connected.
+            'routeServices' => fn (): array => $user instanceof User
+                ? resolve(RouteServicesQuery::class)->forRider($user->id)
+                : [],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

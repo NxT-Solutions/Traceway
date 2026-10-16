@@ -1,5 +1,6 @@
 import type { Auth } from '@/types/auth';
 import type { WhatsNew } from '@/types/releases';
+import type { RouteServiceStatus } from '@/types/route-services';
 
 declare module 'react' {
     interface InputHTMLAttributes<T> {
@@ -14,6 +15,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             whatsNew?: WhatsNew | null;
+            routeServices?: RouteServiceStatus[];
             [key: string]: unknown;
         };
     }

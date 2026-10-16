@@ -28,6 +28,9 @@ final class SharedCourseQuery
             coordinates: $rowReader->line('coordinates'),
             legs: $rowReader->legs('legs'),
             details: $rowReader->details('details'),
+            distanceMetres: $rowReader->int('distance_metres'),
+            ascentMetres: $rowReader->int('ascent_metres'),
+            updatedAt: $rowReader->iso('updated_at'),
         );
     }
 }

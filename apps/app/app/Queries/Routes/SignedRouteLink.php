@@ -44,4 +44,9 @@ final class SignedRouteLink
     {
         return URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $id, 'leg' => $position]);
     }
+
+    public static function gpxLeg(string $id, int $position): string
+    {
+        return URL::signedRoute('routes.share.gpx.leg', ['savedRoute' => $id, 'leg' => $position]);
+    }
 }

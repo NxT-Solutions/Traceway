@@ -20,5 +20,8 @@ final readonly class SharedCourse
         public array $coordinates,
         public array $legs = [],
         public ?RouteDetails $details = null,
+        public int $distanceMetres = 0,
+        public int $ascentMetres = 0,
+        public ?string $updatedAt = null,
     ) {}
 }

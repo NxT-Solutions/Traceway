@@ -16,6 +16,7 @@ use App\Http\Controllers\RouteDetailsController;
 use App\Http\Controllers\RouteStopsController;
 use App\Http\Controllers\SavedRouteLibraryController;
 use App\Http\Controllers\SearchPlacesController;
+use App\Http\Controllers\SendRouteToServiceController;
 use App\Http\Controllers\ShowSavedRouteDetailsController;
 use App\Http\Controllers\ShowSharedRouteController;
 use App\Http\Controllers\ShowSharedRouteEmbedController;
@@ -53,6 +54,10 @@ Route::get('share/{savedRoute}/fit/{leg}', [ExportSharedCourseController::class,
     ->whereNumber('leg')
     ->middleware(['throttle:share', 'signed', KeepOutOfSearch::class])
     ->name('routes.share.fit.leg');
+Route::get('share/{savedRoute}/gpx/{leg}', [ExportSharedCourseController::class, 'gpxLeg'])
+    ->whereNumber('leg')
+    ->middleware(['throttle:share', 'signed', KeepOutOfSearch::class])
+    ->name('routes.share.gpx.leg');
 
 Route::get('docs/public', fn (): RedirectResponse => redirect()->to('/docs'));
 Route::get('docs/account', fn (): RedirectResponse => redirect()->to('/docs'));
@@ -75,6 +80,11 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::delete('routes/saved/{savedRoute}', DestroySavedRouteController::class)->middleware('throttle:saving')->name('routes.saved.destroy');
     Route::get('routes/saved/{savedRoute}/details', ShowSavedRouteDetailsController::class)->whereUuid('savedRoute')->name('routes.saved.details');
     Route::post('routes/saved/{savedRoute}/image', StoreRouteImageController::class)->whereUuid('savedRoute')->middleware('throttle:saving')->name('routes.saved.image');
+    Route::post('routes/saved/{savedRoute}/send/{service}', SendRouteToServiceController::class)
+        ->whereUuid('savedRoute')
+        ->whereIn('service', ['wahoo', 'ride_with_gps'])
+        ->middleware('throttle:20,1')
+        ->name('routes.saved.send');
 });
 
 require __DIR__.'/settings.php';

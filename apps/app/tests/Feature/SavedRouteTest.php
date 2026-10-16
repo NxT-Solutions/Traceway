@@ -175,9 +175,9 @@ it('saves a multisport plan with its legs and shares a course for each land leg'
             ->component('saved')
             ->where('routes.0.layout', 'loops')
             ->where('routes.0.legs', [
-                ['discipline' => 'swim', 'distance_metres' => 750, 'fit_url' => null],
-                ['discipline' => 'road', 'distance_metres' => 20_000, 'fit_url' => URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $savedRoute->id, 'leg' => 2])],
-                ['discipline' => 'run', 'distance_metres' => 5_000, 'fit_url' => URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $savedRoute->id, 'leg' => 3])],
+                ['discipline' => 'swim', 'distance_metres' => 750, 'fit_url' => null, 'gpx_url' => null],
+                ['discipline' => 'road', 'distance_metres' => 20_000, 'fit_url' => URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $savedRoute->id, 'leg' => 2]), 'gpx_url' => URL::signedRoute('routes.share.gpx.leg', ['savedRoute' => $savedRoute->id, 'leg' => 2])],
+                ['discipline' => 'run', 'distance_metres' => 5_000, 'fit_url' => URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $savedRoute->id, 'leg' => 3]), 'gpx_url' => URL::signedRoute('routes.share.gpx.leg', ['savedRoute' => $savedRoute->id, 'leg' => 3])],
             ]));
 
     $this->get($savedRoute->shareUrl())
@@ -197,6 +197,11 @@ it('saves a multisport plan with its legs and shares a course for each land leg'
 
     expect($fit->getContent())->toContain('Sunday tr 3 Run');
 
+    $legGpx = $this->get(URL::signedRoute('routes.share.gpx.leg', ['savedRoute' => $savedRoute->id, 'leg' => 3]))->assertOk()->getContent();
+
+    expect(substr_count((string) $legGpx, '<trk>'))->toBe(1)
+        ->and($legGpx)->not->toContain('<type>swim</type>');
+
     $gpx = $this->get($savedRoute->gpxUrl())->assertOk()->getContent();
 
     expect($gpx)->toBeString()
@@ -212,6 +217,8 @@ it('has no course for the swim or a leg past the end', function (int $leg): void
     ]);
 
     $this->get(URL::signedRoute('routes.share.fit.leg', ['savedRoute' => $route->id, 'leg' => $leg]))
+        ->assertNotFound();
+    $this->get(URL::signedRoute('routes.share.gpx.leg', ['savedRoute' => $route->id, 'leg' => $leg]))
         ->assertNotFound();
 })->with([
     'swim' => [1],

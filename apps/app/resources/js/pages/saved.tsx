@@ -3,6 +3,7 @@ import { Bike, Footprints, Mountain } from 'lucide-react';
 import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import * as maplibregl from 'maplibre-gl';
 import {
+    type ReactNode,
     type PointerEvent as ReactPointerEvent,
     useCallback,
     useEffect,
@@ -39,6 +40,7 @@ type SavedRoute = {
     ascent_metres: number;
     url: string;
     fit_url: string;
+    gpx_url: string | null;
     created_at: string | null;
     coordinates: Coordinate[];
     layout: 'loops' | 'chain' | null;
@@ -46,8 +48,10 @@ type SavedRoute = {
         discipline: string;
         distance_metres: number;
         fit_url: string | null;
+        gpx_url: string | null;
     }>;
     image_drawn?: boolean;
+    sent_to: string[];
 };
 
 const sportLabel: Record<string, string> = {
@@ -1646,11 +1650,45 @@ function RouteDetail({
         return () => controller.abort();
     }, [route.id, route.legs.length, leg]);
 
-    const legFits = route.legs.flatMap((leg, index) =>
+    const courseLegs = route.legs.flatMap((leg, index) =>
         leg.fit_url === null
             ? []
-            : [{ ...leg, n: index + 1, url: leg.fit_url }],
+            : [
+                  {
+                      n: index + 1,
+                      label: sportLabel[leg.discipline] ?? leg.discipline,
+                      fit: leg.fit_url,
+                      gpx: leg.gpx_url,
+                  },
+              ],
     );
+
+    /** One download for the route, or one for each land leg of a multisport plan. */
+    function downloads(format: 'fit' | 'gpx'): ReactNode {
+        if (courseLegs.length === 0) {
+            const href = format === 'fit' ? route.fit_url : route.gpx_url;
+
+            return href === null ? null : (
+                <Button asChild>
+                    <a href={href} download>
+                        Download {format.toUpperCase()}
+                    </a>
+                </Button>
+            );
+        }
+
+        return courseLegs.map((leg) => {
+            const href = format === 'fit' ? leg.fit : leg.gpx;
+
+            return href === null ? null : (
+                <Button key={leg.n} asChild variant="outline">
+                    <a href={href} download>
+                        Leg {leg.n}, {leg.label}
+                    </a>
+                </Button>
+            );
+        });
+    }
 
     return (
         <>
@@ -1728,24 +1766,17 @@ function RouteDetail({
                     Send to device
                 </button>
             </div>
-            <SendToDevice open={sending} onOpenChange={setSending}>
-                {legFits.length === 0 ? (
-                    <Button asChild>
-                        <a href={route.fit_url} download>
-                            Download FIT
-                        </a>
-                    </Button>
-                ) : (
-                    legFits.map((leg) => (
-                        <Button key={leg.n} asChild variant="outline">
-                            <a href={leg.url} download>
-                                Leg {leg.n},{' '}
-                                {sportLabel[leg.discipline] ?? leg.discipline}
-                            </a>
-                        </Button>
-                    ))
-                )}
-            </SendToDevice>
+            <SendToDevice
+                open={sending}
+                onOpenChange={setSending}
+                fit={downloads('fit')}
+                gpx={downloads('gpx')}
+                legs={courseLegs.map((leg) => ({ n: leg.n, label: leg.label }))}
+                savedRouteId={() => Promise.resolve(route.id)}
+                sentTo={route.sent_to}
+                // The library lists where each route went, so it reads that again.
+                onSent={() => router.reload({ only: ['routes'] })}
+            />
         </>
     );
 }

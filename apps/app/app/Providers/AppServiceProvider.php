@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Account\RouteService;
 use App\Auth\SessionRider;
 use App\Bus\CommandBus;
 use App\Commands\ChangePasswordCommand;
 use App\Commands\ClaimDevicePairingCommand;
+use App\Commands\ConnectRouteServiceCommand;
 use App\Commands\DeleteAccountCommand;
 use App\Commands\DeleteRouteCommand;
 use App\Commands\DisconnectAppCommand;
+use App\Commands\DisconnectRouteServiceCommand;
 use App\Commands\ExportPersonalDataCommand;
 use App\Commands\LinkDeviceCommand;
 use App\Commands\MarkAllReleasesReadCommand;
@@ -19,6 +22,7 @@ use App\Commands\OpenAccountCommand;
 use App\Commands\ReadRouteDetailsCommand;
 use App\Commands\RevokeDeviceCommand;
 use App\Commands\SaveRouteCommand;
+use App\Commands\SendRouteToServiceCommand;
 use App\Commands\StartDevicePairingCommand;
 use App\Commands\StoreRouteImageCommand;
 use App\Commands\SyncReleasesCommand;
@@ -27,6 +31,7 @@ use App\Commands\WelcomeRiderCommand;
 use App\Contracts\Account\ConnectedAppRepository;
 use App\Contracts\Account\DeviceLinkRepository;
 use App\Contracts\Account\EmailConfirmation;
+use App\Contracts\Account\RouteServiceRepository;
 use App\Contracts\Account\UserRepository;
 use App\Contracts\Auth\CurrentRider;
 use App\Contracts\Bus\DispatchesCommands;
@@ -36,6 +41,7 @@ use App\Contracts\Routes\RouteImageStore;
 use App\Contracts\Routes\SavedRouteRepository;
 use App\Domain\Access\HumanCheck;
 use App\Domain\Access\NoHumanCheck;
+use App\Domain\Courses\Services\CourseServices;
 use App\Domain\Releases\ReleaseFeed;
 use App\Domain\Routing\Details\RouteDetailer;
 use App\Domain\Routing\Details\RouteDetailsSource;
@@ -47,9 +53,11 @@ use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\TracingLineFollower;
 use App\Handlers\ChangePasswordHandler;
 use App\Handlers\ClaimDevicePairingHandler;
+use App\Handlers\ConnectRouteServiceHandler;
 use App\Handlers\DeleteAccountHandler;
 use App\Handlers\DeleteRouteHandler;
 use App\Handlers\DisconnectAppHandler;
+use App\Handlers\DisconnectRouteServiceHandler;
 use App\Handlers\ExportPersonalDataHandler;
 use App\Handlers\LinkDeviceHandler;
 use App\Handlers\MarkAllReleasesReadHandler;
@@ -58,6 +66,7 @@ use App\Handlers\OpenAccountHandler;
 use App\Handlers\ReadRouteDetailsHandler;
 use App\Handlers\RevokeDeviceHandler;
 use App\Handlers\SaveRouteHandler;
+use App\Handlers\SendRouteToServiceHandler;
 use App\Handlers\StartDevicePairingHandler;
 use App\Handlers\StoreRouteImageHandler;
 use App\Handlers\SyncReleasesHandler;
@@ -76,9 +85,13 @@ use App\Integrations\OpenFreeMap\OpenFreeMapStopFinder;
 use App\Integrations\Osrm\OsrmConnector;
 use App\Integrations\Osrm\OsrmRoutingEngine;
 use App\Integrations\ReleaseNotes\ReleaseNotesDirectory;
+use App\Integrations\RideWithGps\RideWithGpsConnector;
+use App\Integrations\RideWithGps\RideWithGpsCourseService;
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Integrations\Valhalla\ValhallaRoadDescriber;
 use App\Integrations\Valhalla\ValhallaRoutingEngine;
+use App\Integrations\Wahoo\WahooConnector;
+use App\Integrations\Wahoo\WahooCourseService;
 use App\Mail\TracewayAccountMailer;
 use App\Models\PreventLazyLoading;
 use App\Notifications\RiderEmailConfirmation;
@@ -86,6 +99,7 @@ use App\Repositories\DiskRouteImageStore;
 use App\Repositories\EloquentConnectedAppRepository;
 use App\Repositories\EloquentDeviceLinkRepository;
 use App\Repositories\EloquentReleaseRepository;
+use App\Repositories\EloquentRouteServiceRepository;
 use App\Repositories\EloquentSavedRouteRepository;
 use App\Repositories\EloquentUserRepository;
 use App\Routes\CachedPlaceNamer;
@@ -132,6 +146,9 @@ class AppServiceProvider extends ServiceProvider
             ClaimDevicePairingCommand::class => ClaimDevicePairingHandler::class,
             LinkDeviceCommand::class => LinkDeviceHandler::class,
             RevokeDeviceCommand::class => RevokeDeviceHandler::class,
+            ConnectRouteServiceCommand::class => ConnectRouteServiceHandler::class,
+            DisconnectRouteServiceCommand::class => DisconnectRouteServiceHandler::class,
+            SendRouteToServiceCommand::class => SendRouteToServiceHandler::class,
             SyncReleasesCommand::class => SyncReleasesHandler::class,
             MarkReleaseReadCommand::class => MarkReleaseReadHandler::class,
             MarkAllReleasesReadCommand::class => MarkAllReleasesReadHandler::class,
@@ -144,6 +161,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(RouteImageStore::class, fn (): DiskRouteImageStore => new DiskRouteImageStore(Storage::disk('local')));
         $this->app->bind(ConnectedAppRepository::class, EloquentConnectedAppRepository::class);
         $this->app->bind(DeviceLinkRepository::class, EloquentDeviceLinkRepository::class);
+        $this->app->bind(RouteServiceRepository::class, EloquentRouteServiceRepository::class);
         $this->app->bind(ReleaseRepository::class, EloquentReleaseRepository::class);
         $this->app->bind(CurrentRider::class, SessionRider::class);
         $this->app->bind(AccountMailer::class, TracewayAccountMailer::class);
@@ -178,6 +196,8 @@ class AppServiceProvider extends ServiceProvider
                 is_int($points) && $points >= 2 ? $points : 10,
             );
         });
+
+        $this->app->bind(fn (): CourseServices => $this->courseServices());
 
         $this->app->bind(fn (): LineFollower => $this->lineFollower($this->app->make(RoutingEngine::class)));
 
@@ -363,6 +383,67 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perDay(300)->by('mcp-day:'.$caller),
             ];
         });
+    }
+
+    /**
+     * The services a rider can send routes to. A service without a client id and secret is left out,
+     * so a fresh checkout shows none.
+     */
+    private function courseServices(): CourseServices
+    {
+        $services = [];
+        $wahoo = $this->credentials('wahoo');
+        $rideWithGps = $this->credentials('ride_with_gps');
+
+        if ($wahoo !== null) {
+            $services[RouteService::Wahoo->value] = new WahooCourseService(new WahooConnector(
+                $wahoo['client_id'],
+                $wahoo['client_secret'],
+                url('/settings/services/wahoo/callback'),
+                $wahoo['url'] ?? 'https://api.wahooligan.com',
+            ));
+        }
+
+        if ($rideWithGps !== null) {
+            $services[RouteService::RideWithGps->value] = new RideWithGpsCourseService(new RideWithGpsConnector(
+                $rideWithGps['client_id'],
+                $rideWithGps['client_secret'],
+                url('/settings/services/ride_with_gps/callback'),
+                $rideWithGps['api_key'] ?? null,
+                $rideWithGps['url'] ?? 'https://ridewithgps.com',
+            ));
+        }
+
+        return new CourseServices($services);
+    }
+
+    /**
+     * @return array{client_id: string, client_secret: string, url?: string, api_key?: string}|null
+     */
+    private function credentials(string $service): ?array
+    {
+        $config = config('services.'.$service);
+
+        if (! is_array($config)) {
+            return null;
+        }
+
+        $clientId = $config['client_id'] ?? null;
+        $clientSecret = $config['client_secret'] ?? null;
+
+        if (! is_string($clientId) || $clientId === '' || ! is_string($clientSecret) || $clientSecret === '') {
+            return null;
+        }
+
+        $credentials = ['client_id' => $clientId, 'client_secret' => $clientSecret];
+
+        foreach (['url', 'api_key'] as $key) {
+            if (is_string($config[$key] ?? null) && $config[$key] !== '') {
+                $credentials[$key] = $config[$key];
+            }
+        }
+
+        return $credentials;
     }
 
     /**

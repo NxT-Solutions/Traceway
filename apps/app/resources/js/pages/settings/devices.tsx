@@ -5,6 +5,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { RouteServiceStatus } from '@/types/route-services';
 
 type Device = {
     id: string;
@@ -25,7 +26,19 @@ function written(value: string | null): string {
     }).format(new Date(value));
 }
 
-export default function Devices({ devices }: { devices: Device[] }) {
+const serviceNote: Record<string, string> = {
+    wahoo: 'Routes go to your Wahoo app and sync to an ELEMNT or ACE.',
+    ride_with_gps:
+        'Routes go to your Ride with GPS library. From there, Send to Device puts one on a Karoo, Bryton, or Wahoo.',
+};
+
+export default function Devices({
+    devices,
+    services = [],
+}: {
+    devices: Device[];
+    services?: RouteServiceStatus[];
+}) {
     const form = useForm({ code: '', label: 'Garmin' });
 
     function link(event: FormEvent<HTMLFormElement>): void {
@@ -138,6 +151,66 @@ export default function Devices({ devices }: { devices: Device[] }) {
                     </ul>
                 )}
             </div>
+
+            {services.length === 0 ? null : (
+                <div className="card">
+                    <Heading
+                        variant="small"
+                        title="Send routes to"
+                        description="Connect an account once. Then Send to device puts a route there in one tap."
+                    />
+
+                    <ul className="grid gap-3">
+                        {services.map((service) => (
+                            <li
+                                key={service.service}
+                                className="flex items-center justify-between gap-4"
+                            >
+                                <div className="text-sm">
+                                    <p className="font-medium">
+                                        {service.label}
+                                    </p>
+                                    <p className="text-muted-foreground">
+                                        {service.connected
+                                            ? service.needs_reconnect
+                                                ? `Traceway lost its link to ${service.label}. Connect it again.`
+                                                : `Connected ${written(service.connected_at)}. ${service.last_sent_at === null ? 'No route sent yet.' : `Last route sent ${written(service.last_sent_at)}.`}`
+                                            : serviceNote[service.service]}
+                                    </p>
+                                </div>
+                                {service.connected &&
+                                !service.needs_reconnect ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            router.delete(
+                                                `/settings/services/${service.service}`,
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                    >
+                                        Disconnect {service.label}
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        type="button"
+                                        onClick={() =>
+                                            window.location.assign(
+                                                `/settings/services/${service.service}/connect`,
+                                            )
+                                        }
+                                    >
+                                        {service.connected
+                                            ? `Connect ${service.label} again`
+                                            : `Connect ${service.label}`}
+                                    </Button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </>
     );
 }

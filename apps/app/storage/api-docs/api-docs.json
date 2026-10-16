@@ -885,6 +885,67 @@
                 "security": []
             }
         },
+        "/share/{savedRoute}/gpx/{leg}": {
+            "get": {
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Download one leg of a shared multisport plan as GPX",
+                "operationId": "sharedGpxLeg",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "leg",
+                        "in": "path",
+                        "description": "The leg, counted from 1. The swim has no course.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 5,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "signature",
+                        "in": "query",
+                        "description": "The signature on the share link.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A GPX file named for the leg.",
+                        "content": {
+                            "application/gpx+xml": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The link is not signed."
+                    },
+                    "404": {
+                        "description": "No such land leg."
+                    }
+                },
+                "security": []
+            }
+        },
         "/routes/import": {
             "post": {
                 "tags": [
@@ -1447,6 +1508,116 @@
                 ]
             }
         },
+        "/routes/saved/{savedRoute}/send/{service}": {
+            "post": {
+                "tags": [
+                    "Library"
+                ],
+                "summary": "Send a saved route to a connected service",
+                "description": "Wahoo syncs the route to the ELEMNT. Ride with GPS keeps it in the library, and the rider sends it on from there with Send to Device, for a Karoo or Bryton. A second send replaces the first copy.",
+                "operationId": "sendRouteToService",
+                "parameters": [
+                    {
+                        "name": "savedRoute",
+                        "in": "path",
+                        "description": "The saved route.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "description": "The service.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "wahoo",
+                                "ride_with_gps"
+                            ]
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/SendRouteToServiceRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The route is at the service, or the service is still reading it.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "status",
+                                        "service",
+                                        "message"
+                                    ],
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "enum": [
+                                                "sent",
+                                                "processing"
+                                            ]
+                                        },
+                                        "service": {
+                                            "type": "string"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "url": {
+                                            "description": "The route at the service, when it has a page.",
+                                            "type": "string",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The rider has no such route or land leg, or this Traceway does not send to that service.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The service is not connected, or it needs connecting again.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "The service did not take the route just now.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
         "/settings/devices": {
             "post": {
                 "tags": [
@@ -1691,6 +1862,51 @@
                 "responses": {
                     "302": {
                         "description": "Back to the page the person was on."
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/settings/services/{service}": {
+            "delete": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Disconnect a service the rider sends routes to",
+                "description": "Traceway asks the service to withdraw its access, then forgets the tokens.",
+                "operationId": "disconnectRouteService",
+                "parameters": [
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "description": "The service.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "wahoo",
+                                "ride_with_gps"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Back to Devices."
+                    },
+                    "404": {
+                        "description": "This Traceway does not send to that service.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -2474,6 +2690,7 @@
                     "account",
                     "saved_routes",
                     "release_notes_read",
+                    "route_services",
                     "withheld"
                 ],
                 "properties": {
@@ -2538,6 +2755,66 @@
                             "type": "object"
                         }
                     },
+                    "route_services": {
+                        "description": "The services the rider connected so Traceway can send routes to them. Their tokens are withheld.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "service",
+                                "connected_at",
+                                "last_sent_at",
+                                "sent"
+                            ],
+                            "properties": {
+                                "service": {
+                                    "type": "string",
+                                    "enum": [
+                                        "wahoo",
+                                        "ride_with_gps"
+                                    ]
+                                },
+                                "connected_at": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "last_sent_at": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "sent": {
+                                    "description": "Each saved route, or leg, sent to the service. Leg 0 is the whole route.",
+                                    "type": "array",
+                                    "items": {
+                                        "required": [
+                                            "saved_route_id",
+                                            "leg",
+                                            "url",
+                                            "sent_at"
+                                        ],
+                                        "properties": {
+                                            "saved_route_id": {
+                                                "type": "string",
+                                                "format": "uuid"
+                                            },
+                                            "leg": {
+                                                "type": "integer"
+                                            },
+                                            "url": {
+                                                "type": "string",
+                                                "nullable": true
+                                            },
+                                            "sent_at": {
+                                                "type": "string",
+                                                "nullable": true
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
                     "withheld": {
                         "type": "array",
                         "items": {
@@ -2546,7 +2823,8 @@
                                 "password",
                                 "two_factor_secret",
                                 "two_factor_recovery_codes",
-                                "remember_token"
+                                "remember_token",
+                                "route_service_tokens"
                             ]
                         }
                     }
@@ -3270,6 +3548,25 @@
                                     "type": "number",
                                     "maximum": 180,
                                     "minimum": -180
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "SendRouteToServiceRequest": {
+                "description": "Which part of the route to send. Leave out the leg for a single-sport route.",
+                "required": false,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "leg": {
+                                    "description": "A land leg of a multisport plan, counted from 1.",
+                                    "type": "integer",
+                                    "maximum": 5,
+                                    "minimum": 1
                                 }
                             },
                             "type": "object"
