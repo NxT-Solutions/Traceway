@@ -108,18 +108,18 @@ class Store:
         user = self.json("GET", API + "/developers")
         if not isinstance(user, dict):
             raise StoreError("The store did not say who is signed in.")
-        print(f"Developer fields: {keys(user)}")
 
-        candidates = []
-        for key, value in user.items():
-            if isinstance(value, str) and re.fullmatch(r"[0-9a-f-]{36}", value):
-                candidates.append((key, value))
+        # The developer record sits inside the account, next to the account's own ids.
+        developer = user.get("developer") if isinstance(user.get("developer"), dict) else {}
+        candidates = [("developer." + key, value) for key, value in developer.items() if is_id(value)]
+        candidates += [(key, value) for key, value in user.items() if is_id(value)]
+
         for key, value in candidates:
-            status, _, _ = self.request("GET", f"{API}/developers/{value}/apps?" + urllib.parse.urlencode({"locale": LOCALE}), expect=(200, 400, 403, 404))
-            print(f"Apps under {key}: {status}")
-            if status == 200:
+            status, body, _ = self.request("GET", f"{API}/developers/{value}/apps?" + urllib.parse.urlencode({"locale": LOCALE}), expect=(200, 400, 403, 404))
+            if status == 200 and APP_ID.encode() in body:
+                print(f"The Traceway listing belongs to {key}.")
                 return value
-        raise StoreError(f"None of the signed-in account's ids lists apps (fields: {keys(user)}).")
+        raise StoreError(f"No id on the signed-in account owns the Traceway listing (account fields: {keys(user)}; developer fields: {keys(developer)}).")
 
     def metadata(self, developer):
         return self.json("GET", f"{API}/developers/{developer}/apps/{APP_ID}/metadata?isShadowApp=false")
@@ -195,6 +195,10 @@ def multipart(parts):
         chunks.append(b"\r\n")
     chunks.append(f"--{boundary}--\r\n".encode())
     return b"".join(chunks), boundary
+
+
+def is_id(value):
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", value) is not None
 
 
 def keys(value):
