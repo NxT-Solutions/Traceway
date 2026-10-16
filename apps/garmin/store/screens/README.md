@@ -1,6 +1,6 @@
 # Store screens
 
-The screen images on the Connect IQ Store listing, in the order they are uploaded. Each is the device's own screen at its own size: an Edge 1040 (282 × 470) and a Forerunner 965 (454 × 454, outside the circle black). The store takes at most five, each a JPG, GIF or PNG under 150 KB, so the map screens are JPG.
+The screen images on the Connect IQ Store listing, in the order `../listing.toml` lists them. Each is the device's own screen at its own size: an Edge 1040 (282 × 470) and a Forerunner 965 (454 × 454, outside the circle black). The store takes at most five, each a JPG, GIF or PNG under 150 KB, so the map screens are JPG.
 
 1. `1-edge-routes.png`: the route list on an Edge.
 2. `2-edge-route-map.jpg`: a road loop on the map, with Ride it and Save.
@@ -15,4 +15,4 @@ They are taken in the Connect IQ simulator, so CI cannot make them. Take them ag
 3. Run it with `monkeydo <prg> edge1040` and `monkeydo <prg> fr965`, link it under Settings, then Devices, and save each screen with File, then Save Screen Capture.
 4. Crop each capture to the device screen and keep it under 150 KB.
 
-Then upload them under Edit Details on [the store page](https://apps.garmin.com/apps/a0c32e89-323f-4522-9ee8-c6af6cce14c3).
+Then list them under `images.screens` in `../listing.toml`, in order. Once that is on main, CI puts them on [the store page](https://apps.garmin.com/apps/a0c32e89-323f-4522-9ee8-c6af6cce14c3).

@@ -44,17 +44,24 @@ The drawables in `resources/drawables` are SVG sources, and the compiler renders
 CI builds the app, and nothing built is committed. `.github/workflows/garmin.yml` handles it:
 
 - **Every pull request and push to main that changes `apps/garmin` or the workflow, and one run a week:** it installs the pinned Connect IQ SDK and the manifest's devices, then exports `traceway.iq` for every product. The file is uploaded as the `traceway-garmin` artifact and signed with a throwaway key.
-- **A published release (`vX.Y.Z`) that changes the app since the last release that attached one:** it stamps that version into `manifest.xml` and signs the package with the real key. It attaches `traceway-garmin-vX.Y.Z.iq` and the store images to the release, then uploads the package to [the store page](https://apps.garmin.com/apps/a0c32e89-323f-4522-9ee8-c6af6cce14c3) as a new version, with What's New taken from the release's Devices notes. `tools/connectiq_store.py` does the upload, signed in as the account that owns the listing: `GARMIN_STORE_USERNAME` and `GARMIN_STORE_PASSWORD`, or `GARMIN_USERNAME` and `GARMIN_PASSWORD` when that is the same account. Garmin has no public upload API, so it drives the developer dashboard's own endpoints. When that fails, the release opens an issue for whoever published it, with the file, the version, and the What's New text for a manual upload under **Upload New Version**.
+- **A published release (`vX.Y.Z`) that changes the app since the last release that attached one:** it stamps that version into `manifest.xml` and signs the package with the real key. It attaches `traceway-garmin-vX.Y.Z.iq` and the store images to the release, then uploads the package to [the store page](https://apps.garmin.com/apps/a0c32e89-323f-4522-9ee8-c6af6cce14c3) as a new version and syncs the listing, with What's New taken from the release's Devices notes. When that fails, the release opens an issue for whoever published it, with the file, the version, and the What's New text for a manual upload under **Upload New Version**.
 - **A release that leaves the app alone** (a planner or site change, or only this README or the store images) builds the app as a check, but attaches nothing and opens no issue: there is nothing new to upload. Riders keep the version they have.
-- **Every week, on demand, and on pull requests:** the `Connect IQ Store sign-in` job signs in and reads the listing, changing nothing (`connectiq_store.py check`). A failure there means the sign-in or the dashboard changed, before a release needs the upload.
+- **A push to main, or a manual run on main:** the `Connect IQ Store listing` job makes the store match `store/listing.toml` (`connectiq_store.py sync`). It sends only what differs, so a push that leaves the listing alone changes nothing. When it fails, it opens an issue.
+- **Every week and on pull requests:** the same job compares the listing with the store and says what a sync would change, changing nothing (`connectiq_store.py check`). A failure there means the sign-in or the dashboard changed, before a release needs it.
+
+`tools/connectiq_store.py` signs in as the account that owns the listing: `GARMIN_STORE_USERNAME` and `GARMIN_STORE_PASSWORD`, or `GARMIN_USERNAME` and `GARMIN_PASSWORD` when that is the same account. Garmin has no public upload API, so it drives the developer dashboard's own endpoints, and a change on Garmin's side can break it. The weekly check is there to catch that.
 
 ### Store listing
 
-- `store/icon.svg` is the 500 × 500 store icon: the mark on a solid paper ground, with no Garmin branding.
+The whole listing is in git, and git wins: change it here, not under Edit Details, or the next sync puts it back.
+
+- `store/listing.toml` holds every field of Edit Details: the title, description, category, privacy policy, links, and which image goes where. What's New is the one field it leaves out: each release writes it.
+- `store/icon.svg` is the 500 × 500 store icon and the 24-bit device icon: the mark on a solid paper ground, with no Garmin branding.
+- `store/device-icon-64.svg` is the 64-colour device icon: the same mark in the colours older devices show.
 - `store/hero.svg` is the 1440 × 720 hero image.
 - `store/screens/` holds the screen images for the listing, taken in the simulator. Its README says how to take them again.
 
-CI renders both to PNG. Take screenshots in the simulator with File, then Save Screen Capture: the route list, the route detail, and the pairing code, on an Edge and on a round watch.
+CI draws each SVG to PNG at the store's size (`connectiq_store.py render --out dist/store`), and the sync draws them the same way. A new or changed screen goes up once its file and its line in `listing.toml` are on main.
 
 The workflow needs these repository secrets:
 
