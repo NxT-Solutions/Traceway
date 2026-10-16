@@ -201,6 +201,17 @@ def is_id(value):
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", value) is not None
 
 
+def shape(value, depth=0):
+    """What a value is made of, never what it says: the CI logs are public."""
+    if isinstance(value, dict):
+        if depth > 1:
+            return "object"
+        return "{" + ", ".join(f"{key}: {shape(item, depth + 1)}" for key, item in sorted(value.items())) + "}"
+    if isinstance(value, list):
+        return f"list of {len(value)}" + (f" × {shape(value[0], depth + 1)}" if value else "")
+    return type(value).__name__
+
+
 def keys(value):
     return ", ".join(sorted(value.keys())) if isinstance(value, dict) else type(value).__name__
 
@@ -234,6 +245,9 @@ def check(store):
         print(f"Languages: {', '.join(str(model.get('appLocale')) for model in models if isinstance(model, dict))}")
         if models and isinstance(models[0], dict):
             print(f"Text fields per language: {keys(models[0])}")
+    if isinstance(current, dict):
+        for key in ("category", "selectedCountries", "selectedActivityTypes", "selectedAntPlusProfiles", "paymentModel", "typeId", "betaApp", "shadowApp", "migrationAllowed"):
+            print(f"{key}: {shape(current.get(key))}")
     for key in ("version", "appVersion", "externalAppVersion", "status", "approvalStatus"):
         if isinstance(current, dict) and key in current and not isinstance(current[key], (dict, list)):
             print(f"{key}: {current[key]}")
