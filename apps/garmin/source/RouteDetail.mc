@@ -277,7 +277,8 @@ class RouteDetail {
                 dc.setPenWidth(1);
             }
 
-            dc.drawText(left + each / 2, y + tall / 2, font, text, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            // Centred on the ascent: the labels have no letters below the line, so centring the whole font box sits them high.
+            dc.drawText(left + each / 2, y + (tall - Graphics.getFontAscent(font)) / 2, font, text, Graphics.TEXT_JUSTIFY_CENTER);
 
             if (list.size() > 1 && index == focus) {
                 dc.setColor(Brand.PAPER, Graphics.COLOR_TRANSPARENT);

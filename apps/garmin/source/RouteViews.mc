@@ -19,9 +19,39 @@ module Detail {
         WatchUi.pushView(view, new RouteDetailDelegate(view.detail), WatchUi.SLIDE_LEFT);
     }
 
-    // How much of the screen height the route gets. The rest is the panel.
+    // An Edge 840, 850 or 1050 draws zoom and pan buttons across the top of its map, so the route is framed below them,
+    // with a tight margin so the shorter area does not make the map zoom a step further out.
+    (:mapcontrols)
+    function controlsHeight() {
+        return (System.getDeviceSettings().screenHeight * 0.12).toNumber();
+    }
+
+    (:mapcontrols)
+    function margin() {
+        return 0.02;
+    }
+
+    // Other devices draw nothing over the map, so the route gets the whole area above the panel.
+    (:nomapcontrols)
+    function controlsHeight() {
+        return 0;
+    }
+
+    (:nomapcontrols)
+    function margin() {
+        return 0.06;
+    }
+
+    // How much of the screen height the route gets. The rest is the panel. A tall Edge, such as an 850, has room to
+    // spare below, and the taller map keeps the route from being framed a zoom step further out.
     function mapShare() {
-        return System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_ROUND ? 0.46 : 0.56;
+        var settings = System.getDeviceSettings();
+
+        if (settings.screenShape == System.SCREEN_SHAPE_ROUND) {
+            return 0.46;
+        }
+
+        return settings.screenHeight >= 600 ? 0.62 : 0.56;
     }
 
     // The south-west and north-east corners of a line of [lat, lon] points.
@@ -88,13 +118,10 @@ class RouteMapView extends WatchUi.MapView {
         var west = box[1].toFloat();
         var north = box[2].toFloat();
         var east = box[3].toFloat();
-        var padLat = (north - south) * 0.06 + 0.0003;
-        var padLon = (east - west) * 0.06 + 0.0003;
-        var round = settings.screenShape == System.SCREEN_SHAPE_ROUND;
-        var controls = settings.isTouchScreen ? (settings.screenHeight * 0.12).toNumber() : 0;
+        var padLat = (north - south) * Detail.margin() + 0.0003;
+        var padLon = (east - west) * Detail.margin() + 0.0003;
 
-        // A touch map draws its zoom and pan buttons along the top, so the route is framed below them.
-        setScreenVisibleArea(0, controls, settings.screenWidth, (settings.screenHeight * Detail.mapShare()).toNumber());
+        setScreenVisibleArea(0, Detail.controlsHeight(), settings.screenWidth, (settings.screenHeight * Detail.mapShare()).toNumber());
         setMapVisibleArea(location(north + padLat, west - padLon), location(south - padLat, east + padLon));
     }
 
