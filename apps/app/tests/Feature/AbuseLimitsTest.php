@@ -12,7 +12,8 @@ uses(RefreshDatabase::class);
 /**
  * Each of these costs the map servers, the database, or an email, so one
  * account or one address gets only so many a minute. The limit sits in front
- * of validation, so empty requests count too.
+ * of validation, so empty requests count too. A test that reads the wait in
+ * seconds freezes the clock, or a second can pass between the requests.
  */
 it('lets a rider draw thirty routes a minute, then says when to draw again', function (): void {
     $user = User::factory()->create();
@@ -81,6 +82,8 @@ it('lets an AI tool register thirty times a minute from one address, but not the
 });
 
 it('takes five sign-ups a minute from one address, then says when to try again', function (): void {
+    $this->freezeTime();
+
     foreach (range(1, 5) as $ignored) {
         $this->from(route('register'))->post(route('register.store'), [])->assertSessionHasErrors('name');
     }
@@ -92,6 +95,8 @@ it('takes five sign-ups a minute from one address, then says when to try again',
 });
 
 it('takes five reset-link requests a minute from one address', function (): void {
+    $this->freezeTime();
+
     foreach (range(1, 5) as $ignored) {
         $this->from(route('password.request'))->post(route('password.email'), [])->assertSessionHasErrors('email');
     }
