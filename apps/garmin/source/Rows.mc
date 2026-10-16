@@ -34,17 +34,50 @@ module Rows {
     // As tall as the system menu's rows on these Edges, which hold a name and a line of numbers.
     (:customrows)
     function menu() {
-        return new WatchUi.CustomMenu((System.getDeviceSettings().screenHeight * 0.183).toNumber(), Graphics.COLOR_WHITE, { :title => new WordmarkTitle() });
+        // The first route has the focus from the start, as in the system menu, so the buttons have somewhere to begin.
+        drawn = [];
+
+        return new WatchUi.CustomMenu((System.getDeviceSettings().screenHeight * 0.183).toNumber(), Graphics.COLOR_WHITE, { :title => new WordmarkTitle(), :focus => 0 });
     }
 
     (:customrows)
+    var drawn = [];
+
+    (:customrows)
     function route(id, label, detail, sport, saved) {
-        return new RouteRow(id, label, detail, sport, saved);
+        var row = new RouteRow(id, label, detail, sport, saved);
+        drawn.add(row);
+
+        return row;
     }
 
     (:customrows)
     function plain(id, label) {
-        return new RouteRow(id, label, null, null, false);
+        var row = new RouteRow(id, label, null, null, false);
+        drawn.add(row);
+
+        return row;
+    }
+
+    // These Edges report no focus on any row until a button is pressed, though the first row has it, so until then the
+    // first row is drawn as focused, as the system menu does.
+    (:customrows)
+    function focused(row) {
+        if (row.isFocused()) {
+            return true;
+        }
+
+        if (drawn.size() == 0 || drawn[0] != row) {
+            return false;
+        }
+
+        for (var index = 1; index < drawn.size(); index++) {
+            if (drawn[index].isFocused()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     (:customrows)
@@ -97,7 +130,7 @@ class RouteRow extends WatchUi.CustomMenuItem {
     function draw(dc) {
         var width = dc.getWidth();
         var height = dc.getHeight();
-        var focused = isFocused();
+        var focused = Rows.focused(self);
         var margin = (width * 0.05).toNumber();
 
         dc.setColor(focused ? FOCUS : Graphics.COLOR_WHITE, focused ? FOCUS : Graphics.COLOR_WHITE);
