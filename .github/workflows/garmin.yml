@@ -284,7 +284,8 @@ jobs:
           python3 apps/garmin/tools/connectiq_store.py upload \
             --iq "dist/traceway-garmin-${TAG}.iq" \
             --version "${TAG#v}" \
-            --whats-new dist/whats-new.txt
+            --whats-new dist/whats-new.txt \
+            --result dist/store-result.txt
 
       # Only when the upload did not go through: an issue for the person who
       # published the release, open until the upload is done by hand.
@@ -305,6 +306,21 @@ jobs:
           fi
 
           body_file="$(mktemp)"
+          progress="$(cat dist/store-result.txt 2>/dev/null || echo none)"
+          if [ "$progress" = "uploaded" ]; then
+            {
+              echo "[The automatic upload](${RUN_URL}) put ${TAG} on the Connect IQ Store, but could not set What's New."
+              echo
+              echo "1. Open [the Traceway store page](${STORE_PAGE}) and choose **Edit Details**. Do not upload the version again: it is already there."
+              echo "2. Paste this under What's New, then submit:"
+              echo
+              echo '```'
+              cat dist/whats-new.txt
+              echo '```'
+              echo
+              echo "Close this issue when it is saved."
+            } > "$body_file"
+          else
           {
             echo "${TAG} changed the Garmin app, and [the automatic upload](${RUN_URL}) did not go through. Upload it by hand. It takes about two minutes."
             echo
@@ -319,6 +335,7 @@ jobs:
             echo
             echo "Close this issue when Garmin has the new version. Riders' devices update by themselves once Garmin approves it."
           } > "$body_file"
+          fi
 
           assignee=()
           if [ "$AUTHOR_TYPE" = "User" ]; then
