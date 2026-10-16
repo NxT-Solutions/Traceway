@@ -196,7 +196,7 @@ class RouteDetail {
         }
 
         if (state == :removed) {
-            return "Removed from Courses";
+            return "Not in Courses";
         }
 
         if (state == :foreign) {
