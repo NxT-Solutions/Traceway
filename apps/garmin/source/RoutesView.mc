@@ -1,5 +1,6 @@
 import Toybox.Graphics;
 import Toybox.Lang;
+import Toybox.Math;
 import Toybox.System;
 import Toybox.WatchUi;
 
@@ -73,8 +74,11 @@ class RoutesView extends WatchUi.View {
         return Graphics.fitTextToArea(text, font, width, Graphics.getFontHeight(font), true);
     }
 
+    // A round watch draws the highlighted route larger and cuts what does not fit, so from 10 km it drops the decimal.
     function summary(route) {
-        var text = (route["distance_metres"] / 1000.0).format("%.1f") + " km";
+        var km = route["distance_metres"] / 1000.0;
+        var round = System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_ROUND;
+        var text = (round && km >= 9.95 ? Math.round(km).toNumber().toString() : km.format("%.1f")) + " km";
 
         if (route["ascent_metres"] > 0) {
             text += ", +" + route["ascent_metres"] + " m";
