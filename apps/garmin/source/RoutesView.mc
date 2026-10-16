@@ -34,7 +34,7 @@ class RoutesView extends WatchUi.View {
         }
 
         var entries = [];
-        var menu = new WatchUi.Menu2({ :title => new WordmarkTitle() });
+        var menu = Rows.menu();
         var routes = data["routes"];
         var known = Courses.index();
 
@@ -68,13 +68,13 @@ class RoutesView extends WatchUi.View {
             return;
         }
 
-        menu.addItem(new WatchUi.MenuItem("Unlink device", null, -1, null));
+        menu.addItem(Rows.plain(-1, "Unlink device"));
         WatchUi.switchToView(menu, new RoutesMenuDelegate(entries), WatchUi.SLIDE_IMMEDIATE);
     }
 
     // One route's menu item. Its tile is green when the route is in the device's Courses.
     function item(entry, id, known, label, detail) {
-        var row = new WatchUi.IconMenuItem(label, detail, id, new WatchUi.Bitmap({ :rezId => Brand.sportIcon(entry[:sport], Courses.find(known, entry) != null) }), null);
+        var row = Rows.route(id, label, detail, entry[:sport], Courses.find(known, entry) != null);
 
         entry[:item] = row;
 
@@ -138,6 +138,6 @@ function markSaved(entry, saved) {
     var item = entry[:item];
 
     if (item != null) {
-        item.setIcon(new WatchUi.Bitmap({ :rezId => Brand.sportIcon(entry[:sport], saved) }));
+        Rows.mark(item, entry[:sport], saved);
     }
 }
