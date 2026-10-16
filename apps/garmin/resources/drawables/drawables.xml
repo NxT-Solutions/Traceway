@@ -7,4 +7,7 @@
     <bitmap id="SportFoot" dithering="none" filename="sport_foot.svg" scaleX="12%" scaleRelativeTo="screen"/>
     <bitmap id="Check" dithering="none" filename="check.svg" scaleX="20%" scaleRelativeTo="screen"/>
     <bitmap id="StartDot" dithering="none" filename="start_dot.svg" scaleX="7%" scaleRelativeTo="screen"/>
+    <bitmap id="SportRoadSaved" dithering="none" filename="sport_road_saved.svg" scaleX="12%" scaleRelativeTo="screen"/>
+    <bitmap id="SportMtbSaved" dithering="none" filename="sport_mtb_saved.svg" scaleX="12%" scaleRelativeTo="screen"/>
+    <bitmap id="SportFootSaved" dithering="none" filename="sport_foot_saved.svg" scaleX="12%" scaleRelativeTo="screen"/>
 </drawables>

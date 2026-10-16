@@ -6,11 +6,13 @@ import Toybox.System;
 import Toybox.WatchUi;
 
 // One route before it goes on the device: its shape, its numbers, and two actions.
-// The primary action starts the course in the device's own navigation. Save only puts it in Courses.
+// The primary action starts the course in the device's own navigation. Save only puts it in Courses,
+// and once it is there, Remove takes it out again.
 // Both work by touch and by buttons: up and down move the focus, enter or start presses it.
 class RouteDetail {
     const START = 0;
     const SAVE = 1;
+    const REMOVE = 2;
 
     var entry;
     var line = null;
@@ -25,7 +27,7 @@ class RouteDetail {
     function initialize(item, screen) {
         entry = item;
         view = screen;
-        course = find(entry[:name]);
+        course = Courses.find(Courses.index(), entry);
         state = course == null ? :ready : :stored;
     }
 
@@ -66,11 +68,11 @@ class RouteDetail {
             return [];
         }
 
-        if (state == :stored || state == :saved) {
+        if (state == :foreign) {
             return [START];
         }
 
-        return [START, SAVE];
+        return course != null ? [START, REMOVE] : [START, SAVE];
     }
 
     function press(action) {
@@ -80,6 +82,11 @@ class RouteDetail {
 
         if (action == START && course != null) {
             System.exitTo(course.toIntent());
+            return;
+        }
+
+        if (action == REMOVE) {
+            WatchUi.pushView(new WatchUi.Confirmation("Remove from Courses?"), new RemoveDelegate(self), WatchUi.SLIDE_IMMEDIATE);
             return;
         }
 
@@ -125,6 +132,11 @@ class RouteDetail {
         state = :saved;
         focus = 0;
 
+        if (course != null) {
+            Courses.remember(entry, course);
+            markSaved(entry, true);
+        }
+
         if (_launch && course != null) {
             System.exitTo(course.toIntent());
             return;
@@ -143,28 +155,31 @@ class RouteDetail {
             }
         }
 
-        return find(entry[:name]);
+        return Courses.index()[:names][entry[:name]];
     }
 
-    // The newest course on the device with this name.
-    function find(name) {
-        if (!(Toybox has :PersistedContent)) {
-            return null;
+    // Takes the course out of the device's Courses. A course that came from Garmin Connect or a cable belongs to the
+    // device, not to this app, so the device refuses, and the rider is told where to remove it.
+    function remove() {
+        if (course == null) {
+            return;
         }
 
-        var found = null;
-        var courses = PersistedContent.getCourses();
-        var item = courses.next();
-
-        while (item != null) {
-            if (item.getName().equals(name)) {
-                found = item;
-            }
-
-            item = courses.next();
+        try {
+            course.remove();
+        } catch (error) {
+            state = :foreign;
+            focus = 0;
+            WatchUi.requestUpdate();
+            return;
         }
 
-        return found;
+        Courses.forget(entry);
+        markSaved(entry, false);
+        course = null;
+        state = :removed;
+        focus = 0;
+        WatchUi.requestUpdate();
     }
 
     function status() {
@@ -177,7 +192,15 @@ class RouteDetail {
         }
 
         if (state == :stored) {
-            return "Already in Courses";
+            return "Saved in Courses";
+        }
+
+        if (state == :removed) {
+            return "Removed from Courses";
+        }
+
+        if (state == :foreign) {
+            return "Saved outside Traceway. Remove it under Courses.";
         }
 
         if (state == :gone) {
@@ -255,7 +278,7 @@ class RouteDetail {
         var step = font == Graphics.FONT_SMALL ? 0 : 1;
 
         // Both labels share one size, the largest that fits inside the pill.
-        while (step < fonts.size() - 1 && dc.getTextWidthInPixels(label, fonts[step]) > each - tall / 2) {
+        while (step < fonts.size() - 1 && widest(dc, list, label, fonts[step]) > each - tall / 2) {
             step++;
         }
 
@@ -263,7 +286,7 @@ class RouteDetail {
 
         for (var index = 0; index < list.size(); index++) {
             var action = list[index];
-            var text = action == START ? label : "Save";
+            var text = name(action, label);
             var left = x + index * (each + gap);
 
             if (action == START) {
@@ -289,6 +312,25 @@ class RouteDetail {
 
             buttons.add([action, left, y, each, tall]);
         }
+    }
+
+    function name(action, label) {
+        if (action == START) {
+            return label;
+        }
+
+        return action == REMOVE ? "Remove" : "Save";
+    }
+
+    function widest(dc, list, label, font) {
+        var most = 0;
+
+        for (var index = 0; index < list.size(); index++) {
+            var width = dc.getTextWidthInPixels(name(list[index], label), font);
+            most = width > most ? width : most;
+        }
+
+        return most;
     }
 
     // The action under a tap, or null.
@@ -357,6 +399,24 @@ class RouteDetailDelegate extends WatchUi.BehaviorDelegate {
         }
 
         _detail.press(action);
+
+        return true;
+    }
+}
+
+// Asks before a course leaves the device, since it cannot come back without the phone.
+class RemoveDelegate extends WatchUi.ConfirmationDelegate {
+    var _detail;
+
+    function initialize(detail) {
+        ConfirmationDelegate.initialize();
+        _detail = detail;
+    }
+
+    function onResponse(response) {
+        if (response == WatchUi.CONFIRM_YES) {
+            _detail.remove();
+        }
 
         return true;
     }

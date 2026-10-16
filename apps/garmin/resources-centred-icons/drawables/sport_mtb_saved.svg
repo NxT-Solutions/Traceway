@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 72" width="80" height="144">
+  <!-- The saved tile, on the taller canvas that centres it in the row. -->
+  <g transform="translate(0 16)">
+  <rect width="40" height="40" rx="11" fill="#97cb46"/>
+  <g transform="translate(8 8)" fill="none" stroke="#071f20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></g>
+  </g>
+</svg>

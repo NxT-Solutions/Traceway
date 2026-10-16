@@ -36,6 +36,7 @@ class RoutesView extends WatchUi.View {
         var entries = [];
         var menu = new WatchUi.Menu2({ :title => new WordmarkTitle() });
         var routes = data["routes"];
+        var known = Courses.index();
 
         for (var index = 0; index < routes.size(); index++) {
             var route = routes[index];
@@ -45,16 +46,20 @@ class RoutesView extends WatchUi.View {
             if (legs.size() == 0) {
                 var numbers = summary(route);
 
-                menu.addItem(new WatchUi.IconMenuItem(fit(route["title"], Graphics.FONT_MEDIUM), fit(numbers, Graphics.FONT_SMALL), entries.size(), new WatchUi.Bitmap({ :rezId => Brand.sportIcon(route["sport"]) }), null));
-                entries.add({ :name => route["name"], :title => route["title"], :sport => route["sport"], :summary => numbers, :path => base + "/fit", :line => base + "/line", :bounds => route["bounds"] });
+                var entry = { :name => route["name"], :title => route["title"], :sport => route["sport"], :summary => numbers, :path => base + "/fit", :line => base + "/line", :bounds => route["bounds"] };
+
+                menu.addItem(item(entry, entries.size(), known, fit(route["title"], Graphics.FONT_MEDIUM), fit(numbers, Graphics.FONT_SMALL)));
+                entries.add(entry);
             }
 
             for (var leg = 0; leg < legs.size(); leg++) {
                 var part = legs[leg];
                 var which = "Leg " + part["n"] + " of " + route["title"];
 
-                menu.addItem(new WatchUi.IconMenuItem(fit(part["name"], Graphics.FONT_MEDIUM), fit(which, Graphics.FONT_SMALL), entries.size(), new WatchUi.Bitmap({ :rezId => Brand.sportIcon(part["sport"]) }), null));
-                entries.add({ :name => part["name"], :title => part["name"], :sport => part["sport"], :summary => "Leg " + part["n"] + ", " + summary(part), :path => base + "/fit/" + part["n"], :line => base + "/line/" + part["n"], :bounds => part["bounds"] });
+                var entry = { :name => part["name"], :title => part["name"], :sport => part["sport"], :summary => "Leg " + part["n"] + ", " + summary(part), :path => base + "/fit/" + part["n"], :line => base + "/line/" + part["n"], :bounds => part["bounds"] };
+
+                menu.addItem(item(entry, entries.size(), known, fit(part["name"], Graphics.FONT_MEDIUM), fit(which, Graphics.FONT_SMALL)));
+                entries.add(entry);
             }
         }
 
@@ -65,6 +70,15 @@ class RoutesView extends WatchUi.View {
 
         menu.addItem(new WatchUi.MenuItem("Unlink device", null, -1, null));
         WatchUi.switchToView(menu, new RoutesMenuDelegate(entries), WatchUi.SLIDE_IMMEDIATE);
+    }
+
+    // One route's menu item. Its tile is green when the route is in the device's Courses.
+    function item(entry, id, known, label, detail) {
+        var row = new WatchUi.IconMenuItem(label, detail, id, new WatchUi.Bitmap({ :rezId => Brand.sportIcon(entry[:sport], Courses.find(known, entry) != null) }), null);
+
+        entry[:item] = row;
+
+        return row;
     }
 
     // A menu does not shorten a label before its icon, so long names are cut here, with an ellipsis.
@@ -116,5 +130,14 @@ class RoutesMenuDelegate extends WatchUi.Menu2InputDelegate {
         }
 
         Detail.show(_entries[id]);
+    }
+}
+
+// Repaints a route's tile after it is saved or removed, so the list is right on the way back.
+function markSaved(entry, saved) {
+    var item = entry[:item];
+
+    if (item != null) {
+        item.setIcon(new WatchUi.Bitmap({ :rezId => Brand.sportIcon(entry[:sport], saved) }));
     }
 }
