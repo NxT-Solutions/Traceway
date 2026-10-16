@@ -22,10 +22,11 @@ edge1030plus.resourcePath = $(edge1030plus.resourcePath);resources-narrow-icons
 edge1040.resourcePath = $(edge1040.resourcePath);resources-narrow-icons
 
 # These put a menu icon on the left, at the top of its row, so the sport icons sit on a taller canvas that centres them.
+# The Edge MTB draws bitmaps in 64 colours, so its green saved tiles are the lime ones too.
 edge550.resourcePath = $(edge550.resourcePath);resources-centred-icons
 edge850.resourcePath = $(edge850.resourcePath);resources-centred-icons
 edge1050.resourcePath = $(edge1050.resourcePath);resources-centred-icons
-edgemtb.resourcePath = $(edgemtb.resourcePath);resources-centred-icons
+edgemtb.resourcePath = $(edgemtb.resourcePath);resources-centred-icons;resources-mip-icons
 fr265.resourcePath = $(fr265.resourcePath);resources-centred-icons
 fr965.resourcePath = $(fr965.resourcePath);resources-centred-icons
 fr970.resourcePath = $(fr970.resourcePath);resources-centred-icons

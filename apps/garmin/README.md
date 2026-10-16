@@ -34,11 +34,23 @@ The manifest covers every Edge from the 520 Plus, 820, Explore, and 1030 onward,
 
 The app follows the planner: an ink ground (`#071f20`), paper type (`#f7f5ec`), and the marker green (`#97cb46`) used sparingly. It uses the device's own fonts.
 
-The drawables in `resources/drawables` are SVG sources, and the compiler renders them at each device's size. `resources-mip` holds the lime versions for 64-colour screens, and `resources-mip-icons` the lime saved tiles for those watches.
+The drawables in `resources/drawables` are SVG sources, and the compiler renders them at each device's size. `resources-mip` holds the lime versions for 64-colour screens, and `resources-mip-icons` the lime saved tiles for those watches and the Edge MTB, which draws bitmaps in 64 colours.
 - the wordmark, Outfit 600 drawn as outlines, so no font is needed at build time;
 - the launcher icon, which is the favicon;
 - the sport tiles, the library's lucide glyphs on ink, and in ink on green for a route in Courses;
 - the green check.
+
+### Button labels
+
+A button label sits in the middle of its button on every device. The devices' fonts differ: on most newer Edges the capitals fill the font's ascent, but on the older Edges and on the watches the font leaves room above them, which drops a label by 2 to 3 pixels. `RouteDetail.labelTop` centres on the ascent, then lifts the label by 8% of the font height (at least 2 pixels) when the ascent is more than three quarters of the height. That rule was measured on every product in the manifest.
+
+Measure again after changing the buttons, the fonts, or the manifest. Take a capture of a route screen on each device (see Run), then:
+
+```bash
+swift tools/label_centre.swift 27 edge1040-route.png
+```
+
+The first number is the button height in device pixels, `tall` in `RouteDetail.drawPanel`. Within 0.5 pixels is as centred as whole pixels allow.
 
 ## Build and release
 
