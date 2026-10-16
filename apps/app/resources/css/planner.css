@@ -803,3 +803,9 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
   .tw-planner .app:has(.player-card) .maphint{top:140px}
   .tw-planner .app:has(.player-card) .undobar{top:188px}
 }
+.tw-planner .svc-note{flex:0 0 auto;display:flex;align-items:flex-start;gap:12px;padding:10px 16px 10px 20px;background:var(--panel);color:var(--text);border-bottom:1px solid var(--hair);box-shadow:inset 4px 0 0 oklch(0.8 0.14 75);position:relative;z-index:4}
+.tw-planner .svc-note p{margin:0;flex:1 1 auto;min-width:0}
+.tw-planner .svc-note span{color:var(--muted)}
+.tw-planner .svc-note a{color:var(--text);text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.tw-planner .svc-note button{flex:0 0 auto;display:grid;place-items:center;width:32px;height:32px;margin:-4px -6px -4px 0;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer}
+.tw-planner .svc-note button:hover{background:var(--hover);color:var(--text)}

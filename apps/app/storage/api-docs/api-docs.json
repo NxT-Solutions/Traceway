@@ -2133,6 +2133,22 @@
                 "security": []
             }
         },
+        "/status": {
+            "get": {
+                "tags": [
+                    "Status"
+                ],
+                "summary": "See what works right now",
+                "description": "Public. Whether the planner, the map services, the apps a rider sends to, and the Garmin store listing work, with the last 90 days.",
+                "operationId": "serviceStatus",
+                "responses": {
+                    "200": {
+                        "description": "The status page."
+                    }
+                },
+                "security": []
+            }
+        },
         "/routes/snap": {
             "post": {
                 "tags": [
@@ -3925,6 +3941,10 @@
         {
             "name": "Account",
             "description": "Account"
+        },
+        {
+            "name": "Status",
+            "description": "Status"
         },
         {
             "name": "Health",

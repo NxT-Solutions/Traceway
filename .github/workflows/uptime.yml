@@ -1,0 +1,83 @@
+---
+name: Uptime
+
+# The status page lives on the same server as the planner, so it cannot say
+# when that server is down. This asks from outside, every 15 minutes, and
+# keeps one open issue labelled outage while Traceway does not answer.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      site:
+        description: The site to check
+        required: false
+        default: https://traceway.online
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check Traceway Answers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Ask The Planner And The Status Page
+        id: ask
+        env:
+          SITE: ${{ inputs.site || vars.STATUS_SITE_URL || 'https://traceway.online' }}
+        run: |
+          set -uo pipefail
+          failed=""
+          for path in /up /status; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+              --max-time 20 --retry 2 --retry-delay 15 --retry-all-errors \
+              -A 'Traceway uptime check (+https://github.com/'"${GITHUB_REPOSITORY}"')' \
+              "${SITE%/}${path}" || true)
+            echo "${path}: ${code}"
+            if [ "${code}" != "200" ]; then
+              failed="${failed}- \`${path}\` answered ${code:-nothing}"$'\n'
+            fi
+          done
+          {
+            echo "site=${SITE%/}"
+            echo "failed<<EOF"
+            printf '%s' "${failed}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Open Or Close The Outage Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SITE: ${{ steps.ask.outputs.site }}
+          FAILED: ${{ steps.ask.outputs.failed }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          now=$(date -u '+%Y-%m-%d %H:%M UTC')
+          open=$(gh issue list --label outage --state open --limit 1 --json number --jq '.[0].number // empty')
+
+          if [ -n "${FAILED}" ]; then
+            if [ -z "${open}" ]; then
+              gh label create outage --color B60205 --description 'Traceway does not answer' --force
+              gh issue create --label outage \
+                --title "Traceway does not answer (${now})" \
+                --body "$(printf 'The uptime check could not reach %s at %s.\n\n%s\nRiders cannot use the planner or the status page while this lasts. This issue closes itself once both answer again.\n\n[The run](%s)' "${SITE}" "${now}" "${FAILED}" "${RUN_URL}")"
+            fi
+            echo "::error::Traceway does not answer: ${FAILED}"
+            exit 1
+          fi
+
+          if [ -n "${open}" ]; then
+            gh issue comment "${open}" --body "Traceway answers again at ${now}. [The run](${RUN_URL})"
+            gh issue close "${open}"
+          fi

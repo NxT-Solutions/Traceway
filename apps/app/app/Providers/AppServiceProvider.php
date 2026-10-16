@@ -19,7 +19,10 @@ use App\Commands\LinkDeviceCommand;
 use App\Commands\MarkAllReleasesReadCommand;
 use App\Commands\MarkReleaseReadCommand;
 use App\Commands\OpenAccountCommand;
+use App\Commands\PostStatusNoticeCommand;
 use App\Commands\ReadRouteDetailsCommand;
+use App\Commands\RecordServiceChecksCommand;
+use App\Commands\ResolveStatusNoticeCommand;
 use App\Commands\RevokeDeviceCommand;
 use App\Commands\SaveRouteCommand;
 use App\Commands\SendRouteToServiceCommand;
@@ -39,6 +42,7 @@ use App\Contracts\Mail\AccountMailer;
 use App\Contracts\Releases\ReleaseRepository;
 use App\Contracts\Routes\RouteImageStore;
 use App\Contracts\Routes\SavedRouteRepository;
+use App\Contracts\Status\StatusRepository;
 use App\Domain\Access\HumanCheck;
 use App\Domain\Access\NoHumanCheck;
 use App\Domain\Courses\Services\CourseServices;
@@ -51,6 +55,8 @@ use App\Domain\Routing\PlaceNamer;
 use App\Domain\Routing\PlaceSearch;
 use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\TracingLineFollower;
+use App\Domain\Status\ServiceProbes;
+use App\Domain\Status\StatusComponent;
 use App\Handlers\ChangePasswordHandler;
 use App\Handlers\ClaimDevicePairingHandler;
 use App\Handlers\ConnectRouteServiceHandler;
@@ -63,7 +69,10 @@ use App\Handlers\LinkDeviceHandler;
 use App\Handlers\MarkAllReleasesReadHandler;
 use App\Handlers\MarkReleaseReadHandler;
 use App\Handlers\OpenAccountHandler;
+use App\Handlers\PostStatusNoticeHandler;
 use App\Handlers\ReadRouteDetailsHandler;
+use App\Handlers\RecordServiceChecksHandler;
+use App\Handlers\ResolveStatusNoticeHandler;
 use App\Handlers\RevokeDeviceHandler;
 use App\Handlers\SaveRouteHandler;
 use App\Handlers\SendRouteToServiceHandler;
@@ -87,6 +96,9 @@ use App\Integrations\Osrm\OsrmRoutingEngine;
 use App\Integrations\ReleaseNotes\ReleaseNotesDirectory;
 use App\Integrations\RideWithGps\RideWithGpsConnector;
 use App\Integrations\RideWithGps\RideWithGpsCourseService;
+use App\Integrations\Status\ConnectIqStoreProbe;
+use App\Integrations\Status\HttpServiceProbe;
+use App\Integrations\Status\StatusConnector;
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Integrations\Valhalla\ValhallaRoadDescriber;
 use App\Integrations\Valhalla\ValhallaRoutingEngine;
@@ -95,6 +107,8 @@ use App\Integrations\Wahoo\WahooCourseService;
 use App\Mail\TracewayAccountMailer;
 use App\Models\PreventLazyLoading;
 use App\Notifications\RiderEmailConfirmation;
+use App\Queries\Status\PlannerProbe;
+use App\Repositories\DatabaseStatusRepository;
 use App\Repositories\DiskRouteImageStore;
 use App\Repositories\EloquentConnectedAppRepository;
 use App\Repositories\EloquentDeviceLinkRepository;
@@ -152,6 +166,9 @@ class AppServiceProvider extends ServiceProvider
             SyncReleasesCommand::class => SyncReleasesHandler::class,
             MarkReleaseReadCommand::class => MarkReleaseReadHandler::class,
             MarkAllReleasesReadCommand::class => MarkAllReleasesReadHandler::class,
+            RecordServiceChecksCommand::class => RecordServiceChecksHandler::class,
+            PostStatusNoticeCommand::class => PostStatusNoticeHandler::class,
+            ResolveStatusNoticeCommand::class => ResolveStatusNoticeHandler::class,
         ]);
         $this->app->instance(DispatchesCommands::class, $commandBus);
         $this->app->alias(DispatchesCommands::class, CommandBus::class);
@@ -163,6 +180,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DeviceLinkRepository::class, EloquentDeviceLinkRepository::class);
         $this->app->bind(RouteServiceRepository::class, EloquentRouteServiceRepository::class);
         $this->app->bind(ReleaseRepository::class, EloquentReleaseRepository::class);
+        $this->app->bind(StatusRepository::class, DatabaseStatusRepository::class);
+        $this->app->bind(fn (): ServiceProbes => $this->serviceProbes());
         $this->app->bind(CurrentRider::class, SessionRider::class);
         $this->app->bind(AccountMailer::class, TracewayAccountMailer::class);
         $this->app->bind(EmailConfirmation::class, RiderEmailConfirmation::class);
@@ -254,6 +273,57 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * What the status page checks: Traceway itself, the map servers the planner is set up to
+     * use, the apps a rider can send to once they are set up, and the Garmin store listing.
+     */
+    private function serviceProbes(): ServiceProbes
+    {
+        $router = config('services.router');
+        $routing = match ($router) {
+            'graphhopper' => [$this->configured('graphhopper.url', 'http://graphhopper:8989'), '/health'],
+            'osrm' => [$this->configured('osrm.url', 'https://router.project-osrm.org'), '/nearest/v1/driving/13.38886,52.517037'],
+            default => [$this->configured('valhalla.url', 'https://valhalla1.openstreetmap.de'), '/status'],
+        };
+
+        $probes = [
+            new PlannerProbe,
+            new HttpServiceProbe(StatusComponent::Routing, new StatusConnector($routing[0]), $routing[1]),
+            new HttpServiceProbe(StatusComponent::Places, new StatusConnector($this->configured('nominatim.url', 'https://nominatim.openstreetmap.org')), '/status'),
+            new HttpServiceProbe(StatusComponent::Tiles, new StatusConnector($this->configured('openfreemap.url', 'https://tiles.openfreemap.org')), '/planet'),
+        ];
+
+        $rideWithGps = $this->credentials('ride_with_gps');
+
+        if ($rideWithGps !== null) {
+            $probes[] = new HttpServiceProbe(StatusComponent::RideWithGps, new StatusConnector($rideWithGps['url'] ?? 'https://ridewithgps.com'), '/robots.txt');
+        }
+
+        $wahoo = $this->credentials('wahoo');
+
+        if ($wahoo !== null) {
+            $probes[] = new HttpServiceProbe(StatusComponent::Wahoo, new StatusConnector($wahoo['url'] ?? 'https://api.wahooligan.com'), '/');
+        }
+
+        $storeId = config('services.connect_iq.store_id');
+
+        if (is_string($storeId) && $storeId !== '') {
+            $probes[] = new ConnectIqStoreProbe(new StatusConnector($this->configured('connect_iq.url', 'https://apps.garmin.com')), $storeId);
+        }
+
+        return new ServiceProbes($probes);
+    }
+
+    /**
+     * A URL from config/services.php, or the default when it is empty.
+     */
+    private function configured(string $key, string $default): string
+    {
+        $value = config('services.'.$key);
+
+        return is_string($value) && $value !== '' ? $value : $default;
+    }
+
     private function nominatimConnector(): NominatimConnector
     {
         $url = config('services.nominatim.url');
@@ -304,6 +374,9 @@ class AppServiceProvider extends ServiceProvider
         // A shared link is public. Anyone with it may download the course, but
         // one address cannot pull it over and over.
         RateLimiter::for('share', fn (Request $request): Limit => Limit::perMinute(60)->by('share:'.$request->ip()));
+        // The status page is public and read from a cache, but one address
+        // cannot reload it without end.
+        RateLimiter::for('status', fn (Request $request): Limit => Limit::perMinute(60)->by('status:'.$request->ip()));
         // A copy of all your data is built in one go.
         RateLimiter::for('export', fn (Request $request): Limit => Limit::perMinute(3)->by('export:'.$this->caller($request)));
         // Each sign-up and each reset link sends an email, so a script must
