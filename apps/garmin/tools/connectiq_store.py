@@ -119,7 +119,7 @@ class Store:
             if status == 200 and APP_ID.encode() in body:
                 print(f"The Traceway listing belongs to {key}.")
                 return value
-        raise StoreError(f"No id on the signed-in account owns the Traceway listing (account fields: {keys(user)}; developer fields: {keys(developer)}).")
+        raise StoreError("The Garmin account this signed in with does not own the Traceway listing. Set GARMIN_STORE_USERNAME and GARMIN_STORE_PASSWORD to the account that does: the one that sees Traceway under Uploaded Apps.")
 
     def metadata(self, developer):
         return self.json("GET", f"{API}/developers/{developer}/apps/{APP_ID}/metadata?isShadowApp=false")
