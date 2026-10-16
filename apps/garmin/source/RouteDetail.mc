@@ -232,7 +232,9 @@ class RouteDetail {
         var title = Brand.fit(dc, Graphics.FONT_SMALL, entry[:title], share, 1);
         var detail = Brand.fit(dc, Graphics.FONT_XTINY, status(), share, round ? 1 : 2);
         var list = actions();
-        var tall = dc.getFontHeight(buttonFont) + 8;
+        // Room for the label, plus a focus ring and its gap inside every button, so both buttons are always one size.
+        // A round screen is narrow where the buttons sit, so there the buttons are a little shorter and wider.
+        var tall = dc.getFontHeight(buttonFont) + (round ? 10 : 16);
         var total = Brand.heightOf(dc, Graphics.FONT_SMALL, title) + Brand.heightOf(dc, Graphics.FONT_XTINY, detail);
 
         if (list.size() > 0) {
@@ -241,7 +243,9 @@ class RouteDetail {
 
         var bottom = round ? (height * 0.93).toNumber() : height;
         var spare = bottom - top - gap - total;
-        var y = top + gap + (spare > 0 ? spare / 2 : 0);
+        // A round screen narrows towards the bottom, so there the group starts right under the route, where the buttons
+        // get the most width. A rectangle centres it in the panel.
+        var y = top + gap + (spare > 0 && !round ? spare / 2 : 0);
 
         y += Brand.text(dc, y, Graphics.FONT_SMALL, Brand.PAPER, title);
         y += Brand.text(dc, y, Graphics.FONT_XTINY, Brand.MUTED, detail);
@@ -265,51 +269,57 @@ class RouteDetail {
         var offset = y - radius;
         var half = radius * radius - offset * offset;
 
-        return half > 0 ? (Math.sqrt(half) * 2 * 0.86).toNumber() : (width * 0.5).toNumber();
+        return half > 0 ? (Math.sqrt(half) * 2 * 0.94).toNumber() : (width * 0.5).toNumber();
     }
 
     function drawButtons(dc, y, tall, list, space, font) {
         var width = dc.getWidth();
-        var gap = list.size() > 1 ? (width * 0.04).toNumber() : 0;
-        var each = list.size() > 1 ? (space - gap) / 2 : (space * 0.62).toNumber();
-        var x = (width - each * list.size() - gap * (list.size() - 1)) / 2;
+        var round = System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_ROUND;
+        var count = list.size();
+        var gap = count > 1 ? (width * (round ? 0.03 : 0.04)).toNumber() : 0;
+        var room = count > 1 ? space - gap : (space * 0.62).toNumber();
         var label = Brand.verb(entry[:sport]);
         var fonts = [Graphics.FONT_SMALL, Graphics.FONT_TINY, Graphics.FONT_XTINY];
         var step = font == Graphics.FONT_SMALL ? 0 : 1;
 
-        // Both labels share one size, the largest that fits inside the pill.
-        while (step < fonts.size() - 1 && widest(dc, list, label, fonts[step]) > each - tall / 2) {
+        // Both labels share one size, the largest that keeps 30% of the button's height clear of each end of every
+        // button. At the label's height the rounded ends curve in only a few pixels, so that clears them with room to spare.
+        while (step < fonts.size() - 1 && labels(dc, list, label, fonts[step]) + count * tall * 6 / 10 > room) {
             step++;
         }
 
         font = fonts[step];
 
-        for (var index = 0; index < list.size(); index++) {
+        // The width is shared out so every label has the same space on each side: a longer label gets a wider button.
+        var pad = (room - labels(dc, list, label, font)) / (count * 2);
+        var x = (width - room - gap * (count - 1)) / 2;
+
+        // Every button fills its whole box. The focused one shows a paper ring at the box's edge, a gap, and the button
+        // inside it; the others fill the whole box. So the buttons are always the same height.
+        var left = x;
+
+        for (var index = 0; index < count; index++) {
             var action = list[index];
             var text = name(action, label);
-            var left = x + index * (each + gap);
+            var each = dc.getTextWidthInPixels(text, font) + pad * 2;
+            var inset = count > 1 && index == focus ? (round ? 3 : 4) : 0;
+
+            if (inset > 0) {
+                outline(dc, left, y, each, tall, 0);
+            }
 
             if (action == START) {
                 dc.setColor(Brand.marker(), Graphics.COLOR_TRANSPARENT);
-                dc.fillRoundedRectangle(left, y, each, tall, tall / 2);
+                dc.fillRoundedRectangle(left + inset, y + inset, each - inset * 2, tall - inset * 2, tall / 2 - inset);
                 dc.setColor(Brand.INK, Graphics.COLOR_TRANSPARENT);
             } else {
-                dc.setColor(Brand.PAPER, Graphics.COLOR_TRANSPARENT);
-                dc.setPenWidth(2);
-                dc.drawRoundedRectangle(left + 1, y + 1, each - 2, tall - 2, tall / 2);
-                dc.setPenWidth(1);
+                outline(dc, left, y, each, tall, inset);
             }
 
             dc.drawText(left + each / 2, labelTop(y, tall, font), font, text, Graphics.TEXT_JUSTIFY_CENTER);
 
-            if (list.size() > 1 && index == focus) {
-                dc.setColor(Brand.PAPER, Graphics.COLOR_TRANSPARENT);
-                dc.setPenWidth(2);
-                dc.drawRoundedRectangle(left - 4, y - 4, each + 8, tall + 8, tall / 2 + 4);
-                dc.setPenWidth(1);
-            }
-
             buttons.add([action, left, y, each, tall]);
+            left += each + gap;
         }
     }
 
@@ -331,6 +341,14 @@ class RouteDetail {
         return y + (tall - ascent) / 2 - lift;
     }
 
+    // A two-pixel paper outline of a button's box, drawn this far inside it.
+    function outline(dc, left, y, each, tall, inset) {
+        dc.setColor(Brand.PAPER, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(2);
+        dc.drawRoundedRectangle(left + inset + 1, y + inset + 1, each - inset * 2 - 2, tall - inset * 2 - 2, tall / 2 - inset);
+        dc.setPenWidth(1);
+    }
+
     function name(action, label) {
         if (action == START) {
             return label;
@@ -339,15 +357,15 @@ class RouteDetail {
         return action == REMOVE ? "Remove" : "Save";
     }
 
-    function widest(dc, list, label, font) {
-        var most = 0;
+    // The width of all the labels together.
+    function labels(dc, list, label, font) {
+        var sum = 0;
 
         for (var index = 0; index < list.size(); index++) {
-            var width = dc.getTextWidthInPixels(name(list[index], label), font);
-            most = width > most ? width : most;
+            sum += dc.getTextWidthInPixels(name(list[index], label), font);
         }
 
-        return most;
+        return sum;
     }
 
     // The action under a tap, or null.

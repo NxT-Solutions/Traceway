@@ -40,9 +40,15 @@ The drawables in `resources/drawables` are SVG sources, and the compiler renders
 - the sport tiles, the library's lucide glyphs on ink, and in ink on green for a route in Courses;
 - the green check.
 
+### Route list
+
+Each route's sport tile sits in the middle of its row. Where a system menu puts an icon, and how big it lets it be, differs per device, so the tile is not a plain bitmap: `TileIcon` (in `Rows.mc`) draws it in the middle of the box the menu hands an icon. On most devices that box spans the row's height. The Edge 1030 family, the 1040, and the Explores give a 24-pixel box in the middle of the row, so they take the smaller tiles in `resources-narrow-icons`. The Edge 530 and 830 give a small box near the top of the row, where nothing can sit in the middle, so those two draw the list's rows themselves (`RouteRow`, the `:customrows` build), in the look of their own menus.
+
 ### Button labels
 
 A button label sits in the middle of its button on every device. The devices' fonts differ: on most newer Edges the capitals fill the font's ascent, but on the older Edges and on the watches the font leaves room above them, which drops a label by 2 to 3 pixels. `RouteDetail.labelTop` centres on the ascent, then lifts the label by 8% of the font height (at least 2 pixels) when the ascent is more than three quarters of the height. That rule was measured on every product in the manifest.
+
+Both buttons share one font, the largest whose longest label fits the straight part of the button: its width less its height, so the rounded ends keep clear of the text.
 
 Measure again after changing the buttons, the fonts, or the manifest. Take a capture of a route screen on each device (see Run), then:
 

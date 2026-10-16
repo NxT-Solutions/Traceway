@@ -1,9 +1,0 @@
-<drawables>
-    <!-- These devices put a menu icon on the left, at the top of its row. A taller canvas centres the tile in the row. -->
-    <bitmap id="SportRoad" dithering="none" filename="sport_road.svg" scaleX="12%" scaleRelativeTo="screen"/>
-    <bitmap id="SportMtb" dithering="none" filename="sport_mtb.svg" scaleX="12%" scaleRelativeTo="screen"/>
-    <bitmap id="SportFoot" dithering="none" filename="sport_foot.svg" scaleX="12%" scaleRelativeTo="screen"/>
-    <bitmap id="SportRoadSaved" dithering="none" filename="sport_road_saved.svg" scaleX="12%" scaleRelativeTo="screen"/>
-    <bitmap id="SportMtbSaved" dithering="none" filename="sport_mtb_saved.svg" scaleX="12%" scaleRelativeTo="screen"/>
-    <bitmap id="SportFootSaved" dithering="none" filename="sport_foot_saved.svg" scaleX="12%" scaleRelativeTo="screen"/>
-</drawables>

@@ -2,31 +2,30 @@ project.manifest = manifest.xml
 
 # A 64-colour MIP watch snaps the brand green to olive, so it draws with the palette's own lime (:mip).
 # A device without maps sketches the route on ink instead of showing it on a map (:nomaps).
-base.excludeAnnotations = mip;nomaps;mapcontrols
-fenix7.excludeAnnotations = color;nomaps;mapcontrols
-fr955.excludeAnnotations = color;nomaps;mapcontrols
-fr255.excludeAnnotations = color;maps;mapcontrols
-fr265.excludeAnnotations = mip;maps;mapcontrols
+# The Edge 530 and 830 draw the route list's rows themselves (:customrows); every other device uses the system menu (:menurows).
+base.excludeAnnotations = mip;nomaps;mapcontrols;customrows
+fenix7.excludeAnnotations = color;nomaps;mapcontrols;customrows
+fr955.excludeAnnotations = color;nomaps;mapcontrols;customrows
+fr255.excludeAnnotations = color;maps;mapcontrols;customrows
+fr265.excludeAnnotations = mip;maps;mapcontrols;customrows
 # These Edges draw zoom and pan buttons across the top of the map (:mapcontrols).
-edge840.excludeAnnotations = mip;nomaps;nomapcontrols
-edge850.excludeAnnotations = mip;nomaps;nomapcontrols
-edge1050.excludeAnnotations = mip;nomaps;nomapcontrols
-fenix7.resourcePath = $(fenix7.resourcePath);resources-mip;resources-centred-icons;resources-mip-icons
-fr255.resourcePath = $(fr255.resourcePath);resources-mip;resources-centred-icons;resources-mip-icons
-fr955.resourcePath = $(fr955.resourcePath);resources-mip;resources-centred-icons;resources-mip-icons
+edge840.excludeAnnotations = mip;nomaps;nomapcontrols;customrows
+edge850.excludeAnnotations = mip;nomaps;nomapcontrols;customrows
+edge1050.excludeAnnotations = mip;nomaps;nomapcontrols;customrows
+# The Edge 530 and 830 give a menu icon a small box near the top of its row, so no icon can sit in the middle there.
+edge530.excludeAnnotations = mip;nomaps;mapcontrols;menurows
+edge830.excludeAnnotations = mip;nomaps;mapcontrols;menurows
 
-# The Edge 1030 family and the 1040 cut a menu icon off at a narrow slot on the right, so they get smaller sport icons.
+# The 64-colour screens: the lime marker, and lime saved tiles. The Edge MTB draws bitmaps in 64 colours too.
+fenix7.resourcePath = $(fenix7.resourcePath);resources-mip;resources-mip-icons
+fr255.resourcePath = $(fr255.resourcePath);resources-mip;resources-mip-icons
+fr955.resourcePath = $(fr955.resourcePath);resources-mip;resources-mip-icons
+edgemtb.resourcePath = $(edgemtb.resourcePath);resources-mip-icons
+
+# These give a menu icon a 24-pixel box and cut off anything bigger, so the sport tiles are smaller here.
 edge1030.resourcePath = $(edge1030.resourcePath);resources-narrow-icons
 edge1030bontrager.resourcePath = $(edge1030bontrager.resourcePath);resources-narrow-icons
 edge1030plus.resourcePath = $(edge1030plus.resourcePath);resources-narrow-icons
 edge1040.resourcePath = $(edge1040.resourcePath);resources-narrow-icons
-
-# These put a menu icon on the left, at the top of its row, so the sport icons sit on a taller canvas that centres them.
-# The Edge MTB draws bitmaps in 64 colours, so its green saved tiles are the lime ones too.
-edge550.resourcePath = $(edge550.resourcePath);resources-centred-icons
-edge850.resourcePath = $(edge850.resourcePath);resources-centred-icons
-edge1050.resourcePath = $(edge1050.resourcePath);resources-centred-icons
-edgemtb.resourcePath = $(edgemtb.resourcePath);resources-centred-icons;resources-mip-icons
-fr265.resourcePath = $(fr265.resourcePath);resources-centred-icons
-fr965.resourcePath = $(fr965.resourcePath);resources-centred-icons
-fr970.resourcePath = $(fr970.resourcePath);resources-centred-icons
+edgeexplore.resourcePath = $(edgeexplore.resourcePath);resources-narrow-icons
+edgeexplore2.resourcePath = $(edgeexplore2.resourcePath);resources-narrow-icons
