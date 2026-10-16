@@ -62,29 +62,31 @@ final readonly class ServiceStatusQuery
     }
 
     /**
-     * The line on the map when the planner cannot work as it should: the newest open notice,
-     * or else the first map service that is slow or down. Null when all is well.
+     * The line on the map when the planner cannot work as it should. A notice about the map,
+     * or about everything, comes first. Then a map service that is slow or down, so a notice
+     * about something else never hides it. Then any other open notice. Null when all is well.
      *
      * @return array{title: string, body: string|null}|null
      */
     public function banner(): ?array
     {
-        $notice = $this->notices(openOnly: true)[0] ?? null;
+        $notices = $this->notices(openOnly: true);
+        $aboutTheMap = array_find($notices, fn (array $notice): bool => $notice['components'] === [] || array_any(
+            $notice['components'],
+            fn (string $component): bool => StatusComponent::tryFrom($component)?->plannerNeeds() === true,
+        ));
 
-        if ($notice !== null) {
-            return ['title' => $notice['title'], 'body' => $notice['body']];
+        if ($aboutTheMap !== null) {
+            return ['title' => $aboutTheMap['title'], 'body' => $aboutTheMap['body']];
         }
 
         [$latest, $checkedAt] = $this->latest();
+        $fresh = $checkedAt instanceof CarbonImmutable && ! $this->isStale($checkedAt);
 
-        if (! $checkedAt instanceof CarbonImmutable || $this->isStale($checkedAt)) {
-            return null;
-        }
+        foreach ($fresh ? $latest : [] as $component => $check) {
+            $statusComponent = StatusComponent::tryFrom($component);
 
-        foreach ($latest as $component => $check) {
-            $statusComponent = StatusComponent::from($component);
-
-            if ($statusComponent->plannerNeeds() && in_array($check['state'], [ServiceState::Slow, ServiceState::Down], strict: true)) {
+            if ($statusComponent?->plannerNeeds() === true && in_array($check['state'], [ServiceState::Slow, ServiceState::Down], strict: true)) {
                 return [
                     'title' => $statusComponent->describe($check['state']).'.',
                     'body' => $check['state'] === ServiceState::Down
@@ -94,7 +96,9 @@ final readonly class ServiceStatusQuery
             }
         }
 
-        return null;
+        $other = $notices[0] ?? null;
+
+        return $other === null ? null : ['title' => $other['title'], 'body' => $other['body']];
     }
 
     /**
@@ -147,7 +151,7 @@ final readonly class ServiceStatusQuery
         $headline = match (true) {
             ! $checkedAt instanceof CarbonImmutable => 'No checks yet',
             $stale => 'Checks have stopped, so this page may be out of date',
-            $openNotice !== null && count($broken) <= 1 => $openNotice['title'],
+            $openNotice !== null && $broken === [] => $openNotice['title'],
             count($broken) === 1 => $broken[0],
             $broken !== [] => 'Some parts of Traceway are not working right now',
             default => 'Everything works',
@@ -166,7 +170,8 @@ final readonly class ServiceStatusQuery
     }
 
     /**
-     * The newest answer of each check, from the last run, and when that run was.
+     * The answer of each check in the last run, and when that run was. A run saves all its
+     * checks at once, under one time.
      *
      * @return array{0: array<string, array{state: ServiceState, latency_ms: int}>, 1: CarbonImmutable|null}
      */
@@ -178,12 +183,8 @@ final readonly class ServiceStatusQuery
             return [[], null];
         }
 
-        $checkedAt = CarbonImmutable::parse($newest);
-        // One run checks everything within a few seconds. A probe that waits
-        // for its timeout ends a little after the others.
         $rows = DB::table('status_checks')
-            ->where('checked_at', '>=', $checkedAt->subMinutes(4))
-            ->oldest('checked_at')
+            ->where('checked_at', $newest)
             ->orderBy('id')
             ->get(['component', 'state', 'latency_ms']);
 
@@ -198,7 +199,7 @@ final readonly class ServiceStatusQuery
             }
         }
 
-        return [$latest, $checkedAt];
+        return [$latest, CarbonImmutable::parse($newest)];
     }
 
     /**

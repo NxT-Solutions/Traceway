@@ -16,7 +16,8 @@ return new class extends Migration
             $blueprint->string('state', 16);
             $blueprint->unsignedInteger('latency_ms');
             $blueprint->timestamp('checked_at')->index();
-            $blueprint->index(['component', 'checked_at']);
+            // Covers the day counts, so the page reads no rows to count them.
+            $blueprint->index(['component', 'checked_at', 'state']);
         });
 
         Schema::create('status_notices', function (Blueprint $blueprint): void {

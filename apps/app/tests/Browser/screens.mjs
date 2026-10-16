@@ -103,6 +103,7 @@ const pages = [
     // The longest of the legal pages, from the content site.
     { name: 'legal', url: () => `${content}/privacy`, full: true },
     { name: 'register', url: '/register', full: true },
+    { name: 'status', url: '/status', full: true },
     { name: 'assistants', url: '/settings/assistants', auth: true, full: true },
     { name: 'privacy', url: '/settings/privacy', auth: true, full: true },
     { name: 'whats-new', url: '/settings/whats-new', auth: true, full: true },

@@ -114,29 +114,71 @@ function Dot({
     );
 }
 
+function dayLabel(date: string): string {
+    return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        timeZone: 'UTC',
+    });
+}
+
+function problemDays(days: Day[], state: 'down' | 'slow'): string[] {
+    return days
+        .filter((day) => day.state === state)
+        .map((day) => dayLabel(day.date));
+}
+
+function list(items: string[]): string {
+    return items.length <= 1
+        ? items.join('')
+        : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+/**
+ * The days in bars, oldest left, today right. A phone shows the last 30. The
+ * bad days are also written out under the bars, so colour is never the only
+ * record.
+ */
 function DayBars({ component }: { component: Component }) {
-    const bad = component.days.filter(
-        (day) => day.state === 'slow' || day.state === 'down',
-    ).length;
-    const label =
-        bad === 0
-            ? `${component.label}: no problems in the last ${component.days.length} days`
-            : `${component.label}: problems on ${bad} of the last ${component.days.length} days`;
+    const down = problemDays(component.days, 'down');
+    const slow = problemDays(component.days, 'slow');
+    const problems = [
+        down.length > 0 ? `Down on ${list(down)}.` : null,
+        slow.length > 0 ? `Slow on ${list(slow)}.` : null,
+    ].filter((line) => line !== null);
 
     return (
-        <div role="img" aria-label={label} className="flex h-8 gap-px">
-            {component.days.map((day, index) => (
-                <span
-                    key={day.date}
-                    title={`${day.date}: ${day.state === null ? 'No checks' : stateWord[day.state]}`}
-                    className={cn(
-                        'flex-1 rounded-[2px]',
-                        stateColour[day.state ?? 'unknown'],
-                        // A phone shows the last 30 days.
-                        index < component.days.length - 30 && 'hidden sm:block',
-                    )}
-                />
-            ))}
+        <div className="space-y-1.5">
+            <div aria-hidden="true" className="flex h-8 items-end gap-px">
+                {component.days.map((day, index) => (
+                    <span
+                        key={day.date}
+                        title={`${dayLabel(day.date)}: ${day.state === null ? 'No checks' : stateWord[day.state]}`}
+                        className={cn(
+                            'flex-1 rounded-[2px]',
+                            day.state === null ? 'h-1.5' : 'h-full',
+                            stateColour[day.state ?? 'unknown'],
+                            index < component.days.length - 30 &&
+                                'hidden sm:block',
+                        )}
+                    />
+                ))}
+            </div>
+            <div
+                aria-hidden="true"
+                className="flex justify-between text-xs text-muted-foreground"
+            >
+                <span className="sm:hidden">30 days ago</span>
+                <span className="hidden sm:inline">
+                    {component.days.length} days ago
+                </span>
+                <span>Today</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+                {problems.length === 0
+                    ? `No problems in the last ${component.days.length} days.`
+                    : problems.join(' ')}
+            </p>
         </div>
     );
 }
@@ -185,8 +227,12 @@ export default function Status() {
                             <Dot state={page.state} large />
                             {page.headline}
                         </h1>
-                        <p className="text-muted-foreground" aria-live="polite">
+                        <p className="text-muted-foreground">
                             {ago(page.checked_at)}. We check every 5 minutes.
+                        </p>
+                        {/* Read out only when the headline itself changes. */}
+                        <p className="sr-only" role="status">
+                            {page.headline}
                         </p>
                     </section>
 
@@ -334,7 +380,8 @@ export default function Status() {
                         </ul>
                         <p>
                             Each bar is one day, with the worst moment of that
-                            day. Traceway also runs on{' '}
+                            day. A short bar is a day with no checks. Traceway
+                            also runs on{' '}
                             {outsideStatus.map((service, index) => (
                                 <span key={service.href}>
                                     {index > 0 && ' and '}

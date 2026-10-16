@@ -447,7 +447,7 @@
   .tw-planner .saved-nav span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   .tw-planner .acct span.name{display:none}
   .tw-planner .panel{left:0;right:0;top:auto;bottom:0;width:auto;height:var(--peek, 108px);max-height:none;overflow:hidden;border-radius:16px 16px 0 0;border-bottom:0;padding-bottom:env(safe-area-inset-bottom,0px);transition:height 180ms ease}
-  .tw-planner .panel.open{height:min(76dvh, 76vh)}
+  .tw-planner .panel.open{height:min(76dvh, 76vh, calc(100% - 8px))}
   .tw-planner .panel.dragging{transition:none}
   .tw-planner .handle{display:flex;align-items:center;justify-content:center;width:100%;height:32px;margin:0;padding:0;border:0;background:transparent;cursor:pointer;flex:0 0 auto;touch-action:none}
   .tw-planner .handle::after{content:"";display:block;width:36px;height:4px;border-radius:2px;background:oklch(0.72 0.02 120)}
@@ -803,7 +803,7 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
   .tw-planner .app:has(.player-card) .maphint{top:140px}
   .tw-planner .app:has(.player-card) .undobar{top:188px}
 }
-.tw-planner .svc-note{flex:0 0 auto;display:flex;align-items:flex-start;gap:12px;padding:10px 16px 10px 20px;background:var(--panel);color:var(--text);border-bottom:1px solid var(--hair);box-shadow:inset 4px 0 0 oklch(0.8 0.14 75);position:relative;z-index:4}
+.tw-planner .svc-note{flex:0 0 auto;display:flex;align-items:flex-start;gap:12px;padding:10px 16px 10px 20px;background:color-mix(in oklch, var(--warning) 14%, var(--panel));color:var(--text);border-bottom:1px solid var(--hair);box-shadow:inset 4px 0 0 var(--warning);position:relative;z-index:4}
 .tw-planner .svc-note p{margin:0;flex:1 1 auto;min-width:0}
 .tw-planner .svc-note span{color:var(--muted)}
 .tw-planner .svc-note a{color:var(--text);text-decoration:underline;text-underline-offset:3px;white-space:nowrap}

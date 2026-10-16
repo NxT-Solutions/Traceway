@@ -24,7 +24,7 @@ final readonly class RecordServiceChecksHandler
      */
     public function handle(): int
     {
-        $saved = 0;
+        $checks = [];
 
         foreach ($this->serviceProbes->all() as $serviceProbe) {
             try {
@@ -33,12 +33,15 @@ final readonly class RecordServiceChecksHandler
                 $result = ProbeResult::down(0);
             }
 
-            $this->statusRepository->recordCheck($serviceProbe->component()->value, $result->state->value, $result->milliseconds, now()->toDateTimeImmutable());
-            $saved++;
+            $checks[] = ['component' => $serviceProbe->component()->value, 'state' => $result->state->value, 'milliseconds' => $result->milliseconds];
+        }
+
+        if ($checks !== []) {
+            $this->statusRepository->recordRun($checks, now()->toDateTimeImmutable());
         }
 
         $this->statusRepository->forgetChecksBefore(now()->subDays(self::KEEP_DAYS)->startOfDay()->toDateTimeImmutable());
 
-        return $saved;
+        return count($checks);
     }
 }

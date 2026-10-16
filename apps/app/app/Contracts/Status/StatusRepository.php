@@ -8,7 +8,12 @@ use DateTimeImmutable;
 
 interface StatusRepository
 {
-    public function recordCheck(string $component, string $state, int $milliseconds, DateTimeImmutable $checkedAt): void;
+    /**
+     * Saves one run of checks at once, so a reader never sees half a run.
+     *
+     * @param  list<array{component: string, state: string, milliseconds: int}>  $checks
+     */
+    public function recordRun(array $checks, DateTimeImmutable $checkedAt): void;
 
     /**
      * Forgets the checks older than the day bars show.
