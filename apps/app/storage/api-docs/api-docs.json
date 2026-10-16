@@ -1514,7 +1514,7 @@
                     "Library"
                 ],
                 "summary": "Send a saved route to a connected service",
-                "description": "Wahoo syncs the route to the ELEMNT. Ride with GPS keeps it in the library, and the rider pins it there for a Karoo or Bryton. A second send replaces the first copy.",
+                "description": "Wahoo syncs the route to the ELEMNT. Ride with GPS keeps it in the library, and the rider sends it on from there with Send to Device, for a Karoo or Bryton. A second send replaces the first copy.",
                 "operationId": "sendRouteToService",
                 "parameters": [
                     {

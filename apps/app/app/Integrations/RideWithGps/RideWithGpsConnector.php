@@ -15,7 +15,7 @@ use Saloon\Traits\Plugins\AcceptsJson;
 use Saloon\Traits\Plugins\HasTimeout;
 
 /**
- * Ride with GPS. A route stored here reaches a Karoo, a Bryton, or a Wahoo once the rider pins it.
+ * Ride with GPS. A route stored here reaches a Karoo, a Bryton, or a Wahoo once the rider sends it on with Ride with GPS's Send to Device.
  * Its tokens do not expire, and it has no refresh token.
  */
 final class RideWithGpsConnector extends Connector

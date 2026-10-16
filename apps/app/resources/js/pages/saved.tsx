@@ -1774,6 +1774,8 @@ function RouteDetail({
                 legs={courseLegs.map((leg) => ({ n: leg.n, label: leg.label }))}
                 savedRouteId={() => Promise.resolve(route.id)}
                 sentTo={route.sent_to}
+                // The library lists where each route went, so it reads that again.
+                onSent={() => router.reload({ only: ['routes'] })}
             />
         </>
     );

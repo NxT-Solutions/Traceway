@@ -20,7 +20,7 @@ use Saloon\Http\Request;
 use Saloon\Http\Response;
 
 /**
- * Puts a course in the rider's Ride with GPS library as GPX. The rider pins it there to send it on to a device.
+ * Puts a course in the rider's Ride with GPS library as GPX. The rider sends it on to a device with Ride with GPS's Send to Device.
  */
 final readonly class RideWithGpsCourseService implements CourseService
 {
@@ -62,7 +62,7 @@ final readonly class RideWithGpsCourseService implements CourseService
 
     /**
      * Uploads the new copy first and only then deletes the one sent before, so a failed upload leaves the
-     * rider's pinned route in place. An upload still being read is kept as "task:{id}" and looked up next time.
+     * rider's route in place, on their device too. An upload still being read is kept as "task:{id}" and looked up next time.
      */
     public function publish(ServiceTokens $serviceTokens, CourseUpload $courseUpload, ?string $previousId): PublishedCourse
     {

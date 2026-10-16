@@ -31,7 +31,7 @@ Traceway gets a saved route onto a device in three ways: a device app that pulls
 | --- | --- | --- |
 | Garmin | Traceway app (pull), FIT with steps | Courses API push when Garmin takes applications again |
 | Wahoo ELEMNT and ACE | Push to the Wahoo app (FIT) | Production access needs Wahoo's review |
-| Hammerhead Karoo | Push to Ride with GPS, the rider pins it; or GPX in the Hammerhead Dashboard | Suunto push also reaches a Karoo. A Karoo extension once it can load routes |
+| Hammerhead Karoo | Push to Ride with GPS, the rider sends it on with Ride with GPS's Send to Device; or GPX in the Hammerhead Dashboard | Suunto push also reaches a Karoo. A Karoo extension once it can load routes |
 | Bryton | Push to Ride with GPS, synced by Bryton Active; or GPX | None without an API |
 | COROS | GPX with steps | Partner API `route/push` after the partner application |
 | Suunto | GPX with steps | Route import API after the partner program |

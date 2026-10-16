@@ -27,7 +27,7 @@ class SendRouteToServiceController extends Controller
     #[Post(
         path: '/routes/saved/{savedRoute}/send/{service}',
         operationId: 'sendRouteToService',
-        description: 'Wahoo syncs the route to the ELEMNT. Ride with GPS keeps it in the library, and the rider pins it there for a Karoo or Bryton. A second send replaces the first copy.',
+        description: 'Wahoo syncs the route to the ELEMNT. Ride with GPS keeps it in the library, and the rider sends it on from there with Send to Device, for a Karoo or Bryton. A second send replaces the first copy.',
         summary: 'Send a saved route to a connected service',
         security: [['session' => []]],
         tags: ['Library'],
@@ -107,7 +107,7 @@ class SendRouteToServiceController extends Controller
         }
 
         return $sentRoute->processing
-            ? 'Ride with GPS is reading it. It shows in your library in a minute. Pin it there to send it to your device.'
-            : 'In your Ride with GPS library. Pin it there to send it to your device.';
+            ? 'Ride with GPS is reading it. It shows in your library in a minute. Choose Send to Device there to put it on your bike computer.'
+            : 'In your Ride with GPS library. Choose Send to Device there to put it on your bike computer.';
     }
 }

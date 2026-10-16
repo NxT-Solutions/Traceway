@@ -1585,6 +1585,10 @@ export default function Dashboard() {
     // sends save once and a send after another loop was picked saves anew.
     const savedLineRef = useRef<string | null>(null);
     const saveInFlightRef = useRef<Promise<string | null> | null>(null);
+    // Where each saved route went from here, so Send to device can say so.
+    const [sentByRoute, setSentByRoute] = useState<Record<string, string[]>>(
+        {},
+    );
     const [exported, setExported] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -6356,6 +6360,20 @@ export default function Dashboard() {
                                     }
                                     legs={deviceLegs}
                                     savedRouteId={saveRoute}
+                                    sentTo={
+                                        savedRouteId === null
+                                            ? []
+                                            : (sentByRoute[savedRouteId] ?? [])
+                                    }
+                                    onSent={(service, id) =>
+                                        setSentByRoute((current) => ({
+                                            ...current,
+                                            [id]: [
+                                                ...(current[id] ?? []),
+                                                service,
+                                            ],
+                                        }))
+                                    }
                                 />
                                 <div className="btns one">
                                     <button

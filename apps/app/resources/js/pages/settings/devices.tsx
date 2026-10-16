@@ -29,7 +29,7 @@ function written(value: string | null): string {
 const serviceNote: Record<string, string> = {
     wahoo: 'Routes go to your Wahoo app and sync to an ELEMNT or ACE.',
     ride_with_gps:
-        'Routes go to your Ride with GPS library. Pin one there to send it to a Karoo, Bryton, or Wahoo.',
+        'Routes go to your Ride with GPS library. From there, Send to Device puts one on a Karoo, Bryton, or Wahoo.',
 };
 
 export default function Devices({

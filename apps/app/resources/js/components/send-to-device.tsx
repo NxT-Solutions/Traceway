@@ -77,7 +77,7 @@ const brands: Brand[] = [
         name: 'Hammerhead Karoo',
         file: 'gpx',
         service: 'ride_with_gps',
-        intro: 'The Karoo picks up routes you pin in Ride with GPS.',
+        intro: 'The Karoo picks up routes you send to it from Ride with GPS.',
         steps: [
             {
                 title: 'First time only',
@@ -89,7 +89,7 @@ const brands: Brand[] = [
                 title: 'For each route',
                 items: [
                     'Send it to Ride with GPS here.',
-                    'Pin it in Ride with GPS. The Karoo syncs it.',
+                    'In Ride with GPS, choose Send to Device and pick the Karoo.',
                 ],
             },
             {
@@ -273,6 +273,7 @@ export function SendToDevice({
     legs = [],
     savedRouteId,
     sentTo = [],
+    onSent,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -281,6 +282,8 @@ export function SendToDevice({
     legs?: DeviceLeg[];
     savedRouteId?: () => Promise<string | null>;
     sentTo?: string[];
+    /** Called after a send went through, so the caller can show it was sent. */
+    onSent?: (service: RouteServiceSlug, routeId: string) => void;
 }) {
     const services = usePage().props.routeServices ?? [];
     const [brandId, setBrandId] = useState<string | null>(null);
@@ -349,8 +352,10 @@ export function SendToDevice({
                         savedRouteId={savedRouteId}
                         sent={
                             brand.service !== undefined &&
-                            sentTo.includes(brand.service)
+                            (sentTo.includes(brand.service) ||
+                                sends[`${brand.service}:0`]?.ok === true)
                         }
+                        onSent={onSent}
                         sends={sends}
                         setSends={setSends}
                         reconnect={reconnect}
@@ -369,6 +374,7 @@ function BrandSteps({
     legs,
     savedRouteId,
     sent,
+    onSent,
     sends,
     setSends,
     reconnect,
@@ -380,6 +386,7 @@ function BrandSteps({
     legs: DeviceLeg[];
     savedRouteId?: () => Promise<string | null>;
     sent: boolean;
+    onSent?: (service: RouteServiceSlug, routeId: string) => void;
     sends: Record<string, SendState>;
     setSends: (
         update: (
@@ -472,6 +479,10 @@ function BrandSteps({
                     : sendFailure(response.status, message),
                 url: response.ok && isWebLink(record.url) ? record.url : null,
             });
+
+            if (response.ok) {
+                onSent?.(slug, id);
+            }
         } catch {
             update({
                 sending: false,
