@@ -163,25 +163,39 @@ class Store:
         )
 
 
+# The fields the dashboard's details form sends back when a version is submitted.
+FORM_FIELDS = (
+    "additionalAndroidAppUrls", "additionalIosAppUrls", "androidAppUrl", "betaApp", "category", "devEmail",
+    "hardwareProductUrl", "iosAppUrl", "shadowApp", "localizedAppModel", "migrationAllowed", "policyUrl",
+    "reviewNotificationActive", "selectedActivityTypes", "selectedAntPlusProfiles", "selectedCountries",
+    "sourceUrl", "subCategory", "videoUrl", "paymentModel", "pricingPartNumber",
+    "requiringExternalSubscription", "requestingTips",
+)
+
+
 def details_from(current, temp_file, version, whats_new):
-    """The form's appMetadata, from the listing as it is, with the new version and What's New."""
+    """The form's appMetadata: the listing's own values, the new version, and What's New in English."""
     if not isinstance(current, dict):
         raise StoreError("The store sent no details for the listing.")
-    models = current.get("localizedAppModel") or current.get("localizedAppModels")
+    models = current.get("localizedAppModel")
     if not isinstance(models, list) or not models:
         raise StoreError(f"The listing's details have no texts per language (fields: {keys(current)}).")
 
-    english = [model for model in models if isinstance(model, dict) and model.get("appLocale") == LOCALE]
+    english = [model for model in models if isinstance(model, dict) and is_english(model.get("appLocale"))]
     if not english:
         raise StoreError("The listing has no English texts to set What's New on.")
     for model in english:
         model["appWhatsNew"] = whats_new[:4000]
 
-    details = {key: value for key, value in current.items() if key not in ("localizedAppModels",)}
+    details = {key: current[key] for key in FORM_FIELDS if key in current}
     details["localizedAppModel"] = models
     details["tempFileId"] = temp_file
     details["externalAppVersion"] = version
     return details
+
+
+def is_english(locale):
+    return isinstance(locale, str) and (locale == "en" or locale.startswith("en-") or locale.startswith("en_"))
 
 
 def multipart(parts):
@@ -245,9 +259,8 @@ def check(store):
         print(f"Languages: {', '.join(str(model.get('appLocale')) for model in models if isinstance(model, dict))}")
         if models and isinstance(models[0], dict):
             print(f"Text fields per language: {keys(models[0])}")
-    if isinstance(current, dict):
-        for key in ("category", "selectedCountries", "selectedActivityTypes", "selectedAntPlusProfiles", "paymentModel", "typeId", "betaApp", "shadowApp", "migrationAllowed"):
-            print(f"{key}: {shape(current.get(key))}")
+    details = details_from(json.loads(json.dumps(current)), "check", "0.0.0", "check")
+    print(f"What's New can be set. A version would send: {keys(details)}")
     for key in ("version", "appVersion", "externalAppVersion", "status", "approvalStatus"):
         if isinstance(current, dict) and key in current and not isinstance(current[key], (dict, list)):
             print(f"{key}: {current[key]}")
@@ -261,9 +274,11 @@ def main():
     upload.add_argument("--iq", required=True)
     upload.add_argument("--version", required=True)
     upload.add_argument("--whats-new", required=True, help="a file with the What's New text")
+    upload.add_argument("--result", help="a file to write how far the upload got: none, uploaded, or done")
     arguments = parser.parse_args()
 
     store = Store()
+    progress = "none"
     try:
         store.sign_in(*credentials())
         if arguments.command == "check":
@@ -277,13 +292,19 @@ def main():
 
         developer = store.developer_id()
         temp_file = store.upload(developer, arguments.iq, arguments.version)
+        progress = "uploaded"
         print(f"Uploaded {os.path.basename(arguments.iq)} as version {arguments.version}.")
         store.set_whats_new(developer, temp_file, arguments.version, whats_new)
+        progress = "done"
         print("What's New is set. Garmin reviews the version before riders get it.")
         return 0
     except StoreError as error:
         print(f"::error::{error}")
         return 1
+    finally:
+        if getattr(arguments, "result", None):
+            with open(arguments.result, "w", encoding="utf-8") as handle:
+                handle.write(progress + "\n")
 
 
 if __name__ == "__main__":

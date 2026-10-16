@@ -7,3 +7,5 @@ persistent
 # Keys and certificates never go in the repo, wherever they are made.
 *.key
 *.pem
+
+__pycache__/
