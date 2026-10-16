@@ -17,6 +17,8 @@ const executable = process.env.CHROMIUM_PATH || (existsSync(local) ? local : und
 const content = process.env.CONTENT_URL || base;
 const contentPages = ['/', '/support', '/privacy', '/terms', '/cookies', '/legal'];
 const authPages = ['/login', '/register', '/forgot-password'];
+// Public planner pages, open to anyone.
+const publicPages = ['/status'];
 const signedInPages = ['/dashboard', '/saved', '/settings/profile', '/settings/privacy', '/settings/assistants', '/settings/devices', '/settings/appearance', '/settings/whats-new'];
 
 const browser = await chromium.launch({ executablePath: executable, headless: true });
@@ -67,6 +69,11 @@ try {
     }
 
     for (const path of authPages) {
+        await scan(desktop, path);
+        await scan(phone, path);
+    }
+
+    for (const path of publicPages) {
         await scan(desktop, path);
         await scan(phone, path);
     }

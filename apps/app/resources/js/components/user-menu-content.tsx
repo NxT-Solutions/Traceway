@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { Activity, LogOut, Settings } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -9,7 +9,7 @@ import {
 import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { forgetPlannerDrafts } from '@/lib/planner-draft';
-import { logout, status } from '@/routes';
+import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
 
@@ -44,16 +44,6 @@ export function UserMenuContent({ user }: Props) {
                     >
                         <Settings className="mr-2" />
                         Settings
-                    </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                    <Link
-                        className="block w-full cursor-pointer"
-                        href={status()}
-                        onClick={cleanup}
-                    >
-                        <Activity className="mr-2" />
-                        Service status
                     </Link>
                 </DropdownMenuItem>
             </DropdownMenuGroup>

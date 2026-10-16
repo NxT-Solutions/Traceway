@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage, usePoll } from '@inertiajs/react';
 import '../../css/planner.css';
 import {
     Bike,
@@ -1162,8 +1162,15 @@ function drawerProps(
                           14,
                   )
                 : 108;
+        // The sheet sits in the map's box, which a notice above the map makes
+        // shorter than the window.
+        const room = node.parentElement?.clientHeight ?? window.innerHeight;
         const full = Math.round(
-            Math.min(window.innerHeight * 0.76, window.innerHeight - 64),
+            Math.min(
+                window.innerHeight * 0.76,
+                window.innerHeight - 64,
+                room - 8,
+            ),
         );
 
         return { peek: Math.max(96, peek), full: Math.max(peek + 80, full) };
@@ -1519,6 +1526,9 @@ export default function Dashboard() {
         auth: { user: { id: number; name: string } };
         serviceNotice?: ServiceNoticeProps | null;
     }>().props;
+    // A notice, or a map server going down or coming back, reaches a rider
+    // who keeps the planner open.
+    usePoll(300_000, { only: ['serviceNotice'] });
     const storageKey = plannerDraftKey(auth.user.id);
     const saved = useRef(readSaved(storageKey)).current;
     const dirty = useRef(saved !== null);

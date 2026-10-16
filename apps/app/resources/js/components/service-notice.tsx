@@ -41,6 +41,13 @@ export function ServiceNotice({
         }
 
         setDismissed(notice.title);
+        // The button goes away with the notice, so focus moves on to the
+        // place search instead of back to the top of the page.
+        document
+            .querySelector<HTMLElement>(
+                '.tw-planner main input, .tw-planner main button',
+            )
+            ?.focus();
     };
 
     return (

@@ -5,7 +5,7 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { forgetPlannerDrafts } from '@/lib/planner-draft';
 import { toUrl } from '@/lib/utils';
-import { logout } from '@/routes';
+import { logout, status } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
 import { index as whatsNewPage } from '@/routes/releases';
@@ -173,6 +173,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                         ))}
                         <div className="sep" />
                         <a href="/support">Support Traceway</a>
+                        <Link href={status()}>Service status</Link>
                         <Link
                             href={logout()}
                             as="button"

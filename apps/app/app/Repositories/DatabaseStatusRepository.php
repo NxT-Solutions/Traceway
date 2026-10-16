@@ -11,14 +11,19 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class DatabaseStatusRepository implements StatusRepository
 {
-    public function recordCheck(string $component, string $state, int $milliseconds, DateTimeImmutable $checkedAt): void
+    /**
+     * @param  mixed[][]  $checks
+     */
+    public function recordRun(array $checks, DateTimeImmutable $checkedAt): void
     {
-        DB::table('status_checks')->insert([
-            'component' => $component,
-            'state' => $state,
-            'latency_ms' => max(0, $milliseconds),
-            'checked_at' => CarbonImmutable::instance($checkedAt),
-        ]);
+        $at = CarbonImmutable::instance($checkedAt);
+
+        DB::table('status_checks')->insert(array_map(fn (array $check): array => [
+            'component' => $check['component'],
+            'state' => $check['state'],
+            'latency_ms' => max(0, $check['milliseconds']),
+            'checked_at' => $at,
+        ], $checks));
     }
 
     public function forgetChecksBefore(DateTimeImmutable $before): int

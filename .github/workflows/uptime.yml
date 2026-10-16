@@ -47,6 +47,10 @@ jobs:
               failed="${failed}- \`${path}\` answered ${code:-nothing}"$'\n'
             fi
           done
+          # The page answers even when its own checks have stopped, and then says so.
+          if curl -sS --max-time 20 "${SITE%/}/status" 2>/dev/null | grep -q 'Checks have stopped'; then
+            failed="${failed}- the status checks have stopped, so the scheduler is not running"$'\n'
+          fi
           {
             echo "site=${SITE%/}"
             echo "failed<<EOF"
@@ -64,17 +68,25 @@ jobs:
         run: |
           set -euo pipefail
           now=$(date -u '+%Y-%m-%d %H:%M UTC')
-          open=$(gh issue list --label outage --state open --limit 1 --json number --jq '.[0].number // empty')
+          # A GitHub hiccup is not an outage: without the list, leave the issues alone.
+          if ! open=$(gh issue list --label outage --state open --limit 1 --json number --jq '.[0].number // empty'); then
+            echo "::warning::Could not read the outage issues from GitHub."
+            exit 0
+          fi
 
           if [ -n "${FAILED}" ]; then
             if [ -z "${open}" ]; then
               gh label create outage --color B60205 --description 'Traceway does not answer' --force
               gh issue create --label outage \
                 --title "Traceway does not answer (${now})" \
-                --body "$(printf 'The uptime check could not reach %s at %s.\n\n%s\nRiders cannot use the planner or the status page while this lasts. This issue closes itself once both answer again.\n\n[The run](%s)' "${SITE}" "${now}" "${FAILED}" "${RUN_URL}")"
+                --body "$(printf 'The uptime check could not reach %s at %s.\n\n%s\nRiders cannot use the planner or the status page while this lasts. This issue closes itself once all is well again.\n\n[The run](%s)' "${SITE}" "${now}" "${FAILED}" "${RUN_URL}")"
+              # Only the run that opens the issue fails, so an outage sends one
+              # alert, not one every 15 minutes.
+              echo "::error::Traceway does not answer:%0A${FAILED//$'\n'/%0A}"
+              exit 1
             fi
-            echo "::error::Traceway does not answer: ${FAILED}"
-            exit 1
+            echo "Still down. Issue #${open} is open."
+            exit 0
           fi
 
           if [ -n "${open}" ]; then

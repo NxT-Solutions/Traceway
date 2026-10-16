@@ -54,6 +54,11 @@ it('keeps text at 4.5 to 1 and the focus ring at 3 to 1', function (): void {
             ['destructive-foreground', 'destructive', 4.5],
             ['ring', 'background', 3.0],
             ['ring', 'card', 3.0],
+            // The status page's dots, day bars, and notice border. Each also has a word.
+            ['warning', 'background', 3.0],
+            ['warning', 'card', 3.0],
+            ['down', 'background', 3.0],
+            ['down', 'card', 3.0],
         ];
 
         foreach ($textPairs as [$foreground, $background, $minimum]) {

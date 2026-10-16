@@ -8,6 +8,7 @@ use App\Domain\Status\ServiceProbes;
 use App\Domain\Status\ServiceState;
 use App\Domain\Status\StatusComponent;
 use App\Models\User;
+use App\Queries\Status\PlannerProbe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -158,4 +159,70 @@ test('the map tells the rider when route drawing is down, and says nothing when 
 
 test('the checks run every five minutes', function (): void {
     $this->artisan('schedule:list')->expectsOutputToContain('status:check');
+});
+
+test('before the first check the page says there are none', function (): void {
+    $this->app->instance(ServiceProbes::class, fakeProbes(allUp()));
+
+    $this->get('/status')->assertOk()->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('state', 'unknown')
+        ->where('headline', 'No checks yet')
+        ->where('groups.1.components.0.summary', 'Not checked yet'));
+});
+
+test('the last day bar is today, with the worst state of today', function (): void {
+    $this->app->instance(ServiceProbes::class, fakeProbes([...allUp(), 'routing' => ServiceState::Slow]));
+    $this->artisan('status:check');
+    $this->travel(5)->minutes();
+    $this->app->instance(ServiceProbes::class, fakeProbes(allUp()));
+    $this->artisan('status:check');
+
+    $this->get('/status')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('groups.1.components.0.state', 'up')
+        ->where('groups.1.components.0.days.89.date', today()->toDateString())
+        ->where('groups.1.components.0.days.89.state', 'slow')
+        ->where('groups.1.components.0.days.88.state', expected: null));
+});
+
+test('a notice about something else never hides a broken map service', function (): void {
+    $user = User::factory()->create();
+    $this->app->instance(ServiceProbes::class, fakeProbes([...allUp(), 'routing' => ServiceState::Down]));
+    $this->artisan('status:check');
+    $this->artisan('status:notice', ['title' => 'Wahoo sends are paused', '--component' => ['wahoo']]);
+
+    $this->get('/status')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('headline', 'Route drawing is down right now'));
+    $this->actingAs($user)->get('/dashboard')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('serviceNotice.title', 'Route drawing is down right now.'));
+
+    $this->travel(5)->minutes();
+    $this->app->instance(ServiceProbes::class, fakeProbes(allUp()));
+    $this->artisan('status:check');
+
+    $this->actingAs($user)->get('/dashboard')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('serviceNotice.title', 'Wahoo sends are paused'));
+});
+
+test('the map says nothing about old checks once they have stopped', function (): void {
+    $this->app->instance(ServiceProbes::class, fakeProbes([...allUp(), 'routing' => ServiceState::Slow]));
+    $this->artisan('status:check');
+    $this->travel(20)->minutes();
+
+    $this->actingAs(User::factory()->create())->get('/dashboard')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('serviceNotice', expected: null));
+});
+
+test('the planner is slow when a message waits in the queue too long', function (): void {
+    expect(new PlannerProbe()->check()->state)->toBe(ServiceState::Up);
+
+    DB::table('jobs')->insert([
+        'queue' => 'default',
+        'payload' => '{}',
+        'attempts' => 0,
+        'reserved_at' => null,
+        'available_at' => now()->subMinutes(11)->getTimestamp(),
+        'created_at' => now()->subMinutes(11)->getTimestamp(),
+    ]);
+
+    expect(new PlannerProbe()->check()->state)->toBe(ServiceState::Slow);
 });
