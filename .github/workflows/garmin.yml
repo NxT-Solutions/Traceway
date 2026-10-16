@@ -166,6 +166,32 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # Signs in to the Connect IQ Store and reads the listing, changing nothing.
+  # Run weekly and on pull requests, it shows a broken sign-in or a changed
+  # dashboard before a release needs the automatic upload.
+  store:
+    name: Connect IQ Store sign-in
+    if: github.event_name != 'release' && github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}
+      GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Forks and Dependabot get no secrets, so their pull requests skip it.
+      - name: Check The Listing
+        run: |
+          set -euo pipefail
+          if [ -z "$GARMIN_USERNAME" ] || [ -z "$GARMIN_PASSWORD" ]; then
+            echo "::notice::No Garmin login in this run, so the store was not checked."
+            exit 0
+          fi
+          python3 apps/garmin/tools/connectiq_store.py check
+
   release:
     name: Attach Garmin app to release
     needs: build
@@ -187,8 +213,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Garmin has no upload API, so a person uploads each new version. Most
-      # releases change only the planner or the site, and need no upload.
+      # Most releases change only the planner or the site, and need no upload.
       - name: Check Whether The App Changed
         id: changed
         run: |
@@ -205,8 +230,8 @@ jobs:
             fi
           done
 
-          # Everything under apps/garmin ships, except the notes and the store images.
-          if [ -z "$previous" ] || ! git diff --quiet "$previous" "$TAG" -- apps/garmin ':!apps/garmin/README.md' ':!apps/garmin/store'; then
+          # Everything under apps/garmin ships, except the notes, the store images, and the store tools.
+          if [ -z "$previous" ] || ! git diff --quiet "$previous" "$TAG" -- apps/garmin ':!apps/garmin/README.md' ':!apps/garmin/store' ':!apps/garmin/tools'; then
             echo "app=true" >> "$GITHUB_OUTPUT"
           else
             echo "app=false" >> "$GITHUB_OUTPUT"
@@ -227,13 +252,46 @@ jobs:
           mv dist/traceway.iq "dist/traceway-garmin-${TAG}.iq"
           gh release upload "$TAG" "dist/traceway-garmin-${TAG}.iq" dist/store/*.png --clobber --repo "$GITHUB_REPOSITORY"
 
-      # An issue for the person who published the release, open until the
-      # upload is done. It says what to choose, type, and paste.
-      - name: Open Store Upload Reminder
+      # What's New comes from this release's rider notes in the Devices section.
+      - name: Write What's New
         if: steps.changed.outputs.app == 'true'
+        run: |
+          set -euo pipefail
+          whats_new="$(
+            for note in apps/app/resources/releases/"${TAG}"/*.md; do
+              [ -e "$note" ] || continue
+              [ "$(basename "$note")" = "_release.md" ] && continue
+              tr -d '\r' < "$note" | awk 'NR==1 && $0=="---" {front=1; next} front && $0=="---" {front=0; next} front && /^section:/ {section=$2} !front && section=="Devices" && /^[[:space:]]*- / {print}'
+            done | sed -E 's/\*\*//g'
+          )"
+          [ -n "$whats_new" ] || whats_new="- Small fixes and improvements."
+          printf '%s\n' "$whats_new" > dist/whats-new.txt
+
+      # Garmin has no public upload API. This uses the developer dashboard's own
+      # endpoints with the developer's Garmin login, so it can break when Garmin
+      # changes the dashboard. Then the reminder below asks for a manual upload.
+      - name: Publish To Connect IQ Store
+        id: publish
+        if: steps.changed.outputs.app == 'true'
+        continue-on-error: true
+        env:
+          GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          python3 apps/garmin/tools/connectiq_store.py upload \
+            --iq "dist/traceway-garmin-${TAG}.iq" \
+            --version "${TAG#v}" \
+            --whats-new dist/whats-new.txt
+
+      # Only when the upload did not go through: an issue for the person who
+      # published the release, open until the upload is done by hand.
+      - name: Open Store Upload Reminder
+        if: steps.changed.outputs.app == 'true' && steps.publish.outcome != 'success'
         env:
           AUTHOR: ${{ github.event.release.author.login }}
           AUTHOR_TYPE: ${{ github.event.release.author.type }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           version="${TAG#v}"
@@ -244,19 +302,9 @@ jobs:
             exit 0
           fi
 
-          # What's new comes from this release's rider notes in the Devices section.
-          whats_new="$(
-            for note in apps/app/resources/releases/"${TAG}"/*.md; do
-              [ -e "$note" ] || continue
-              [ "$(basename "$note")" = "_release.md" ] && continue
-              tr -d '\r' < "$note" | awk 'NR==1 && $0=="---" {front=1; next} front && $0=="---" {front=0; next} front && /^section:/ {section=$2} !front && section=="Devices" && /^[[:space:]]*- / {print}'
-            done | sed -E 's/\*\*//g'
-          )"
-          [ -n "$whats_new" ] || whats_new="- Small fixes and improvements."
-
           body_file="$(mktemp)"
           {
-            echo "${TAG} changed the Garmin app. Garmin has no upload API, so upload it by hand. It takes about two minutes."
+            echo "${TAG} changed the Garmin app, and [the automatic upload](${RUN_URL}) did not go through. Upload it by hand. It takes about two minutes."
             echo
             echo "1. Download [traceway-garmin-${TAG}.iq](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/traceway-garmin-${TAG}.iq)."
             echo "2. Open [the Traceway store page](${STORE_PAGE}) and choose **Upload New Version**. Not Upload an App: that would make a second listing."
@@ -264,7 +312,7 @@ jobs:
             echo "4. Paste this under What's New, then submit:"
             echo
             echo '```'
-            echo "$whats_new"
+            cat dist/whats-new.txt
             echo '```'
             echo
             echo "Close this issue when Garmin has the new version. Riders' devices update by themselves once Garmin approves it."
