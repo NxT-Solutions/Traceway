@@ -89,4 +89,11 @@ return [
         'max_request_points' => (int) env('VALHALLA_MAX_REQUEST_POINTS', 10),
     ],
 
+    // The Garmin app's listing in the Connect IQ store. The status page asks the
+    // store whether riders can find it there.
+    'connect_iq' => [
+        'url' => env('CONNECT_IQ_STORE_URL', 'https://apps.garmin.com'),
+        'store_id' => env('CONNECT_IQ_STORE_ID', 'a0c32e89-323f-4522-9ee8-c6af6cce14c3'),
+    ],
+
 ];

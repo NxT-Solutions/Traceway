@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Commands\PostStatusNoticeCommand;
 use App\Commands\ReadRouteDetailsCommand;
+use App\Commands\RecordServiceChecksCommand;
+use App\Commands\ResolveStatusNoticeCommand;
 use App\Commands\SyncReleasesCommand;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Domain\Releases\ReleaseFeed;
+use App\Domain\Status\StatusComponent;
 use App\Integrations\ReleaseNotes\ReleaseNotesDirectory;
 use App\Queries\Routes\UnreadRoutesQuery;
 use Illuminate\Foundation\Inspiring;
@@ -111,3 +115,69 @@ Artisan::command('releases:prepare {version : The new version, such as v1.4.0} {
 
     return 0;
 })->purpose('Move the unreleased rider notes into the folder of a new version');
+
+Artisan::command('status:check', function (DispatchesCommands $dispatchesCommands): int {
+    $saved = $dispatchesCommands->dispatch(new RecordServiceChecksCommand);
+
+    $this->info('Checked '.(is_int($saved) ? $saved : 0).' parts of Traceway.');
+
+    return 0;
+})->purpose('Ask Traceway and the services it uses whether they work, for the status page');
+
+// The status page shows the last of these, and the worst state of each day.
+// A check that waits for a slow server must not hold up the next one.
+Schedule::command('status:check')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
+    ->runInBackground();
+
+Artisan::command('status:notice {title : What riders read, such as "Route drawing is slow"} {--body= : One or two more sentences} {--component=* : The parts it is about: planner, routing, places, tiles, ride_with_gps, wahoo, garmin_store}', function (DispatchesCommands $dispatchesCommands): int {
+    $components = [];
+    $option = $this->option('component');
+
+    foreach (is_array($option) ? $option : [] as $value) {
+        $statusComponent = is_string($value) ? StatusComponent::tryFrom($value) : null;
+
+        if (! $statusComponent instanceof StatusComponent) {
+            $this->error('There is no part called '.(is_string($value) ? $value : '').'. Use one of: '.implode(', ', array_map(fn (StatusComponent $statusComponent): string => $statusComponent->value, StatusComponent::cases())).'.');
+
+            return 1;
+        }
+
+        $components[] = $statusComponent;
+    }
+
+    $title = $this->argument('title');
+    $body = $this->option('body');
+
+    try {
+        $id = $dispatchesCommands->dispatch(new PostStatusNoticeCommand(
+            is_string($title) ? $title : '',
+            is_string($body) ? $body : null,
+            $components,
+        ));
+    } catch (InvalidArgumentException $invalidArgumentException) {
+        $this->error($invalidArgumentException->getMessage());
+
+        return 1;
+    }
+
+    $this->info('Posted notice '.(is_int($id) ? $id : 0).'. It shows on the status page and on the map until you run status:resolve.');
+
+    return 0;
+})->purpose('Tell riders about a problem on the status page and on the map');
+
+Artisan::command('status:resolve {id? : The notice to close. Empty closes the newest open one}', function (DispatchesCommands $dispatchesCommands): int {
+    $id = $this->argument('id');
+    $resolved = $dispatchesCommands->dispatch(new ResolveStatusNoticeCommand(is_numeric($id) ? (int) $id : null));
+
+    if (! is_int($resolved)) {
+        $this->warn('No open notice to close.');
+
+        return 0;
+    }
+
+    $this->info('Closed notice '.$resolved.'. The status page shows it as resolved for a week.');
+
+    return 0;
+})->purpose('Close a notice once the problem is over');

@@ -105,6 +105,10 @@ import { support } from '@/lib/support';
 import { cn } from '@/lib/utils';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import ReleaseBell from '@/components/release-bell';
+import {
+    ServiceNotice,
+    type ServiceNoticeProps,
+} from '@/components/service-notice';
 
 type Coordinate = [number, number];
 type SheetName =
@@ -1511,8 +1515,10 @@ export default function Dashboard() {
     const hideSnapRef = useRef<() => void>(() => {});
     const routesRef = useRef<Preview[]>([]);
     const routeIndexRef = useRef(0);
-    const { auth } = usePage<{ auth: { user: { id: number; name: string } } }>()
-        .props;
+    const { auth, serviceNotice } = usePage<{
+        auth: { user: { id: number; name: string } };
+        serviceNotice?: ServiceNoticeProps | null;
+    }>().props;
     const storageKey = plannerDraftKey(auth.user.id);
     const saved = useRef(readSaved(storageKey)).current;
     const dirty = useRef(saved !== null);
@@ -5056,6 +5062,7 @@ export default function Dashboard() {
                         </Link>
                     </div>
                 </header>
+                <ServiceNotice notice={serviceNotice ?? null} />
                 <main className="app">
                     <div
                         className={

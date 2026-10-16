@@ -21,10 +21,12 @@ use App\Http\Controllers\ShowSavedRouteDetailsController;
 use App\Http\Controllers\ShowSharedRouteController;
 use App\Http\Controllers\ShowSharedRouteEmbedController;
 use App\Http\Controllers\ShowSharedRouteImageController;
+use App\Http\Controllers\ShowStatusController;
 use App\Http\Controllers\SnapPointController;
 use App\Http\Controllers\StoreRouteImageController;
 use App\Http\Controllers\StoreSavedRouteController;
 use App\Http\Middleware\KeepOutOfSearch;
+use App\Queries\Status\ServiceStatusQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -34,6 +36,10 @@ Route::post('login/demo/{rider}', DemoLoginController::class)
     ->name('login.demo');
 
 Route::get('/', fn () => Inertia::render('welcome'))->name('home');
+
+Route::get('status', ShowStatusController::class)
+    ->middleware('throttle:status')
+    ->name('status');
 
 Route::get('share/{savedRoute}', ShowSharedRouteController::class)
     ->middleware(['throttle:share', 'signed', KeepOutOfSearch::class])
@@ -63,7 +69,9 @@ Route::get('docs/public', fn (): RedirectResponse => redirect()->to('/docs'));
 Route::get('docs/account', fn (): RedirectResponse => redirect()->to('/docs'));
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
-    Route::get('dashboard', fn () => Inertia::render('dashboard'))->name('dashboard');
+    Route::get('dashboard', fn (ServiceStatusQuery $serviceStatusQuery) => Inertia::render('dashboard', [
+        'serviceNotice' => $serviceStatusQuery->banner(),
+    ]))->name('dashboard');
     Route::get('saved', SavedRouteLibraryController::class)->name('routes.library');
     Route::post('routes/preview', PreviewRouteController::class)->middleware('throttle:routing')->name('routes.preview');
     Route::post('routes/build', BuildRouteController::class)->middleware('throttle:routing')->name('routes.build');

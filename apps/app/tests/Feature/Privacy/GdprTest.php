@@ -251,7 +251,7 @@ it('has the browser talk only to Traceway, apart from the map itself', function 
     // Turnstile runs in the browser on the sign-up and password reset forms
     // only. The privacy policy names Cloudflare for it.
     $personCheck = ['challenges.cloudflare.com'];
-    $links = ['github.com', 'www.paypal.com', 'paypal.me', 'claude.ai', 'chatgpt.com', 'laravel.com', 'usehooks-ts.com', 'www.w3.org', 'localhost'];
+    $links = ['github.com', 'www.paypal.com', 'paypal.me', 'claude.ai', 'chatgpt.com', 'laravel.com', 'usehooks-ts.com', 'www.w3.org', 'localhost', 'www.cloudflarestatus.com', 'connect.garmin.com'];
     $files = [...File::allFiles(resource_path('js')), ...File::allFiles(resource_path('mcp'))];
     $hosts = [];
 
