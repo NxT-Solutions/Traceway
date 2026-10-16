@@ -1,6 +1,12 @@
 # Store screens
 
-The screen images on the Connect IQ Store listing, in the order they are uploaded. Each is the device's own screen at its own size: an Edge 1040 (282 × 470) and a Forerunner 965 (454 × 454, outside the circle black). The store takes JPG, GIF or PNG under 150 KB, so the map screens are JPG.
+The screen images on the Connect IQ Store listing, in the order they are uploaded. Each is the device's own screen at its own size: an Edge 1040 (282 × 470) and a Forerunner 965 (454 × 454, outside the circle black). The store takes at most five, each a JPG, GIF or PNG under 150 KB, so the map screens are JPG.
+
+1. `1-edge-routes.png`: the route list on an Edge.
+2. `2-edge-route-map.jpg`: a road loop on the map, with Ride it and Save.
+3. `3-edge-link.png`: the code that links the device on traceway.online.
+4. `4-forerunner-routes.png`: the route list on a round watch.
+5. `5-forerunner-run-it.jpg`: a trail run on the map, with Run it and Save.
 
 They are taken in the Connect IQ simulator, so CI cannot make them. Take them again when a screen changes:
 
