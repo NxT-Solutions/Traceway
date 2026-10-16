@@ -300,8 +300,7 @@ class RouteDetail {
                 dc.setPenWidth(1);
             }
 
-            // Centred on the ascent: the labels have no letters below the line, so centring the whole font box sits them high.
-            dc.drawText(left + each / 2, y + (tall - Graphics.getFontAscent(font)) / 2, font, text, Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(left + each / 2, labelTop(y, tall, font), font, text, Graphics.TEXT_JUSTIFY_CENTER);
 
             if (list.size() > 1 && index == focus) {
                 dc.setColor(Brand.PAPER, Graphics.COLOR_TRANSPARENT);
@@ -312,6 +311,24 @@ class RouteDetail {
 
             buttons.add([action, left, y, each, tall]);
         }
+    }
+
+    // Where a label starts so its letters sit in the middle of a button this tall. The labels have no letters below
+    // the line, so the label is centred on the font's ascent, not its whole height. A font whose ascent is more than
+    // three quarters of its height leaves room above its capitals, which drops the letters by about 8% of the font
+    // height, so there the label is lifted by that. Measured in the simulator on every device in the manifest; see
+    // the README for how to measure again.
+    function labelTop(y, tall, font) {
+        var ascent = Graphics.getFontAscent(font);
+        var height = Graphics.getFontHeight(font);
+        var lift = 0;
+
+        if (ascent * 4 > height * 3) {
+            lift = (height * 8 + 50) / 100;
+            lift = lift < 2 ? 2 : lift;
+        }
+
+        return y + (tall - ascent) / 2 - lift;
     }
 
     function name(action, label) {
