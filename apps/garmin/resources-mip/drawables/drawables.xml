@@ -1,7 +1,7 @@
 <drawables>
     <bitmap id="LauncherIcon" dithering="none" filename="launcher_icon.svg"/>
     <bitmap id="Wordmark" dithering="none" filename="wordmark.svg" scaleX="48%" scaleRelativeTo="screen"/>
-    <bitmap id="WordmarkSmall" dithering="none" filename="wordmark.svg" scaleX="44%" scaleRelativeTo="screen"/>
+    <bitmap id="WordmarkSmall" dithering="none" filename="wordmark_black.svg" scaleX="44%" scaleRelativeTo="screen"/>
     <bitmap id="Check" dithering="none" filename="check.svg" scaleX="20%" scaleRelativeTo="screen"/>
     <bitmap id="StartDot" dithering="none" filename="start_dot.svg" scaleX="7%" scaleRelativeTo="screen"/>
 </drawables>

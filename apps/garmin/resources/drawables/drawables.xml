@@ -1,7 +1,7 @@
 <drawables>
     <bitmap id="LauncherIcon" dithering="none" filename="launcher_icon.svg"/>
     <bitmap id="Wordmark" dithering="none" filename="wordmark.svg" scaleX="48%" scaleRelativeTo="screen"/>
-    <bitmap id="WordmarkSmall" dithering="none" filename="wordmark.svg" scaleX="44%" scaleRelativeTo="screen"/>
+    <bitmap id="WordmarkSmall" dithering="none" filename="wordmark_black.svg" scaleX="44%" scaleRelativeTo="screen"/>
     <bitmap id="SportRoad" dithering="none" filename="sport_road.svg" scaleX="12%" scaleRelativeTo="screen"/>
     <bitmap id="SportMtb" dithering="none" filename="sport_mtb.svg" scaleX="12%" scaleRelativeTo="screen"/>
     <bitmap id="SportFoot" dithering="none" filename="sport_foot.svg" scaleX="12%" scaleRelativeTo="screen"/>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 72" width="80" height="144">
+  <!-- The tile sits in the middle of a taller canvas: this menu pins an icon to the top of its row, so the space
+       above brings the tile down to the middle of the two lines. -->
+  <g transform="translate(0 16)">
+  <rect width="40" height="40" rx="11" fill="#071f20"/>
+  <g transform="translate(8 8)" fill="none" stroke="#f7f5ec" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></g>
+  </g>
+</svg>

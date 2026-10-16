@@ -51,6 +51,7 @@ CI builds the app, and nothing built is committed. `.github/workflows/garmin.yml
 
 - `store/icon.svg` is the 500 × 500 store icon: the mark on a solid paper ground, with no Garmin branding.
 - `store/hero.svg` is the 1440 × 720 hero image.
+- `store/screens/` holds the screen images for the listing, taken in the simulator. Its README says how to take them again.
 
 CI renders both to PNG. Take screenshots in the simulator with File, then Save Screen Capture: the route list, the route detail, and the pairing code, on an Edge and on a round watch.
 
