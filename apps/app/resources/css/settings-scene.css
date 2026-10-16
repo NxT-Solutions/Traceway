@@ -80,18 +80,25 @@
 .tw-settings .card button[data-test="update-password-button"]{
   display:inline-flex;align-items:center;justify-content:center;height:44px;width:auto;padding:0 18px;
   border:0;border-radius:10px;background:var(--chart);color:var(--chart-ink);font-size:15px;font-weight:600;
-  box-shadow:none;cursor:pointer;
+  box-shadow:none;cursor:pointer;transition:background-color 180ms var(--ease),border-color 180ms var(--ease),color 180ms var(--ease);
 }
 .tw-settings .card button[data-test="delete-user-button"]{
   display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 16px;
   border:1px solid var(--danger);border-radius:10px;background:transparent;color:var(--danger);
-  font-size:15px;font-weight:500;box-shadow:none;
+  font-size:15px;font-weight:500;box-shadow:none;cursor:pointer;transition:background-color 180ms var(--ease),border-color 180ms var(--ease),color 180ms var(--ease);
 }
 .tw-settings .card button[data-slot="button"]:not([type="submit"]):not([data-test="update-profile-button"]):not([data-test="update-password-button"]):not([data-test="delete-user-button"]){
   display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 16px;
   border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);
-  font-size:15px;font-weight:500;box-shadow:none;
+  font-size:15px;font-weight:500;box-shadow:none;transition:background-color 180ms var(--ease),border-color 180ms var(--ease),color 180ms var(--ease);
 }
+@media (hover: hover){
+  .tw-settings .card button[type="submit"]:not(:disabled):hover,.tw-settings .card button[data-test="update-profile-button"]:not(:disabled):hover,.tw-settings .card button[data-test="update-password-button"]:not(:disabled):hover{background:var(--chart-dim);filter:none}
+  .tw-settings .card button[data-test="delete-user-button"]:not(:disabled):hover{background:color-mix(in oklch, var(--danger) 10%, transparent);filter:none}
+  .tw-settings .card button[data-slot="button"]:not([type="submit"]):not([data-test="update-profile-button"]):not([data-test="update-password-button"]):not([data-test="delete-user-button"]):not(:disabled):hover{background:var(--hover);border-color:var(--text);filter:none}
+}
+.tw-settings .card button[data-slot="button"]:not(:disabled){cursor:pointer}
+.tw-settings .card button:disabled{cursor:default}
 .tw-settings .card h2{margin:0;font-size:22px;line-height:1.1;letter-spacing:-0.02em;font-weight:600}
 .tw-settings .card .desc{margin:6px 0 0;color:var(--muted)}
 .tw-settings .field{display:flex;flex-direction:column;gap:8px}
@@ -215,5 +222,6 @@
 }
 @media (prefers-reduced-motion: reduce){
   .tw-settings button,.tw-settings a{transition:none}
+  .tw-settings .card button{transition:none !important}
   .tw-settings .ai-ask,.tw-settings .ai-reply,.tw-settings .ai-route,.tw-settings .ai-via,.tw-settings .ai-saved{animation:none;opacity:1;transform:none;stroke-dashoffset:0}
 }
