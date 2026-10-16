@@ -20,7 +20,7 @@ export interface LegalPage {
     sections: readonly LegalSection[];
 }
 
-export const legalUpdated = '15 October 2026';
+export const legalUpdated = '16 October 2026';
 
 const operator = 'NxT-Solutions, Westerlo, Belgium';
 const email = '[privacy@nxt-solutions.com](mailto:privacy@nxt-solutions.com)';
@@ -99,11 +99,12 @@ export const privacy: LegalPage = {
                 '**Hetzner Online** hosts the server and the database, in Germany.',
                 '**Cloudflare** passes every visit to traceway.online on to the server, to keep the site fast and to stop attacks, so it sees your IP address and the pages you ask for. It checks that a person, not a script, fills in the sign-up and password reset forms. It also keeps the backup copies of the database, and counts visits to the pages of this site when you agree.',
                 '**Resend** sends the account email. It gets your email address and the message. For a copy of your data, that includes the file.',
+                '**Sentry** tells NxT-Solutions when something in the planner breaks or runs slowly. It gets the address of the page without its search part, your browser type, how long each step took, and what went wrong, which can hold the points or the place name the server was asking a map service about. It never gets your name, email address, IP address, cookies, or what you type into a form. Sentry keeps it in Germany.',
                 '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names, and the [OpenFreeMap](https://openfreemap.org) map tiles for water, toilets, and cafés. The Traceway server sends them the points of a route, the name of a place, a place you search for with the middle of your map rounded to about 10 kilometres, a pin rounded to about 100 metres, or which map tiles a route crosses. It never sends your name or email address.',
                 '**Your own browser** loads the map itself from [OpenFreeMap](https://openfreemap.org). Like any website, it sees your IP address and the part of the map you look at. Everything else goes through Traceway.',
             ],
             after: [
-                'Hetzner, Cloudflare, and Resend handle your data only on behalf of NxT-Solutions, under a data processing agreement.',
+                'Hetzner, Cloudflare, Resend, and Sentry handle your data only on behalf of NxT-Solutions, under a data processing agreement.',
             ],
         },
         {
@@ -118,7 +119,7 @@ export const privacy: LegalPage = {
         {
             heading: 'Outside the EU',
             paragraphs: [
-                'Cloudflare and Resend are American companies. When your data leaves the European Economic Area, it is protected by the EU-U.S. Data Privacy Framework or by the EU’s standard contractual clauses.',
+                'Cloudflare, Resend, and Sentry are American companies. When your data leaves the European Economic Area, it is protected by the EU-U.S. Data Privacy Framework or by the EU’s standard contractual clauses.',
             ],
         },
         {

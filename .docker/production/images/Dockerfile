@@ -22,7 +22,7 @@ RUN curl -fsSL https://bun.sh/install | bash -s bun-v1.3.6 \
 
 ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/download/2.12.0/install-php-extensions /usr/local/bin/
 
-RUN install-php-extensions pdo_sqlite sqlite3 zip exif pcntl intl opcache bcmath @composer
+RUN install-php-extensions pdo_sqlite sqlite3 zip exif pcntl intl opcache bcmath excimer @composer
 
 WORKDIR /var/www/html
 

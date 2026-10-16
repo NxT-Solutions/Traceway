@@ -57,6 +57,8 @@ jobs:
           PASSPORT_PUBLIC_KEY: ${{ secrets.PASSPORT_PUBLIC_KEY }}
           TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          SENTRY_LARAVEL_DSN: ${{ secrets.SENTRY_LARAVEL_DSN }}
+          SENTRY_RELEASE: ${{ steps.image.outputs.tag }}
         run: |
           set -euo pipefail
 
@@ -100,6 +102,13 @@ jobs:
           upsert_env "TURNSTILE_SECRET_KEY" "${TURNSTILE_SECRET_KEY:-}" "$runtime_env"
           if [ -z "${TURNSTILE_SITE_KEY:-}" ] || [ -z "${TURNSTILE_SECRET_KEY:-}" ]; then
             echo "::warning::TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are not set. Sign-up runs without the person check."
+          fi
+
+          # Errors, traces and logs go to Sentry. Without the DSN nothing is sent.
+          upsert_env "SENTRY_LARAVEL_DSN" "${SENTRY_LARAVEL_DSN:-}" "$runtime_env"
+          upsert_env "SENTRY_RELEASE" "${SENTRY_RELEASE}" "$runtime_env"
+          if [ -z "${SENTRY_LARAVEL_DSN:-}" ]; then
+            echo "::warning::SENTRY_LARAVEL_DSN is not set. Errors are not sent to Sentry."
           fi
 
           # AI tools sign in with OAuth. Passport signs their tokens with this
