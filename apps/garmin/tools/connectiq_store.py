@@ -229,6 +229,8 @@ class Image:
             self.content = draw(path, size)
             if slot == "device_icon_64_color":
                 self.content = in_64_colors(self.content)
+            elif slot == "device_icon_24_bit":
+                self.content = in_24_bits(self.content)
             self.name = os.path.splitext(self.name)[0] + ".png"
         else:
             with open(path, "rb") as handle:
@@ -493,21 +495,46 @@ def draw(path, size):
         raise StoreError(f"rsvg-convert could not draw {path}: {error.stderr.decode(errors='replace')[:200]}") from None
 
 
+# The store tells the two device icons apart by their pixel format, and turns
+# a second icon of the same size and format down as a duplicate. So the
+# 64-colour icon is an 8-bit palette PNG, and the 24-bit icon is plain RGB.
 def in_64_colors(png):
-    """The PNG with each colour moved to the nearest of the 64 that older devices show: 0, 85, 170, or 255 per channel."""
+    """The icon as a palette PNG, each colour moved to the nearest of the 64 that older devices show: 0, 85, 170, or 255 per channel."""
     width, height, channels, pixels = read_png(png)
-    level = bytes(min(range(0, 256, 85), key=lambda target: abs(target - value)) for value in range(256))
+    level = [min(range(0, 256, 85), key=lambda target: abs(target - value)) for value in range(256)]
+    palette = {}
     rows = []
-    stride = width * channels
     for row in range(height):
-        line = bytearray(pixels[row * stride:(row + 1) * stride])
-        for index in range(len(line)):
-            if channels == 4 and index % 4 == 3:
-                line[index] = 255 if line[index] >= 128 else 0
+        line = bytearray([0])
+        for column in range(width):
+            start = (row * width + column) * channels
+            red, green, blue = (level[value] for value in pixels[start:start + 3])
+            # A see-through pixel stays see-through; anything else is solid.
+            alpha = 0 if channels == 4 and pixels[start + 3] < 128 else 255
+            color = (0, 0, 0, 0) if alpha == 0 else (red, green, blue, 255)
+            line.append(palette.setdefault(color, len(palette)))
+        rows.append(bytes(line))
+    colors = sorted(palette, key=palette.get)
+    plte = b"".join(bytes(color[:3]) for color in colors)
+    trns = bytes(color[3] for color in colors) if any(color[3] == 0 for color in colors) else None
+    return write_png(width, height, 3, b"".join(rows), plte, trns)
+
+
+def in_24_bits(png):
+    """The icon as an RGB PNG, with any see-through pixel laid on white."""
+    width, height, channels, pixels = read_png(png)
+    rows = []
+    for row in range(height):
+        line = bytearray([0])
+        for column in range(width):
+            start = (row * width + column) * channels
+            if channels == 4:
+                alpha = pixels[start + 3]
+                line += bytes((value * alpha + 255 * (255 - alpha)) // 255 for value in pixels[start:start + 3])
             else:
-                line[index] = level[line[index]]
-        rows.append(b"\x00" + bytes(line))
-    return write_png(width, height, channels, b"".join(rows))
+                line += pixels[start:start + 3]
+        rows.append(bytes(line))
+    return write_png(width, height, 2, b"".join(rows))
 
 
 def read_png(png):
@@ -552,12 +579,17 @@ def read_png(png):
     return width, height, channels, bytes(pixels)
 
 
-def write_png(width, height, channels, rows):
+def write_png(width, height, color, rows, palette=None, transparency=None):
+    """A PNG of filtered rows: color 2 is RGB, 3 is a palette, 6 is RGBA."""
     def chunk(kind, content):
         return struct.pack(">I", len(content)) + kind + content + struct.pack(">I", zlib.crc32(kind + content) & 0xFFFFFFFF)
 
-    header = struct.pack(">IIBBBBB", width, height, 8, 6 if channels == 4 else 2, 0, 0, 0)
-    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(rows, 9)) + chunk(b"IEND", b"")
+    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, color, 0, 0, 0))
+    if palette is not None:
+        png += chunk(b"PLTE", palette)
+    if transparency is not None:
+        png += chunk(b"tRNS", transparency)
+    return png + chunk(b"IDAT", zlib.compress(rows, 9)) + chunk(b"IEND", b"")
 
 
 def is_english(locale):
