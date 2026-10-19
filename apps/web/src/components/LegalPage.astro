@@ -13,6 +13,7 @@ const { page } = Astro.props;
     title={page.title}
     description={page.description}
     markdown={`${page.path}.md`}
+    updated={new Date(`${legalUpdated} UTC`).toISOString().slice(0, 10)}
 >
     <main class="wrap page">
         <p class="kicker">Legal</p>

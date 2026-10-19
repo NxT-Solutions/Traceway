@@ -20,7 +20,9 @@ const links = [
 ];
 ---
 
-<header class="hdr" id="hdr">
+{/* The home page starts with the header's button put away, as its script would, so nothing fades
+    out on load. It only hides while the page runs scripts (html.js), so without them it stays. */}
+<header class:list={['hdr', { 'cta-away': home }]} id="hdr">
     <div class="wrap">
         <a
             class="brand"

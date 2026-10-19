@@ -9,17 +9,23 @@ import Consent from '../components/Consent.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import { absolute } from '../seo/site';
+import * as structured from '../seo/structured';
 
 interface Props {
     title: string;
     description: string;
     /** The page as Markdown, for AI tools, when there is one. */
     markdown?: string;
+    /** The day the page last changed, as YYYY-MM-DD, when it says one. */
+    updated?: string;
 }
 
-const { title, description, markdown } = Astro.props;
+const { title, description, markdown, updated } = Astro.props;
 const pageTitle = title === 'Traceway' ? title : `${title} · Traceway`;
 const canonical = absolute(Astro.site, Astro.url.pathname.replace(/\/$/, '') || '/');
+const image = absolute(Astro.site, '/og.png');
+// What the page is, in the words search engines and AI answers read.
+const data = structured.page(Astro.site, { title: pageTitle, description, url: canonical, updated });
 ---
 
 <!doctype html>
@@ -47,13 +53,25 @@ const canonical = absolute(Astro.site, Astro.url.pathname.replace(/\/$/, '') || 
             )
         }
         <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/* The home-screen manifest is asked for once the page has loaded, so it never waits in line
+            with what the first paint needs. csp.mjs hashes it. */}
+        <script is:inline>addEventListener('load', () => { const link = document.createElement('link'); link.rel = 'manifest'; link.href = '/manifest.webmanifest'; document.head.append(link); });</script>
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Traceway" />
+        <meta property="og:locale" content="en_GB" />
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={description} />
         <meta property="og:url" content={canonical} />
-        <meta property="og:image" content={absolute(Astro.site, '/og.png')} />
+        <meta property="og:image" content={image} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="A loop drawn on a map from a pin in Westerlo, and the same loop on a watch." />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={image} />
+        <script type="application/ld+json" set:html={data} />
     </head>
     <body id="top">
         <Consent />

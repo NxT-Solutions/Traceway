@@ -52,7 +52,7 @@ p{margin:0;text-wrap:pretty}
 .hdr-r{margin-left:auto;display:flex;align-items:center;gap:10px}
 .hdr-cta .mid,.hdr-cta .short{display:none}
 /* On the home page the hero carries the filled button. The header one waits until the hero has gone. */
-.hdr.cta-away .hdr-cta{opacity:0;visibility:hidden;transform:translateY(-6px);pointer-events:none}
+html.js .hdr.cta-away .hdr-cta{opacity:0;visibility:hidden;transform:translateY(-6px);pointer-events:none}
 .menu-btn{display:none;position:relative;width:44px;height:44px;margin-right:-8px;padding:0;border:0;border-radius:10px;background:transparent;color:inherit;cursor:pointer}
 .menu-btn .bars,.menu-btn .bars::before{position:absolute;left:12px;width:20px;height:1.8px;border-radius:2px;background:currentColor;transition:transform .3s var(--ease),top .3s var(--ease)}
 .menu-btn .bars{top:17px}

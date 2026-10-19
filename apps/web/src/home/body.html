@@ -164,7 +164,7 @@
       </svg>
       <div class="mapdim" id="mapdim" aria-hidden="true"></div>
       <ol class="rail" id="rail" aria-hidden="true">
-        <li data-a="0">Pin</li>
+        <li data-a="0" class="on">Pin</li>
         <li data-a="1">Search</li>
         <li data-a="2">Loops</li>
         <li data-a="3">Pick</li>
@@ -214,19 +214,19 @@
     </div>
     <div class="steps">
       <article class="step rv" style="--i:0">
-        <svg class="ic" viewBox="0 0 56 56" aria-hidden="true"><path pathLength="1" d="M28 48 C20 38 14 31 14 22 a14 14 0 0 1 28 0 c0 9 -6 16 -14 26 Z"></path><circle class="dot" cx="28" cy="22" r="4"></circle></svg>
+        <span class="ic-draw up"><svg class="ic" viewBox="0 0 56 56" aria-hidden="true"><path pathLength="1" d="M28 48 C20 38 14 31 14 22 a14 14 0 0 1 28 0 c0 9 -6 16 -14 26 Z"></path><circle class="dot" cx="28" cy="22" r="4"></circle></svg></span>
         <span class="num">01</span>
         <h3>Drop a pin</h3>
         <p>Your driveway, the trailhead, the park. The loop starts and ends right there, on foot or on a bike.</p>
       </article>
       <article class="step rv" style="--i:1">
-        <svg class="ic" viewBox="0 0 56 56" aria-hidden="true"><path pathLength="1" d="M10 16 H46 M10 28 H46 M10 40 H46"></path><circle class="dot" cx="20" cy="16" r="4"></circle><circle class="dot" cx="38" cy="28" r="4"></circle><circle class="dot" cx="26" cy="40" r="4"></circle></svg>
+        <span class="ic-draw right"><svg class="ic" viewBox="0 0 56 56" aria-hidden="true"><path pathLength="1" d="M10 16 H46 M10 28 H46 M10 40 H46"></path><circle class="dot" cx="20" cy="16" r="4"></circle><circle class="dot" cx="38" cy="28" r="4"></circle><circle class="dot" cx="26" cy="40" r="4"></circle></svg></span>
         <span class="num">02</span>
         <h3>Name the distance and the sport</h3>
         <p>40 km on the road. 12 km on foot. Each sport scores the map its own way, so the same pin gives a different loop.</p>
       </article>
       <article class="step rv" style="--i:2">
-        <svg class="ic" viewBox="0 0 56 56" aria-hidden="true"><rect pathLength="1" x="14" y="6" width="28" height="44" rx="7"></rect><path pathLength="1" d="M22 30 c3 -6 6 -8 10 -8 c4 0 5 4 2 10 c-2 4 -6 6 -10 6"></path><circle class="dot" cx="22" cy="30" r="3"></circle></svg>
+        <span class="ic-draw down"><svg class="ic" viewBox="0 0 56 56" aria-hidden="true"><rect pathLength="1" x="14" y="6" width="28" height="44" rx="7"></rect><path pathLength="1" d="M22 30 c3 -6 6 -8 10 -8 c4 0 5 4 2 10 c-2 4 -6 6 -10 6"></path><circle class="dot" cx="22" cy="30" r="3"></circle></svg></span>
         <span class="num">03</span>
         <h3>Take it with you</h3>
         <p>Put it on your Garmin, COROS, Suunto, Wahoo, or Hammerhead. It shows the way on its own map. The phone can stay at home.</p>
@@ -244,37 +244,37 @@
     </div>
     <div class="grid g3 tiles">
       <article class="tile rv" style="--i:0">
-        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-road"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use></svg><div class="sweep" style="--r0:206deg;--r1:26deg"><div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use class="loop" href="#loop-road"></use></svg></div></div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
         <div class="meta"><span>Road</span><b>Paved · quiet</b></div>
         <h3>Road</h3>
         <p>Quiet lanes and cycleways. Busy main roads drop out.</p>
       </article>
       <article class="tile rv" style="--i:1">
-        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-gravel"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use></svg><div class="sweep" style="--r0:70deg;--r1:250deg"><div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use class="loop" href="#loop-gravel"></use></svg></div></div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
         <div class="meta"><span>Gravel</span><b>Dirt first</b></div>
         <h3>Gravel</h3>
         <p>Smooth dirt where the map knows it. Pavement still counts.</p>
       </article>
       <article class="tile rv" style="--i:2">
-        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-mtb"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use></svg><div class="sweep" style="--r0:-147deg;--r1:33deg"><div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use class="loop" href="#loop-mtb"></use></svg></div></div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
         <div class="meta"><span>Mountain bike</span><b>Trail · hills in</b></div>
         <h3>Mountain bike</h3>
         <p>Trail and rough track. The hills stay in.</p>
       </article>
       <article class="tile rv" style="--i:0">
-        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-run"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use></svg><div class="sweep" style="--r0:282deg;--r1:102deg"><div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use class="loop" href="#loop-run"></use></svg></div></div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
         <div class="meta"><span>Run</span><b>Paths · pavements</b></div>
         <h3>Run</h3>
         <p>Paths and pavements. Busy roads drop out.</p>
       </article>
       <article class="tile rv" style="--i:1">
-        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-trail"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use></svg><div class="sweep" style="--r0:202deg;--r1:22deg"><div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use class="loop" href="#loop-trail"></use></svg></div></div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
         <div class="meta"><span>Trail run</span><b>Footpaths · climb on</b></div>
         <h3>Trail run</h3>
         <p>Footpaths and dirt, with the climb left on.</p>
       </article>
       <article class="tile rv" style="--i:2">
-        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use><use class="loop" href="#loop-walk"></use><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
+        <div class="mini"><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#net"></use></svg><div class="sweep" style="--r0:65deg;--r1:-115deg"><div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use class="loop" href="#loop-walk"></use></svg></div></div><svg viewBox="470 90 660 640" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><circle class="mpin" cx="780" cy="322" r="8"></circle></svg></div>
         <div class="meta"><span>Walk and hike</span><b>Slower · shorter</b></div>
         <h3>Walk and hike</h3>
         <p>The same loop, slower, for a shorter day.</p>
@@ -461,8 +461,24 @@
         <p>Garmin, COROS, Suunto, Wahoo, Hammerhead, and most others that can load a route. On a Garmin you also get a warning before each turn, and before water, a toilet, or a café.</p>
       </details>
       <details>
+        <summary>How do I get a route onto my Garmin?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>Pair the Traceway app on your watch or bike computer once with a code, and your saved routes are there. Or press Send to device in the planner and add the route in Garmin Connect.</p>
+      </details>
+      <details>
+        <summary>How do I get a route onto a Wahoo, Hammerhead, COROS, or Suunto?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>Connect your Wahoo or Ride with GPS account once under Settings, then Devices, and send a route there with one tap. For other brands, press Send to device and open the file in the brand’s own app.</p>
+      </details>
+      <details>
         <summary>Can I use a route someone gave me?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
         <p>Yes. Open the GPX file in the planner, for a route up to 300 km. Keep it as it is, ride it the other way round, or start it from your own door.</p>
+      </details>
+      <details>
+        <summary>Will the loop be as long as I asked?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>Close to it. Traceway tries a few loops near your distance and picks the best, so asking for 40 km gives you about 40 km.</p>
+      </details>
+      <details>
+        <summary>Does it plan runs and walks too?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>Yes. Pick run, trail run, or walk and hike. Run and walk keep off busy roads, and trail run looks for paths and dirt.</p>
       </details>
       <details>
         <summary>Can I make the loop pass a particular place?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
@@ -495,6 +511,10 @@
       <details>
         <summary>Does it work outside Belgium?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
         <p>Yes. The pin goes anywhere with roads and paths on OpenStreetMap. The loops on this page start in Westerlo, where Traceway is built.</p>
+      </details>
+      <details>
+        <summary>Do I need an account?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>
+        <p>Yes, a free one. It keeps your routes in one place, so they reach your watch and stay yours.</p>
       </details>
       <details>
         <summary>Is Traceway free?<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></summary>

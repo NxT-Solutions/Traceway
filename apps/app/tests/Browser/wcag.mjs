@@ -65,10 +65,10 @@ try {
     const phone = await phoneContext.newPage();
     desktop.on('pageerror', (error) => failures.push(`desktop page error: ${error.message}`));
     // A script, style or request the Content-Security-Policy blocks is a broken page too.
-    desktop.on('console', (message) => message.text().includes('Content Security Policy') && failures.push(`desktop page error: ${message.text()}`));
+    desktop.on('console', (message) => /Content Security Policy|Trusted Type|requires 'Trusted/.test(message.text()) && failures.push(`desktop page error: ${message.text()}`));
     phone.on('pageerror', (error) => failures.push(`phone page error: ${error.message}`));
     // A script, style or request the Content-Security-Policy blocks is a broken page too.
-    phone.on('console', (message) => message.text().includes('Content Security Policy') && failures.push(`phone page error: ${message.text()}`));
+    phone.on('console', (message) => /Content Security Policy|Trusted Type|requires 'Trusted/.test(message.text()) && failures.push(`phone page error: ${message.text()}`));
 
     for (const path of contentPages) {
         await scan(desktop, path, content);

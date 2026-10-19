@@ -46,6 +46,28 @@
     const live = import.meta.env.PROD && location.hostname === 'traceway.online';
     let started = false;
 
+    const beacon = 'https://static.cloudflareinsights.com/beacon.min.js';
+
+    // The page's Trusted Types rule takes a script address only from the "counter" policy, and
+    // that policy knows this one address. Browsers without Trusted Types take the text as it is.
+    type ScriptUrls = { createScriptURL: (url: string) => string };
+    const trusted = (window as { trustedTypes?: { createPolicy: (name: string, rules: ScriptUrls) => ScriptUrls } })
+        .trustedTypes;
+
+    const beaconUrl = (): string =>
+        trusted
+            ? trusted
+                  .createPolicy('counter', {
+                      createScriptURL: (url) => {
+                          if (url !== beacon) {
+                              throw new TypeError(`The site loads no script from ${url}`);
+                          }
+                          return url;
+                      },
+                  })
+                  .createScriptURL(beacon)
+            : beacon;
+
     // Cloudflare keeps nothing in the browser. After a no it is simply not loaded on the next page.
     const start = (): void => {
         if (!live || started) {
@@ -55,7 +77,7 @@
 
         const counter = document.createElement('script');
         counter.defer = true;
-        counter.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+        counter.src = beaconUrl();
         counter.dataset.cfBeacon = JSON.stringify({ token: cloudflare });
         document.body.append(counter);
     };

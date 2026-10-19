@@ -50,3 +50,15 @@ it('sends text compressed and keeps the hashed build files for a year', function
             ->and($block[1])->not->toContain('expires');
     }
 });
+
+it('serves security.txt from the content site, and leaves the rest of .well-known to Laravel', function (): void {
+    $config = file_get_contents(dirname(__DIR__, 4).'/.docker/production/images/configs/nginx/nginx.conf') ?: '';
+    $source = file_get_contents(dirname(__DIR__, 4).'/apps/web/src/pages/security.txt.ts') ?: '';
+
+    preg_match('/location = \/\.well-known\/security\.txt \{([^}]*)\}/', $config, $block);
+
+    expect($block)->toHaveKey(1)
+        ->and($block[1])->toContain('try_files /security.txt =404;')
+        ->and($source)->toContain('Contact: ')
+        ->and($source)->toContain('Expires: ');
+});

@@ -332,3 +332,39 @@ jobs:
               echo "::warning::Cloudflare did not serve ${page} from its cache (${status:-no cf-cache-status})."
             fi
           done
+
+      # IndexNow tells Bing, Yandex, Seznam, Naver, and Yep that the site's
+      # pages changed, so they read them again soon. Bing's index answers for
+      # ChatGPT search, Copilot, and DuckDuckGo. Only this job talks to it,
+      # with the page addresses from the sitemap and nothing about a visitor.
+      # The key is public by design: indexnow.txt on the site proves the site
+      # sent it (apps/web/src/seo/site.ts). The release is live, so a failure
+      # only warns.
+      - name: Tell Search Engines The Pages Changed
+        run: |
+          set -uo pipefail
+
+          site="https://traceway.online"
+          key="$(curl --silent --fail "${site}/indexnow.txt" | tr -d '[:space:]')"
+          urls="$(curl --silent --fail "${site}/sitemap.xml" | sed -nE 's#.*<loc>([^<]+)</loc>.*#\1#p')"
+          if [ -z "$key" ] || [ -z "$urls" ]; then
+            echo "::warning::Could not read ${site}/indexnow.txt or the sitemap, so IndexNow was not told."
+            exit 0
+          fi
+
+          jq -n --arg key "$key" --arg site "$site" --arg urls "$urls" '{
+            host: ($site | sub("^https://"; "")),
+            key: $key,
+            keyLocation: ($site + "/indexnow.txt"),
+            urlList: ($urls | split("\n") | map(select(length > 0)))
+          }' > "${RUNNER_TEMP}/indexnow.json"
+
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --request POST "https://api.indexnow.org/indexnow" \
+            --header "Content-Type: application/json; charset=utf-8" \
+            --data @"${RUNNER_TEMP}/indexnow.json" || true)"
+          echo "IndexNow: ${status}"
+          case "$status" in
+            200|202) ;;
+            *) echo "::warning::IndexNow answered ${status}, so search engines will find the changes on their own schedule." ;;
+          esac
