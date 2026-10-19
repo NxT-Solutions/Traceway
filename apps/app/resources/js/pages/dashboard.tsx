@@ -5062,13 +5062,14 @@ export default function Dashboard() {
                             <span>Saved routes</span>
                         </Link>
                         <ReleaseBell />
-                        <Link
-                            className="acct"
-                            href="/settings/profile"
-                            aria-label="Account and settings"
-                        >
+                        <Link className="acct" href="/settings/profile">
                             <span className="name">{rider}</span>
-                            <span className="avatar">{riderInitials}</span>
+                            <span className="avatar" aria-hidden="true">
+                                {riderInitials}
+                            </span>
+                            <span className="sr-only">
+                                Account and settings
+                            </span>
                         </Link>
                     </div>
                 </header>

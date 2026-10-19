@@ -85,10 +85,12 @@ export default function SceneHeader({ current }: { current?: 'account' }) {
                         aria-current={
                             current === 'account' ? 'page' : undefined
                         }
-                        aria-label="Account and settings"
                     >
                         <span className="name">{name}</span>
-                        <span className="avatar">{initials(name)}</span>
+                        <span className="avatar" aria-hidden="true">
+                            {initials(name)}
+                        </span>
+                        <span className="sr-only">Account and settings</span>
                     </Link>
                 </div>
             </div>

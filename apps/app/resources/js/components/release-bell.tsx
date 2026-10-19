@@ -113,6 +113,9 @@ export default function ReleaseBell() {
     }
 
     const { unread, items } = whatsNew;
+    // The button's name repeats the badge, so a rider who says what they
+    // see ("What's new, 9+") reaches it by voice.
+    const badge = unread > 9 ? '9+' : String(unread);
 
     const titleId = `${panelId}-title`;
 
@@ -145,7 +148,7 @@ export default function ReleaseBell() {
                 aria-expanded={open}
                 aria-controls={panelId}
                 aria-label={
-                    unread > 0 ? `What's new, ${unread} unread` : "What's new"
+                    unread > 0 ? `What's new, ${badge} unread` : "What's new"
                 }
                 onClick={() => setOpen((value) => !value)}
             >
@@ -171,7 +174,7 @@ export default function ReleaseBell() {
                 </svg>
                 {unread > 0 ? (
                     <span className="rb-count" aria-hidden="true">
-                        {unread > 9 ? '9+' : unread}
+                        {badge}
                     </span>
                 ) : null}
             </button>
