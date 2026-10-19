@@ -167,6 +167,7 @@ export type AdminSecurity = InsightsPart & {
     user_agents: Ranked[];
     rules: Ranked[];
     people_pages: PeopleBlock[];
+    people_blocked: number;
     turnstile: Ranked[];
 };
 

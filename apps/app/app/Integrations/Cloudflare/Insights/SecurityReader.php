@@ -115,6 +115,8 @@ final readonly class SecurityReader
             $rules->add(CloudflareGraphql::text($event['ruleId'] ?? null), 1);
         }
 
+        $peopleBlocks = $this->peopleBlocks($events);
+
         return new SecurityReport(
             threatDays: $threatDays,
             threatCountries: $threatCountries->ranked(),
@@ -126,7 +128,8 @@ final readonly class SecurityReader
             paths: $paths->ranked(15),
             userAgents: $userAgents->ranked(10),
             rules: $rules->ranked(10),
-            peoplePages: $this->peopleBlocks($events),
+            peoplePages: array_slice($peopleBlocks, 0, 15),
+            peopleBlocked: array_sum(array_column($peopleBlocks, 'count')),
             turnstile: $this->turnstile($now),
         );
     }
@@ -162,7 +165,7 @@ final readonly class SecurityReader
         $ranked = array_values($blocks);
         usort($ranked, static fn (array $a, array $b): int => [$b['count'], $a['path'], $a['method']] <=> [$a['count'], $b['path'], $b['method']]);
 
-        return array_slice($ranked, 0, 15);
+        return $ranked;
     }
 
     /**

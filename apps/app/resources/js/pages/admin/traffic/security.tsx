@@ -76,10 +76,7 @@ function Security({ security }: { security: AdminSecurity }) {
         (total, day) => total + day.count,
         0,
     );
-    const peopleBlocked = security.people_pages.reduce(
-        (total, page) => total + page.count,
-        0,
-    );
+    const peopleBlocked = security.people_blocked;
     const issued = sum(
         security.turnstile,
         (type) => type === 'challenge_issued',
@@ -109,21 +106,24 @@ function Security({ security }: { security: AdminSecurity }) {
                 {peopleBlocked > 0 ? (
                     <div className="note bad" role="alert">
                         <b>
-                            A rule stopped {count(peopleBlocked)} requests for
+                            Firewall rules stopped {count(peopleBlocked)}{' '}
+                            {peopleBlocked === 1 ? 'request' : 'requests'} for
                             pages people use.
                         </b>{' '}
-                        It may be turning away real visitors, not only scanners.
-                        Check the rule in <DashboardLink />.
+                        They may be turning away real visitors, not only
+                        scanners. Check each rule in <DashboardLink />.
                         <ul>
                             {security.people_pages.slice(0, 5).map((block) => (
                                 <li
                                     key={`${block.method} ${block.path} ${block.rule} ${block.source}`}
                                 >
                                     <code>
-                                        {block.method} {block.path}
+                                        {[block.method, block.path]
+                                            .filter(Boolean)
+                                            .join(' ')}
                                     </code>
                                     : {count(block.count)}{' '}
-                                    {block.count === 1 ? 'block' : 'blocks'} by{' '}
+                                    {block.count === 1 ? 'block' : 'blocks'}, by{' '}
                                     {block.rule || 'a rule'}
                                     {block.source
                                         ? ` (${sourceNames[block.source] ?? block.source})`
