@@ -20,7 +20,7 @@ export interface LegalPage {
     sections: readonly LegalSection[];
 }
 
-export const legalUpdated = '16 October 2026';
+export const legalUpdated = '19 October 2026';
 
 const operator = 'NxT-Solutions, Westerlo, Belgium';
 const email = '[privacy@nxt-solutions.com](mailto:privacy@nxt-solutions.com)';
@@ -52,6 +52,8 @@ export const privacy: LegalPage = {
                 '**Your watches.** The name you give a watch, a pairing code that works for 10 minutes, the key the watch uses to fetch your routes (stored only as a hash), and when it last did.',
                 '**AI assistants you connect.** Which app you connected, the sign-in keys it uses, and when they run out.',
                 '**Services you send routes to.** If you connect Wahoo or Ride with GPS, which one, the sign-in keys it gave Traceway (kept encrypted), when you connected, and which routes you sent there.',
+                '**When you last used Traceway.** The time you were last signed in and using the planner, to the quarter of an hour, and your role, which is User unless you help run Traceway. It shows how many riders come back, and it is in your copy of your data.',
+                '**Totals of what is used.** Each day, the server adds up how often each part of Traceway is used, such as routes drawn, files exported, sign-ins, and watch syncs. A total says how many times, never who.',
                 '**Signing in.** While you are signed in, the server keeps a session with your IP address and the name of your browser. It keeps you signed in and helps stop someone else from using your account.',
                 '**Error logs.** When something breaks, the server writes down what happened so it can be fixed. A log line can include your account number. It never includes your password.',
                 '**Account email.** Traceway only emails you about your account: the welcome, confirming your address, resetting your password, a change of email or password, a copy of your data when you ask for it, and the goodbye when you delete your account. No newsletters, no marketing.',
@@ -70,7 +72,7 @@ export const privacy: LegalPage = {
         {
             heading: 'Counting visits',
             paragraphs: [
-                'The pages of this site, such as the home page, help, and this page, ask whether they may count your visit. Nothing is counted until you say yes. If you say no, nothing from Cloudflare is loaded. The planner itself never counts visits.',
+                'The pages of this site, such as the home page, help, and this page, ask whether they may count your visit. Nothing is counted until you say yes. If you say no, nothing from Cloudflare is loaded. The planner itself never counts visits. It only keeps the daily totals of what is used, described above, which never say who.',
                 'Traceway uses the counts for two things only: to know how many people visit, and to make the site better. For example, if few people read a page, it may need clearer words. The counts are never used for ads, never sold, and never shared with partners. Cloudflare counts them on behalf of NxT-Solutions, under a data processing agreement.',
                 'To be exact about where it runs and what it sees:',
             ],
@@ -97,7 +99,7 @@ export const privacy: LegalPage = {
             ],
             items: [
                 '**Hetzner Online** hosts the server and the database, in Germany.',
-                '**Cloudflare** passes every visit to traceway.online on to the server, to keep the site fast and to stop attacks, so it sees your IP address and the pages you ask for. It checks that a person, not a script, fills in the sign-up and password reset forms. It also keeps the backup copies of the database, and counts visits to the pages of this site when you agree.',
+                '**Cloudflare** passes every visit to traceway.online on to the server, to keep the site fast and to stop attacks, so it sees your IP address and the pages you ask for. It checks that a person, not a script, fills in the sign-up and password reset forms. It also keeps the backup copies of the database, and counts visits to the pages of this site when you agree. NxT-Solutions reads Cloudflare’s daily totals of requests and visits, never a single visit.',
                 '**Resend** sends the account email. It gets your email address and the message. For a copy of your data, that includes the file.',
                 '**Sentry** tells NxT-Solutions when something in Traceway breaks or runs slowly. It gets the address of the page without its search part, your browser type and language, how long each step took, and what went wrong, which can hold the points or the place name the server was asking a map service about. It never gets your name, email address, IP address, cookies, or what you type into a form. Sentry keeps it in Germany.',
                 '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names, and the [OpenFreeMap](https://openfreemap.org) map tiles for water, toilets, and cafés. The Traceway server sends them the points of a route, the name of a place, a place you search for with the middle of your map rounded to about 10 kilometres, a pin rounded to about 100 metres, or which map tiles a route crosses. It never sends your name or email address.',
@@ -126,7 +128,7 @@ export const privacy: LegalPage = {
             heading: 'The legal grounds',
             items: [
                 '**The service you asked for** (GDPR article 6(1)(b)): your account, your routes, your watches, the AI assistants and route services you connect, and the account email.',
-                '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs and reports, speed checks, backups, protection against attacks and scripts, and limits on how often the map services are asked.',
+                '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs and reports, speed checks, backups, protection against attacks and scripts, and limits on how often the map services are asked. Also knowing how much Traceway is used, with the time you last used it and daily totals that never say who.',
                 '**Your consent** (article 6(1)(a)): counting visits to the pages of this site with Cloudflare, to know how many people visit and to make the site better. You can take it back at any time with Cookie choice at the bottom of every page.',
                 '**A legal duty** (article 6(1)(c)): when the law requires NxT-Solutions to keep something or hand it over.',
             ],
@@ -137,6 +139,8 @@ export const privacy: LegalPage = {
                 '**Your account and saved routes:** until you delete them, or your account.',
                 '**A session:** until you log out, or 2 hours after you last used Traceway. With “Remember me”, up to 400 days.',
                 '**A pairing code:** 10 minutes.',
+                '**When you last used Traceway:** until you delete your account.',
+                '**Daily totals of what is used:** two years, not linked to you.',
                 '**Unsaved routes and their details:** up to two hours, not linked to you.',
                 '**Place names:** 30 days, for a pin rounded to about 100 metres, not linked to you.',
                 '**Place searches:** 30 days, for the words you typed and the middle of your map rounded to about 10 kilometres, not linked to you.',
@@ -285,7 +289,7 @@ export const cookies: LegalPage = {
     heading: 'Cookies and storage',
     intro: [
         'Traceway uses only the cookies it needs to work. There are no advertising, analytics, or tracking cookies, and none from another company.',
-        'The pages of this site, like this one, set no cookies. They ask before they count your visit with Cloudflare Web Analytics, which sets no cookie either. The planner sets the cookies below, and never counts visits.',
+        'The pages of this site, like this one, set no cookies. They ask before they count your visit with Cloudflare Web Analytics, which sets no cookie either. The planner sets the cookies below, and never counts visits. Its daily totals of what is used need no cookie and never say who.',
     ],
     sections: [
         {
