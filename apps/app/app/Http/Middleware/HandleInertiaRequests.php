@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Account\Permission;
 use App\Models\User;
 use App\Queries\Account\RouteServicesQuery;
 use App\Queries\Releases\ReleaseNotesQuery;
@@ -49,6 +50,8 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $user,
+                // What the admin area lets this person do, for the Admin link and the buttons on its pages.
+                'can' => $user instanceof User ? $this->abilities($user) : null,
             ],
             // What changed in Traceway since the rider last looked, for the bell in the header.
             'whatsNew' => fn (): ?array => $user instanceof User
@@ -59,6 +62,23 @@ class HandleInertiaRequests extends Middleware
                 ? resolve(RouteServicesQuery::class)->forRider($user->id)
                 : [],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
+    }
+
+    /**
+     * @return array{admin: bool, viewAnalytics: bool, viewUsers: bool, manageUsers: bool, assignRoles: bool}
+     */
+    private function abilities(User $user): array
+    {
+        $viewAnalytics = $user->can(Permission::ViewAnalytics->value);
+        $viewUsers = $user->can(Permission::ViewUsers->value);
+
+        return [
+            'admin' => $viewAnalytics || $viewUsers,
+            'viewAnalytics' => $viewAnalytics,
+            'viewUsers' => $viewUsers,
+            'manageUsers' => $user->can(Permission::ManageUsers->value),
+            'assignRoles' => $user->can(Permission::AssignRoles->value),
         ];
     }
 }

@@ -4,9 +4,17 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Account\Role;
 use App\Account\RouteService;
+use App\Auth\GateAdminAccess;
 use App\Auth\SessionRider;
 use App\Bus\CommandBus;
+use App\Commands\AdminAssignRoleCommand;
+use App\Commands\AdminCreateUserCommand;
+use App\Commands\AdminDeleteUserCommand;
+use App\Commands\AdminEndSessionsCommand;
+use App\Commands\AdminResetTwoFactorCommand;
+use App\Commands\AdminUpdateUserCommand;
 use App\Commands\ChangePasswordCommand;
 use App\Commands\ClaimDevicePairingCommand;
 use App\Commands\ConnectRouteServiceCommand;
@@ -22,6 +30,7 @@ use App\Commands\OpenAccountCommand;
 use App\Commands\PostStatusNoticeCommand;
 use App\Commands\ReadRouteDetailsCommand;
 use App\Commands\RecordServiceChecksCommand;
+use App\Commands\RecordUsageSnapshotCommand;
 use App\Commands\ResolveStatusNoticeCommand;
 use App\Commands\RevokeDeviceCommand;
 use App\Commands\SaveRouteCommand;
@@ -34,8 +43,10 @@ use App\Commands\WelcomeRiderCommand;
 use App\Contracts\Account\ConnectedAppRepository;
 use App\Contracts\Account\DeviceLinkRepository;
 use App\Contracts\Account\EmailConfirmation;
+use App\Contracts\Account\PasswordLink;
 use App\Contracts\Account\RouteServiceRepository;
 use App\Contracts\Account\UserRepository;
+use App\Contracts\Auth\AdminAccess;
 use App\Contracts\Auth\CurrentRider;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Contracts\Mail\AccountMailer;
@@ -43,6 +54,7 @@ use App\Contracts\Releases\ReleaseRepository;
 use App\Contracts\Routes\RouteImageStore;
 use App\Contracts\Routes\SavedRouteRepository;
 use App\Contracts\Status\StatusRepository;
+use App\Contracts\Usage\UsageCounter;
 use App\Domain\Access\HumanCheck;
 use App\Domain\Access\NoHumanCheck;
 use App\Domain\Courses\Services\CourseServices;
@@ -57,6 +69,14 @@ use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\TracingLineFollower;
 use App\Domain\Status\ServiceProbes;
 use App\Domain\Status\StatusComponent;
+use App\Domain\Traffic\TrafficSource;
+use App\Domain\Traffic\UnconnectedTrafficSource;
+use App\Handlers\AdminAssignRoleHandler;
+use App\Handlers\AdminCreateUserHandler;
+use App\Handlers\AdminDeleteUserHandler;
+use App\Handlers\AdminEndSessionsHandler;
+use App\Handlers\AdminResetTwoFactorHandler;
+use App\Handlers\AdminUpdateUserHandler;
 use App\Handlers\ChangePasswordHandler;
 use App\Handlers\ClaimDevicePairingHandler;
 use App\Handlers\ConnectRouteServiceHandler;
@@ -72,6 +92,7 @@ use App\Handlers\OpenAccountHandler;
 use App\Handlers\PostStatusNoticeHandler;
 use App\Handlers\ReadRouteDetailsHandler;
 use App\Handlers\RecordServiceChecksHandler;
+use App\Handlers\RecordUsageSnapshotHandler;
 use App\Handlers\ResolveStatusNoticeHandler;
 use App\Handlers\RevokeDeviceHandler;
 use App\Handlers\SaveRouteHandler;
@@ -81,6 +102,8 @@ use App\Handlers\StoreRouteImageHandler;
 use App\Handlers\SyncReleasesHandler;
 use App\Handlers\UpdateProfileHandler;
 use App\Handlers\WelcomeRiderHandler;
+use App\Integrations\Cloudflare\CloudflareAnalyticsConnector;
+use App\Integrations\Cloudflare\CloudflareTrafficSource;
 use App\Integrations\Cloudflare\TurnstileConnector;
 use App\Integrations\Cloudflare\TurnstileHumanCheck;
 use App\Integrations\GraphHopper\GraphHopperConnector;
@@ -106,9 +129,12 @@ use App\Integrations\Wahoo\WahooConnector;
 use App\Integrations\Wahoo\WahooCourseService;
 use App\Mail\TracewayAccountMailer;
 use App\Models\PreventLazyLoading;
+use App\Models\User;
 use App\Notifications\RiderEmailConfirmation;
+use App\Notifications\RiderPasswordLink;
 use App\Queries\Status\PlannerProbe;
 use App\Repositories\DatabaseStatusRepository;
+use App\Repositories\DatabaseUsageCounter;
 use App\Repositories\DiskRouteImageStore;
 use App\Repositories\EloquentConnectedAppRepository;
 use App\Repositories\EloquentDeviceLinkRepository;
@@ -131,6 +157,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
@@ -169,6 +196,13 @@ class AppServiceProvider extends ServiceProvider
             RecordServiceChecksCommand::class => RecordServiceChecksHandler::class,
             PostStatusNoticeCommand::class => PostStatusNoticeHandler::class,
             ResolveStatusNoticeCommand::class => ResolveStatusNoticeHandler::class,
+            RecordUsageSnapshotCommand::class => RecordUsageSnapshotHandler::class,
+            AdminCreateUserCommand::class => AdminCreateUserHandler::class,
+            AdminUpdateUserCommand::class => AdminUpdateUserHandler::class,
+            AdminAssignRoleCommand::class => AdminAssignRoleHandler::class,
+            AdminDeleteUserCommand::class => AdminDeleteUserHandler::class,
+            AdminResetTwoFactorCommand::class => AdminResetTwoFactorHandler::class,
+            AdminEndSessionsCommand::class => AdminEndSessionsHandler::class,
         ]);
         $this->app->instance(DispatchesCommands::class, $commandBus);
         $this->app->alias(DispatchesCommands::class, CommandBus::class);
@@ -181,10 +215,13 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(RouteServiceRepository::class, EloquentRouteServiceRepository::class);
         $this->app->bind(ReleaseRepository::class, EloquentReleaseRepository::class);
         $this->app->bind(StatusRepository::class, DatabaseStatusRepository::class);
+        $this->app->bind(UsageCounter::class, DatabaseUsageCounter::class);
         $this->app->bind(fn (): ServiceProbes => $this->serviceProbes());
         $this->app->bind(CurrentRider::class, SessionRider::class);
+        $this->app->bind(AdminAccess::class, GateAdminAccess::class);
         $this->app->bind(AccountMailer::class, TracewayAccountMailer::class);
         $this->app->bind(EmailConfirmation::class, RiderEmailConfirmation::class);
+        $this->app->bind(PasswordLink::class, RiderPasswordLink::class);
 
         $this->app->bind(function (): RoutingEngine {
             $driver = config('services.router');
@@ -262,6 +299,26 @@ class AppServiceProvider extends ServiceProvider
             return is_string($siteKey) && $siteKey !== '' && is_string($secret) && $secret !== ''
                 ? new TurnstileHumanCheck($this->app->make(TurnstileConnector::class), $secret)
                 : new NoHumanCheck;
+        });
+
+        // The Traffic page asks Cloudflare with a read-only Analytics token. Without one, as in development and
+        // tests, the page says it is not connected.
+        $this->app->bind(function (): TrafficSource {
+            $token = $this->configured('cloudflare_analytics.token', '');
+            $zoneId = $this->configured('cloudflare_analytics.zone_id', '');
+            $accountId = $this->configured('cloudflare_analytics.account_id', '');
+            $siteTag = $this->configured('cloudflare_analytics.site_tag', '');
+
+            if ($token === '' || ($zoneId === '' && ($accountId === '' || $siteTag === ''))) {
+                return new UnconnectedTrafficSource;
+            }
+
+            return new CloudflareTrafficSource(
+                new CloudflareAnalyticsConnector($token),
+                $zoneId !== '' ? $zoneId : null,
+                $accountId !== '' ? $accountId : null,
+                $siteTag !== '' ? $siteTag : null,
+            );
         });
 
         $this->app->bind(function (): ValhallaConnector {
@@ -348,6 +405,16 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureRateLimiting();
         $this->configureAiTools();
+        $this->configureRoles();
+    }
+
+    /**
+     * A Super Admin passes every permission check. Everyone else is asked about the permission itself, so it
+     * answers null, never false, and leaves the decision to the next check.
+     */
+    protected function configureRoles(): void
+    {
+        Gate::before(static fn (mixed $user): ?bool => $user instanceof User && $user->hasRole(Role::SuperAdmin->value) ? true : null);
     }
 
     /**

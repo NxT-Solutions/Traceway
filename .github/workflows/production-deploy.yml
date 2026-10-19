@@ -59,6 +59,10 @@ jobs:
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           SENTRY_LARAVEL_DSN: ${{ secrets.SENTRY_LARAVEL_DSN }}
           SENTRY_RELEASE: ${{ steps.image.outputs.tag }}
+          CLOUDFLARE_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_WEB_ANALYTICS_SITE_TAG: ${{ vars.CLOUDFLARE_WEB_ANALYTICS_SITE_TAG }}
         run: |
           set -euo pipefail
 
@@ -102,6 +106,16 @@ jobs:
           upsert_env "TURNSTILE_SECRET_KEY" "${TURNSTILE_SECRET_KEY:-}" "$runtime_env"
           if [ -z "${TURNSTILE_SITE_KEY:-}" ] || [ -z "${TURNSTILE_SECRET_KEY:-}" ]; then
             echo "::warning::TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are not set. Sign-up runs without the person check."
+          fi
+
+          # The admin area's Traffic page. A read-only Analytics token, apart
+          # from the token that purges the cache. Without it the page says so.
+          upsert_env "CLOUDFLARE_ANALYTICS_TOKEN" "${CLOUDFLARE_ANALYTICS_TOKEN:-}" "$runtime_env"
+          upsert_env "CLOUDFLARE_ACCOUNT_ID" "${CLOUDFLARE_ACCOUNT_ID:-}" "$runtime_env"
+          upsert_env "CLOUDFLARE_ZONE_ID" "${CLOUDFLARE_ZONE_ID:-}" "$runtime_env"
+          upsert_env "CLOUDFLARE_WEB_ANALYTICS_SITE_TAG" "${CLOUDFLARE_WEB_ANALYTICS_SITE_TAG:-}" "$runtime_env"
+          if [ -z "${CLOUDFLARE_ANALYTICS_TOKEN:-}" ]; then
+            echo "::warning::CLOUDFLARE_ANALYTICS_TOKEN is not set. The admin Traffic page says it is not connected."
           fi
 
           # Errors, traces and logs go to Sentry. Without the DSN nothing is sent.

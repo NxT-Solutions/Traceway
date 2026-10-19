@@ -45,6 +45,8 @@ final class PersonalDataQuery
             $this->routes($riderId),
             $this->releaseNotesRead($riderId),
             $this->routeServices($riderId),
+            $account->iso('last_seen_at'),
+            new RiderRoles()->of($riderId)->value,
         );
     }
 
@@ -121,6 +123,7 @@ final class PersonalDataQuery
             'two_factor_confirmed_at',
             'created_at',
             'updated_at',
+            'last_seen_at',
         ]);
 
         abort_if($row === null, 404);

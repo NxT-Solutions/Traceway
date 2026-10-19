@@ -25,6 +25,8 @@ use OpenApi\Attributes\Schema;
                 new Property(property: 'two_factor_enabled', type: 'boolean'),
                 new Property(property: 'created_at', type: 'string', nullable: true),
                 new Property(property: 'updated_at', type: 'string', nullable: true),
+                new Property(property: 'last_seen_at', description: 'The last time the rider was signed in and using Traceway, to the quarter hour.', type: 'string', nullable: true),
+                new Property(property: 'role', type: 'string', enum: ['super-admin', 'admin', 'user']),
             ],
         ),
         new Property(property: 'saved_routes', type: 'array', items: new Items(type: 'object')),
@@ -94,6 +96,8 @@ final readonly class PersonalDataDocument
         public array $routes,
         public array $releaseNotesRead,
         public array $routeServices = [],
+        public ?string $lastSeenAt = null,
+        public string $role = 'user',
     ) {}
 
     /**
@@ -110,6 +114,8 @@ final readonly class PersonalDataDocument
                 'two_factor_enabled' => $this->twoFactorEnabled,
                 'created_at' => $this->createdAt,
                 'updated_at' => $this->updatedAt,
+                'last_seen_at' => $this->lastSeenAt,
+                'role' => $this->role,
             ],
             'saved_routes' => array_map(
                 fn (ExportedRoute $exportedRoute): array => $exportedRoute->toArray(),

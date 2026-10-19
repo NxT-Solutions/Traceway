@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Middleware\GuardSignupForms;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\NoteLastSeen;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             GuardSignupForms::class,
+            NoteLastSeen::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

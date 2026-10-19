@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Account\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -21,8 +22,8 @@ class DemoRiderSeeder extends Seeder
 
         $password = config('demo.password');
 
-        foreach ($riders as $rider) {
-            User::query()->updateOrCreate(
+        foreach ($riders as $key => $rider) {
+            $user = User::query()->updateOrCreate(
                 ['email' => $rider['email']],
                 [
                     'name' => $rider['name'],
@@ -30,6 +31,9 @@ class DemoRiderSeeder extends Seeder
                     'email_verified_at' => now(),
                 ],
             );
+
+            // The road rider looks after the others, so the admin area can be tried without a Super Admin.
+            $user->syncRoles([($key === 'road' ? Role::Admin : Role::User)->value]);
         }
     }
 }

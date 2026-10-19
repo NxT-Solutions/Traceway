@@ -21,6 +21,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
 use SensitiveParameter;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -28,6 +29,7 @@ use SensitiveParameter;
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property Carbon|null $welcomed_at
+ * @property Carbon|null $last_seen_at
  * @property string $password
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -45,6 +47,7 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable,
     /** @use HasFactory<UserFactory> */
     use HasFactory;
 
+    use HasRoles;
     use Notifiable;
     use PasskeyAuthenticatable;
     use TwoFactorAuthenticatable;
@@ -78,6 +81,7 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable,
         return [
             'email_verified_at' => 'datetime',
             'welcomed_at' => 'datetime',
+            'last_seen_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
