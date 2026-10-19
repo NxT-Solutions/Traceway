@@ -9,6 +9,7 @@ use App\Account\Role;
 use App\Commands\PostStatusNoticeCommand;
 use App\Commands\ReadRouteDetailsCommand;
 use App\Commands\RecordServiceChecksCommand;
+use App\Commands\RecordTrafficSnapshotCommand;
 use App\Commands\RecordUsageSnapshotCommand;
 use App\Commands\ResolveStatusNoticeCommand;
 use App\Commands\SyncReleasesCommand;
@@ -233,6 +234,19 @@ Artisan::command('usage:snapshot', function (DispatchesCommands $dispatchesComma
 
 // Shortly before midnight, so each day's gauge covers that whole day.
 Schedule::command('usage:snapshot')->dailyAt('23:55');
+
+Artisan::command('traffic:snapshot', function (DispatchesCommands $dispatchesCommands): int {
+    $saved = $dispatchesCommands->dispatch(new RecordTrafficSnapshotCommand);
+
+    $this->info('Kept the Web Analytics totals of '.(is_int($saved) ? $saved : 0).' more days.');
+
+    return 0;
+})->purpose('Keep the Web Analytics totals of each finished day, for the Traffic page after Cloudflare drops them');
+
+// Cloudflare answers a day in full for a week only. Each run asks for the
+// finished days not kept yet, so a missed or half answered run is caught
+// up on by the next one.
+Schedule::command('traffic:snapshot')->hourlyAt(20)->withoutOverlapping(10);
 
 // The activity log of the admin area is kept for a year.
 Artisan::command('admin:prune-log', function (AdminLog $adminLog): int {

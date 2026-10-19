@@ -31,6 +31,7 @@ use App\Commands\OpenAccountCommand;
 use App\Commands\PostStatusNoticeCommand;
 use App\Commands\ReadRouteDetailsCommand;
 use App\Commands\RecordServiceChecksCommand;
+use App\Commands\RecordTrafficSnapshotCommand;
 use App\Commands\RecordUsageSnapshotCommand;
 use App\Commands\ResolveStatusNoticeCommand;
 use App\Commands\RevokeDeviceCommand;
@@ -74,6 +75,7 @@ use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\TracingLineFollower;
 use App\Domain\Status\ServiceProbes;
 use App\Domain\Status\StatusComponent;
+use App\Domain\Traffic\TrafficSnapshots;
 use App\Domain\Traffic\TrafficSource;
 use App\Domain\Traffic\UnconnectedTrafficSource;
 use App\Handlers\AdminAssignRoleHandler;
@@ -97,6 +99,7 @@ use App\Handlers\OpenAccountHandler;
 use App\Handlers\PostStatusNoticeHandler;
 use App\Handlers\ReadRouteDetailsHandler;
 use App\Handlers\RecordServiceChecksHandler;
+use App\Handlers\RecordTrafficSnapshotHandler;
 use App\Handlers\RecordUsageSnapshotHandler;
 use App\Handlers\ResolveStatusNoticeHandler;
 use App\Handlers\RevokeDeviceHandler;
@@ -142,6 +145,7 @@ use App\Notifications\RiderPasswordLink;
 use App\Queries\Status\PlannerProbe;
 use App\Repositories\DatabaseAdminLog;
 use App\Repositories\DatabaseStatusRepository;
+use App\Repositories\DatabaseTrafficSnapshots;
 use App\Repositories\DatabaseUsageCounter;
 use App\Repositories\DiskRouteImageStore;
 use App\Repositories\EloquentConnectedAppRepository;
@@ -205,6 +209,7 @@ class AppServiceProvider extends ServiceProvider
             PostStatusNoticeCommand::class => PostStatusNoticeHandler::class,
             ResolveStatusNoticeCommand::class => ResolveStatusNoticeHandler::class,
             RecordUsageSnapshotCommand::class => RecordUsageSnapshotHandler::class,
+            RecordTrafficSnapshotCommand::class => RecordTrafficSnapshotHandler::class,
             StartImpersonationCommand::class => StartImpersonationHandler::class,
             StopImpersonationCommand::class => StopImpersonationHandler::class,
             AdminCreateUserCommand::class => AdminCreateUserHandler::class,
@@ -226,6 +231,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ReleaseRepository::class, EloquentReleaseRepository::class);
         $this->app->bind(StatusRepository::class, DatabaseStatusRepository::class);
         $this->app->bind(UsageCounter::class, DatabaseUsageCounter::class);
+        $this->app->bind(TrafficSnapshots::class, DatabaseTrafficSnapshots::class);
         $this->app->bind(AdminLog::class, DatabaseAdminLog::class);
         $this->app->bind(fn (): ServiceProbes => $this->serviceProbes());
         $this->app->bind(CurrentRider::class, SessionRider::class);
