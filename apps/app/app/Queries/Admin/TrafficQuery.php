@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Queries\Admin;
 
 use App\Domain\Traffic\TrafficReport;
+use App\Domain\Traffic\TrafficSnapshots;
 use App\Domain\Traffic\TrafficSource;
 use App\Domain\Traffic\TrafficUnavailable;
+use App\Domain\Traffic\VisitWindow;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 
 /**
- * The admin area's Traffic page, from Cloudflare's totals. An answer is kept for an hour, and a failed answer for
- * five minutes, so the page never waits on Cloudflare twice in a row.
+ * The admin area's Traffic page, from Cloudflare's totals. Visits of the last week are asked live, and the days
+ * before it come from the daily snapshots. An answer is kept for an hour, and a failed answer for five minutes, so
+ * the page never waits on Cloudflare twice in a row.
  *
  * @phpstan-import-type RequestDay from TrafficReport
  * @phpstan-import-type VisitDay from TrafficReport
@@ -28,6 +31,7 @@ final readonly class TrafficQuery
 
     public function __construct(
         private TrafficSource $trafficSource,
+        private TrafficSnapshots $trafficSnapshots,
         private CacheRepository $cacheRepository,
     ) {}
 
@@ -48,13 +52,15 @@ final readonly class TrafficQuery
             return $cached;
         }
 
-        $until = CarbonImmutable::now();
+        $until = CarbonImmutable::now()->toDateTimeImmutable();
+        $since = CarbonImmutable::now()->subDays(self::DAYS - 1)->startOfDay()->toDateTimeImmutable();
+        $kept = $this->trafficSnapshots->between($since, CarbonImmutable::instance(VisitWindow::start($until))->subDay()->toDateTimeImmutable());
 
         try {
-            $page = $this->shape(connected: true, error: null, trafficReport: $this->trafficSource->report($until->subDays(self::DAYS - 1)->startOfDay()->toDateTimeImmutable(), $until->toDateTimeImmutable()));
+            $page = $this->shape(connected: true, error: null, trafficReport: $this->trafficSource->report($since, $until)->withDays($kept));
             $this->cacheRepository->put($key, $page, 3600);
         } catch (TrafficUnavailable $trafficUnavailable) {
-            $page = $this->shape(connected: true, error: $trafficUnavailable->getMessage(), trafficReport: new TrafficReport([], [], [], [], []));
+            $page = $this->shape(connected: true, error: $trafficUnavailable->getMessage(), trafficReport: new TrafficReport([], [], [], [], [])->withDays($kept));
             $this->cacheRepository->put($key, $page, 300);
         }
 

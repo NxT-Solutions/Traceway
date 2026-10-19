@@ -7,8 +7,8 @@ namespace App\Integrations\Cloudflare;
 use App\Domain\Traffic\TrafficReport;
 use App\Domain\Traffic\TrafficSource;
 use App\Domain\Traffic\TrafficUnavailable;
+use App\Domain\Traffic\VisitWindow;
 use App\Integrations\Cloudflare\Requests\AnalyticsQueryRequest;
-use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
 use JsonException;
@@ -16,7 +16,8 @@ use Saloon\Exceptions\Request\FatalRequestException;
 
 /**
  * Reads the zone's daily request totals and the Web Analytics page loads of the site. Either half is left empty
- * when its id is not set.
+ * when its id is not set. Page loads are asked from the start of the visit window at the earliest, because an
+ * older start gets a coarse answer with no visits.
  *
  * @phpstan-import-type RequestDay from TrafficReport
  * @phpstan-import-type VisitDay from TrafficReport
@@ -24,11 +25,6 @@ use Saloon\Exceptions\Request\FatalRequestException;
  */
 final readonly class CloudflareTrafficSource implements TrafficSource
 {
-    /** How far back a stretch can start for Web Analytics to answer it in full. */
-    private const int VISITS_WINDOW_DAYS = 7;
-
-    private const int RANKED_LIMIT = 10;
-
     private const string ZONE_QUERY = <<<'GRAPHQL'
         query ($zoneTag: string, $since: Date!, $until: Date!) {
           viewer {
@@ -98,99 +94,27 @@ final readonly class CloudflareTrafficSource implements TrafficSource
         $topReferrers = [];
         $countries = [];
 
-        if ($this->accountId !== null && $this->siteTag !== null) {
-            foreach ($this->windows($since, $until) as [$from, $to]) {
-                $account = $this->first($this->ask(self::VISITS_QUERY, [
-                    'accountTag' => $this->accountId,
-                    'filter' => [
-                        'AND' => [
-                            ['siteTag' => $this->siteTag],
-                            ['datetime_geq' => $from->format('Y-m-d\TH:i:s\Z')],
-                            ['datetime_leq' => $to->format('Y-m-d\TH:i:s\Z')],
-                        ],
-                    ],
-                ]), 'accounts');
-                $visitDays = [...$visitDays, ...$this->visitDays($account['days'] ?? [])];
-                $topPages = [...$topPages, ...$this->ranked($account['pages'] ?? [], 'requestPath')];
-                $topReferrers = [...$topReferrers, ...$this->ranked($account['referrers'] ?? [], 'refererHost')];
-                $countries = [...$countries, ...$this->ranked($account['countries'] ?? [], 'countryName')];
-            }
+        $visitsSince = max($since, VisitWindow::start($until));
 
-            $visitDays = $this->mergedDays($visitDays);
-            $topPages = $this->top($topPages);
-            $topReferrers = $this->top($topReferrers);
-            $countries = $this->top($countries);
+        if ($this->accountId !== null && $this->siteTag !== null && $visitsSince <= $until) {
+            $dateTimeZone = new DateTimeZone('UTC');
+            $account = $this->first($this->ask(self::VISITS_QUERY, [
+                'accountTag' => $this->accountId,
+                'filter' => [
+                    'AND' => [
+                        ['siteTag' => $this->siteTag],
+                        ['datetime_geq' => $visitsSince->setTimezone($dateTimeZone)->format('Y-m-d\TH:i:s\Z')],
+                        ['datetime_leq' => $until->setTimezone($dateTimeZone)->format('Y-m-d\TH:i:s\Z')],
+                    ],
+                ],
+            ]), 'accounts');
+            $visitDays = $this->visitDays($account['days'] ?? []);
+            $topPages = $this->ranked($account['pages'] ?? [], 'requestPath');
+            $topReferrers = $this->ranked($account['referrers'] ?? [], 'refererHost');
+            $countries = $this->ranked($account['countries'] ?? [], 'countryName');
         }
 
         return new TrafficReport($requestDays, $visitDays, $topPages, $topReferrers, $countries);
-    }
-
-    /**
-     * Web Analytics answers in full only for a stretch that starts less than a week ago. One that starts earlier
-     * comes back from a coarser store, with recent days missing and no visits, and no error. So the last seven days
-     * are asked on their own, from midnight UTC, and the weeks before them one at a time, oldest first.
-     *
-     * @return list<array{DateTimeImmutable, DateTimeImmutable}>
-     */
-    private function windows(DateTimeImmutable $since, DateTimeImmutable $until): array
-    {
-        $dateTimeZone = new DateTimeZone('UTC');
-        $week = new DateInterval('P'.self::VISITS_WINDOW_DAYS.'D');
-        $second = new DateInterval('PT1S');
-        $since = $since->setTimezone($dateTimeZone);
-        $to = $until->setTimezone($dateTimeZone);
-        $from = $to->setTime(0, 0)->sub(new DateInterval('P'.(self::VISITS_WINDOW_DAYS - 1).'D'));
-        $windows = [];
-
-        while ($to >= $since) {
-            $windows[] = [max($from, $since), $to];
-            $to = $from->sub($second);
-            $from = $from->sub($week);
-        }
-
-        return array_reverse($windows);
-    }
-
-    /**
-     * @param  list<VisitDay>  $days
-     * @return list<VisitDay>
-     */
-    private function mergedDays(array $days): array
-    {
-        $merged = [];
-
-        foreach ($days as $day) {
-            $merged[$day['date']] = [
-                'date' => $day['date'],
-                'page_loads' => ($merged[$day['date']]['page_loads'] ?? 0) + $day['page_loads'],
-                'visits' => ($merged[$day['date']]['visits'] ?? 0) + $day['visits'],
-            ];
-        }
-
-        return array_values($merged);
-    }
-
-    /**
-     * Sums each window's top ten by label. A label that never made a window's top ten is not counted.
-     *
-     * @param  list<Ranked>  $ranked
-     * @return list<Ranked>
-     */
-    private function top(array $ranked): array
-    {
-        $totals = [];
-
-        foreach ($ranked as $row) {
-            $totals[$row['label']] = [
-                'label' => $row['label'],
-                'count' => ($totals[$row['label']]['count'] ?? 0) + $row['count'],
-            ];
-        }
-
-        $top = array_values($totals);
-        usort($top, fn (array $a, array $b): int => $b['count'] <=> $a['count']);
-
-        return array_slice($top, 0, self::RANKED_LIMIT);
     }
 
     /**
