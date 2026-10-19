@@ -1,9 +1,17 @@
 import type { APIRoute } from 'astro';
-import { legalPages } from '../legal';
+import { legalPages, legalUpdated } from '../legal';
 import { absolute } from '../seo/site';
 
-// The home page, the pages beside it, and the day they were built.
-const pages = ['/', '/support', ...legalPages.map((page) => page.path)];
+// The home page and the pages beside it, each with the day it last changed.
+// The legal pages say that day themselves; the others change with a build.
+const built = new Date().toISOString().slice(0, 10);
+const legal = new Date(`${legalUpdated} UTC`).toISOString().slice(0, 10);
+
+const pages = [
+    { path: '/', changed: built },
+    { path: '/support', changed: built },
+    ...legalPages.map((page) => ({ path: page.path, changed: legal })),
+];
 
 export const GET: APIRoute = ({ site }) =>
     new Response(
@@ -11,9 +19,9 @@ export const GET: APIRoute = ({ site }) =>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${pages
     .map(
-        (page) => `  <url>
-    <loc>${absolute(site, page)}</loc>
-    <lastmod>${new Date().toISOString().slice(0, 10)}</lastmod>
+        ({ path, changed }) => `  <url>
+    <loc>${absolute(site, path)}</loc>
+    <lastmod>${changed}</lastmod>
   </url>`,
     )
     .join('\n')}
