@@ -19,6 +19,25 @@ const blockedHosts = new Set();
 
 // The mock basemap never changes, so each style and tile is asked for once.
 const basemap = new Map();
+let basemapBusy = 0;
+let basemapLastAsked = 0;
+
+/**
+ * Waits until the map has every tile it asked for and has asked for none
+ * for a moment. A tap snaps to the roads the map has drawn, so a tap right
+ * after the view changed, before they are in, finds no road.
+ */
+export async function basemapSettled(quietMs = 500, timeoutMs = 10000) {
+    const from = Date.now();
+
+    while (basemapBusy > 0 || Date.now() - Math.max(basemapLastAsked, from) < quietMs) {
+        if (Date.now() - from > timeoutMs) {
+            throw new Error(`The map was still loading its basemap after ${timeoutMs} ms`);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+}
 
 /** Where the stub answers an OpenFreeMap basemap request, or null. */
 function basemapOnStub(url) {
@@ -63,9 +82,17 @@ async function answer(route) {
     const onStub = basemapOnStub(url);
 
     if (onStub !== null) {
-        const { status, contentType, body } = await fromStub(onStub);
-        // The page asks across origins, so the answer says it may read it.
-        await route.fulfill({ status, contentType, body, headers: { 'access-control-allow-origin': '*' } });
+        basemapBusy += 1;
+        basemapLastAsked = Date.now();
+
+        try {
+            const { status, contentType, body } = await fromStub(onStub);
+            // The page asks across origins, so the answer says it may read it.
+            await route.fulfill({ status, contentType, body, headers: { 'access-control-allow-origin': '*' } });
+        } finally {
+            basemapBusy -= 1;
+            basemapLastAsked = Date.now();
+        }
 
         return;
     }

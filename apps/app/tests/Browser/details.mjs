@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { mockOutsideServers } from './mock-servers.mjs';
+import { basemapSettled, mockOutsideServers } from './mock-servers.mjs';
 
 // Walks every way a rider meets the climb chart, the surfaces, the turns,
 // and the stops: a generated loop, the next loop, a built route, a brick,
@@ -337,8 +337,15 @@ try {
     }
 
     const firstLine = JSON.stringify((await draft(page))?.routes?.[0]?.coordinates?.slice(0, 3));
+    // The first loop's chart stays on screen for a moment after the switch,
+    // so the step waits for the next loop's own details before reading them.
+    const nextDetails = page.waitForResponse(
+        (response) => response.url().endsWith('/routes/details') && response.request().method() === 'POST',
+        { timeout: routing },
+    );
     await page.getByRole('button', { name: 'Next loop' }).click();
     await page.getByText(/^Loop 2 of/).first().waitFor();
+    await nextDetails;
     await detailsShown(page, 'The next loop');
     check(JSON.stringify((await draft(page))?.routes?.[1]?.coordinates?.slice(0, 3)) !== firstLine, 'The next loop is the same line');
     step('desktop: the next loop reads its own climb and turns');
@@ -392,6 +399,8 @@ try {
 
     // Each point is named through Traceway, not by the browser itself.
     for (const [x, y] of [[0.62, 0.35], [0.75, 0.55], [0.6, 0.7]]) {
+        // A tap snaps to a road the map has drawn, so it waits for the roads.
+        await basemapSettled();
         const answer = page.waitForResponse((response) => new URL(response.url()).pathname === '/routes/place', { timeout: 15000 });
         await page.mouse.click(map.x + map.width * x, map.y + map.height * y);
         const response = await answer;
