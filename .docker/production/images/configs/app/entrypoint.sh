@@ -61,7 +61,7 @@ case "$role" in
     # draw instead, so it restarts here and never takes the site down.
     (
       while true; do
-        su-exec "${app_user}:${app_group}" bun bootstrap/ssr/app.js || true
+        su-exec "${app_user}:${app_group}" env NODE_ENV=production node bootstrap/ssr/app.js || true
         sleep 1
       done
     ) &

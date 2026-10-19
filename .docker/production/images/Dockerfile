@@ -74,6 +74,10 @@ RUN npm run build
 
 FROM base AS runtime
 
+# Node runs the server-side renderer. bun cannot parse React's production
+# server build, and the bundle carries everything else it needs.
+RUN apk add --no-cache nodejs
+
 COPY apps/app/ /var/www/html/
 COPY --from=php-build /var/www/html/vendor /var/www/html/vendor
 COPY --from=php-build /var/www/html/public/build /var/www/html/public/build

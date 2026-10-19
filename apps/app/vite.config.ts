@@ -119,6 +119,12 @@ export default defineConfig(({ command }) => ({
     optimizeDeps: {
         exclude: ['maplibre-gl'],
     },
+    // The SSR bundle carries its packages, since the production image has no
+    // node_modules. Node runs it there: bun 1.3 cannot parse React's
+    // production server renderer (a labelled if).
+    ssr: {
+        noExternal: true,
+    },
     worker: {
         format: 'es',
     },

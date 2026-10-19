@@ -246,10 +246,12 @@ jobs:
       # The planner gets workers so a routing call in one lane does not hold
       # up page loads in the other. The content site is static files. The
       # SSR server draws the planner's pages first, as in production, so the
-      # tests also catch a page the browser draws differently.
+      # tests also catch a page the browser draws differently. It runs from
+      # a folder of its own, as in the image, which has no node_modules.
       - name: Start Servers
         run: |
-          bun bootstrap/ssr/app.js > "$RUNNER_TEMP/ssr.log" 2>&1 &
+          mkdir -p "$RUNNER_TEMP/ssr" && cp -R bootstrap "$RUNNER_TEMP/ssr/"
+          (cd "$RUNNER_TEMP/ssr" && NODE_ENV=production node bootstrap/ssr/app.js > "$RUNNER_TEMP/ssr.log" 2>&1 &)
           PHP_CLI_SERVER_WORKERS=4 php artisan serve --no-reload --host=127.0.0.1 --port=8000 > "$RUNNER_TEMP/planner.log" 2>&1 &
           php -S 127.0.0.1:4321 -t ../web/dist > "$RUNNER_TEMP/content.log" 2>&1 &
           urls=("http://127.0.0.1:13714/health" "$BASE_URL/login" "$CONTENT_URL/")

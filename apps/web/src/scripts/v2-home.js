@@ -391,6 +391,9 @@
 
   /* ---------- ask your AI: the chat plans a loop while it is on screen ---------- */
   var chat = $('chat');
+  /* Its parts wait out of sight until the chat can play, so a fast reader
+     never sees the finished card blank out and start again. */
+  if (chat && !reduce) chat.classList.add('chat-waiting');
   function chatScene(){
     var ask = $('chat-ask'), typing = $('chat-typing'), tool = $('chat-tool'), toolT = $('chat-tool-t');
     var card = $('chat-card'), loop = $('chat-loop'), km = $('chat-km'), reply = $('chat-reply');
@@ -413,6 +416,7 @@
       gsap.set(facts, { autoAlpha: 0, y: 6 });
     };
     resetChat();
+    chat.classList.remove('chat-waiting');
     var chatTl = gsap.timeline({ paused: true, repeat: -1, repeatDelay: 3.5, defaults: { ease: 'power3.out' } });
     chatTl
       .call(resetChat)
@@ -449,6 +453,10 @@
         ScrollTrigger = mods[1].ScrollTrigger;
         scrollScene(mods[2].default);
         if (chat) chatScene();
+      }).catch(function(){
+        /* Without GSAP the page shows the finished scene, as with reduced motion. */
+        renderStill();
+        if (chat) chat.classList.remove('chat-waiting');
       });
     }, 0); });
   }

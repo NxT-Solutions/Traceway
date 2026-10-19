@@ -2,13 +2,11 @@ import type { UrlMethodPair } from '@inertiajs/core';
 import { router } from '@inertiajs/react';
 import { usePasskeyVerify } from '@laravel/passkeys/react';
 import { KeyRound } from 'lucide-react';
-import { useSyncExternalStore } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
-
-const noSubscription = () => () => {};
+import { useHydrated } from '@/hooks/use-hydrated';
 
 type Props = {
     routes?: {
@@ -44,13 +42,9 @@ export default function PasskeyVerify({
     // passkeys, so the server draws the button. It goes away only once the
     // browser says it has no passkeys; drawing it late would push the form
     // down.
-    const hydrating = useSyncExternalStore(
-        noSubscription,
-        () => false,
-        () => true,
-    );
+    const hydrated = useHydrated();
 
-    if (!isSupported && !hydrating) {
+    if (!isSupported && hydrated) {
         return null;
     }
 
