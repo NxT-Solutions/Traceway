@@ -90,12 +90,29 @@
 .arrow rect{fill:#fff;stroke:var(--ink);stroke-width:1}
 .arrow path{fill:var(--ink)}
 .viadot{fill:var(--chart);stroke:var(--paper);stroke-width:2;opacity:0}
-.mini{aspect-ratio:660/640;max-width:100%;border-radius:10px;overflow:hidden;background:var(--ink-deep);position:relative}
+.mini{aspect-ratio:660/640;max-width:100%;border-radius:10px;overflow:hidden;background:var(--ink-deep);position:relative;container-type:inline-size;--u:calc(100cqi / 660)}
 .mini svg{display:block;width:100%;height:100%}
-.mini .loop{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1 1.5;stroke-dashoffset:1;transition:stroke-dashoffset 1.9s var(--ease) .15s}
+.mini>svg+.sweep+svg{position:absolute;inset:0}
+.mini .loop{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
 .mini .mpin{fill:var(--chart);stroke:var(--paper);stroke-width:3}
-.tile.in .mini .loop{stroke-dashoffset:0}
-html:not(.js) .mini .loop{stroke-dashoffset:0}
+/* The loop draws itself from the pin. Every loop lies within half a turn
+   around the pin, so a half-plane through the pin, turned 180deg, uncovers
+   it in about the order it is ridden. The box turns one way and the loop in
+   it the other, so the loop stands still while the edge sweeps. Only
+   transforms move, and the compositor runs them. --r0 and --r1 in the page
+   are each loop's start and end turn; --u is one unit of the map's viewBox. */
+.sweep{position:absolute;left:calc(310 * var(--u));top:calc(232 * var(--u));width:200cqi;height:400cqi;margin-top:-200cqi;overflow:hidden;transform-origin:0 50%;transform:rotate(var(--r1))}
+.sweep>div{position:absolute;left:0;top:200cqi;transform:rotate(calc(-1 * var(--r1)))}
+/* Only on the way in, so the start state set with the js class is not animated. */
+.tile.in .sweep,.tile.in .sweep>div{transition:transform 1.9s var(--ease) .15s}
+.sweep svg{position:absolute;left:calc(-310 * var(--u));top:calc(-232 * var(--u));width:100cqi;height:calc(640 * var(--u))}
+html.js .tile:not(.in) .sweep{transform:rotate(var(--r0))}
+html.js .tile:not(.in) .sweep>div{transform:rotate(calc(-1 * var(--r0)))}
+/* Without container units, the loop is simply there. */
+@supports not (width:1cqi){
+  .sweep,.sweep>div,html.js .tile:not(.in) .sweep,html.js .tile:not(.in) .sweep>div{inset:0;width:auto;height:auto;margin:0;transform:none}
+  .sweep svg{left:0;top:0;width:100%;height:100%}
+}
 
 /* sections */
 .sec{padding-block:clamp(72px,9vw,120px)}
@@ -113,10 +130,18 @@ html.js .rv.in{opacity:1;transform:none}
 .step .num{font-size:14px;font-weight:500;color:var(--muted);letter-spacing:.04em}
 .step h3{font-size:26px;line-height:1.05;letter-spacing:-0.03em;font-weight:600}
 .step p{color:var(--muted);max-width:40ch}
-.step .ic{width:56px;height:56px}
-.step .ic path,.step .ic circle,.step .ic rect{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1 1.5;stroke-dashoffset:1;transition:stroke-dashoffset 1.4s var(--ease) .3s}
-.step.in .ic path,.step.in .ic circle,.step.in .ic rect{stroke-dashoffset:0}
-html:not(.js) .step .ic path,html:not(.js) .step .ic circle,html:not(.js) .step .ic rect{stroke-dashoffset:0}
+.step .ic{display:block;width:56px;height:56px}
+.step .ic path,.step .ic circle,.step .ic rect{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* Each icon is uncovered from where its drawing starts: a box slides over it
+   one way while the icon inside slides back, so only transforms move. */
+.ic-draw{display:block;width:56px;height:56px;overflow:hidden}
+.step.in .ic-draw,.step.in .ic-draw>.ic{transition:transform 1.4s var(--ease) .3s}
+html.js .step:not(.in) .ic-draw.up{transform:translateY(100%)}
+html.js .step:not(.in) .ic-draw.up>.ic{transform:translateY(-100%)}
+html.js .step:not(.in) .ic-draw.down{transform:translateY(-100%)}
+html.js .step:not(.in) .ic-draw.down>.ic{transform:translateY(100%)}
+html.js .step:not(.in) .ic-draw.right{transform:translateX(-100%)}
+html.js .step:not(.in) .ic-draw.right>.ic{transform:translateX(100%)}
 .step .ic .dot{fill:var(--chart);stroke:none}
 
 /* sports */
@@ -324,7 +349,7 @@ details p a:hover{text-decoration-color:currentColor}
   html.js .rv{opacity:1;transform:none;transition:none}
   .track{height:auto}
   .stage{position:relative;height:auto;min-height:calc(100svh - var(--hdr))}
-  .mini .loop,.step .ic path,.step .ic circle,.step .ic rect{transition:none;stroke-dashoffset:0}
+  .tile.in .sweep,.tile.in .sweep>div,.step.in .ic-draw,.step.in .ic-draw>.ic{transition:none}
   .pin-body{animation:none}
   .wire circle{display:none}
   .rail li,.hud dd{transition:none}
