@@ -288,7 +288,7 @@ const elevations = [
     {
         value: 'maximize',
         label: 'Hilly',
-        copy: 'Look for the climbs.',
+        copy: 'Stop steering round the climbs.',
     },
 ] as const;
 
