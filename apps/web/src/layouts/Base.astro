@@ -47,6 +47,8 @@ const canonical = absolute(Astro.site, Astro.url.pathname.replace(/\/$/, '') || 
             )
         }
         <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.webmanifest" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Traceway" />
         <meta property="og:title" content={pageTitle} />
