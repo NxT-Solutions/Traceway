@@ -142,7 +142,7 @@ class Store:
             raise StoreError(f"Signing in to Garmin failed: {reason}. Check GARMIN_USERNAME and GARMIN_PASSWORD, and that the account has no two-step sign-in.")
 
         self.request("GET", SERVICE + "&ticket=" + ticket.group(1).decode(), expect=(200, 302))
-        if not any(cookie.domain.endswith("apps.garmin.com") for cookie in self.jar):
+        if not any(cookie.domain.lstrip(".") == "apps.garmin.com" or cookie.domain.endswith(".apps.garmin.com") for cookie in self.jar):
             raise StoreError("Garmin accepted the sign-in, but the store gave no session.")
         self.developer = self.developer_id()
 
