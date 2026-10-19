@@ -9,7 +9,14 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
-import { count, day, longDay, short } from '@/components/admin/format';
+import {
+    count,
+    day,
+    hour,
+    longDay,
+    longHour,
+    short,
+} from '@/components/admin/format';
 
 export type DailyPoint = { date: string; value: number };
 
@@ -17,9 +24,10 @@ type TipProps = {
     active?: boolean;
     payload?: ReadonlyArray<{ payload?: DailyPoint }>;
     unit: string;
+    when: (date: string) => string;
 };
 
-function Tip({ active, payload, unit }: TipProps) {
+function Tip({ active, payload, unit, when }: TipProps) {
     const point = payload?.[0]?.payload;
 
     if (!active || point === undefined) {
@@ -28,7 +36,7 @@ function Tip({ active, payload, unit }: TipProps) {
 
     return (
         <div className="tip">
-            <div className="t">{longDay(point.date)}</div>
+            <div className="t">{when(point.date)}</div>
             <div>
                 <b>{count(point.value)}</b> {unit}
             </div>
@@ -39,22 +47,26 @@ function Tip({ active, payload, unit }: TipProps) {
 /**
  * One measure over days: bars for counts, a line for a level such as active riders. One series, so the title
  * names it and there is no legend. A table beside it carries the same numbers for screen readers, so the chart
- * itself stays out of the tab order.
+ * itself stays out of the tab order. Hours work the same way, with `hourly`.
  */
 export default function DailyChart({
     data,
     unit,
     kind = 'bar',
     label,
+    hourly = false,
 }: {
     data: DailyPoint[];
     unit: string;
     kind?: 'bar' | 'line';
     label: string;
+    hourly?: boolean;
 }) {
+    const tick = hourly ? hour : day;
+    const when = hourly ? longHour : longDay;
     const axis = {
         dataKey: 'date',
-        tickFormatter: day,
+        tickFormatter: tick,
         tickLine: false,
         axisLine: false,
         minTickGap: 28,
@@ -82,7 +94,7 @@ export default function DailyChart({
                         <XAxis {...axis} />
                         <YAxis {...values} />
                         <Tooltip
-                            content={<Tip unit={unit} />}
+                            content={<Tip unit={unit} when={when} />}
                             cursor={{ className: 'recharts-tooltip-cursor' }}
                             isAnimationActive={false}
                         />
@@ -100,7 +112,7 @@ export default function DailyChart({
                         <XAxis {...axis} />
                         <YAxis {...values} />
                         <Tooltip
-                            content={<Tip unit={unit} />}
+                            content={<Tip unit={unit} when={when} />}
                             cursor={{ stroke: 'var(--muted)', strokeWidth: 1 }}
                             isAnimationActive={false}
                         />
@@ -133,7 +145,7 @@ export default function DailyChart({
                 <tbody>
                     {data.map((point) => (
                         <tr key={point.date}>
-                            <td>{longDay(point.date)}</td>
+                            <td>{when(point.date)}</td>
                             <td>{point.value}</td>
                         </tr>
                     ))}

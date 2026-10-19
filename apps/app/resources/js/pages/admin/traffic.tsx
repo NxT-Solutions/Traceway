@@ -3,36 +3,9 @@ import DailyChart from '@/components/admin/daily-chart';
 import { bytes, count, when } from '@/components/admin/format';
 import RankedList from '@/components/admin/ranked-list';
 import StatTile from '@/components/admin/stat-tile';
+import { Loading, NotConnected } from '@/components/admin/traffic-states';
+import TrafficTabs from '@/components/admin/traffic-tabs';
 import type { AdminTraffic } from '@/types/admin';
-
-function Loading() {
-    return (
-        <section className="panel" aria-busy="true">
-            <div className="panel-head">
-                <h2>Asking Cloudflare</h2>
-            </div>
-            <div className="skel" />
-        </section>
-    );
-}
-
-function NotConnected() {
-    return (
-        <section className="panel">
-            <div className="panel-head">
-                <h2>Not connected</h2>
-            </div>
-            <p className="note">
-                Traffic comes from Cloudflare. Set{' '}
-                <code>CLOUDFLARE_ANALYTICS_TOKEN</code> to a token that can read
-                analytics, and <code>CLOUDFLARE_ZONE_ID</code> for requests. For
-                visits to the site's pages, also set{' '}
-                <code>CLOUDFLARE_ACCOUNT_ID</code> and{' '}
-                <code>CLOUDFLARE_WEB_ANALYTICS_SITE_TAG</code>.
-            </p>
-        </section>
-    );
-}
 
 function Report({ traffic }: { traffic: AdminTraffic }) {
     if (!traffic.connected) {
@@ -167,6 +140,7 @@ export default function Traffic({ traffic }: { traffic?: AdminTraffic }) {
     return (
         <>
             <Head title="Admin traffic" />
+            <TrafficTabs />
             <Deferred data="traffic" fallback={<Loading />}>
                 {traffic ? <Report traffic={traffic} /> : <Loading />}
             </Deferred>

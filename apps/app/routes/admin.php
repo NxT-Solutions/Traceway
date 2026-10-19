@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AdminActivityController;
 use App\Http\Controllers\Admin\AdminImpersonationController;
 use App\Http\Controllers\Admin\AdminOverviewController;
 use App\Http\Controllers\Admin\AdminTrafficController;
+use App\Http\Controllers\Admin\AdminTrafficInsightsController;
 use App\Http\Controllers\Admin\AdminUsersController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,13 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/', AdminOverviewController::class)->middleware('can:view-analytics')->name('overview');
     Route::get('traffic', AdminTrafficController::class)->middleware('can:view-analytics')->name('traffic');
+    Route::middleware('can:view-analytics')->prefix('traffic')->name('traffic.')->controller(AdminTrafficInsightsController::class)->group(function (): void {
+        Route::get('requests', 'requests')->name('requests');
+        Route::get('security', 'security')->name('security');
+        Route::get('bots', 'bots')->name('bots');
+        Route::get('speed', 'speed')->name('speed');
+        Route::get('backups', 'backups')->name('backups');
+    });
 
     Route::get('activity', AdminActivityController::class)->middleware('can:view-users')->name('activity');
 

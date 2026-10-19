@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mcp\Servers;
 
 use App\Mcp\Apps\RouteMapApp;
+use App\Mcp\Methods\CountedCallTool;
 use App\Mcp\Tools\ListRoutesTool;
 use App\Mcp\Tools\PlanLoopTool;
 use App\Mcp\Tools\PlanMultisportTool;
@@ -40,4 +41,13 @@ final class TracewayServer extends Server
     protected array $resources = [
         RouteMapApp::class,
     ];
+
+    /**
+     * Each tool call adds to that tool's daily total.
+     */
+    #[Override]
+    protected function boot(): void
+    {
+        $this->addMethod('tools/call', CountedCallTool::class);
+    }
 }
