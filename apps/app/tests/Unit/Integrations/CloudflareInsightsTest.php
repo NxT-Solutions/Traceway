@@ -160,7 +160,9 @@ it('adds up the firewall events, and finds blocks on pages people use by method 
             $event('/', 'BE'),
             $event('/login', 'BE'),
             $event('/login', 'US', 'firewallManaged', 'POST', 'React - RCE - CVE:CVE-2025-55182'),
+            $event('/login', 'US', 'firewallManaged', 'post', 'React - RCE - CVE:CVE-2025-55182'),
             $event('/', 'JP', 'firewallManaged', 'POST', 'React - RCE - CVE:CVE-2025-55182'),
+            $event('/register', 'FR', 'firewallCustom', ''),
             $event('/wp-login.php', 'NL', 'firewallManaged'),
         ],
     ], [
@@ -175,22 +177,35 @@ it('adds up the firewall events, and finds blocks on pages people use by method 
     expect($security->threatDays)->toBe([['date' => '2026-10-18', 'count' => 5], ['date' => '2026-10-19', 'count' => 5]])
         ->and($security->threatCountries)->toBe([['label' => 'BE', 'count' => 6], ['label' => 'FR', 'count' => 4]])
         ->and($security->blockDays)->toBe([['date' => '2026-10-18', 'count' => 770], ['date' => '2026-10-19', 'count' => 470]])
-        ->and($security->events)->toBe(7)
-        ->and($security->sources)->toBe([['label' => 'firewallCustom', 'count' => 4], ['label' => 'firewallManaged', 'count' => 3]])
+        ->and($security->events)->toBe(9)
+        ->and($security->sources)->toBe([['label' => 'firewallCustom', 'count' => 5], ['label' => 'firewallManaged', 'count' => 4]])
         ->and($security->countries[0])->toBe(['label' => 'BE', 'count' => 3])
-        ->and(array_slice($security->paths, 0, 3))->toBe([['label' => '/', 'count' => 2], ['label' => '/.env', 'count' => 2], ['label' => '/login', 'count' => 2]])
-        ->and($security->rules)->toBe([['label' => 'custom-rule', 'count' => 4], ['label' => 'managed-rule', 'count' => 3]])
+        ->and(array_slice($security->paths, 0, 3))->toBe([['label' => '/login', 'count' => 3], ['label' => '/', 'count' => 2], ['label' => '/.env', 'count' => 2]])
+        ->and($security->rules)->toBe([['label' => 'custom-rule', 'count' => 5], ['label' => 'managed-rule', 'count' => 4]])
         ->and($security->peoplePages)->toBe([
+            ['path' => '/login', 'method' => 'POST', 'rule' => 'React - RCE - CVE:CVE-2025-55182', 'source' => 'firewallManaged', 'count' => 2],
             ['path' => '/', 'method' => 'GET', 'rule' => 'custom-rule', 'source' => 'firewallCustom', 'count' => 1],
             ['path' => '/login', 'method' => 'GET', 'rule' => 'custom-rule', 'source' => 'firewallCustom', 'count' => 1],
-            ['path' => '/login', 'method' => 'POST', 'rule' => 'React - RCE - CVE:CVE-2025-55182', 'source' => 'firewallManaged', 'count' => 1],
+            ['path' => '/register', 'method' => '', 'rule' => 'custom-rule', 'source' => 'firewallCustom', 'count' => 1],
         ])
+        ->and($security->peopleBlocked)->toBe(5)
         ->and($security->turnstile)->toBe([
             ['label' => 'challenge_issued', 'count' => 11],
             ['label' => 'challenge_non_interactive_solved', 'count' => 3],
         ])
         ->and($sent[0])->toMatchArray(['sinceDate' => '2026-09-20', 'untilDate' => '2026-10-19'])
         ->and($sent[1]['filter'])->toMatchArray(['siteKey' => 'site-key', 'datetime_leq' => '2026-10-19T12:00:00Z']);
+});
+
+it('counts every block on pages people use, also past the ones it lists', function (): void {
+    $events = array_map(fn (int $token): array => [
+        'action' => 'block', 'source' => 'firewallCustom', 'clientRequestPath' => '/reset-password/'.$token, 'clientRequestHTTPMethodName' => 'GET', 'ruleId' => 'custom-rule',
+    ], range(1, 17));
+
+    $security = insights(['events' => $events], ['turnstile' => []])->security(insightsNow());
+
+    expect($security->peoplePages)->toHaveCount(15)
+        ->and($security->peopleBlocked)->toBe(17);
 });
 
 it('skips the sign-up checks without an account id', function (): void {

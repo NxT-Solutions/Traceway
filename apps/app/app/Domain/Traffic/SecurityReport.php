@@ -35,6 +35,7 @@ final readonly class SecurityReport
      * @param  list<Ranked>  $rules  rule ids
      * @param  list<PeopleBlock>  $peoplePages  requests for pages people use that a rule stopped, which may be real
      *                                          visitors, by path, method, and rule: its description, or its id without one
+     * @param  int  $peopleBlocked  all of those requests, also the ones past the top of the list
      * @param  list<Ranked>  $turnstile  sign-up checks by Turnstile's event type, such as challenge_issued
      */
     public function __construct(
@@ -49,6 +50,7 @@ final readonly class SecurityReport
         public array $userAgents = [],
         public array $rules = [],
         public array $peoplePages = [],
+        public int $peopleBlocked = 0,
         public array $turnstile = [],
     ) {}
 }

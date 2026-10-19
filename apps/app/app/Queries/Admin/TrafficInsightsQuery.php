@@ -37,6 +37,9 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
  */
 final readonly class TrafficInsightsQuery
 {
+    /** Goes up when a page's answer changes shape, so an hour-old answer in the old shape is not shown. */
+    private const int SHAPE = 2;
+
     public function __construct(
         private TrafficInsights $trafficInsights,
         private CacheRepository $cacheRepository,
@@ -62,11 +65,11 @@ final readonly class TrafficInsightsQuery
     }
 
     /**
-     * @return array{connected: bool, error: string|null, generated_at: string, days: int, turnstile_days: int, event_limit: int, threat_days: list<DayCount>, threat_countries: list<Ranked>, block_days: list<DayCount>, blocks: int, events: int, sources: list<Ranked>, actions: list<Ranked>, countries: list<Ranked>, paths: list<Ranked>, user_agents: list<Ranked>, rules: list<Ranked>, people_pages: list<PeopleBlock>, turnstile: list<Ranked>}
+     * @return array{connected: bool, error: string|null, generated_at: string, days: int, turnstile_days: int, event_limit: int, threat_days: list<DayCount>, threat_countries: list<Ranked>, block_days: list<DayCount>, blocks: int, events: int, sources: list<Ranked>, actions: list<Ranked>, countries: list<Ranked>, paths: list<Ranked>, user_agents: list<Ranked>, rules: list<Ranked>, people_pages: list<PeopleBlock>, people_blocked: int, turnstile: list<Ranked>}
      */
     public function security(): array
     {
-        /** @var array{connected: bool, error: string|null, generated_at: string, days: int, turnstile_days: int, event_limit: int, threat_days: list<DayCount>, threat_countries: list<Ranked>, block_days: list<DayCount>, blocks: int, events: int, sources: list<Ranked>, actions: list<Ranked>, countries: list<Ranked>, paths: list<Ranked>, user_agents: list<Ranked>, rules: list<Ranked>, people_pages: list<PeopleBlock>, turnstile: list<Ranked>} */
+        /** @var array{connected: bool, error: string|null, generated_at: string, days: int, turnstile_days: int, event_limit: int, threat_days: list<DayCount>, threat_countries: list<Ranked>, block_days: list<DayCount>, blocks: int, events: int, sources: list<Ranked>, actions: list<Ranked>, countries: list<Ranked>, paths: list<Ranked>, user_agents: list<Ranked>, rules: list<Ranked>, people_pages: list<PeopleBlock>, people_blocked: int, turnstile: list<Ranked>} */
         return $this->part('security', fn (CarbonImmutable $now): SecurityReport => $this->trafficInsights->security($now->toDateTimeImmutable()), fn (SecurityReport $securityReport): array => [
             'days' => SecurityReport::DAYS,
             'turnstile_days' => SecurityReport::TURNSTILE_DAYS,
@@ -83,6 +86,7 @@ final readonly class TrafficInsightsQuery
             'user_agents' => $securityReport->userAgents,
             'rules' => $securityReport->rules,
             'people_pages' => $securityReport->peoplePages,
+            'people_blocked' => $securityReport->peopleBlocked,
             'turnstile' => $securityReport->turnstile,
         ], new SecurityReport);
     }
@@ -163,7 +167,7 @@ final readonly class TrafficInsightsQuery
             return ['connected' => false, 'error' => null, 'generated_at' => $now->toIso8601String(), ...$shape($empty)];
         }
 
-        $key = sprintf('admin-traffic-%s:%s', $name, $now->format('Y-m-d-H'));
+        $key = sprintf('admin-traffic-%s:v%d:%s', $name, self::SHAPE, $now->format('Y-m-d-H'));
         $cached = $this->cacheRepository->get($key);
 
         if (is_array($cached)) {
