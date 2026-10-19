@@ -9,3 +9,6 @@ persistent
 *.pem
 
 __pycache__/
+
+# Written by csp.mjs on each build, for nginx.
+apps/web/nginx-csp.conf

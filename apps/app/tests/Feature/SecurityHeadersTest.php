@@ -219,18 +219,27 @@ it('leaves the cookies alone without an old session cookie', function (): void {
     expect($domains->filter()->all())->toBe([]);
 });
 
-it('gives the content site a policy with no inline script and only the consented counter', function (): void {
+it('gives the content site a policy that runs only the scripts and styles the build hashed', function (): void {
     preg_match('/map \$sent_http_content_type \$site_csp \{\s*"~\^text\/html" "([^"]+)";/', nginxConfig(), $match);
     expect($match)->toHaveKey(1);
 
     $policy = policyOf(new Response(headers: ['Content-Security-Policy' => $match[1]]));
 
     expect($policy['default-src'])->toBe(["'none'"])
-        ->and($policy['script-src'])->toBe(["'self'", 'https://static.cloudflareinsights.com'])
-        ->and($policy['style-src'])->toBe(["'self'"])
+        ->and($policy['script-src'])->toBe(['$site_script_hashes', "'strict-dynamic'", "'unsafe-inline'", 'https:'])
+        ->and($policy['style-src'])->toBe(["'self'", '$site_style_hashes'])
         ->and($policy['connect-src'])->toBe(["'self'", 'https://cloudflareinsights.com'])
-        ->and($policy['frame-ancestors'])->toBe(["'none'"]);
+        ->and($policy['frame-ancestors'])->toBe(["'none'"])
+        ->and($policy['require-trusted-types-for'])->toBe(["'script'"])
+        ->and($policy['trusted-types'])->toBe(['scripts', 'counter'])
+        ->and(nginxConfig())->toContain('include /etc/nginx/nginx-csp.conf;');
 })->group('gdpr');
+
+it('copies the hashes the content site build writes next to the nginx config', function (): void {
+    $dockerfile = file_get_contents(dirname(base_path(), 2).'/.docker/production/images/Dockerfile') ?: '';
+
+    expect($dockerfile)->toContain('COPY --from=web-build /src/nginx-csp.conf /etc/nginx/nginx-csp.conf');
+});
 
 it('sends the headers from every nginx location that answers from disk', function (): void {
     preg_match_all('/\n    location ([^{]+)\{(.*?)\n    \}/s', nginxConfig(), $locations, PREG_SET_ORDER);

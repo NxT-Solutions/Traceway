@@ -25,16 +25,13 @@ export default defineConfig({
         host: true,
         port: 4321,
     },
-    // nginx's Content-Security-Policy runs no inline script or style tag
-    // (.docker/production/images/configs/nginx/nginx.conf), so every script
-    // and stylesheet stays a file under /_astro.
+    // The styles and the small scripts go in the page, so the first paint
+    // waits on no other file. csp.mjs lists their hashes for nginx's
+    // Content-Security-Policy after the build, and nothing else inline runs.
     build: {
-        inlineStylesheets: 'never',
+        inlineStylesheets: 'always',
     },
     vite: {
-        build: {
-            assetsInlineLimit: (file) => (/\.(js|css)$/.test(file) ? false : undefined),
-        },
         server: {
             allowedHosts: true,
             watch: {
