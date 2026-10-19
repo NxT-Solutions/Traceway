@@ -26,6 +26,23 @@ class HandleInertiaRequests extends Middleware
     protected $rootView = 'app';
 
     /**
+     * Pages the server does not draw first. Their first render reads the
+     * browser: the planner and the library restore the rider's draft and
+     * layout from local storage and the screen width, and the admin pages
+     * write dates in the browser's language and time zone. Drawn on the
+     * server, they would not match and React would draw them again.
+     *
+     * @var array<int, string>
+     */
+    #[Override]
+    protected $withoutSsr = [
+        'dashboard',
+        'saved',
+        'admin',
+        'admin/*',
+    ];
+
+    /**
      * Determines the current asset version.
      *
      * @see https://inertiajs.com/asset-versioning

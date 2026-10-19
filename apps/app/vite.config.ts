@@ -4,7 +4,7 @@ import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
+import { local } from 'laravel-vite-plugin/fonts';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, lazyPlugins } from 'vite-plus';
@@ -38,10 +38,19 @@ export default defineConfig(({ command }) => ({
         },
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
+            ssr: 'resources/js/app.tsx',
             refresh: true,
+            // Outfit's Latin WOFF2 files from the Fontsource package, one face
+            // per weight. The remote providers write a second face per weight
+            // for the WOFF copy, and the browser then fetches that one too.
+            // Only the weights the first screen uses are preloaded.
             fonts: [
-                bunny('Outfit', {
-                    weights: [400, 500, 600, 700],
+                local('Outfit', {
+                    variants: [400, 500, 600, 700].map((weight) => ({
+                        src: `node_modules/@fontsource/outfit/files/outfit-latin-${weight}-normal.woff2`,
+                        weight,
+                    })),
+                    preload: [{ weight: 400 }, { weight: 500 }, { weight: 600 }],
                 }),
             ],
         }),
@@ -51,7 +60,9 @@ export default defineConfig(({ command }) => ({
         // them.
         {
             name: 'traceway:chat-card-files',
-            apply: 'build',
+            // The browser build only. The SSR bundle never serves these.
+            apply: (_config, { command, isSsrBuild }) =>
+                command === 'build' && !isSsrBuild,
             generateBundle(_options, bundle) {
                 const maplibre = fileURLToPath(
                     new URL('./node_modules/maplibre-gl/dist/', import.meta.url),
@@ -87,7 +98,11 @@ export default defineConfig(({ command }) => ({
                 }
             },
         },
-        inertia(),
+        // app.tsx also renders on the server: `vp build --ssr` wraps its
+        // createInertiaApp call in the SSR server (bootstrap/ssr/app.js).
+        inertia({
+            ssr: { entry: 'resources/js/app.tsx', host: '127.0.0.1' },
+        }),
         react(),
         babel({
             presets: [reactCompilerPreset()],

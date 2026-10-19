@@ -2432,8 +2432,18 @@ export default function Dashboard() {
                 return;
             }
 
+            // A location prompt the rider did not ask for is one browsers
+            // learn to hide. Only a rider who already allowed it is found at
+            // once; anyone else taps the locate button.
             if (saved === null) {
-                locateRef.current();
+                void navigator.permissions
+                    ?.query({ name: 'geolocation' })
+                    .then((status) => {
+                        if (status.state === 'granted') {
+                            locateRef.current();
+                        }
+                    })
+                    .catch(() => {});
             }
         });
 

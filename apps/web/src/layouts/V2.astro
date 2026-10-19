@@ -1,7 +1,8 @@
 ---
-import '@fontsource/outfit/400.css';
-import '@fontsource/outfit/500.css';
-import '@fontsource/outfit/600.css';
+import outfit400 from '@fontsource/outfit/files/outfit-latin-400-normal.woff2?url';
+import outfit500 from '@fontsource/outfit/files/outfit-latin-500-normal.woff2?url';
+import outfit600 from '@fontsource/outfit/files/outfit-latin-600-normal.woff2?url';
+import '../styles/fonts.css';
 import 'lenis/dist/lenis.css';
 import '../styles/global.css';
 import '../styles/v2.css';
@@ -64,6 +65,8 @@ const data = {
 <html lang="en">
     <head>
         <meta charset="utf-8" />
+        {/* The first screen uses all three weights, so they load with the page, not after the CSS. */}
+        {[outfit400, outfit500, outfit600].map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#f6f3ea" />
         <title>{title}</title>

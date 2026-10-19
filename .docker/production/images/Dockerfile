@@ -45,7 +45,7 @@ RUN APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
     && touch /tmp/traceway-build.sqlite \
     && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
     && bun install --frozen-lockfile \
-    && bun run build \
+    && bun run build:ssr \
     && rm -f .env public/hot
 
 FROM node:26-alpine AS web-build
@@ -77,6 +77,7 @@ FROM base AS runtime
 COPY apps/app/ /var/www/html/
 COPY --from=php-build /var/www/html/vendor /var/www/html/vendor
 COPY --from=php-build /var/www/html/public/build /var/www/html/public/build
+COPY --from=php-build /var/www/html/bootstrap/ssr /var/www/html/bootstrap/ssr
 COPY --from=mail-build /src/apps/app/resources/views/mail/compiled /var/www/html/resources/views/mail/compiled
 COPY --from=web-build /src/dist /var/www/web
 
