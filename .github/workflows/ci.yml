@@ -48,6 +48,15 @@ jobs:
       - name: Install PHP Dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      # setup-bun caches only the bun binary. This keeps the package store,
+      # so a run with an unchanged bun.lock links packages instead of downloading them.
+      - name: Cache Bun Packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-${{ runner.os }}-${{ hashFiles('apps/app/bun.lock') }}
+          restore-keys: bun-install-${{ runner.os }}-
+
       - name: Install Frontend Dependencies
         run: bun install --frozen-lockfile
 
@@ -95,6 +104,15 @@ jobs:
           php artisan key:generate --no-interaction
           mkdir -p database
           touch database/database.sqlite
+
+      # setup-bun caches only the bun binary. This keeps the package store,
+      # so a run with an unchanged bun.lock links packages instead of downloading them.
+      - name: Cache Bun Packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-${{ runner.os }}-${{ hashFiles('apps/app/bun.lock') }}
+          restore-keys: bun-install-${{ runner.os }}-
 
       - name: Install Frontend Dependencies
         run: bun install --frozen-lockfile
@@ -222,12 +240,30 @@ jobs:
           touch database/database.sqlite
           php artisan migrate --seed --force --no-interaction
 
+      # setup-bun caches only the bun binary. This keeps the package store,
+      # so a run with an unchanged bun.lock links packages instead of downloading them.
+      - name: Cache Bun Packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-${{ runner.os }}-${{ hashFiles('apps/app/bun.lock') }}
+          restore-keys: bun-install-${{ runner.os }}-
+
       - name: Install Frontend Dependencies
         run: bun install --frozen-lockfile
 
+      # playwright-core in bun.lock pins the headless shell, so the lockfile keys
+      # it, and the install below finds it in place. No restore-keys: an older
+      # browser is never the one the tests ask for.
+      - name: Cache Playwright Browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/app/bun.lock') }}
+
       # The three builds do not depend on each other. The tests launch only
       # Chromium's headless shell, and the runner image already has every
-      # library it needs, so the install is one download.
+      # library it needs, so the install is one download, or none on a cache hit.
       - name: Build Assets, Content Site, And Browser
         run: |
           mkdir -p "$RUNNER_TEMP/build"
