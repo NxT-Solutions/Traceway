@@ -85,7 +85,7 @@ final class ValhallaCosting
      * The costing that matches a finished line to the roads under it. The
      * line is already chosen, so only the sport decides which roads fit.
      *
-     * @return array{costing: string, costing_options: array<string, array<string, float|string>>}
+     * @return array{costing: string, costing_options: array<string, array<string, float|int|string>>}
      */
     public static function trace(Sport $sport): array
     {
@@ -110,14 +110,15 @@ final class ValhallaCosting
 
     /**
      * Valhalla's pedestrian costing weighs the kind of way, not a road's
-     * class or its surface. A walkway (a footway, or a sidewalk mapped on its
-     * own), a track, and a living street each have their own cost. A path, a
-     * cycleway, and a plain road all cost the same. So Quiet first and Dirt
-     * make the ways without traffic cheaper, and roads lose by comparison.
+     * class or its surface. A walkway, a track, and a living street each have
+     * their own cost. A path, a cycleway, and a plain road all cost the same.
+     * So Quiet first and Dirt make the ways without traffic cheaper, and
+     * roads lose by comparison.
      *
-     * A track is mostly unpaved, so Paved leaves tracks alone. A road with a
-     * sidewalk costs the same as any other road: a factor below 1 would draw
-     * a dirt route onto town streets.
+     * A walkway is a footway, or a sidewalk mapped as its own way: Valhalla
+     * cannot tell them apart. A track is mostly unpaved, so Paved leaves
+     * tracks alone. A road tagged with a sidewalk costs the same as any other
+     * road: a factor below 1 would draw a dirt route onto town streets.
      *
      * @return array<string, float|int>
      */

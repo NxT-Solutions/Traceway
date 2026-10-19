@@ -45,10 +45,14 @@ final class LocateRequest extends Request implements HasBody
     #[Override]
     public ?bool $throwOnMaxTries = false;
 
+    /**
+     * @param  array<string, array<string, float|int|string>>  $costingOptions  The same options the route is planned with, so a point lands only on a way the route may use.
+     */
     public function __construct(
         private readonly float $latitude,
         private readonly float $longitude,
         private readonly string $costing,
+        private readonly array $costingOptions,
     ) {}
 
     public function resolveEndpoint(): string
@@ -81,6 +85,7 @@ final class LocateRequest extends Request implements HasBody
         return [
             'verbose' => true,
             'costing' => $this->costing,
+            'costing_options' => $this->costingOptions,
             'locations' => [[
                 'lat' => $this->latitude,
                 'lon' => $this->longitude,

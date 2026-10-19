@@ -265,6 +265,31 @@ try {
     await desktop.getByRole('radio', { name: /^Reverse it\b/ }).waitFor();
     await desktop.keyboard.press('Escape');
 
+    // A sport starts on its own surface. A surface picked by hand stays when
+    // the same sport is picked again, and the draft keeps it.
+    const surfaceRow = desktop.getByRole('button', { name: /^Surface\b/ });
+    const pickSport = async (name) => {
+        await desktop.getByRole('button', { name: /^Sport\b/ }).click();
+        await desktop.getByRole('dialog').getByRole('button', { name: new RegExp(`^${name}\\b`) }).click();
+        await desktop.getByRole('dialog').waitFor({ state: 'detached', timeout: 3000 });
+    };
+    await pickSport('Trail run');
+    await surfaceRow.filter({ hasText: 'Dirt' }).waitFor({ timeout: 3000 });
+    await surfaceRow.click();
+    await desktop.getByRole('radio', { name: /^Paved\b/ }).click();
+    await surfaceRow.filter({ hasText: 'Paved' }).waitFor({ timeout: 3000 });
+    await pickSport('Trail run');
+    await surfaceRow.filter({ hasText: 'Paved' }).waitFor({ timeout: 3000 });
+
+    if ((await draft())?.surface !== 'paved') {
+        throw new Error(`The draft did not keep the surface picked by hand: ${JSON.stringify((await draft())?.surface)}`);
+    }
+
+    await pickSport('Mountain bike');
+    await surfaceRow.filter({ hasText: 'Dirt' }).waitFor({ timeout: 3000 });
+    await pickSport('Road');
+    await surfaceRow.filter({ hasText: 'Paved' }).waitFor({ timeout: 3000 });
+
     await desktop.getByRole('tab', { name: 'Multisport' }).click();
     await desktop.getByRole('button', { name: /^Type\s*\w/ }).click();
     await desktop.getByRole('radio', { name: /^Triathlon\b/ }).click();
@@ -285,6 +310,10 @@ try {
     await transition.click();
     await (await answered(desktop, desktop.getByRole('button', { name: 'Move the transition here' }), 'No "Move the transition here" for Oevel')).click();
     await desktop.locator('section[aria-label="Legs"]').getByText('Oevel').waitFor({ timeout: 5000 });
+
+    // A leg that changes sport takes that sport's surface too.
+    await pickSport('Mountain bike');
+    await surfaceRow.filter({ hasText: 'Dirt' }).waitFor({ timeout: 3000 });
 
     await open(desktop, '/saved');
     await desktop.getByRole('link', { name: 'Plan your route' }).waitFor();

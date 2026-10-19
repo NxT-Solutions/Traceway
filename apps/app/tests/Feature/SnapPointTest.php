@@ -57,6 +57,7 @@ it('snaps a ride point onto the nearest road', function (): void {
     expect($body)->toMatchArray([
         'verbose' => true,
         'costing' => 'bicycle',
+        'costing_options' => ['bicycle' => ['bicycle_type' => 'Road']],
         'locations' => [[
             'lat' => 51.05,
             'lon' => 3.72,
@@ -83,7 +84,11 @@ it('snaps a hike onto a path a person can walk', function (): void {
         ])
         ->assertOk();
 
-    expect($mockClient->getLastPendingRequest()?->body()?->all()['costing'] ?? null)->toBe('pedestrian');
+    $body = $mockClient->getLastPendingRequest()?->body()?->all();
+
+    // A hike's route may take a mountain path, so its point may land on one.
+    expect($body['costing'] ?? null)->toBe('pedestrian')
+        ->and($body['costing_options'] ?? null)->toBe(['pedestrian' => ['walking_speed' => 5.0, 'max_hiking_difficulty' => 2]]);
 });
 
 it('refuses a point that is not on a road or path', function (): void {

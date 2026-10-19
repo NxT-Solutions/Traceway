@@ -233,7 +233,7 @@ const sports: SportOption[] = [
     {
         value: 'run',
         label: 'Run',
-        copy: 'Paved ground. Footpaths and quiet streets first.',
+        copy: 'Paved ground, with footpaths and quiet streets first.',
         group: 'Foot',
     },
     {
