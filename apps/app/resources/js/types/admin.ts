@@ -142,6 +142,15 @@ export type AdminRequests = InsightsPart & {
     ip_classes: Ranked[];
 };
 
+/** A request for a page people use that a firewall rule stopped, added up by path, method, and rule. */
+export type PeopleBlock = {
+    path: string;
+    method: string;
+    rule: string;
+    source: string;
+    count: number;
+};
+
 export type AdminSecurity = InsightsPart & {
     days: number;
     turnstile_days: number;
@@ -157,7 +166,7 @@ export type AdminSecurity = InsightsPart & {
     paths: Ranked[];
     user_agents: Ranked[];
     rules: Ranked[];
-    people_pages: Ranked[];
+    people_pages: PeopleBlock[];
     turnstile: Ranked[];
 };
 

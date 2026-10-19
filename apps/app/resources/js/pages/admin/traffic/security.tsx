@@ -115,11 +115,19 @@ function Security({ security }: { security: AdminSecurity }) {
                         It may be turning away real visitors, not only scanners.
                         Check the rule in <DashboardLink />.
                         <ul>
-                            {security.people_pages.slice(0, 5).map((page) => (
-                                <li key={page.label}>
-                                    <code>{page.label}</code>:{' '}
-                                    {count(page.count)}{' '}
-                                    {page.count === 1 ? 'block' : 'blocks'}
+                            {security.people_pages.slice(0, 5).map((block) => (
+                                <li
+                                    key={`${block.method} ${block.path} ${block.rule} ${block.source}`}
+                                >
+                                    <code>
+                                        {block.method} {block.path}
+                                    </code>
+                                    : {count(block.count)}{' '}
+                                    {block.count === 1 ? 'block' : 'blocks'} by{' '}
+                                    {block.rule || 'a rule'}
+                                    {block.source
+                                        ? ` (${sourceNames[block.source] ?? block.source})`
+                                        : ''}
                                 </li>
                             ))}
                         </ul>

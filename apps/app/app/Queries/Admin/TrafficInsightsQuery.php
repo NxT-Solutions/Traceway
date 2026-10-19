@@ -26,6 +26,7 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
  * @phpstan-import-type Read from BotTraffic
  * @phpstan-import-type StatusCount from BotTraffic
  * @phpstan-import-type DayCount from SecurityReport
+ * @phpstan-import-type PeopleBlock from SecurityReport
  * @phpstan-import-type Hour from RequestBreakdown
  * @phpstan-import-type Day from RequestBreakdown
  * @phpstan-import-type PageTimings from SpeedReport
@@ -61,11 +62,11 @@ final readonly class TrafficInsightsQuery
     }
 
     /**
-     * @return array{connected: bool, error: string|null, generated_at: string, days: int, turnstile_days: int, event_limit: int, threat_days: list<DayCount>, threat_countries: list<Ranked>, block_days: list<DayCount>, blocks: int, events: int, sources: list<Ranked>, actions: list<Ranked>, countries: list<Ranked>, paths: list<Ranked>, user_agents: list<Ranked>, rules: list<Ranked>, people_pages: list<Ranked>, turnstile: list<Ranked>}
+     * @return array{connected: bool, error: string|null, generated_at: string, days: int, turnstile_days: int, event_limit: int, threat_days: list<DayCount>, threat_countries: list<Ranked>, block_days: list<DayCount>, blocks: int, events: int, sources: list<Ranked>, actions: list<Ranked>, countries: list<Ranked>, paths: list<Ranked>, user_agents: list<Ranked>, rules: list<Ranked>, people_pages: list<PeopleBlock>, turnstile: list<Ranked>}
      */
     public function security(): array
     {
-        /** @var array{connected: bool, error: string|null, generated_at: string, days: int, turnstile_days: int, event_limit: int, threat_days: list<DayCount>, threat_countries: list<Ranked>, block_days: list<DayCount>, blocks: int, events: int, sources: list<Ranked>, actions: list<Ranked>, countries: list<Ranked>, paths: list<Ranked>, user_agents: list<Ranked>, rules: list<Ranked>, people_pages: list<Ranked>, turnstile: list<Ranked>} */
+        /** @var array{connected: bool, error: string|null, generated_at: string, days: int, turnstile_days: int, event_limit: int, threat_days: list<DayCount>, threat_countries: list<Ranked>, block_days: list<DayCount>, blocks: int, events: int, sources: list<Ranked>, actions: list<Ranked>, countries: list<Ranked>, paths: list<Ranked>, user_agents: list<Ranked>, rules: list<Ranked>, people_pages: list<PeopleBlock>, turnstile: list<Ranked>} */
         return $this->part('security', fn (CarbonImmutable $now): SecurityReport => $this->trafficInsights->security($now->toDateTimeImmutable()), fn (SecurityReport $securityReport): array => [
             'days' => SecurityReport::DAYS,
             'turnstile_days' => SecurityReport::TURNSTILE_DAYS,

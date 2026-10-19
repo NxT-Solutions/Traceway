@@ -45,3 +45,12 @@ it('knows the pages people use from the paths scanners try', function (): void {
         ->and(PeoplePages::is('/wp-login.php'))->toBeFalse()
         ->and(PeoplePages::is('/xmlrpc.php'))->toBeFalse();
 });
+
+it('knows a POST to a page people only read comes from a scanner', function (): void {
+    expect(PeoplePages::is('/', 'POST'))->toBeFalse()
+        ->and(PeoplePages::is('/privacy', 'post'))->toBeFalse()
+        ->and(PeoplePages::is('/_astro/app.js', 'PUT'))->toBeFalse()
+        ->and(PeoplePages::is('/', 'HEAD'))->toBeTrue()
+        ->and(PeoplePages::is('/login', 'POST'))->toBeTrue()
+        ->and(PeoplePages::is('/settings/profile', 'PATCH'))->toBeTrue();
+});
