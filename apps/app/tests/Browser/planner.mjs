@@ -7,7 +7,7 @@ const base = process.env.BASE_URL || 'https://traceway.ddev.site:8443';
 // only its headless shell, which is what a headless launch runs.
 const local = [
     process.env.HOME,
-    'Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+    'Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
 ].join('/');
 const executable = process.env.CHROMIUM_PATH || (existsSync(local) ? local : undefined);
 
