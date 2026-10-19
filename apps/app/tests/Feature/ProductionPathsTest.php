@@ -26,6 +26,15 @@ it('hands every planner route to Laravel in production', function (): void {
     expect($missing)->toBe([]);
 });
 
+it('has room for the planner\'s headers, which pass nginx\'s 4 KB default', function (): void {
+    $config = file_get_contents(dirname(__DIR__, 4).'/.docker/production/images/configs/nginx/nginx.conf') ?: '';
+
+    preg_match('/location ~ \\\\\.php\$ \{([^}]*)\}/', $config, $block);
+
+    expect($block)->toHaveKey(1)
+        ->and($block[1])->toContain('fastcgi_buffer_size 32k;');
+});
+
 it('sends text compressed and keeps the hashed build files for a year', function (): void {
     $config = file_get_contents(dirname(__DIR__, 4).'/.docker/production/images/configs/nginx/nginx.conf') ?: '';
 
