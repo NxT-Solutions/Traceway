@@ -33,6 +33,32 @@ final readonly class TrafficReport
     ) {}
 
     /**
+     * Whether the visits half of the answer holds together. Cloudflare sometimes leaves one of its four lists empty
+     * with no error, or answers coarse with page loads and no visits. Page loads always come with a day, a visit, a
+     * page, a referrer, and a country. An answer with none of them is a stretch with no page loads.
+     */
+    public function visitsComplete(): bool
+    {
+        if ($this->visitsEmpty()) {
+            return true;
+        }
+
+        return array_sum(array_column($this->visitDays, 'page_loads')) > 0
+            && array_sum(array_column($this->visitDays, 'visits')) > 0
+            && $this->topPages !== []
+            && $this->topReferrers !== []
+            && $this->countries !== [];
+    }
+
+    /**
+     * Whether the visits half of the answer holds nothing at all: no day, no page, no referrer, and no country.
+     */
+    public function visitsEmpty(): bool
+    {
+        return $this->visitDays === [] && $this->topPages === [] && $this->topReferrers === [] && $this->countries === [];
+    }
+
+    /**
      * This report with the kept days before it. A day the report already holds is not added again. Each kept day
      * holds its own top ten, so a page that never made a day's top ten is not counted for that day.
      *

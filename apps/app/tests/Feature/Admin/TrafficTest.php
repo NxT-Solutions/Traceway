@@ -9,6 +9,7 @@ use App\Domain\Traffic\TrafficSnapshots;
 use App\Domain\Traffic\TrafficSource;
 use App\Domain\Traffic\TrafficUnavailable;
 use App\Models\User;
+use App\Queries\Admin\TrafficQuery;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -45,7 +46,17 @@ it('shows a message when Cloudflare does not answer', function (): void {
             return true;
         }
 
+        public function readsVisits(): bool
+        {
+            return true;
+        }
+
         public function report(DateTimeImmutable $since, DateTimeImmutable $until): TrafficReport
+        {
+            throw new TrafficUnavailable('Cloudflare did not answer.');
+        }
+
+        public function visits(DateTimeImmutable $since, DateTimeImmutable $until): TrafficReport
         {
             throw new TrafficUnavailable('Cloudflare did not answer.');
         }
@@ -110,4 +121,116 @@ it('still shows the kept days when Cloudflare does not answer', function (): voi
                 ->where('traffic.visit_days', [['date' => '2026-10-01', 'page_loads' => 6, 'visits' => 4]])
                 ->where('traffic.totals.visits', 4)
                 ->where('traffic.top_pages', [['label' => '/', 'count' => 6]])));
+});
+
+function wholeWeek(): TrafficReport
+{
+    return new TrafficReport(
+        [['date' => '2026-10-18', 'requests' => 1200, 'cached' => 900, 'bytes' => 5_000_000, 'threats' => 4]],
+        [['date' => '2026-10-15', 'page_loads' => 10, 'visits' => 5], ['date' => '2026-10-17', 'page_loads' => 8, 'visits' => 6]],
+        [['label' => '/', 'count' => 18]],
+        [['label' => '(none)', 'count' => 11]],
+        [['label' => 'Belgium', 'count' => 18]],
+    );
+}
+
+dataset('partial answers', [
+    'no days' => fn (): TrafficReport => new TrafficReport([], [], wholeWeek()->topPages, wholeWeek()->topReferrers, wholeWeek()->countries),
+    'no pages' => fn (): TrafficReport => new TrafficReport([], wholeWeek()->visitDays, [], wholeWeek()->topReferrers, wholeWeek()->countries),
+    'no referrers' => fn (): TrafficReport => new TrafficReport([], wholeWeek()->visitDays, wholeWeek()->topPages, [], wholeWeek()->countries),
+    'no countries' => fn (): TrafficReport => new TrafficReport([], wholeWeek()->visitDays, wholeWeek()->topPages, wholeWeek()->topReferrers, []),
+    'coarse, with no visits' => fn (): TrafficReport => new TrafficReport([], [['date' => '2026-10-15', 'page_loads' => 10, 'visits' => 0]], wholeWeek()->topPages, wholeWeek()->topReferrers, wholeWeek()->countries),
+]);
+
+it('asks once more when the live answer is partial, and keeps the whole one for an hour', function (TrafficReport $trafficReport): void {
+    CarbonImmutable::setTestNow('2026-10-19 14:05:00');
+    $source = new ScriptedTrafficSource(answers: [$trafficReport, wholeWeek()]);
+    $this->app->instance(TrafficSource::class, $source);
+    $trafficQuery = resolve(TrafficQuery::class);
+
+    $page = $trafficQuery->page();
+
+    expect($page['totals']['visits'])->toBe(11)
+        ->and($page['countries'])->toBe([['label' => 'Belgium', 'count' => 18]])
+        ->and($source->asked)->toHaveCount(2);
+
+    CarbonImmutable::setTestNow('2026-10-19 14:55:00');
+
+    expect($trafficQuery->page()['totals']['visits'])->toBe(11)
+        ->and($source->asked)->toHaveCount(2);
+})->with('partial answers');
+
+it('keeps a live answer that is still partial for five minutes only', function (TrafficReport $trafficReport): void {
+    CarbonImmutable::setTestNow('2026-10-19 14:05:00');
+    $source = new ScriptedTrafficSource(answers: [$trafficReport, $trafficReport, wholeWeek()]);
+    $this->app->instance(TrafficSource::class, $source);
+    $trafficQuery = resolve(TrafficQuery::class);
+
+    expect($trafficQuery->page()['error'])->toBeNull()
+        ->and($source->asked)->toHaveCount(2);
+
+    CarbonImmutable::setTestNow('2026-10-19 14:09:00');
+    $trafficQuery->page();
+
+    expect($source->asked)->toHaveCount(2);
+
+    CarbonImmutable::setTestNow('2026-10-19 14:11:00');
+
+    expect($trafficQuery->page()['totals']['visits'])->toBe(11)
+        ->and($source->asked)->toHaveCount(3);
+})->with('partial answers');
+
+it('shows the partial answer when Cloudflare does not answer the second time', function (): void {
+    CarbonImmutable::setTestNow('2026-10-19 14:05:00');
+    $partial = new TrafficReport(wholeWeek()->requestDays, [], wholeWeek()->topPages, wholeWeek()->topReferrers, wholeWeek()->countries);
+    $source = new ScriptedTrafficSource(answers: [$partial, null, wholeWeek()]);
+    $this->app->instance(TrafficSource::class, $source);
+    $trafficQuery = resolve(TrafficQuery::class);
+
+    $page = $trafficQuery->page();
+
+    expect($page['error'])->toBeNull()
+        ->and($page['totals']['requests'])->toBe(1200)
+        ->and($page['top_pages'])->toBe([['label' => '/', 'count' => 18]])
+        ->and($source->asked)->toHaveCount(2);
+
+    CarbonImmutable::setTestNow('2026-10-19 14:11:00');
+
+    expect($trafficQuery->page()['totals']['visits'])->toBe(11)
+        ->and($source->asked)->toHaveCount(3);
+});
+
+it('asks once more for a week with no page loads at all, and keeps it for five minutes only', function (): void {
+    CarbonImmutable::setTestNow('2026-10-19 14:05:00');
+    $source = new ScriptedTrafficSource(trafficReport: new TrafficReport(wholeWeek()->requestDays, [], [], [], []));
+    $this->app->instance(TrafficSource::class, $source);
+    $trafficQuery = resolve(TrafficQuery::class);
+
+    expect($trafficQuery->page()['totals']['visits'])->toBe(0)
+        ->and($source->asked)->toHaveCount(2);
+
+    CarbonImmutable::setTestNow('2026-10-19 14:09:00');
+    $trafficQuery->page();
+
+    expect($source->asked)->toHaveCount(2);
+
+    CarbonImmutable::setTestNow('2026-10-19 14:11:00');
+    $trafficQuery->page();
+
+    expect($source->asked)->toHaveCount(4);
+});
+
+it('keeps the requests for an hour when Traceway has no ids for visits', function (): void {
+    CarbonImmutable::setTestNow('2026-10-19 14:05:00');
+    $source = new ScriptedTrafficSource(trafficReport: new TrafficReport(wholeWeek()->requestDays, [], [], [], []), readsVisits: false);
+    $this->app->instance(TrafficSource::class, $source);
+    $trafficQuery = resolve(TrafficQuery::class);
+
+    expect($trafficQuery->page()['totals']['requests'])->toBe(1200)
+        ->and($source->asked)->toHaveCount(1);
+
+    CarbonImmutable::setTestNow('2026-10-19 14:55:00');
+    $trafficQuery->page();
+
+    expect($source->asked)->toHaveCount(1);
 });
