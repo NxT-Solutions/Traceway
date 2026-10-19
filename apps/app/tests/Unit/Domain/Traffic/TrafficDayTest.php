@@ -37,6 +37,7 @@ test('a day with no page loads or an empty list is not complete', function (arra
 })->with([
     'no day' => [[], [['label' => '/', 'count' => 1]], [['label' => '(none)', 'count' => 1]], [['label' => 'BE', 'count' => 1]]],
     'another day' => [[['date' => '2026-10-14', 'page_loads' => 3, 'visits' => 1]], [['label' => '/', 'count' => 1]], [['label' => '(none)', 'count' => 1]], [['label' => 'BE', 'count' => 1]]],
+    'no visits, as in the coarse answer' => [[['date' => '2026-10-15', 'page_loads' => 3, 'visits' => 0]], [['label' => '/', 'count' => 1]], [['label' => '(none)', 'count' => 1]], [['label' => 'BE', 'count' => 1]]],
     'no pages' => [[['date' => '2026-10-15', 'page_loads' => 3, 'visits' => 1]], [], [['label' => '(none)', 'count' => 1]], [['label' => 'BE', 'count' => 1]]],
     'no referrers' => [[['date' => '2026-10-15', 'page_loads' => 3, 'visits' => 1]], [['label' => '/', 'count' => 1]], [], [['label' => 'BE', 'count' => 1]]],
     'no countries' => [[['date' => '2026-10-15', 'page_loads' => 3, 'visits' => 1]], [['label' => '/', 'count' => 1]], [['label' => '(none)', 'count' => 1]], []],

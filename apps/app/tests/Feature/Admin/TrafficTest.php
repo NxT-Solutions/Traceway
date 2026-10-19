@@ -16,6 +16,10 @@ use Tests\Fakes\ScriptedTrafficSource;
 
 uses(RefreshDatabase::class);
 
+afterEach(function (): void {
+    CarbonImmutable::setTestNow();
+});
+
 function trafficAdmin(): User
 {
     $user = User::factory()->create();
@@ -91,6 +95,19 @@ it('shows the kept days before the live week, for the whole month', function ():
                 ->where('traffic.countries', [['label' => 'Belgium', 'count' => 22], ['label' => 'France', 'count' => 3]])));
 
     expect($source->asked)->toBe([['since' => '2026-09-20 00:00:00', 'until' => '2026-10-19 14:30:00']]);
+});
 
-    CarbonImmutable::setTestNow();
+it('still shows the kept days when Cloudflare does not answer', function (): void {
+    CarbonImmutable::setTestNow('2026-10-19 14:30:00');
+    resolve(TrafficSnapshots::class)->save(new TrafficDay('2026-10-01', 6, 4, [['label' => '/', 'count' => 6]], [['label' => '(none)', 'count' => 4]], [['label' => 'Belgium', 'count' => 6]]));
+    $this->app->instance(TrafficSource::class, new ScriptedTrafficSource(['2026-09-20' => null]));
+
+    $this->actingAs(trafficAdmin())
+        ->get(route('admin.traffic'))
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->loadDeferredProps(fn (Assert $assert): Assert => $assert
+                ->where('traffic.error', 'Cloudflare did not answer.')
+                ->where('traffic.visit_days', [['date' => '2026-10-01', 'page_loads' => 6, 'visits' => 4]])
+                ->where('traffic.totals.visits', 4)
+                ->where('traffic.top_pages', [['label' => '/', 'count' => 6]])));
 });

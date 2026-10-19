@@ -51,11 +51,12 @@ final readonly class TrafficDay
 
     /**
      * Whether the answer holds the whole day. Cloudflare sometimes leaves one of the lists empty with no error, and
-     * a day that had page loads always has a page, a referrer, and a country.
+     * its coarse answer counts no visits. A day that had page loads always has a visit, a page, a referrer, and a
+     * country.
      */
     public function complete(): bool
     {
-        return $this->pageLoads > 0 && $this->topPages !== [] && $this->topReferrers !== [] && $this->countries !== [];
+        return $this->pageLoads > 0 && $this->visits > 0 && $this->topPages !== [] && $this->topReferrers !== [] && $this->countries !== [];
     }
 
     /**

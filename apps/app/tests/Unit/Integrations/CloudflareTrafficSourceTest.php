@@ -15,12 +15,15 @@ use Tests\TestCase;
 uses(TestCase::class);
 
 it('reads daily requests and visits from the Analytics API', function (): void {
+    $zoneVariables = [];
     $mockClient = new MockClient([
-        AnalyticsQueryRequest::class => function (PendingRequest $pendingRequest): MockResponse {
+        AnalyticsQueryRequest::class => function (PendingRequest $pendingRequest) use (&$zoneVariables): MockResponse {
             $body = $pendingRequest->body()?->all();
             $variables = is_array($body) && is_array($body['variables'] ?? null) ? $body['variables'] : [];
 
             if (array_key_exists('zoneTag', $variables)) {
+                $zoneVariables = $variables;
+
                 return MockResponse::make(['data' => ['viewer' => ['zones' => [[
                     'httpRequests1dGroups' => [[
                         'dimensions' => ['date' => '2026-10-18'],
@@ -49,7 +52,8 @@ it('reads daily requests and visits from the Analytics API', function (): void {
         ->and($report->visitDays)->toBe([['date' => '2026-10-18', 'page_loads' => 80, 'visits' => 50]])
         ->and($report->topPages)->toBe([['label' => '/', 'count' => 60]])
         ->and($report->topReferrers)->toBe([['label' => '(none)', 'count' => 20]])
-        ->and($report->countries)->toBe([['label' => 'Belgium', 'count' => 70]]);
+        ->and($report->countries)->toBe([['label' => 'Belgium', 'count' => 70]])
+        ->and($zoneVariables)->toBe(['zoneTag' => 'zone', 'since' => '2026-09-20', 'until' => '2026-10-19']);
     $mockClient->assertSentCount(2);
 });
 

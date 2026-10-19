@@ -16,13 +16,16 @@ final readonly class RecordTrafficSnapshotHandler
     /** The Traffic page shows a month. A season is kept, then forgotten. */
     public const int KEEP_DAYS = 90;
 
+    /** A day is kept this long after it ends, once Cloudflare has counted its last page loads. */
+    public const int SETTLE_HOURS = 3;
+
     public function __construct(
         private TrafficSource $trafficSource,
         private TrafficSnapshots $trafficSnapshots,
     ) {}
 
     /**
-     * Asks for each finished day of the visit window that is not kept yet. A day Cloudflare does not answer in full
+     * Asks for each settled day of the visit window that is not kept yet. A day Cloudflare does not answer in full
      * is asked again on the next run, until it leaves the window.
      *
      * @return int How many days were kept.
@@ -35,11 +38,11 @@ final readonly class RecordTrafficSnapshotHandler
 
         $now = now()->utc()->toImmutable();
         $first = CarbonImmutable::instance(VisitWindow::start($now->toDateTimeImmutable()));
-        $yesterday = $now->startOfDay()->subDay();
-        $kept = array_map(fn (TrafficDay $trafficDay): string => $trafficDay->date, $this->trafficSnapshots->between($first->toDateTimeImmutable(), $yesterday->toDateTimeImmutable()));
+        $last = $now->subHours(self::SETTLE_HOURS)->startOfDay()->subDay();
+        $kept = array_map(fn (TrafficDay $trafficDay): string => $trafficDay->date, $this->trafficSnapshots->between($first->toDateTimeImmutable(), $last->toDateTimeImmutable()));
         $saved = 0;
 
-        for ($day = $first; $day <= $yesterday; $day = $day->addDay()) {
+        for ($day = $first; $day <= $last; $day = $day->addDay()) {
             if (in_array($day->toDateString(), $kept, strict: true)) {
                 continue;
             }

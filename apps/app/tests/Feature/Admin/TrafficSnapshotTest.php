@@ -32,7 +32,7 @@ function trafficDayReport(string $date, int $pageLoads, int $visits): TrafficRep
 }
 
 it('keeps each finished day of the visit window that Cloudflare answers in full', function (): void {
-    CarbonImmutable::setTestNow('2026-10-19 00:20:00');
+    CarbonImmutable::setTestNow('2026-10-19 03:20:00');
     $source = new ScriptedTrafficSource([
         '2026-10-13' => trafficDayReport('2026-10-13', 4, 2),
         '2026-10-14' => null,
@@ -62,6 +62,23 @@ it('keeps each finished day of the visit window that Cloudflare answers in full'
         ->and($kept[0]->topReferrers)->toBe([['label' => '(none)', 'count' => 5]])
         ->and($kept[0]->countries)->toBe([['label' => 'Belgium', 'count' => 10]]);
 });
+
+it('waits three hours after a day ends before it keeps it', function (string $now, string $first, string $last): void {
+    CarbonImmutable::setTestNow($now);
+    $source = new ScriptedTrafficSource;
+    $this->app->instance(TrafficSource::class, $source);
+
+    Artisan::call('traffic:snapshot');
+
+    $asked = array_column($source->asked, 'since');
+
+    expect($asked[0])->toBe($first)
+        ->and($asked[count($asked) - 1])->toBe($last);
+})->with([
+    'just after midnight' => ['2026-10-19 00:20:00', '2026-10-13 00:00:00', '2026-10-17 00:00:00'],
+    'three hours after midnight' => ['2026-10-19 03:20:00', '2026-10-13 00:00:00', '2026-10-18 00:00:00'],
+    'late in the day' => ['2026-10-19 23:20:00', '2026-10-13 00:00:00', '2026-10-18 00:00:00'],
+]);
 
 it('asks again only for the days not kept yet, and forgets days older than a season', function (): void {
     CarbonImmutable::setTestNow('2026-10-19 13:20:00');

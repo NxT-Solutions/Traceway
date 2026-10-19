@@ -60,7 +60,7 @@ final readonly class TrafficQuery
             $page = $this->shape(connected: true, error: null, trafficReport: $this->trafficSource->report($since, $until)->withDays($kept));
             $this->cacheRepository->put($key, $page, 3600);
         } catch (TrafficUnavailable $trafficUnavailable) {
-            $page = $this->shape(connected: true, error: $trafficUnavailable->getMessage(), trafficReport: new TrafficReport([], [], [], [], []));
+            $page = $this->shape(connected: true, error: $trafficUnavailable->getMessage(), trafficReport: new TrafficReport([], [], [], [], [])->withDays($kept));
             $this->cacheRepository->put($key, $page, 300);
         }
 
