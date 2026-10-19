@@ -45,8 +45,11 @@
   var setOff = function(el, v){ if (el) el.style.strokeDashoffset = v; };
   var setOp = function(el, v){ if (el) el.style.opacity = v; };
   var lastRoads = '', lastLoop = '', lastCand = '', lastAsc = '', lastCourse = '';
-  var narrow = window.innerWidth < 1024;
-  var lastWidth = window.innerWidth;
+  /* The window's width is read in layout, after the browser's own layout.
+     Read here, right after the "js" class is set, it would lay the page out
+     first. */
+  var narrow = false;
+  var lastWidth = -1;
   var lastSideways = null;
   var view = [0, 0, 1200, 800];
 
@@ -164,6 +167,8 @@
       } else {
         top = copyInner.getBoundingClientRect().bottom - r.top + 22;
       }
+      /* Every box is read before a style is set, so the page is laid out once. */
+      var heroH = hero.getBoundingClientRect().bottom - stage.getBoundingClientRect().top;
       var ww = r.width - left;
       var wh = Math.max(120, r.height - top - bottom - 20);
       var s = Math.min(ww / FOCUS.w, wh / FOCUS.h);
@@ -173,7 +178,7 @@
       stage.style.setProperty('--clear-left', Math.round(left) + 'px');
       stage.style.setProperty('--clear-top', Math.round(top) + 'px');
       stage.style.setProperty('--clear-bottom', Math.round(bottom) + 'px');
-      stage.style.setProperty('--hero-h', Math.round(hero.getBoundingClientRect().bottom - stage.getBoundingClientRect().top) + 'px');
+      stage.style.setProperty('--hero-h', Math.round(heroH) + 'px');
     }
     if (map.getAttribute('viewBox') === box) return;
     map.setAttribute('viewBox', box);
@@ -299,22 +304,38 @@
   }
 
   /* The hero carries the filled button. The header's copy stays out of the
-     way until the hero has faded or scrolled off, so there is one at a time. */
+     way until the hero has faded or scrolled off, so there is one at a time.
+     An observer says whether the button shows below the header, so render
+     never measures the page right after it has set styles. */
+  var heroBtnSeen = true, btnWatch = null, btnEdge = -1;
+  /* Measured in layout, where reading it is free; ScrollTrigger asks for it
+     while it is setting styles. */
+  var hdrHeight = 0;
+  function watchHeroBtn(edge){
+    if (!heroBtn || !('IntersectionObserver' in window) || edge === btnEdge) return;
+    btnEdge = edge;
+    if (btnWatch) btnWatch.disconnect();
+    btnWatch = new IntersectionObserver(function(entries){
+      heroBtnSeen = entries[entries.length - 1].isIntersecting;
+      syncHeaderCta();
+    }, { rootMargin: '-' + edge + 'px 0px 0px 0px' });
+    btnWatch.observe(heroBtn);
+  }
+
   function syncHeaderCta(){
     if (!heroBtn) return;
-    var shown = hero.style.visibility !== 'hidden' && (hero.style.opacity === '' || +hero.style.opacity > 0.35);
-    if (shown){
-      var b = heroBtn.getBoundingClientRect();
-      shown = b.bottom > hdr.getBoundingClientRect().bottom && b.top < window.innerHeight;
-    }
+    var shown = heroBtnSeen && hero.style.visibility !== 'hidden' && (hero.style.opacity === '' || +hero.style.opacity > 0.35);
     hdr.classList.toggle('cta-away', shown);
   }
 
-  function headerTheme(){
+  function headerDark(){
     var r = track.getBoundingClientRect();
     var hh = hdr.getBoundingClientRect().height;
-    var onDark = r.top <= hh + 1 && r.bottom > hh + 8;
-    hdr.classList.toggle('on-dark', onDark);
+    return r.top <= hh + 1 && r.bottom > hh + 8;
+  }
+
+  function headerTheme(){
+    hdr.classList.toggle('on-dark', headerDark());
   }
 
   function progress(){
@@ -325,29 +346,36 @@
     return clamp((hh - r.top) / range, 0, 1);
   }
 
-  /* A phone fires resize when its toolbar shows or hides. Only a change of
-     width means a new layout; refreshing on height alone makes the pinned
-     scene jump under the reader's thumb. */
-  function onResize(){
-    fitMap();
+  /* The scene is laid out when the map box first has a size, and again when
+     that size changes. A ResizeObserver runs after the browser's own layout,
+     so the boxes it reads cost nothing, as long as they are read before any
+     style is set. A phone's toolbar changes only the window's height, and the
+     stage is sized in svh, so it never moves the scene under the reader's
+     thumb. Only a change of width means a new layout for ScrollTrigger. */
+  function layout(){
+    var widthChanged = false;
     if (window.innerWidth !== lastWidth || sideways.matches !== lastSideways){
       lastSideways = sideways.matches;
       lastWidth = window.innerWidth;
       narrow = window.innerWidth < 1024;
-      fitMap();
-      if (ScrollTrigger) ScrollTrigger.refresh();
+      widthChanged = true;
     }
+    /* The still scene sets the header's colour itself; read it first. */
+    var dark = reduce ? headerDark() : null;
+    hdrHeight = Math.ceil(hdr.getBoundingClientRect().height);
+    watchHeroBtn(hdrHeight);
+    fitMap();
+    if (dark !== null) hdr.classList.toggle('on-dark', dark);
+    if (widthChanged && ScrollTrigger) ScrollTrigger.refresh();
     if (reduce) renderStill(); else render(lastP < 0 ? 0 : lastP);
   }
 
-  fitMap();
   /* Reduced motion: the finished scene, still, with the hero on top. */
   function renderStill(){
     render(1);
     hero.style.opacity = 1; hero.style.transform = 'none'; hero.style.visibility = 'visible';
     stage.style.setProperty('--hero', '1');
     narr.forEach(function(n){ n.style.opacity = 0; });
-    headerTheme();
     syncHeaderCta();
   }
 
@@ -363,7 +391,7 @@
         smoothWheel: true,
         wheelMultiplier: 0.85,
         syncTouch: false,
-        anchors: { offset: -hdr.offsetHeight },
+        anchors: { offset: -hdrHeight },
         autoRaf: false,
       });
       lenis.on('scroll', ScrollTrigger.update);
@@ -372,7 +400,7 @@
     gsap.ticker.lagSmoothing(0);
     ScrollTrigger.create({
       trigger: track,
-      start: function(){ return 'top ' + hdr.offsetHeight + 'px'; },
+      start: function(){ return 'top ' + hdrHeight + 'px'; },
       end: 'bottom bottom',
       scrub: true,
       onToggle: function(self){ hdr.classList.toggle('on-dark', self.isActive); },
@@ -383,11 +411,14 @@
     });
   }
 
-  if (reduce) renderStill(); else render(0);
-  window.addEventListener('resize', onResize);
+  if ('ResizeObserver' in window){
+    new ResizeObserver(layout).observe(mapbox);
+  } else {
+    layout();
+    window.addEventListener('resize', layout);
+  }
   /* Until the scroll scene runs, the header follows the page by itself. */
   window.addEventListener('scroll', function(){ if (!ScrollTrigger){ headerTheme(); syncHeaderCta(); } }, { passive: true });
-  syncHeaderCta();
 
   /* ---------- ask your AI: the chat plans a loop while it is on screen ---------- */
   var chat = $('chat');
@@ -444,8 +475,9 @@
     }
   }
 
-  /* Asked for once the first frame is on screen, so the page paints first. */
-  if (!reduce){
+  /* Asked for once the page has loaded and its frame is on screen, so the
+     first paint never waits on it. Until then the header follows the page. */
+  function loadScene(){
     requestAnimationFrame(function(){ setTimeout(function(){
       Promise.all([import('gsap'), import('gsap/ScrollTrigger'), import('lenis')]).then(function(mods){
         gsap = mods[0].gsap;
@@ -455,10 +487,15 @@
         if (chat) chatScene();
       }).catch(function(){
         /* Without GSAP the page shows the finished scene, as with reduced motion. */
+        headerTheme();
         renderStill();
         if (chat) chat.classList.remove('chat-waiting');
       });
     }, 0); });
+  }
+  if (!reduce){
+    if (d.readyState === 'complete') loadScene();
+    else window.addEventListener('load', loadScene, { once: true });
   }
 
   /* ---------- reveals ---------- */
