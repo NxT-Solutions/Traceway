@@ -75,8 +75,10 @@ use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\TracingLineFollower;
 use App\Domain\Status\ServiceProbes;
 use App\Domain\Status\StatusComponent;
+use App\Domain\Traffic\TrafficInsights;
 use App\Domain\Traffic\TrafficSnapshots;
 use App\Domain\Traffic\TrafficSource;
+use App\Domain\Traffic\UnconnectedTrafficInsights;
 use App\Domain\Traffic\UnconnectedTrafficSource;
 use App\Handlers\AdminAssignRoleHandler;
 use App\Handlers\AdminCreateUserHandler;
@@ -113,6 +115,8 @@ use App\Handlers\SyncReleasesHandler;
 use App\Handlers\UpdateProfileHandler;
 use App\Handlers\WelcomeRiderHandler;
 use App\Integrations\Cloudflare\CloudflareAnalyticsConnector;
+use App\Integrations\Cloudflare\CloudflareGraphql;
+use App\Integrations\Cloudflare\CloudflareInsights;
 use App\Integrations\Cloudflare\CloudflareTrafficSource;
 use App\Integrations\Cloudflare\TurnstileConnector;
 use App\Integrations\Cloudflare\TurnstileHumanCheck;
@@ -336,6 +340,30 @@ class AppServiceProvider extends ServiceProvider
                 $zoneId !== '' ? $zoneId : null,
                 $accountId !== '' ? $accountId : null,
                 $siteTag !== '' ? $siteTag : null,
+            );
+        });
+
+        // The rest of the Traffic pages ask Cloudflare with the same token, one part at a time.
+        $this->app->bind(function (): TrafficInsights {
+            $token = $this->configured('cloudflare_analytics.token', '');
+            $zoneId = $this->configured('cloudflare_analytics.zone_id', '');
+            $accountId = $this->configured('cloudflare_analytics.account_id', '');
+
+            if ($token === '' || ($zoneId === '' && $accountId === '')) {
+                return new UnconnectedTrafficInsights;
+            }
+
+            $siteTag = $this->configured('cloudflare_analytics.site_tag', '');
+            $bucket = $this->configured('cloudflare_analytics.backup_bucket', '');
+            $turnstile = $this->configured('turnstile.site_key', '');
+
+            return new CloudflareInsights(
+                new CloudflareGraphql(new CloudflareAnalyticsConnector($token)),
+                $zoneId !== '' ? $zoneId : null,
+                $accountId !== '' ? $accountId : null,
+                $siteTag !== '' ? $siteTag : null,
+                $bucket !== '' ? $bucket : null,
+                $turnstile !== '' ? $turnstile : null,
             );
         });
 

@@ -120,3 +120,91 @@ export type AdminActivityPage = {
     pages: number;
     total: number;
 };
+
+export type StatusCount = { status: number; count: number };
+export type DayCount = { date: string; count: number };
+
+type InsightsPart = {
+    connected: boolean;
+    error: string | null;
+    generated_at: string;
+};
+
+export type AdminRequests = InsightsPart & {
+    days: number;
+    year_days: number;
+    hours: { time: string; requests: number; threats: number }[];
+    year: { date: string; requests: number; threats: number }[];
+    statuses: StatusCount[];
+    content_types: Ranked[];
+    browsers: Ranked[];
+    http_versions: Ranked[];
+    ip_classes: Ranked[];
+};
+
+export type AdminSecurity = InsightsPart & {
+    days: number;
+    turnstile_days: number;
+    event_limit: number;
+    threat_days: DayCount[];
+    threat_countries: Ranked[];
+    block_days: DayCount[];
+    blocks: number;
+    events: number;
+    sources: Ranked[];
+    actions: Ranked[];
+    countries: Ranked[];
+    paths: Ranked[];
+    user_agents: Ranked[];
+    rules: Ranked[];
+    people_pages: Ranked[];
+    turnstile: Ranked[];
+};
+
+export type AdminBots = InsightsPart & {
+    days: number;
+    verified: Ranked[];
+    verified_total: number;
+    reads: { path: string; method: string; status: number; count: number }[];
+    reads_total: number;
+    readers: Ranked[];
+    impostors: Ranked[];
+    impostors_total: number;
+    impostors_blocked: number;
+    probes: StatusCount[];
+    probes_total: number;
+    exposed: Ranked[];
+};
+
+export type Vital = {
+    value: number;
+    rating: 'good' | 'needs_work' | 'poor';
+    label: string;
+} | null;
+
+export type AdminSpeed = InsightsPart & {
+    days: number;
+    vitals: {
+        path: string;
+        loads: number;
+        lcp: Vital;
+        inp: Vital;
+        cls: Vital;
+    }[];
+    timings: {
+        path: string;
+        loads: number;
+        load_ms: number | null;
+        first_paint_ms: number | null;
+    }[];
+};
+
+export type AdminBackups = InsightsPart & {
+    days: number;
+    bucket: string | null;
+    objects: number;
+    bytes: number;
+    write_days: DayCount[];
+    writes: number;
+    last_write: string | null;
+};

@@ -85,6 +85,24 @@ it('keeps the settings pages at 4.5 to 1 in both themes', function (): void {
     }
 });
 
+it('keeps the admin ratings icons at 3 to 1 in both themes', function (): void {
+    $settings = file_get_contents(dirname(__DIR__, 5).'/apps/app/resources/css/settings-scene.css') ?: '';
+    $admin = file_get_contents(dirname(__DIR__, 5).'/apps/app/resources/css/admin-scene.css') ?: '';
+    $dark = [...oklchTokens(cssBlock($settings, '.tw-settings')), ...oklchTokens(cssBlock($admin, '.tw-admin'))];
+    $light = [
+        ...$dark,
+        ...oklchTokens(cssBlock($settings, '.tw-settings[data-theme="light"]')),
+        ...oklchTokens(cssBlock($admin, '.tw-admin[data-theme="light"]')),
+    ];
+
+    foreach ([$dark, $light] as $tokens) {
+        foreach (['good', 'fair', 'poor'] as $rating) {
+            expect(contrastRatio($tokens[$rating], $tokens['bg']))->toBeGreaterThanOrEqual(3.0)
+                ->and(contrastRatio($tokens[$rating], $tokens['panel']))->toBeGreaterThanOrEqual(3.0);
+        }
+    }
+});
+
 it('keeps the card in a chat at 4.5 to 1', function (): void {
     $view = file_get_contents(dirname(__DIR__, 5).'/apps/app/resources/views/mcp/route-map-app.blade.php') ?: '';
     preg_match_all('/--([\w-]+):\s*(#[0-9a-f]{6}|rgba\([^)]*\))/i', cssBlock($view, ':root'), $matches, PREG_SET_ORDER);

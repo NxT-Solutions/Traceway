@@ -42,7 +42,7 @@ export default function AdminLayout({ children }: PropsWithChildren) {
                                 <Link
                                     href={traffic()}
                                     aria-current={
-                                        isCurrentUrl(traffic())
+                                        isCurrentOrParentUrl(traffic())
                                             ? 'page'
                                             : undefined
                                     }

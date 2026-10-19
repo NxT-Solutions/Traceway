@@ -79,6 +79,8 @@ return [
         'account_id' => env('CLOUDFLARE_ACCOUNT_ID'),
         'zone_id' => env('CLOUDFLARE_ZONE_ID'),
         'site_tag' => env('CLOUDFLARE_WEB_ANALYTICS_SITE_TAG'),
+        // The R2 bucket Litestream writes the database backups to, for the admin area's Backups page.
+        'backup_bucket' => env('CLOUDFLARE_R2_BACKUP_BUCKET', 'traceway-backups'),
     ],
 
     // Cloudflare Turnstile under the sign-up and password-reset forms. Both

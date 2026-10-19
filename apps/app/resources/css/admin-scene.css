@@ -1,6 +1,6 @@
 /* Admin: the settings scene, wider. Numbers first, one chart per question, tables with hairlines. */
-.tw-admin{--plot: oklch(0.66 0.16 128); --plot-soft: oklch(0.66 0.16 128 / 0.18); --grid: oklch(0.97 0.012 95 / 0.08)}
-.tw-admin[data-theme="light"]{--plot: oklch(0.55 0.15 135); --plot-soft: oklch(0.55 0.15 135 / 0.16); --grid: oklch(0.22 0.03 200 / 0.08)}
+.tw-admin{--plot: oklch(0.66 0.16 128); --plot-soft: oklch(0.66 0.16 128 / 0.18); --grid: oklch(0.97 0.012 95 / 0.08); --good: oklch(0.78 0.17 128); --fair: oklch(0.8 0.14 75); --poor: oklch(0.72 0.14 25)}
+.tw-admin[data-theme="light"]{--plot: oklch(0.55 0.15 135); --plot-soft: oklch(0.55 0.15 135 / 0.16); --grid: oklch(0.22 0.03 200 / 0.08); --good: oklch(0.52 0.15 135); --fair: oklch(0.58 0.15 65); --poor: oklch(0.5 0.16 25)}
 .tw-admin .layout{grid-template-columns:200px minmax(0,1fr);gap:40px 48px}
 .tw-admin .section{gap:40px;min-width:0}
 .tw-admin .snav .tag{font-size:12px;font-weight:600;color:var(--muted);padding:0 12px 6px;letter-spacing:.04em;text-transform:uppercase}
@@ -15,7 +15,9 @@
 .tw-admin .panel{display:flex;flex-direction:column;gap:14px;min-width:0}
 .tw-admin .panel-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
 .tw-admin .panel-head h2{margin:0;font-size:20px;line-height:1.15;letter-spacing:-0.02em;font-weight:600}
+.tw-admin .panel-head h3{margin:0;font-size:16px;line-height:1.2;letter-spacing:-0.01em;font-weight:600}
 .tw-admin .panel-head p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.tw-admin .note a,.tw-admin .panel-head p a{color:var(--text);text-decoration:underline;text-underline-offset:3px}
 .tw-admin .panel-head .total{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .tw-admin .panel-head .total b{color:var(--text);font-size:22px;font-weight:600;letter-spacing:-0.02em;margin-right:6px}
 .tw-admin .plot{height:220px;padding:12px 8px 4px 0;border:1px solid var(--hair);border-radius:14px}
@@ -78,6 +80,9 @@
 .tw-admin .err{margin:0;color:var(--danger);font-size:14px}
 .tw-admin .note{margin:0;padding:14px 16px;border:1px solid var(--panel-b);border-left:3px solid var(--chart);border-radius:12px;background:var(--panel);color:var(--muted);font-size:14px}
 .tw-admin .note b{color:var(--text)}
+.tw-admin .note.bad{border-left-color:var(--danger);overflow-wrap:anywhere}
+.tw-admin .note ul{margin:6px 0 0;padding-left:18px}
+.tw-admin td code{white-space:nowrap}
 .tw-admin .note code{padding:1px 6px;border-radius:6px;background:var(--icon-box);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
 .tw-admin .skel{height:220px;border-radius:14px;background:var(--hover);animation:admin-pulse 1.4s ease-in-out infinite}
 @keyframes admin-pulse{50%{opacity:.5}}
@@ -93,3 +98,19 @@
 @media (prefers-reduced-motion: reduce){
   .tw-admin .skel{animation:none}
 }
+
+/* Traffic: one tab per question, and ratings that carry an icon and a word, never colour alone. */
+.tw-admin .tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tw-admin .tabs a{display:inline-flex;align-items:center;height:36px;padding:0 12px;border:1px solid var(--hair);border-radius:10px;color:var(--muted);font-size:14px;font-weight:500}
+.tw-admin .tabs a:hover{color:var(--text);background:var(--hover)}
+.tw-admin .tabs a[aria-current]{border-color:transparent;color:var(--seg-on-fg);background:var(--seg-on)}
+.tw-admin .tabs a:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.tw-admin .rating{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tw-admin .rating svg{flex:none}
+.tw-admin .rating.good svg{color:var(--good)}
+.tw-admin .rating.needs_work svg{color:var(--fair)}
+.tw-admin .rating.poor svg{color:var(--poor)}
+.tw-admin .rating .word{color:var(--muted);font-size:13px}
+.tw-admin .health{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0;font-size:15px}
+.tw-admin .health .rating{padding:4px 10px;border:1px solid var(--hair);border-radius:12px}
+.tw-admin .health .rating .word{color:var(--text);font-weight:600}

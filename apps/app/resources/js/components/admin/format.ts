@@ -15,6 +15,17 @@ const fullDate = new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
     timeZone: 'UTC',
 });
+const hourOfDay = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+});
+const dayAndHour = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+});
 const localDate = new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
     month: 'short',
@@ -42,6 +53,20 @@ export function day(date: string): string {
 
 export function longDay(date: string): string {
     return fullDate.format(new Date(`${date}T00:00:00Z`));
+}
+
+/** The hour of a moment, such as 14:00, where the reader is. */
+export function hour(iso: string): string {
+    return hourOfDay.format(new Date(iso));
+}
+
+export function longHour(iso: string): string {
+    return dayAndHour.format(new Date(iso));
+}
+
+/** Milliseconds as seconds past one second, such as 1.6 s or 220 ms. */
+export function duration(ms: number): string {
+    return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms)} ms`;
 }
 
 /** The calendar day of a moment, where the reader is, so a list and a detail page agree. */

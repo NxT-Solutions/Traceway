@@ -2,16 +2,25 @@
 
 declare(strict_types=1);
 
+use App\Account\Role;
+use App\Contracts\Usage\UsageCounter;
 use App\Domain\Usage\UsageMetric;
 use App\Http\Middleware\NoteLastSeen;
+use App\Mcp\Servers\TracewayServer;
+use App\Mcp\Tools\ListRoutesTool;
+use App\Mcp\Tools\PlanLoopTool;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Mcp\Server\Tool;
+use Laravel\Mcp\Server\Transport\FakeTransporter;
 
 uses(RefreshDatabase::class);
 
@@ -107,4 +116,65 @@ it('counts a rider who only uses a watch or an AI assistant as active', function
 
 it("notes an AI assistant's rider as active on every assistant request", function (): void {
     expect(Route::getRoutes()->getByName('mcp')?->gatherMiddleware())->toContain(NoteLastSeen::class);
+});
+
+it('counts each AI assistant tool call that worked, by tool and day, and nothing about who', function (): void {
+    $user = User::factory()->create();
+
+    TracewayServer::actingAs($user)->tool(ListRoutesTool::class, [])->assertOk();
+    TracewayServer::actingAs($user)->tool(ListRoutesTool::class, [])->assertOk();
+    TracewayServer::actingAs($user)->tool(PlanLoopTool::class, [])->assertHasErrors();
+
+    expect(usageTotal(UsageMetric::McpListRoutes))->toBe(2)
+        ->and(usageTotal(UsageMetric::McpPlanLoop))->toBe(0)
+        ->and(DB::table('usage_counters')->where('metric', 'like', 'mcp_%')->pluck('metric')->all())
+        ->toBe(['mcp_list_routes']);
+});
+
+it('answers the tool call when the count cannot be written', function (): void {
+    $this->app->instance(UsageCounter::class, new class implements UsageCounter
+    {
+        public function add(string $metric, DateTimeImmutable $at, int $by = 1): void
+        {
+            throw new RuntimeException('The database is locked.');
+        }
+
+        public function set(string $metric, DateTimeImmutable $day, int $value): void {}
+
+        public function ridersSeenSince(DateTimeImmutable $since): int
+        {
+            return 0;
+        }
+
+        public function forgetBefore(DateTimeImmutable $day): int
+        {
+            return 0;
+        }
+    });
+
+    TracewayServer::actingAs(User::factory()->create())->tool(ListRoutesTool::class, [])->assertOk();
+});
+
+it('has a daily total for every AI assistant tool', function (): void {
+    /** @var list<class-string<Tool>> $tools */
+    $tools = (fn (): array => $this->tools)->call(new TracewayServer(new FakeTransporter));
+
+    expect($tools)->not->toBeEmpty();
+
+    foreach ($tools as $tool) {
+        expect(UsageMetric::forTool(resolve($tool)->name()))->toBeInstanceOf(UsageMetric::class);
+    }
+});
+
+it("shows the AI assistant tools in the overview's usage table", function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(Role::Admin->value);
+    DB::table('usage_counters')->insert(['day' => now()->utc()->toDateString(), 'metric' => 'mcp_plan_loop', 'count' => 3]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.overview'))
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->where('overview.usage', fn (Collection $usage): bool => $usage->contains(
+                fn (array $metric): bool => $metric['metric'] === 'mcp_plan_loop' && $metric['label'] === 'Assistant tool: plan a loop' && $metric['total'] === 3,
+            )));
 });

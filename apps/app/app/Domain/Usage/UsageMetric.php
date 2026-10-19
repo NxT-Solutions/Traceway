@@ -24,6 +24,10 @@ enum UsageMetric: string
     case DeviceSyncs = 'device_syncs';
     case DeviceDownloads = 'device_downloads';
     case AssistantRequests = 'assistant_requests';
+    case McpPlanLoop = 'mcp_plan_loop';
+    case McpPlanMultisport = 'mcp_plan_multisport';
+    case McpListRoutes = 'mcp_list_routes';
+    case McpRouteDrawing = 'mcp_route_drawing';
     case SignIns = 'sign_ins';
     case ActiveRidersDay = 'active_riders_day';
     case ActiveRidersWeek = 'active_riders_week';
@@ -46,11 +50,23 @@ enum UsageMetric: string
             self::DeviceSyncs => 'Watch syncs',
             self::DeviceDownloads => 'Courses sent to watches',
             self::AssistantRequests => 'AI assistant requests',
+            self::McpPlanLoop => 'Assistant tool: plan a loop',
+            self::McpPlanMultisport => 'Assistant tool: plan multisport',
+            self::McpListRoutes => 'Assistant tool: list routes',
+            self::McpRouteDrawing => 'Assistant tool: route map shown in chat',
             self::SignIns => 'Sign-ins',
             self::ActiveRidersDay => 'Active riders, last day',
             self::ActiveRidersWeek => 'Active riders, last 7 days',
             self::ActiveRidersMonth => 'Active riders, last 30 days',
         };
+    }
+
+    /**
+     * The total for one of the AI assistant tools, by the tool's name, such as plan_loop.
+     */
+    public static function forTool(string $name): ?self
+    {
+        return self::tryFrom('mcp_'.$name);
     }
 
     /**
