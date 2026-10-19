@@ -100,9 +100,7 @@ export default function Login({
 
                         <p className="signup">
                             Don't have an account?{' '}
-                            <TextLink href={register()}>
-                                Sign up
-                            </TextLink>
+                            <TextLink href={register()}>Sign up</TextLink>
                         </p>
                     </>
                 )}

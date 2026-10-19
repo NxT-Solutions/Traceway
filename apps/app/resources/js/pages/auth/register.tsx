@@ -95,17 +95,11 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
 
                             <p className="text-sm text-muted-foreground">
                                 By creating an account, you accept the{' '}
-                                <a
-                                    className={legalLink}
-                                    href="/terms"
-                                >
+                                <a className={legalLink} href="/terms">
                                     terms of use
                                 </a>{' '}
                                 and the{' '}
-                                <a
-                                    className={legalLink}
-                                    href="/privacy"
-                                >
+                                <a className={legalLink} href="/privacy">
                                     privacy policy
                                 </a>
                                 .
@@ -129,9 +123,7 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
 
                         <div className="text-center text-sm text-muted-foreground">
                             Already have an account?{' '}
-                            <TextLink href={login()}>
-                                Log in
-                            </TextLink>
+                            <TextLink href={login()}>Log in</TextLink>
                         </div>
                     </>
                 )}
