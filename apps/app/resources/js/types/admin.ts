@@ -104,3 +104,19 @@ export type AdminUser = {
     }[];
     sessions: { browser: string; last_active_at: string }[];
 };
+
+export type ActivityEntry = {
+    id: number;
+    action: string;
+    summary: string;
+    at: string | null;
+    actor: { id: number; name: string } | null;
+    rider: { id: number; name: string } | null;
+};
+
+export type AdminActivityPage = {
+    entries: ActivityEntry[];
+    page: number;
+    pages: number;
+    total: number;
+};

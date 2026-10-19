@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Account\AdminAction;
 use App\Account\AdminRules;
 use App\Account\RiderId;
 use App\Account\Role;
@@ -11,6 +12,7 @@ use App\Commands\RecordServiceChecksCommand;
 use App\Commands\RecordUsageSnapshotCommand;
 use App\Commands\ResolveStatusNoticeCommand;
 use App\Commands\SyncReleasesCommand;
+use App\Contracts\Account\AdminLog;
 use App\Contracts\Account\UserRepository;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Domain\Releases\ReleaseFeed;
@@ -187,7 +189,7 @@ Artisan::command('status:resolve {id? : The notice to close. Empty closes the ne
     return 0;
 })->purpose('Close a notice once the problem is over');
 
-Artisan::command("users:role {email : The rider's sign-in email} {role : super-admin, admin, or user}", function (UserRepository $userRepository): int {
+Artisan::command("users:role {email : The rider's sign-in email} {role : super-admin, admin, or user}", function (UserRepository $userRepository, AdminLog $adminLog): int {
     $email = $this->argument('email');
     $role = Role::tryFrom(is_string($this->argument('role')) ? $this->argument('role') : '');
 
@@ -213,7 +215,9 @@ Artisan::command("users:role {email : The rider's sign-in email} {role : super-a
         return 1;
     }
 
+    $before = $userRepository->role($riderId);
     $userRepository->assignRole($riderId, $role);
+    $adminLog->record(actorId: null, adminAction: AdminAction::RoleChanged, riderId: $riderId, details: ['from' => $before->value, 'to' => $role->value]);
     $this->info('The rider is now '.$role->label().'.');
 
     return 0;
@@ -229,3 +233,14 @@ Artisan::command('usage:snapshot', function (DispatchesCommands $dispatchesComma
 
 // Shortly before midnight, so each day's gauge covers that whole day.
 Schedule::command('usage:snapshot')->dailyAt('23:55');
+
+// The activity log of the admin area is kept for a year.
+Artisan::command('admin:prune-log', function (AdminLog $adminLog): int {
+    $deleted = $adminLog->forgetBefore(now()->subYear()->toDateTimeImmutable());
+
+    $this->info('Forgot '.$deleted.' entries of the admin activity log.');
+
+    return 0;
+})->purpose('Forget admin activity older than a year');
+
+Schedule::command('admin:prune-log')->dailyAt('03:10');

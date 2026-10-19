@@ -2759,6 +2759,26 @@
                         },
                         "type": "object"
                     },
+                    "admin_actions": {
+                        "description": "What the people who run Traceway did to this account, and when. Kept for a year.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "action",
+                                "at"
+                            ],
+                            "properties": {
+                                "action": {
+                                    "type": "string"
+                                },
+                                "at": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
                     "saved_routes": {
                         "type": "array",
                         "items": {

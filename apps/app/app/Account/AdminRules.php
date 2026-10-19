@@ -38,4 +38,13 @@ final readonly class AdminRules
 
         return $superAdmins > 1;
     }
+
+    /**
+     * A Super Admin may see Traceway as a rider does, to help them. Never as themselves, and never as another Super
+     * Admin, so one cannot borrow another's account.
+     */
+    public static function mayImpersonate(Role $actor, Role $target, bool $self): bool
+    {
+        return $actor === Role::SuperAdmin && ! $self && $target !== Role::SuperAdmin;
+    }
 }

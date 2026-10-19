@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Account\MissingRider;
+use App\Http\Middleware\GuardImpersonation;
 use App\Http\Middleware\GuardSignupForms;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -33,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
             GuardSignupForms::class,
             NoteLastSeen::class,
+            GuardImpersonation::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

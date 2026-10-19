@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Listeners;
 
+use App\Auth\Impersonation;
 use App\Contracts\Usage\UsageCounter;
 use App\Domain\Usage\UsageMetric;
 use Illuminate\Auth\Events\Login;
@@ -17,7 +18,8 @@ final readonly class CountSignIn
 
     public function handle(Login $login): void
     {
-        if ($login->guard !== 'web') {
+        // A Super Admin starting to act as a rider is not the rider signing in.
+        if ($login->guard !== 'web' || Impersonation::active(request())) {
             return;
         }
 

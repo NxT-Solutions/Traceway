@@ -3,7 +3,7 @@ import type { PropsWithChildren } from 'react';
 import SceneHeader from '@/components/scene-header';
 import { useAppearance } from '@/hooks/use-appearance';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import { overview, traffic } from '@/routes/admin';
+import { activity, overview, traffic } from '@/routes/admin';
 import { index as users } from '@/routes/admin/users';
 import { edit } from '@/routes/profile';
 import '../../../css/settings-scene.css';
@@ -61,6 +61,18 @@ export default function AdminLayout({ children }: PropsWithChildren) {
                                 }
                             >
                                 Riders
+                            </Link>
+                        ) : null}
+                        {can?.viewUsers ? (
+                            <Link
+                                href={activity()}
+                                aria-current={
+                                    isCurrentUrl(activity())
+                                        ? 'page'
+                                        : undefined
+                                }
+                            >
+                                Activity
                             </Link>
                         ) : null}
                         <div className="sep" />

@@ -1,4 +1,5 @@
 import { createInertiaApp } from '@inertiajs/react';
+import ImpersonationBar from '@/components/impersonation-bar';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -30,10 +31,11 @@ void createInertiaApp({
         }
     },
     strictMode: true,
-    withApp(app) {
+    withApp(app, { page }) {
         return (
             <TooltipProvider delayDuration={0}>
                 {app}
+                <ImpersonationBar initial={page} />
                 <Toaster />
             </TooltipProvider>
         );

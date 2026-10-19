@@ -34,6 +34,19 @@ final readonly class GateAdminAccess implements AdminAccess
         ), AuthorizationException::class, 'You cannot change this account from the admin area.');
     }
 
+    public function assertMayImpersonate(RiderId $actorId, RiderId $riderId): void
+    {
+        $user = $this->user($actorId);
+
+        Gate::forUser($user)->authorize(Permission::Impersonate->value);
+
+        throw_unless(AdminRules::mayImpersonate(
+            Role::strongest($user->getRoleNames()),
+            Role::strongest($this->user($riderId)->getRoleNames()),
+            $actorId->value === $riderId->value,
+        ), AuthorizationException::class, 'You cannot act as this rider.');
+    }
+
     private function user(RiderId $riderId): User
     {
         $user = User::query()->find($riderId->value);

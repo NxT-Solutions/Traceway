@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Listeners;
 
+use App\Account\AdminAction;
 use App\Account\RiderId;
 use App\Account\Role;
+use App\Contracts\Account\AdminLog;
 use App\Contracts\Account\UserRepository;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
@@ -16,7 +18,10 @@ use Illuminate\Auth\Events\Verified;
  */
 final readonly class GrantListedSuperAdmin
 {
-    public function __construct(private UserRepository $userRepository) {}
+    public function __construct(
+        private UserRepository $userRepository,
+        private AdminLog $adminLog,
+    ) {}
 
     public function handle(Verified $verified): void
     {
@@ -33,6 +38,14 @@ final readonly class GrantListedSuperAdmin
             return;
         }
 
-        $this->userRepository->assignRole(new RiderId($user->id), Role::SuperAdmin);
+        $riderId = new RiderId($user->id);
+        $role = $this->userRepository->role($riderId);
+
+        if ($role === Role::SuperAdmin) {
+            return;
+        }
+
+        $this->userRepository->assignRole($riderId, Role::SuperAdmin);
+        $this->adminLog->record(actorId: null, adminAction: AdminAction::RoleChanged, riderId: $riderId, details: ['from' => $role->value, 'to' => Role::SuperAdmin->value]);
     }
 }

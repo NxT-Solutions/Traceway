@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Account\LastSuperAdmin;
+use App\Account\RiderId;
 use App\Account\Role;
+use App\Contracts\Account\UserRepository;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -71,4 +74,21 @@ it('gives every Super Admin each permission through the gate', function (): void
 
     expect($boss->can('assign-roles'))->toBeTrue()
         ->and($boss->can('view-analytics'))->toBeTrue();
+});
+
+it('never leaves Traceway without a Super Admin, even when two writes race', function (): void {
+    $first = User::factory()->create();
+    $first->assignRole(Role::SuperAdmin->value);
+
+    $second = User::factory()->create();
+    $second->assignRole(Role::SuperAdmin->value);
+
+    $userRepository = resolve(UserRepository::class);
+
+    // Each handler checked while both were still Super Admins; the writes then land one after the other.
+    $userRepository->assignRole(new RiderId($second->id), Role::User);
+
+    expect(fn () => $userRepository->assignRole(new RiderId($first->id), Role::User))->toThrow(LastSuperAdmin::class)
+        ->and(fn () => $userRepository->delete(new RiderId($first->id)))->toThrow(LastSuperAdmin::class)
+        ->and($first->fresh()?->hasRole(Role::SuperAdmin->value))->toBeTrue();
 });

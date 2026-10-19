@@ -13,4 +13,5 @@ enum Permission: string
     case ViewUsers = 'view-users';
     case ManageUsers = 'manage-users';
     case AssignRoles = 'assign-roles';
+    case Impersonate = 'impersonate';
 }

@@ -10,6 +10,7 @@ use App\Http\Controllers\Device\DeviceRouteLineController;
 use App\Http\Controllers\Device\DeviceRoutesController;
 use App\Http\Middleware\AuthenticateDevice;
 use App\Http\Middleware\CountUsage;
+use App\Http\Middleware\NoteLastSeen;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('device')->group(function (): void {
@@ -20,7 +21,7 @@ Route::prefix('device')->group(function (): void {
         ->middleware('throttle:device')
         ->name('device.pairings.claim');
 
-    Route::middleware(['throttle:device', AuthenticateDevice::class])->group(function (): void {
+    Route::middleware(['throttle:device', AuthenticateDevice::class, NoteLastSeen::class])->group(function (): void {
         Route::get('routes', DeviceRoutesController::class)->middleware(CountUsage::as(UsageMetric::DeviceSyncs))->name('device.routes');
         Route::get('routes/{savedRoute}/line', [DeviceRouteLineController::class, 'route'])
             ->whereUuid('savedRoute')

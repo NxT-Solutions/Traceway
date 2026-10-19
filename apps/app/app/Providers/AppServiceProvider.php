@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Account\Role;
 use App\Account\RouteService;
 use App\Auth\GateAdminAccess;
+use App\Auth\SessionImpersonator;
 use App\Auth\SessionRider;
 use App\Bus\CommandBus;
 use App\Commands\AdminAssignRoleCommand;
@@ -36,10 +37,13 @@ use App\Commands\RevokeDeviceCommand;
 use App\Commands\SaveRouteCommand;
 use App\Commands\SendRouteToServiceCommand;
 use App\Commands\StartDevicePairingCommand;
+use App\Commands\StartImpersonationCommand;
+use App\Commands\StopImpersonationCommand;
 use App\Commands\StoreRouteImageCommand;
 use App\Commands\SyncReleasesCommand;
 use App\Commands\UpdateProfileCommand;
 use App\Commands\WelcomeRiderCommand;
+use App\Contracts\Account\AdminLog;
 use App\Contracts\Account\ConnectedAppRepository;
 use App\Contracts\Account\DeviceLinkRepository;
 use App\Contracts\Account\EmailConfirmation;
@@ -48,6 +52,7 @@ use App\Contracts\Account\RouteServiceRepository;
 use App\Contracts\Account\UserRepository;
 use App\Contracts\Auth\AdminAccess;
 use App\Contracts\Auth\CurrentRider;
+use App\Contracts\Auth\Impersonator;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Contracts\Mail\AccountMailer;
 use App\Contracts\Releases\ReleaseRepository;
@@ -98,6 +103,8 @@ use App\Handlers\RevokeDeviceHandler;
 use App\Handlers\SaveRouteHandler;
 use App\Handlers\SendRouteToServiceHandler;
 use App\Handlers\StartDevicePairingHandler;
+use App\Handlers\StartImpersonationHandler;
+use App\Handlers\StopImpersonationHandler;
 use App\Handlers\StoreRouteImageHandler;
 use App\Handlers\SyncReleasesHandler;
 use App\Handlers\UpdateProfileHandler;
@@ -133,6 +140,7 @@ use App\Models\User;
 use App\Notifications\RiderEmailConfirmation;
 use App\Notifications\RiderPasswordLink;
 use App\Queries\Status\PlannerProbe;
+use App\Repositories\DatabaseAdminLog;
 use App\Repositories\DatabaseStatusRepository;
 use App\Repositories\DatabaseUsageCounter;
 use App\Repositories\DiskRouteImageStore;
@@ -197,6 +205,8 @@ class AppServiceProvider extends ServiceProvider
             PostStatusNoticeCommand::class => PostStatusNoticeHandler::class,
             ResolveStatusNoticeCommand::class => ResolveStatusNoticeHandler::class,
             RecordUsageSnapshotCommand::class => RecordUsageSnapshotHandler::class,
+            StartImpersonationCommand::class => StartImpersonationHandler::class,
+            StopImpersonationCommand::class => StopImpersonationHandler::class,
             AdminCreateUserCommand::class => AdminCreateUserHandler::class,
             AdminUpdateUserCommand::class => AdminUpdateUserHandler::class,
             AdminAssignRoleCommand::class => AdminAssignRoleHandler::class,
@@ -216,9 +226,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ReleaseRepository::class, EloquentReleaseRepository::class);
         $this->app->bind(StatusRepository::class, DatabaseStatusRepository::class);
         $this->app->bind(UsageCounter::class, DatabaseUsageCounter::class);
+        $this->app->bind(AdminLog::class, DatabaseAdminLog::class);
         $this->app->bind(fn (): ServiceProbes => $this->serviceProbes());
         $this->app->bind(CurrentRider::class, SessionRider::class);
         $this->app->bind(AdminAccess::class, GateAdminAccess::class);
+        $this->app->bind(Impersonator::class, SessionImpersonator::class);
         $this->app->bind(AccountMailer::class, TracewayAccountMailer::class);
         $this->app->bind(EmailConfirmation::class, RiderEmailConfirmation::class);
         $this->app->bind(PasswordLink::class, RiderPasswordLink::class);

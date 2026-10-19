@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Account\Permission;
+use App\Auth\Impersonation;
 use App\Models\User;
 use App\Queries\Account\RouteServicesQuery;
 use App\Queries\Releases\ReleaseNotesQuery;
@@ -51,8 +52,11 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user,
                 // What the admin area lets this person do, for the Admin link and the buttons on its pages.
-                'can' => $user instanceof User ? $this->abilities($user) : null,
+                // While acting as a rider, the admin area is closed, so nothing offers it.
+                'can' => $user instanceof User && ! Impersonation::active($request) ? $this->abilities($user) : null,
             ],
+            // The bar that says whose Traceway this is, and stops acting as them.
+            'impersonating' => $user instanceof User && Impersonation::active($request) ? ['name' => $user->name] : null,
             // What changed in Traceway since the rider last looked, for the bell in the header.
             'whatsNew' => fn (): ?array => $user instanceof User
                 ? resolve(ReleaseNotesQuery::class)->summaryFor($user->id, $user->created_at)

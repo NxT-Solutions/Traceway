@@ -19,4 +19,10 @@ interface AdminAccess
      * and a Super Admin only by another Super Admin.
      */
     public function assertMayManage(RiderId $actorId, RiderId $riderId, Permission $permission): void;
+
+    /**
+     * Stops unless the person asking may act as this rider: a Super Admin, never as themselves or another Super
+     * Admin.
+     */
+    public function assertMayImpersonate(RiderId $actorId, RiderId $riderId): void;
 }

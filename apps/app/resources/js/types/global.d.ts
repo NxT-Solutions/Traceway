@@ -15,6 +15,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             whatsNew?: WhatsNew | null;
+            impersonating?: { name: string } | null;
             routeServices?: RouteServiceStatus[];
             [key: string]: unknown;
         };

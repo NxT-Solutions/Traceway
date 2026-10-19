@@ -9,7 +9,9 @@ use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 
@@ -79,4 +81,30 @@ it('writes the active riders each day and forgets totals older than two years', 
         ->and(DB::table('usage_counters')->where('day', '2024-01-01')->count())->toBe(0);
 
     CarbonImmutable::setTestNow();
+});
+
+it('counts a rider who only uses a watch or an AI assistant as active', function (): void {
+    CarbonImmutable::setTestNow('2026-10-19 10:07:00');
+    $user = User::factory()->create();
+    $token = 'device-token';
+    DB::table('device_links')->insert([
+        'id' => (string) Str::uuid(),
+        'user_id' => $user->id,
+        'provider' => 'garmin',
+        'label' => 'Edge',
+        'token_hash' => hash('sha256', $token),
+        'linked_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->withToken($token)->getJson(route('device.routes'))->assertOk();
+
+    expect($user->fresh()?->last_seen_at?->toDateTimeString())->toBe('2026-10-19 10:00:00');
+
+    CarbonImmutable::setTestNow();
+});
+
+it("notes an AI assistant's rider as active on every assistant request", function (): void {
+    expect(Route::getRoutes()->getByName('mcp')?->gatherMiddleware())->toContain(NoteLastSeen::class);
 });

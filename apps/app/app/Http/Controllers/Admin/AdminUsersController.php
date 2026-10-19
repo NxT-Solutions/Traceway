@@ -24,6 +24,7 @@ use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\User;
 use App\Queries\Account\RiderRoles;
+use App\Queries\Admin\AdminActivityQuery;
 use App\Queries\Admin\AdminUserQuery;
 use App\Queries\Admin\AdminUsersQuery;
 use Closure;
@@ -80,7 +81,7 @@ class AdminUsersController extends Controller
         return to_route('admin.users.show', ['rider' => $rider->id->value]);
     }
 
-    public function show(Request $request, int $rider, AdminUserQuery $adminUserQuery, RiderRoles $riderRoles): Response
+    public function show(Request $request, int $rider, AdminUserQuery $adminUserQuery, RiderRoles $riderRoles, AdminActivityQuery $adminActivityQuery): Response
     {
         $user = $adminUserQuery->find($rider);
 
@@ -93,11 +94,15 @@ class AdminUsersController extends Controller
 
         return Inertia::render('admin/users/show', [
             'user' => $user,
+            'activity' => $adminActivityQuery->forRider($rider),
             'roles' => $this->roles(),
             'can' => [
                 'manage' => $mayManage && $requester instanceof User && $requester->can(Permission::ManageUsers->value),
                 'assignRole' => $mayManage && $requester instanceof User && $requester->can(Permission::AssignRoles->value),
                 'self' => $actor->value === $rider,
+                'impersonate' => $requester instanceof User
+                    && $requester->can(Permission::Impersonate->value)
+                    && AdminRules::mayImpersonate($actorRole, Role::from($user['role']), $actor->value === $rider),
             ],
         ]);
     }

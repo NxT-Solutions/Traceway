@@ -1,5 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { type ReactNode, useState } from 'react';
+import ActivityList from '@/components/admin/activity-list';
 import { ago, count, when } from '@/components/admin/format';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,9 +13,14 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import users, { destroy, index, role, update } from '@/routes/admin/users';
-import type { AdminUser, RoleOption } from '@/types/admin';
+import type { ActivityEntry, AdminUser, RoleOption } from '@/types/admin';
 
-type Abilities = { manage: boolean; assignRole: boolean; self: boolean };
+type Abilities = {
+    manage: boolean;
+    assignRole: boolean;
+    self: boolean;
+    impersonate: boolean;
+};
 
 /**
  * A write that cannot be undone, or that signs someone out, asks first.
@@ -72,10 +78,12 @@ function Confirm({
 
 export default function ShowUser({
     user,
+    activity,
     roles,
     can,
 }: {
     user: AdminUser;
+    activity: ActivityEntry[];
     roles: RoleOption[];
     can: Abilities;
 }) {
@@ -204,6 +212,21 @@ export default function ShowUser({
                         ))
                     )}
                 </ul>
+            </section>
+
+            <section className="card" aria-labelledby="activity-h">
+                <header>
+                    <h2 id="activity-h">Activity</h2>
+                    <p className="desc">
+                        The latest changes made to this account from the admin
+                        area.
+                    </p>
+                </header>
+                <ActivityList
+                    entries={activity}
+                    showRider={false}
+                    empty="No changes from the admin area."
+                />
             </section>
 
             {can.manage ? (
@@ -343,6 +366,32 @@ export default function ShowUser({
                             </>
                         )}
                     </Form>
+                </section>
+            ) : null}
+
+            {can.impersonate ? (
+                <section className="card" aria-labelledby="as-h">
+                    <header>
+                        <h2 id="as-h">See Traceway as this rider</h2>
+                        <p className="desc">
+                            Open the planner as {user.name} sees it, to help
+                            with a question. Their password, sign-in, and data
+                            copy stay closed, and the start and stop are in the
+                            activity log.
+                        </p>
+                    </header>
+                    <div className="actions">
+                        <Confirm
+                            title={`Act as ${user.name}?`}
+                            description="You leave the admin area and see Traceway as this rider until you press Stop in the bar at the top."
+                            action={users.impersonate.form(user.id)}
+                            button={`Act as ${user.name}`}
+                        >
+                            <button type="button" className="outline">
+                                Act as {user.name}
+                            </button>
+                        </Confirm>
+                    </div>
                 </section>
             ) : null}
 

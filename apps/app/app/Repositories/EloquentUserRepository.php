@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Account\Email;
+use App\Account\LastSuperAdmin;
 use App\Account\MissingRider;
 use App\Account\Rider;
 use App\Account\RiderId;
@@ -14,6 +15,7 @@ use App\Contracts\Account\UserRepository;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use SensitiveParameter;
@@ -60,7 +62,16 @@ final readonly class EloquentUserRepository implements UserRepository
 
     public function assignRole(RiderId $riderId, Role $role): void
     {
-        $this->model($riderId)->syncRoles([$role->value]);
+        // One transaction, which SQLite takes for writing at once, so two Super Admins demoting each other at the
+        // same moment run one after the other and the second finds no Super Admin left.
+        DB::transaction(function () use ($riderId, $role): void {
+            $user = $this->model($riderId);
+            $before = Role::strongest($user->getRoleNames());
+
+            $user->syncRoles([$role->value]);
+
+            $this->assertASuperAdminRemains($before);
+        });
     }
 
     public function countWithRole(Role $role): int
@@ -102,8 +113,16 @@ final readonly class EloquentUserRepository implements UserRepository
 
     public function seen(RiderId $riderId, DateTimeImmutable $seenAt): void
     {
-        // The query builder, so the rider's updated_at stays the last time they changed their account.
-        DB::table('users')->where('id', $riderId->value)->update(['last_seen_at' => CarbonImmutable::instance($seenAt)]);
+        // Kept to the quarter hour, as the privacy policy says, and written only when that quarter is new, so a
+        // watch or an assistant asking often writes the account once a quarter hour at most. The query builder
+        // keeps the rider's updated_at the last time they changed their account.
+        $at = CarbonImmutable::instance($seenAt);
+        $quarter = $at->setTimestamp($at->getTimestamp() - $at->getTimestamp() % 900);
+
+        DB::table('users')
+            ->where('id', $riderId->value)
+            ->where(fn (Builder $builder): Builder => $builder->whereNull('last_seen_at')->orWhere('last_seen_at', '<', $quarter))
+            ->update(['last_seen_at' => $quarter]);
     }
 
     public function find(RiderId $riderId): Rider
@@ -156,6 +175,7 @@ final readonly class EloquentUserRepository implements UserRepository
         $rider = $this->rider($user);
 
         DB::transaction(function () use ($user): void {
+            $role = Role::strongest($user->getRoleNames());
             $builder = DB::table('oauth_access_tokens')->where('user_id', $user->id);
 
             DB::table('oauth_refresh_tokens')->whereIn('access_token_id', (clone $builder)->select('id'))->delete();
@@ -163,9 +183,21 @@ final readonly class EloquentUserRepository implements UserRepository
             DB::table('oauth_auth_codes')->where('user_id', $user->id)->delete();
 
             $user->delete();
+
+            $this->assertASuperAdminRemains($role);
         });
 
         return $rider;
+    }
+
+    /**
+     * Undoes the write when it took away the last Super Admin.
+     */
+    private function assertASuperAdminRemains(Role $role): void
+    {
+        if ($role === Role::SuperAdmin && $this->countWithRole(Role::SuperAdmin) === 0) {
+            throw LastSuperAdmin::wouldRemain();
+        }
     }
 
     private function model(RiderId $riderId): User
