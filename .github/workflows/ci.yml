@@ -13,8 +13,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A pull request runs only the jobs its files can affect. The planner's tests
+  # also read apps/web/src and the production nginx config, and the content
+  # site's build checks that config, so those count for both. A push to main,
+  # or a failed filter, runs every job. A skipped job reports success, so a
+  # required check never blocks a pull request it does not apply to.
+  changes:
+    name: Changed paths
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      web: ${{ steps.filter.outputs.web }}
+
+    steps:
+      - name: Match Changed Files
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            shared: &shared
+              - .docker/production/**
+              - .github/workflows/ci.yml
+              - package.json
+              - package-lock.json
+              - turbo.json
+            app:
+              - *shared
+              - apps/app/**
+              - apps/mail/**
+              - apps/web/**
+            web:
+              - *shared
+              - apps/web/**
+
   lint:
     name: Planner lint
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.app == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -65,6 +104,8 @@ jobs:
 
   app:
     name: Planner checks
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.app == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -149,6 +190,8 @@ jobs:
 
   web:
     name: Content site checks
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.web == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     defaults:
@@ -176,6 +219,8 @@ jobs:
 
   browser:
     name: Browser checks
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.app == 'true' || needs.changes.outputs.web == 'true') }}
     # Pinned, not ubuntu-latest: the Chromium step skips Playwright's apt
     # install and relies on the libraries this image ships.
     runs-on: ubuntu-24.04
