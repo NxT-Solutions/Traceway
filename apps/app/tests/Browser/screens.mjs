@@ -107,7 +107,7 @@ const pages = [
     { name: 'assistants', url: '/settings/assistants', auth: true, full: true },
     { name: 'privacy', url: '/settings/privacy', auth: true, full: true },
     { name: 'whats-new', url: '/settings/whats-new', auth: true, full: true },
-    // The admin area. The road demo rider is an Admin.
+    // The admin area. The road demo rider is a Super Admin.
     { name: 'admin', url: '/admin', auth: true, full: true },
     { name: 'admin-riders', url: '/admin/users', auth: true, full: true },
     // The bell in the header, open over the map.

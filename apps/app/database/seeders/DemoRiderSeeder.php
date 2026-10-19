@@ -17,12 +17,12 @@ class DemoRiderSeeder extends Seeder
             return;
         }
 
-        /** @var array<string, array{name: string, email: string, description: string}> $riders */
+        /** @var array<string, array{name: string, email: string, description: string, role?: string}> $riders */
         $riders = config('demo.riders', []);
 
         $password = config('demo.password');
 
-        foreach ($riders as $key => $rider) {
+        foreach ($riders as $rider) {
             $user = User::query()->updateOrCreate(
                 ['email' => $rider['email']],
                 [
@@ -32,8 +32,7 @@ class DemoRiderSeeder extends Seeder
                 ],
             );
 
-            // The road rider looks after the others, so the admin area can be tried without a Super Admin.
-            $user->syncRoles([($key === 'road' ? Role::Admin : Role::User)->value]);
+            $user->syncRoles([(Role::tryFrom($rider['role'] ?? '') ?? Role::User)->value]);
         }
     }
 }
