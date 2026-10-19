@@ -255,6 +255,8 @@ try {
     const page = await desktop.newPage();
     const settle = watch(page, 'Desktop');
     page.on('pageerror', (error) => pageErrors.push(`desktop: ${error.message}`));
+    // A script, style or request the Content-Security-Policy blocks is a broken page too.
+    page.on('console', (message) => message.text().includes('Content Security Policy') && pageErrors.push(`desktop: ${message.text()}`));
 
     await page.goto(`${base}/login`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: /^Road\b/ }).click();
@@ -507,6 +509,8 @@ try {
     const mobile = await phone.newPage();
     const settlePhone = watch(mobile, 'Phone');
     mobile.on('pageerror', (error) => pageErrors.push(`phone: ${error.message}`));
+    // A script, style or request the Content-Security-Policy blocks is a broken page too.
+    mobile.on('console', (message) => message.text().includes('Content Security Policy') && pageErrors.push(`phone: ${message.text()}`));
     const cdp = await phone.newCDPSession(mobile);
     const touch = (type, points) =>
         cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(({ x, y }) => ({ x: Math.round(x), y: Math.round(y) })) });

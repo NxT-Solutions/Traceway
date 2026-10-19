@@ -25,7 +25,16 @@ export default defineConfig({
         host: true,
         port: 4321,
     },
+    // nginx's Content-Security-Policy runs no inline script or style tag
+    // (.docker/production/images/configs/nginx/nginx.conf), so every script
+    // and stylesheet stays a file under /_astro.
+    build: {
+        inlineStylesheets: 'never',
+    },
     vite: {
+        build: {
+            assetsInlineLimit: (file) => (/\.(js|css)$/.test(file) ? false : undefined),
+        },
         server: {
             allowedHosts: true,
             watch: {

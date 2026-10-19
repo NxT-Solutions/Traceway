@@ -89,6 +89,7 @@ RUN --mount=type=secret,id=runtime_env,target=/run/secrets/runtime_env \
     && chmod 0640 /var/www/html/.env /var/www/html/.env.production
 
 COPY .docker/production/images/configs/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY .docker/production/images/configs/nginx/security-headers.conf /etc/nginx/security-headers.conf
 COPY .docker/production/images/configs/php/app.ini /usr/local/etc/php/conf.d/zz-app.ini
 COPY .docker/production/images/configs/php/opcache.ini /usr/local/etc/php/conf.d/zz-opcache.ini
 COPY .docker/production/images/configs/php-fpm/zz-traceway.conf /usr/local/etc/php-fpm.d/zz-traceway.conf
