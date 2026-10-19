@@ -15,11 +15,13 @@
 //    the image copies next to nginx.conf.
 //
 // The build fails on an event handler or a javascript: link, which no hash
-// can allow, on a script file from anywhere but /_astro or one it cannot
-// rewrite, and on a script or style tag inside an inline <svg>.
+// can allow, on a script file from anywhere but /_astro, and on a script or
+// style tag inside an inline <svg>. An HTML parser reads the pages, as a
+// browser would, so no way of writing a tag slips past.
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { Parser } from 'htmlparser2';
 
 const pages = (dir) =>
     readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -68,52 +70,92 @@ function load(files) {
 
 const loader = (files) => `(${load})(${JSON.stringify(files)});`;
 
-for (const page of pages('dist')) {
-    const files = [];
-    let html = readFileSync(page, 'utf8').replace(
-        /<script\b([^>]*)\ssrc="([^"]*)"([^>]*)><\/script>/gi,
-        (tag, before, src, after) => {
-            if (!/\btype="module"/i.test(before + after) || !/^\/_astro\/[\w.-]+\.js$/.test(src)) {
-                problems.push(`${page}: ${tag.slice(0, 120)}`);
-                return tag;
-            }
+// The script and style elements of a page, with where each one sits in the
+// text and the text inside it as written, plus any attribute no hash allows.
+const read = (html) => {
+    const elements = [];
+    const unsafe = [];
+    const open = [];
+    let svg = 0;
 
-            files.push(src);
-            return files.length === 1 ? '<script data-loader></script>' : '';
+    const parser = new Parser(
+        {
+            onopentag(name, attributes) {
+                if (name === 'svg') {
+                    svg += 1;
+                }
+                for (const [key, value] of Object.entries(attributes)) {
+                    if (key.startsWith('on') || /^[\s\0-\x1f]*javascript:/i.test(value)) {
+                        unsafe.push(`<${name} ${key}="${value.slice(0, 80)}">`);
+                    }
+                }
+                if (name === 'script' || name === 'style') {
+                    // After an end tag like </script >, the parser counts its ">" as the start of the next tag.
+                    const start = html.indexOf('<', parser.startIndex);
+                    open.push({ name, attributes, start, text: '', inSvg: svg > 0 });
+                }
+            },
+            ontext(text) {
+                const element = open.at(-1);
+                if (element) {
+                    element.text += text;
+                }
+            },
+            onclosetag(name) {
+                if (name === 'svg') {
+                    svg -= 1;
+                }
+                if ((name === 'script' || name === 'style') && open.at(-1)?.name === name) {
+                    // An end tag may carry spaces before its ">", as in </script >.
+                    elements.push({ ...open.pop(), end: html.indexOf('>', parser.endIndex) + 1 });
+                }
+            },
         },
+        { decodeEntities: true, lowerCaseTags: true, lowerCaseAttributeNames: true },
+    );
+    parser.write(html);
+    parser.end();
+
+    return { elements, unsafe };
+};
+
+const isData = (element) => /^application\/(ld\+)?json$/i.test(element.attributes.type ?? '');
+
+for (const page of pages('dist')) {
+    let html = readFileSync(page, 'utf8');
+
+    // The script files become one loader, put where the first one was. The
+    // others are cut out by where they sit, from the end, so the places of
+    // the ones before stay right.
+    const files = read(html).elements.filter((element) => element.name === 'script' && 'src' in element.attributes);
+    const allowed = files.every(
+        ({ attributes }) => attributes.type === 'module' && /^\/_astro\/[\w.-]+\.js$/.test(attributes.src),
     );
 
-    if (files.length > 0) {
-        html = html.replace('<script data-loader></script>', `<script type="module">${loader(files)}</script>`);
-    }
-
-    // A script file left in the page, written some other way, would be blocked without a word.
-    for (const [tag] of html.matchAll(/<script\b[^>]*\ssrc\s*=[^>]*>/gi)) {
-        problems.push(`${page}: ${tag.slice(0, 120)}`);
-    }
-
-    // Inside an inline <svg>, the browser decodes the text of a script or style before it hashes it.
-    for (const [svg] of html.matchAll(/<svg\b[\s\S]*?<\/svg>/gi)) {
-        if (/<(script|style)\b/i.test(svg)) {
-            problems.push(`${page}: a script or style tag inside an inline <svg>`);
+    if (files.length > 0 && allowed) {
+        const sources = files.map(({ attributes }) => attributes.src);
+        for (const [index, file] of [...files.entries()].reverse()) {
+            const replacement = index === 0 ? `<script type="module">${loader(sources)}</script>` : '';
+            html = html.slice(0, file.start) + replacement + html.slice(file.end);
         }
     }
 
-    for (const [, attributes, body] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
-        if (!/type="application\/(ld\+)?json"/i.test(attributes)) {
-            scripts.add(hash(body));
+    const { elements, unsafe } = read(html);
+
+    for (const element of elements) {
+        if (element.inSvg) {
+            // Inside an inline <svg>, the browser decodes the text before it hashes it.
+            problems.push(`${page}: a <${element.name}> inside an inline <svg>`);
+        } else if (element.name === 'script' && 'src' in element.attributes) {
+            problems.push(`${page}: <script src="${element.attributes.src}"> is not a module from /_astro`);
+        } else if (element.name === 'script' && !isData(element)) {
+            scripts.add(hash(element.text));
+        } else if (element.name === 'style') {
+            styles.add(hash(element.text));
         }
     }
 
-    for (const [, body] of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
-        styles.add(hash(body));
-    }
-
-    for (const [tag] of html.matchAll(/<[a-z][^>]*>/gi)) {
-        if (/\son[a-z]+\s*=/i.test(tag) || /=\s*"?\s*javascript:/i.test(tag)) {
-            problems.push(`${page}: ${tag.slice(0, 120)}`);
-        }
-    }
+    problems.push(...unsafe.map((tag) => `${page}: ${tag}`));
 
     writeFileSync(page, html);
 }
