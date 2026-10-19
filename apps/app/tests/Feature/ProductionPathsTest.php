@@ -51,7 +51,7 @@ it('sends text compressed and keeps the hashed build files for a year', function
     }
 });
 
-it("serves security.txt from the content site, and leaves the rest of .well-known to Laravel", function (): void {
+it('serves security.txt from the content site, and leaves the rest of .well-known to Laravel', function (): void {
     $config = file_get_contents(dirname(__DIR__, 4).'/.docker/production/images/configs/nginx/nginx.conf') ?: '';
     $source = file_get_contents(dirname(__DIR__, 4).'/apps/web/src/pages/security.txt.ts') ?: '';
 
