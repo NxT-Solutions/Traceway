@@ -101,7 +101,10 @@ COPY .docker/production/images/configs/php-fpm/zz-traceway.conf /usr/local/etc/p
 COPY .docker/production/images/configs/app/entrypoint.sh /usr/local/bin/traceway-entrypoint
 COPY .docker/production/images/configs/app/post-deploy.sh /usr/local/bin/traceway-post-deploy
 
+# The build writes bootstrap/ssr for its owner only; the renderer runs as
+# www-data.
 RUN chmod +x /usr/local/bin/traceway-entrypoint /usr/local/bin/traceway-post-deploy \
+    && chmod -R a+rX /var/www/html/bootstrap/ssr \
     && install -d -m 0775 \
       /run/nginx \
       /var/lib/nginx/tmp/client_body \
