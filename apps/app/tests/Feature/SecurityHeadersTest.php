@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Testing\TestResponse;
@@ -170,7 +172,7 @@ it('lets the API reference load Scalar with the page nonce', function (): void {
 
     preg_match("/'nonce-([A-Za-z0-9+\/=]+)'/", implode(' ', $policy['script-src']), $nonce);
 
-    expect($policy['script-src'])->toContain('https://cdn.jsdelivr.net')
+    expect($policy['script-src'])->toContain(config('scalar.cdn'))
         ->and(substr_count((string) $response->getContent(), 'nonce="'.$nonce[1].'"'))->toBe(2);
 });
 
@@ -194,6 +196,19 @@ it('clears the cookies that named the domain once the session is a __Host- cooki
         ->all();
 
     expect($cleared)->toBe(['XSRF-TOKEN', 'traceway-session']);
+});
+
+it('clears the domain copy of a cookie the browser sends twice, such as an old Remember me', function (): void {
+    config(['session.cookie' => '__Host-traceway-session']);
+
+    $response = $this->call('GET', '/login', server: ['HTTP_COOKIE' => 'remember_web_abc=old; appearance=dark; remember_web_abc=new']);
+    $cleared = collect($response->headers->getCookies())
+        ->filter(fn ($cookie): bool => $cookie->getDomain() !== null && $cookie->isCleared())
+        ->map(fn ($cookie): string => $cookie->getName())
+        ->values()
+        ->all();
+
+    expect($cleared)->toBe(['remember_web_abc']);
 });
 
 it('leaves the cookies alone without an old session cookie', function (): void {
@@ -227,4 +242,26 @@ it('sends the headers from every nginx location that answers from disk', functio
         expect(str_contains($body, 'include /etc/nginx/security-headers.conf;'))
             ->toBe($fromDisk, "location {$match}");
     }
+});
+
+it('puts the page policy on the planner error pages', function (): void {
+    $response = $this->get('/routes/no-such-page')->assertNotFound();
+
+    expect(policyOf($response)['script-src'])->toContain('https://challenges.cloudflare.com')
+        ->and($response->headers->get('X-Frame-Options'))->toBe('DENY');
+});
+
+it('puts no page policy on an Inertia visit, which answers with JSON', function (): void {
+    $version = (string) resolve(HandleInertiaRequests::class)->version(Request::create('/'));
+
+    $response = $this->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => $version])->get('/status')->assertOk();
+
+    expect($response->headers->get('Content-Type'))->toContain('application/json')
+        ->and($response->headers->has('Content-Security-Policy'))->toBeFalse();
+});
+
+it('sends no HSTS on a local site, so DDEV keeps Mailpit on plain HTTP', function (): void {
+    $this->app['env'] = 'local';
+
+    expect($this->get('/login')->headers->has('Strict-Transport-Security'))->toBeFalse();
 });
