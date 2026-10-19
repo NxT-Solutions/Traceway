@@ -552,7 +552,8 @@ export function addDetailLayers(map: MapLibreMap): void {
 
 /**
  * The line-progress colour stops for a line painted by steepness. Stretches
- * of one colour join, so a long flat road is one stop, not hundreds.
+ * of one colour join, so a long flat road is one stop, not hundreds. A step
+ * needs at least one stop, so a line of one colour ends on that colour.
  */
 function steepnessPaint(profile: [number, number][]): ExpressionSpecification {
     const stretches = grades(profile);
@@ -560,7 +561,9 @@ function steepnessPaint(profile: [number, number][]): ExpressionSpecification {
     const first = stretches[0];
 
     if (first === undefined || total <= 0) {
-        return ['step', ['line-progress'], gradeBands[0].colour];
+        const flat = gradeBands[0].colour;
+
+        return ['step', ['line-progress'], flat, 1, flat];
     }
 
     const expression: unknown[] = [
@@ -580,6 +583,10 @@ function steepnessPaint(profile: [number, number][]): ExpressionSpecification {
             current = colour;
             lastStop = progress;
         }
+    }
+
+    if (lastStop === 0) {
+        expression.push(1, current);
     }
 
     return expression as ExpressionSpecification;
