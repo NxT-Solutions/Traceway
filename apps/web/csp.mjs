@@ -15,7 +15,8 @@
 //    the image copies next to nginx.conf.
 //
 // The build fails on an event handler or a javascript: link, which no hash
-// can allow, and on a script file from anywhere but /_astro.
+// can allow, on a script file from anywhere but /_astro or one it cannot
+// rewrite, and on a script or style tag inside an inline <svg>.
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -26,16 +27,46 @@ const pages = (dir) =>
         return entry.isDirectory() ? pages(path) : entry.name.endsWith('.html') ? [path] : [];
     });
 
-const hash = (text) => `'sha256-${createHash('sha256').update(text, 'utf8').digest('base64')}'`;
+// The browser hashes the text with its line endings made \n, so this does too.
+const hash = (text) =>
+    `'sha256-${createHash('sha256').update(text.replace(/\r\n?/g, '\n'), 'utf8').digest('base64')}'`;
 
 const problems = [];
 const scripts = new Set();
 const styles = new Set();
 
-const loader = (files) =>
-    `const files=${JSON.stringify(files)},types=window.trustedTypes;` +
-    'const policy=types?types.createPolicy("scripts",{createScriptURL:(url)=>{if(!files.includes(url))throw new TypeError(url);return url}}):null;' +
-    'for(const file of files){const script=document.createElement("script");script.type="module";script.fetchPriority="low";script.src=policy?policy.createScriptURL(file):file;document.head.append(script)}';
+// The loader each page carries in place of its script files. It runs in the
+// browser, written out with toString(), so it is plain code here. When a file
+// cannot load, the page drops the js class and shows everything finished, as
+// it does without scripts.
+function load(files) {
+    const root = document.documentElement;
+    try {
+        const types = window.trustedTypes;
+        const policy = types
+            ? types.createPolicy('scripts', {
+                  createScriptURL: (url) => {
+                      if (!files.includes(url)) {
+                          throw new TypeError(url);
+                      }
+                      return url;
+                  },
+              })
+            : null;
+        for (const file of files) {
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.fetchPriority = 'low';
+            script.onerror = () => root.classList.remove('js');
+            script.src = policy ? policy.createScriptURL(file) : file;
+            document.head.append(script);
+        }
+    } catch {
+        root.classList.remove('js');
+    }
+}
+
+const loader = (files) => `(${load})(${JSON.stringify(files)});`;
 
 for (const page of pages('dist')) {
     const files = [];
@@ -54,6 +85,18 @@ for (const page of pages('dist')) {
 
     if (files.length > 0) {
         html = html.replace('<script data-loader></script>', `<script type="module">${loader(files)}</script>`);
+    }
+
+    // A script file left in the page, written some other way, would be blocked without a word.
+    for (const [tag] of html.matchAll(/<script\b[^>]*\ssrc\s*=[^>]*>/gi)) {
+        problems.push(`${page}: ${tag.slice(0, 120)}`);
+    }
+
+    // Inside an inline <svg>, the browser decodes the text of a script or style before it hashes it.
+    for (const [svg] of html.matchAll(/<svg\b[\s\S]*?<\/svg>/gi)) {
+        if (/<(script|style)\b/i.test(svg)) {
+            problems.push(`${page}: a script or style tag inside an inline <svg>`);
+        }
     }
 
     for (const [, attributes, body] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {

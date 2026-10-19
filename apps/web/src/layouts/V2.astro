@@ -65,6 +65,9 @@ const data = {
 <html lang="en">
     <head>
         <meta charset="utf-8" />
+        {/* Before the first paint, so what the script draws in is not drawn finished first. The
+            loader takes it off again if the script cannot load. csp.mjs hashes it. */}
+        <script is:inline>document.documentElement.classList.add('js');</script>
         {/* The first screen uses all three weights, so they load with the page, not after the CSS. */}
         {[outfit400, outfit500, outfit600].map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />

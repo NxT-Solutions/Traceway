@@ -77,7 +77,7 @@ try {
     const pageErrors = [];
     desktop.on('pageerror', (error) => pageErrors.push(`desktop: ${error.message}`));
     // A script, style or request the Content-Security-Policy blocks is a broken page too.
-    desktop.on('console', (message) => message.text().includes('Content Security Policy') && pageErrors.push(`desktop: ${message.text()}`));
+    desktop.on('console', (message) => /Content Security Policy|Trusted Type|requires 'Trusted/.test(message.text()) && pageErrors.push(`desktop: ${message.text()}`));
 
     await open(desktop, '/dashboard');
     if (!desktop.url().includes('/login')) {
@@ -303,7 +303,7 @@ try {
     await mockOutsideServers(phone);
     phone.on('pageerror', (error) => pageErrors.push(`phone: ${error.message}`));
     // A script, style or request the Content-Security-Policy blocks is a broken page too.
-    phone.on('console', (message) => message.text().includes('Content Security Policy') && pageErrors.push(`phone: ${message.text()}`));
+    phone.on('console', (message) => /Content Security Policy|Trusted Type|requires 'Trusted/.test(message.text()) && pageErrors.push(`phone: ${message.text()}`));
     await open(phone, '/login');
     const phoneRoad = phone.getByRole('button', { name: /^Road\b/ });
     await phoneRoad.waitFor();

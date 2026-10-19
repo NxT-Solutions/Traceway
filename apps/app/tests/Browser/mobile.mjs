@@ -48,7 +48,7 @@ try {
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
     // A script, style or request the Content-Security-Policy blocks is a broken page too.
-    page.on('console', (message) => message.text().includes('Content Security Policy') && pageErrors.push(message.text()));
+    page.on('console', (message) => /Content Security Policy|Trusted Type|requires 'Trusted/.test(message.text()) && pageErrors.push(message.text()));
     const cdp = await context.newCDPSession(page);
 
     async function touch(type, points) {

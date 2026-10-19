@@ -132,7 +132,7 @@ for (const spec of pages) {
     const page = await context.newPage();
     page.on('pageerror', (error) => failures.push(`${spec.name}: page error: ${error.message}`));
     // A script, style or request the Content-Security-Policy blocks is a broken page too.
-    page.on('console', (message) => message.text().includes('Content Security Policy') && failures.push(`${spec.name}: page error: ${message.text()}`));
+    page.on('console', (message) => /Content Security Policy|Trusted Type|requires 'Trusted/.test(message.text()) && failures.push(`${spec.name}: page error: ${message.text()}`));
 
     if (spec.auth) {
         await signIn(page);

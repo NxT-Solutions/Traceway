@@ -3,6 +3,7 @@
   /* GSAP drives the scroll scene and the chat. The first frame does not need
      it, so it loads after that frame, in a task of its own. */
   var gsap = null, ScrollTrigger = null;
+  /* The layout sets it before the first paint; this keeps it for any other page. */
   root.classList.add('js');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var clamp = function(v,a,b){ return v < a ? a : v > b ? b : v; };
@@ -307,7 +308,8 @@
      way until the hero has faded or scrolled off, so there is one at a time.
      An observer says whether the button shows below the header, so render
      never measures the page right after it has set styles. */
-  var heroBtnSeen = true, btnWatch = null, btnEdge = -1;
+  /* Without an observer, the header keeps its button, as without scripts. */
+  var heroBtnSeen = 'IntersectionObserver' in window, btnWatch = null, btnEdge = -1;
   /* Measured in layout, where reading it is free; ScrollTrigger asks for it
      while it is setting styles. */
   var hdrHeight = 0;
@@ -476,8 +478,13 @@
   }
 
   /* Asked for once the page has loaded and its frame is on screen, so the
-     first paint never waits on it. Until then the header follows the page. */
+     first paint never waits on it. The load event can wait on a slow outside
+     file, such as Cloudflare's visit counter, so the first scroll, tap or key,
+     or a few seconds, start it too. Until then the header follows the page. */
+  var sceneAsked = false;
   function loadScene(){
+    if (sceneAsked) return;
+    sceneAsked = true;
     requestAnimationFrame(function(){ setTimeout(function(){
       Promise.all([import('gsap'), import('gsap/ScrollTrigger'), import('lenis')]).then(function(mods){
         gsap = mods[0].gsap;
@@ -495,7 +502,11 @@
   }
   if (!reduce){
     if (d.readyState === 'complete') loadScene();
-    else window.addEventListener('load', loadScene, { once: true });
+    else {
+      window.addEventListener('load', loadScene, { once: true });
+      ['scroll', 'pointerdown', 'keydown'].forEach(function(type){ window.addEventListener(type, loadScene, { once: true, passive: true }); });
+      setTimeout(loadScene, 2500);
+    }
   }
 
   /* ---------- reveals ---------- */

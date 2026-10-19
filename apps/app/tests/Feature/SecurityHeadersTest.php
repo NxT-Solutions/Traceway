@@ -226,7 +226,7 @@ it('gives the content site a policy that runs only the scripts and styles the bu
     $policy = policyOf(new Response(headers: ['Content-Security-Policy' => $match[1]]));
 
     expect($policy['default-src'])->toBe(["'none'"])
-        ->and($policy['script-src'])->toBe(['$site_script_hashes', "'strict-dynamic'", "'unsafe-inline'", 'https:'])
+        ->and($policy['script-src'])->toBe(['$site_script_hashes', "'strict-dynamic'", "'unsafe-inline'", "'self'", 'https://static.cloudflareinsights.com'])
         ->and($policy['style-src'])->toBe(["'self'", '$site_style_hashes'])
         ->and($policy['connect-src'])->toBe(["'self'", 'https://cloudflareinsights.com'])
         ->and($policy['frame-ancestors'])->toBe(["'none'"])

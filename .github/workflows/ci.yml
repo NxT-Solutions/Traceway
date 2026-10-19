@@ -322,8 +322,10 @@ jobs:
           exit "$status"
 
       # The planner gets workers so a routing call in one lane does not hold
-      # up page loads in the other. The content site is static files. The
-      # SSR server draws the planner's pages first, as in production, so the
+      # up page loads in the other. The content site is static files, served
+      # by production's nginx config with the hashes its build wrote, so the
+      # suites see its Content-Security-Policy and Trusted Types. The SSR
+      # server draws the planner's pages first, as in production, so the
       # tests also catch a page the browser draws differently. It runs from
       # a folder of its own, as in the image, which has no node_modules.
       - name: Start Servers
@@ -331,7 +333,13 @@ jobs:
           mkdir -p "$RUNNER_TEMP/ssr" && cp -R bootstrap "$RUNNER_TEMP/ssr/"
           (cd "$RUNNER_TEMP/ssr" && NODE_ENV=production node bootstrap/ssr/app.js > "$RUNNER_TEMP/ssr.log" 2>&1 &)
           PHP_CLI_SERVER_WORKERS=4 php artisan serve --no-reload --host=127.0.0.1 --port=8000 > "$RUNNER_TEMP/planner.log" 2>&1 &
-          php -S 127.0.0.1:4321 -t ../web/dist > "$RUNNER_TEMP/content.log" 2>&1 &
+          nginx_conf="$(realpath ../../.docker/production/images/configs/nginx)"
+          docker run -d --name content -p 127.0.0.1:4321:8080 \
+            -v "$nginx_conf/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            -v "$nginx_conf/security-headers.conf:/etc/nginx/security-headers.conf:ro" \
+            -v "$(realpath ../web/nginx-csp.conf):/etc/nginx/nginx-csp.conf:ro" \
+            -v "$(realpath ../web/dist):/var/www/web:ro" \
+            nginx:1.29-alpine > /dev/null
           PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8002 tests/Browser/valhalla-stub.php > "$RUNNER_TEMP/router.log" 2>&1 &
           urls=("http://127.0.0.1:13714/health" "$BASE_URL/login" "$CONTENT_URL/" "http://127.0.0.1:8002/health")
           for url in "${urls[@]}"; do
@@ -367,6 +375,6 @@ jobs:
         run: |
           tail -n 100 "$RUNNER_TEMP/planner.log" || true
           tail -n 50 "$RUNNER_TEMP/ssr.log" || true
-          tail -n 50 "$RUNNER_TEMP/content.log" || true
+          docker logs --tail 50 content || true
           tail -n 50 "$RUNNER_TEMP/router.log" || true
           tail -n 100 storage/logs/laravel.log || true

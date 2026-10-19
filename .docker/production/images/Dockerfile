@@ -119,6 +119,11 @@ RUN chmod +x /usr/local/bin/traceway-entrypoint /usr/local/bin/traceway-post-dep
       /var/www/html/storage/logs \
     && ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage
 
+# nginx will not start on a config it cannot read, such as a missing or
+# misnamed hash file from the content site's build. The build fails here
+# instead of the deploy.
+RUN nginx -t
+
 EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/traceway-entrypoint"]
