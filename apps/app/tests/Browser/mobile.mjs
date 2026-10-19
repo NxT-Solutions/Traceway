@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { mockOutsideServers } from './mock-servers.mjs';
 
 // Drives the planner on a phone with real touch input. Chrome turns the
 // touches into touch pointer events, as it does on a device, so the drawer,
@@ -41,6 +42,7 @@ try {
         isMobile: true,
         hasTouch: true,
     });
+    await mockOutsideServers(context);
     const page = await context.newPage();
     // An uncaught error on the page fails the run, even when it still looks right.
     const pageErrors = [];
