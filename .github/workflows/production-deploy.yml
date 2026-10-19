@@ -237,10 +237,11 @@ jobs:
           set -euo pipefail
 
           # The token needs Cache Rules: Edit and Cache Purge: Purge on the
-          # traceway.online zone.
+          # traceway.online zone. Without it the rule from the last deploy
+          # stays, and Cloudflare keeps the old release's pages for a day.
           if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ZONE_ID:-}" ]; then
-            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ZONE_ID is not set. Cloudflare does not cache the site's pages."
-            exit 0
+            echo "::error::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ZONE_ID is not set, so Cloudflare's cache was not purged. Set them, or delete the cache rule on the zone." >&2
+            exit 1
           fi
 
           api="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}"
@@ -264,37 +265,54 @@ jobs:
 
           # Cloudflare keeps the rest of traceway.online for as long as nginx's
           # Cache-Control allows. Its cache key ignores Accept, so a request
-          # for a Markdown twin always goes to the server.
-          expression="http.host eq \"traceway.online\" and not (${planner}) and not ends_with(http.request.uri.path, \".php\") and not any(http.request.headers[\"accept\"][*] contains \"text/markdown\")"
+          # for a Markdown twin always goes to the server. nginx matches
+          # text/markdown case-sensitively too. Cloudflare does not decode %2F
+          # but Laravel does, so an encoded path always goes to the server.
+          expression="http.host eq \"traceway.online\" and not (${planner}) and not ends_with(http.request.uri.path, \".php\") and not http.request.uri.path contains \"%\" and not any(http.request.headers[\"accept\"][*] contains \"text/markdown\")"
 
           # This replaces every cache rule on the zone. Change them here, not
-          # in the dashboard.
+          # in the dashboard. Browsers keep nginx's max-age=0, whatever the
+          # zone's Browser Cache TTL says.
           jq -n --arg expression "$expression" '{
             rules: [{
               description: "Site pages from the Astro build",
               expression: $expression,
               action: "set_cache_settings",
-              action_parameters: { cache: true }
+              action_parameters: {
+                cache: true,
+                edge_ttl: { mode: "respect_origin" },
+                browser_ttl: { mode: "respect_origin" }
+              }
             }]
           }' > "${RUNNER_TEMP}/cache-rules.json"
 
+          rule_failed=0
           curl --fail-with-body --silent --show-error --output /dev/null \
             --request PUT "${api}/rulesets/phases/http_request_cache_settings/entrypoint" \
             --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             --header "Content-Type: application/json" \
-            --data @"${RUNNER_TEMP}/cache-rules.json"
+            --data @"${RUNNER_TEMP}/cache-rules.json" \
+            || rule_failed=1
 
           # The new release is live, so nothing Cloudflare kept is current.
+          # Purge even when the rule failed, or the last deploy's rule keeps
+          # the old pages, which point at /_astro files that are gone.
           curl --fail-with-body --silent --show-error --output /dev/null \
             --request POST "${api}/purge_cache" \
             --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             --header "Content-Type: application/json" \
             --data '{"purge_everything":true}'
 
-          # The first visit fills the cache, so the second comes from it.
+          if [ "$rule_failed" -eq 1 ]; then
+            echo "::error::Cloudflare turned down the cache rule. The cache was purged, and the last deploy's rule still applies." >&2
+            exit 1
+          fi
+
+          # The first visit fills the cache, so the second comes from it. The
+          # release is already live, so a failed check only warns.
           for page in / /privacy; do
-            curl --silent --output /dev/null "https://traceway.online${page}"
-            status="$(curl --silent --head "https://traceway.online${page}" | tr -d '\r' | awk -F': ' 'tolower($1) == "cf-cache-status" { print $2 }')"
+            curl --silent --output /dev/null "https://traceway.online${page}" || true
+            status="$(curl --silent --head "https://traceway.online${page}" | tr -d '\r' | awk -F': ' 'tolower($1) == "cf-cache-status" { print $2 }' || true)"
             echo "${page}: ${status:-no cf-cache-status}"
             if [ "${status}" != "HIT" ]; then
               echo "::warning::Cloudflare did not serve ${page} from its cache (${status:-no cf-cache-status})."
