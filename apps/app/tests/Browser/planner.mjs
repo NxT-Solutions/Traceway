@@ -268,10 +268,11 @@ try {
     // A sport starts on its own surface. A surface picked by hand stays when
     // the same sport is picked again, and the draft keeps it.
     const surfaceRow = desktop.getByRole('button', { name: /^Surface\b/ });
+    const sportSheet = desktop.getByRole('dialog', { name: 'Choose a sport' });
     const pickSport = async (name) => {
         await desktop.getByRole('button', { name: /^Sport\b/ }).click();
-        await desktop.getByRole('dialog').getByRole('button', { name: new RegExp(`^${name}\\b`) }).click();
-        await desktop.getByRole('dialog').waitFor({ state: 'detached', timeout: 3000 });
+        await sportSheet.getByRole('button', { name: new RegExp(`^${name}\\b`) }).click();
+        await sportSheet.waitFor({ state: 'hidden', timeout: 3000 });
     };
     await pickSport('Trail run');
     await surfaceRow.filter({ hasText: 'Dirt' }).waitFor({ timeout: 3000 });
