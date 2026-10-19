@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Account\MissingRider;
+use App\Http\Middleware\ForgetDomainCookies;
 use App\Http\Middleware\GuardImpersonation;
 use App\Http\Middleware\GuardSignupForms;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\NoteLastSeen;
+use App\Http\Middleware\SendSecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -26,7 +28,13 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
 
+        // Outermost, so error pages and the maintenance page get the headers too.
+        $middleware->prepend(SendSecurityHeaders::class);
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+
+        // Outside EncryptCookies, so the old cookies are cleared as they are.
+        $middleware->web(prepend: [ForgetDomainCookies::class]);
 
         $middleware->web(append: [
             HandleAppearance::class,

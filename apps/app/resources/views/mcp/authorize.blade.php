@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
 
-    <script>
+    <script nonce="{{ Vite::cspNonce() }}">
         (function() {
             const appearance = '{{ $appearance ?? 'system' }}';
 

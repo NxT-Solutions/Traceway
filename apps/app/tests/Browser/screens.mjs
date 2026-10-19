@@ -129,6 +129,8 @@ for (const spec of pages) {
     const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
     page.on('pageerror', (error) => failures.push(`${spec.name}: page error: ${error.message}`));
+    // A script, style or request the Content-Security-Policy blocks is a broken page too.
+    page.on('console', (message) => message.text().includes('Content Security Policy') && failures.push(`${spec.name}: page error: ${message.text()}`));
 
     if (spec.auth) {
         await signIn(page);

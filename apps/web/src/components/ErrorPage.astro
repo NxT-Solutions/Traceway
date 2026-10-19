@@ -3,7 +3,7 @@ import '@fontsource/outfit/400.css';
 import '@fontsource/outfit/500.css';
 import '@fontsource/outfit/600.css';
 import '@fontsource/outfit/700.css';
-import css from '../styles/errors.css?raw';
+import '../styles/errors.css';
 import { errorPage } from '../errors';
 import Mark from './Mark.astro';
 
@@ -25,7 +25,6 @@ const far = 'M-800 240L-800 150L-740 118L-690 138L-630 104L-560 140L-500 122L-44
         <meta name="theme-color" content="#0b2224" />
         <title>{page.title} · Traceway</title>
         <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
-        <style is:inline set:html={css}></style>
     </head>
     <body class={`is-${page.athlete}${page.jolt ? ' jolt' : ''}`}>
         <header class="err-top">

@@ -305,7 +305,7 @@ export const cookies: LegalPage = {
         {
             heading: 'Cookies',
             items: [
-                '**traceway-session** keeps you signed in while you use the planner. It ends when you log out, or 2 hours after you last used Traceway.',
+                '**__Host-traceway-session** keeps you signed in while you use the planner. Only traceway.online can read it, and only over a secure connection. It ends when you log out, or 2 hours after you last used Traceway.',
                 '**XSRF-TOKEN** protects your forms, so another site cannot send them in your name. It lasts as long as the session.',
                 '**remember_web_…** is set only when you tick “Remember me”. It keeps you signed in for up to 400 days, or until you log out.',
                 '**appearance** remembers light, dark, or the same as your device. It lasts a year.',
