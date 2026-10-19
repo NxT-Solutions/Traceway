@@ -176,6 +176,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Passport\Passport;
@@ -452,6 +453,16 @@ class AppServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
         $this->configureAiTools();
         $this->configureRoles();
+        $this->configureAssets();
+    }
+
+    /**
+     * The server draws each page, so its scripts are not needed for the first paint. Their preloads wait behind
+     * the styles and fonts, which the first paint does need, instead of sharing a slow phone connection with them.
+     */
+    protected function configureAssets(): void
+    {
+        Vite::usePreloadTagAttributes(static fn (?string $src, string $url): array => str_ends_with($url, '.js') ? ['fetchpriority' => 'low'] : []);
     }
 
     /**

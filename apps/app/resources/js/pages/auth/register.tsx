@@ -40,7 +40,6 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
                                     type="text"
                                     required
                                     autoFocus
-                                    tabIndex={1}
                                     autoComplete="name"
                                     name="name"
                                     placeholder="Full name"
@@ -57,7 +56,6 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
                                     id="email"
                                     type="email"
                                     required
-                                    tabIndex={2}
                                     autoComplete="email"
                                     name="email"
                                     placeholder="email@example.com"
@@ -70,7 +68,6 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
                                 <PasswordInput
                                     id="password"
                                     required
-                                    tabIndex={3}
                                     autoComplete="new-password"
                                     name="password"
                                     placeholder="Password"
@@ -86,7 +83,6 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
                                 <PasswordInput
                                     id="password_confirmation"
                                     required
-                                    tabIndex={4}
                                     autoComplete="new-password"
                                     name="password_confirmation"
                                     placeholder="Confirm password"
@@ -102,7 +98,6 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
                                 <a
                                     className={legalLink}
                                     href="/terms"
-                                    tabIndex={5}
                                 >
                                     terms of use
                                 </a>{' '}
@@ -110,7 +105,6 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
                                 <a
                                     className={legalLink}
                                     href="/privacy"
-                                    tabIndex={6}
                                 >
                                     privacy policy
                                 </a>
@@ -126,7 +120,6 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
                             <Button
                                 type="submit"
                                 className="mt-2 w-full"
-                                tabIndex={7}
                                 data-test="register-user-button"
                             >
                                 {processing && <Spinner />}
@@ -136,7 +129,7 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
 
                         <div className="text-center text-sm text-muted-foreground">
                             Already have an account?{' '}
-                            <TextLink href={login()} tabIndex={8}>
+                            <TextLink href={login()}>
                                 Log in
                             </TextLink>
                         </div>

@@ -1,0 +1,8 @@
+/* Outfit, Latin only, from the Fontsource package. Until it arrives, text is set in a local Arial sized to Outfit's metrics, so nothing moves when Outfit replaces it. */
+@import '@fontsource/outfit/latin-400.css';
+@import '@fontsource/outfit/latin-500.css';
+@import '@fontsource/outfit/latin-600.css';
+
+@font-face{font-family:'Outfit fallback';src:local('Arial');font-weight:400;size-adjust:99.82%;ascent-override:100.18%;descent-override:26.05%;line-gap-override:0%}
+@font-face{font-family:'Outfit fallback';src:local('Arial');font-weight:500;size-adjust:99.82%;ascent-override:100.18%;descent-override:26.05%;line-gap-override:0%}
+@font-face{font-family:'Outfit fallback';src:local('Arial');font-weight:600;size-adjust:99.82%;ascent-override:100.18%;descent-override:26.05%;line-gap-override:0%}

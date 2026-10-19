@@ -20,6 +20,9 @@ return [
     'ssr' => [
         'enabled' => true,
         'url' => 'http://127.0.0.1:13714',
+        // bun bootstrap/ssr/app.js runs next to PHP. If it is slow or gone,
+        // the page goes out for the browser to draw instead.
+        'timeout' => 2,
         // 'bundle' => base_path('bootstrap/ssr/ssr.mjs'),
 
     ],

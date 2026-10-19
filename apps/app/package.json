@@ -18,6 +18,7 @@
         "test:browser:screens": "node tests/Browser/screens.mjs"
     },
     "dependencies": {
+        "@fontsource/outfit": "^5.2.8",
         "@inertiajs/react": "^3.9.1",
         "@inertiajs/vite": "^3.9.1",
         "@laravel/passkeys": "^0.4.0",

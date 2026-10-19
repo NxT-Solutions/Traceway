@@ -231,7 +231,7 @@ jobs:
       - name: Build Assets, Content Site, And Browser
         run: |
           mkdir -p "$RUNNER_TEMP/build"
-          bun run build > "$RUNNER_TEMP/build/assets.log" 2>&1 & assets=$!
+          bun run build:ssr > "$RUNNER_TEMP/build/assets.log" 2>&1 & assets=$!
           (cd ../web && npm ci --prefix . && npm run build) > "$RUNNER_TEMP/build/content.log" 2>&1 & content=$!
           bunx playwright-core install --only-shell chromium > "$RUNNER_TEMP/build/browser.log" 2>&1 & browser=$!
           status=0
@@ -244,12 +244,15 @@ jobs:
           exit "$status"
 
       # The planner gets workers so a routing call in one lane does not hold
-      # up page loads in the other. The content site is static files.
+      # up page loads in the other. The content site is static files. The
+      # SSR server draws the planner's pages first, as in production, so the
+      # tests also catch a page the browser draws differently.
       - name: Start Servers
         run: |
+          bun bootstrap/ssr/app.js > "$RUNNER_TEMP/ssr.log" 2>&1 &
           PHP_CLI_SERVER_WORKERS=4 php artisan serve --no-reload --host=127.0.0.1 --port=8000 > "$RUNNER_TEMP/planner.log" 2>&1 &
           php -S 127.0.0.1:4321 -t ../web/dist > "$RUNNER_TEMP/content.log" 2>&1 &
-          urls=("$BASE_URL/login" "$CONTENT_URL/")
+          urls=("http://127.0.0.1:13714/health" "$BASE_URL/login" "$CONTENT_URL/")
           if [ "$USE_ROUTER_STUB" = "true" ]; then
             PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8002 tests/Browser/valhalla-stub.php > "$RUNNER_TEMP/router.log" 2>&1 &
             urls+=("http://127.0.0.1:8002/health")
@@ -295,6 +298,7 @@ jobs:
         if: failure()
         run: |
           tail -n 100 "$RUNNER_TEMP/planner.log" || true
+          tail -n 50 "$RUNNER_TEMP/ssr.log" || true
           tail -n 50 "$RUNNER_TEMP/content.log" || true
           tail -n 50 "$RUNNER_TEMP/router.log" || true
           tail -n 100 storage/logs/laravel.log || true

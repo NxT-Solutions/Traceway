@@ -56,13 +56,24 @@ case "$role" in
       su-exec "${app_user}:${app_group}" /usr/local/bin/traceway-post-deploy
     fi
 
+    # The server-side renderer draws the planner's pages before the browser
+    # takes over. If it stops, Laravel sends the pages for the browser to
+    # draw instead, so it restarts here and never takes the site down.
+    (
+      while true; do
+        su-exec "${app_user}:${app_group}" bun bootstrap/ssr/app.js || true
+        sleep 1
+      done
+    ) &
+    ssr_pid=$!
+
     php-fpm -F &
     php_pid=$!
 
     nginx -g 'daemon off;' &
     nginx_pid=$!
 
-    trap 'kill "$php_pid" "$nginx_pid" 2>/dev/null || true' EXIT
+    trap 'kill "$ssr_pid" "$php_pid" "$nginx_pid" 2>/dev/null || true' EXIT
     wait -n "$php_pid" "$nginx_pid"
     ;;
   queue)
