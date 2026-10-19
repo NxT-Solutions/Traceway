@@ -987,13 +987,12 @@ export default function Saved({ routes }: { routes: SavedRoute[] }) {
                         <span>Saved routes</span>
                     </Link>
                     <ReleaseBell />
-                    <Link
-                        className="acct"
-                        href="/settings/profile"
-                        aria-label="Account and settings"
-                    >
+                    <Link className="acct" href="/settings/profile">
                         <span className="name">{rider}</span>
-                        <span className="avatar">{initials}</span>
+                        <span className="avatar" aria-hidden="true">
+                            {initials}
+                        </span>
+                        <span className="sr-only">Account and settings</span>
                     </Link>
                 </div>
             </header>
