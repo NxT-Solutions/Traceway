@@ -76,6 +76,11 @@ final readonly class CloudflareTrafficSource implements TrafficSource
         return true;
     }
 
+    public function readsVisits(): bool
+    {
+        return $this->accountId !== null && $this->siteTag !== null;
+    }
+
     public function report(DateTimeImmutable $since, DateTimeImmutable $until): TrafficReport
     {
         $requestDays = [];
@@ -89,32 +94,38 @@ final readonly class CloudflareTrafficSource implements TrafficSource
             $requestDays = $this->requestDays($this->first($zone, 'zones')['httpRequests1dGroups'] ?? []);
         }
 
-        $visitDays = [];
-        $topPages = [];
-        $topReferrers = [];
-        $countries = [];
+        $visits = $this->visits($since, $until);
 
+        return new TrafficReport($requestDays, $visits->visitDays, $visits->topPages, $visits->topReferrers, $visits->countries);
+    }
+
+    public function visits(DateTimeImmutable $since, DateTimeImmutable $until): TrafficReport
+    {
         $visitsSince = max($since, VisitWindow::start($until));
 
-        if ($this->accountId !== null && $this->siteTag !== null && $visitsSince <= $until) {
-            $dateTimeZone = new DateTimeZone('UTC');
-            $account = $this->first($this->ask(self::VISITS_QUERY, [
-                'accountTag' => $this->accountId,
-                'filter' => [
-                    'AND' => [
-                        ['siteTag' => $this->siteTag],
-                        ['datetime_geq' => $visitsSince->setTimezone($dateTimeZone)->format('Y-m-d\TH:i:s\Z')],
-                        ['datetime_leq' => $until->setTimezone($dateTimeZone)->format('Y-m-d\TH:i:s\Z')],
-                    ],
-                ],
-            ]), 'accounts');
-            $visitDays = $this->visitDays($account['days'] ?? []);
-            $topPages = $this->ranked($account['pages'] ?? [], 'requestPath');
-            $topReferrers = $this->ranked($account['referrers'] ?? [], 'refererHost');
-            $countries = $this->ranked($account['countries'] ?? [], 'countryName');
+        if ($this->accountId === null || $this->siteTag === null || $visitsSince > $until) {
+            return new TrafficReport([], [], [], [], []);
         }
 
-        return new TrafficReport($requestDays, $visitDays, $topPages, $topReferrers, $countries);
+        $dateTimeZone = new DateTimeZone('UTC');
+        $account = $this->first($this->ask(self::VISITS_QUERY, [
+            'accountTag' => $this->accountId,
+            'filter' => [
+                'AND' => [
+                    ['siteTag' => $this->siteTag],
+                    ['datetime_geq' => $visitsSince->setTimezone($dateTimeZone)->format('Y-m-d\TH:i:s\Z')],
+                    ['datetime_leq' => $until->setTimezone($dateTimeZone)->format('Y-m-d\TH:i:s\Z')],
+                ],
+            ],
+        ]), 'accounts');
+
+        return new TrafficReport(
+            [],
+            $this->visitDays($account['days'] ?? []),
+            $this->ranked($account['pages'] ?? [], 'requestPath'),
+            $this->ranked($account['referrers'] ?? [], 'refererHost'),
+            $this->ranked($account['countries'] ?? [], 'countryName'),
+        );
     }
 
     /**

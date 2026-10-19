@@ -125,3 +125,37 @@ it('asks for visits from the start of the visit window at the earliest, in UTC',
     'Brussels midnight' => ['2026-10-15 00:00:00 Europe/Brussels', '2026-10-19 12:00:00 Europe/Brussels', [['2026-10-14T22:00:00Z', '2026-10-19T10:00:00Z']]],
     'until before since' => ['2026-10-19 12:00:00', '2026-10-18 12:00:00', []],
 ]);
+
+it('asks for the visits only, without the requests', function (): void {
+    $mockClient = new MockClient([
+        AnalyticsQueryRequest::class => MockResponse::make(['data' => ['viewer' => ['accounts' => [[
+            'days' => [['count' => 8, 'sum' => ['visits' => 6], 'dimensions' => ['date' => '2026-10-17']]],
+            'pages' => [['count' => 8, 'dimensions' => ['requestPath' => '/']]],
+            'referrers' => [['count' => 6, 'dimensions' => ['refererHost' => 'duckduckgo.com']]],
+            'countries' => [['count' => 8, 'dimensions' => ['countryName' => 'Belgium']]],
+        ]]]]]),
+    ]);
+    $connector = new CloudflareAnalyticsConnector('token');
+    $connector->withMockClient($mockClient);
+
+    $source = new CloudflareTrafficSource($connector, 'zone', 'account', 'site');
+    $trafficReport = $source->visits(CarbonImmutable::parse('2026-10-17 00:00:00'), CarbonImmutable::parse('2026-10-17 23:59:59'));
+
+    expect($source->readsVisits())->toBeTrue()
+        ->and($trafficReport->requestDays)->toBe([])
+        ->and($trafficReport->visitDays)->toBe([['date' => '2026-10-17', 'page_loads' => 8, 'visits' => 6]])
+        ->and($trafficReport->topReferrers)->toBe([['label' => 'duckduckgo.com', 'count' => 6]]);
+    $mockClient->assertSentCount(1);
+});
+
+it('does not read visits, and asks nothing for them, without an account and a site tag', function (): void {
+    $mockClient = new MockClient([]);
+    $connector = new CloudflareAnalyticsConnector('token');
+    $connector->withMockClient($mockClient);
+
+    $source = new CloudflareTrafficSource($connector, 'zone', accountId: 'account', siteTag: null);
+
+    expect($source->readsVisits())->toBeFalse()
+        ->and($source->visits(CarbonImmutable::parse('2026-10-17 00:00:00'), CarbonImmutable::parse('2026-10-17 23:59:59'))->visitsEmpty())->toBeTrue();
+    $mockClient->assertNothingSent();
+});

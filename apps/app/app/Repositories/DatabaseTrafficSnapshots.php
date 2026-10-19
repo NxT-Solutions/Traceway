@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Domain\Traffic\EmptyDay;
 use App\Domain\Traffic\TrafficDay;
 use App\Domain\Traffic\TrafficReport;
 use App\Domain\Traffic\TrafficSnapshots;
@@ -55,8 +56,46 @@ final readonly class DatabaseTrafficSnapshots implements TrafficSnapshots
         return $days;
     }
 
+    /**
+     * @return list<EmptyDay>
+     */
+    public function emptyDays(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        $days = [];
+
+        foreach (DB::table('traffic_empty_days')->whereBetween('day', [$this->day($from), $this->day($to)])->orderBy('day')->get() as $row) {
+            $days[] = new EmptyDay(
+                is_string($row->day) ? substr($row->day, 0, 10) : '',
+                is_numeric($row->answers) ? (int) $row->answers : 0,
+                is_string($row->last_counted_at) ? CarbonImmutable::parse($row->last_counted_at, 'UTC')->toDateTimeImmutable() : CarbonImmutable::now()->toDateTimeImmutable(),
+            );
+        }
+
+        return $days;
+    }
+
+    public function saveEmpty(EmptyDay $emptyDay): void
+    {
+        DB::table('traffic_empty_days')->upsert(
+            [[
+                'day' => $emptyDay->date,
+                'answers' => max(0, $emptyDay->answers),
+                'last_counted_at' => CarbonImmutable::instance($emptyDay->lastCountedAt)->utc(),
+            ]],
+            ['day'],
+            ['answers', 'last_counted_at'],
+        );
+    }
+
+    public function forgetEmpty(string $date): void
+    {
+        DB::table('traffic_empty_days')->where('day', $date)->delete();
+    }
+
     public function forgetBefore(DateTimeImmutable $day): int
     {
+        DB::table('traffic_empty_days')->where('day', '<', $this->day($day))->delete();
+
         return DB::table('traffic_days')->where('day', '<', $this->day($day))->delete();
     }
 

@@ -10,12 +10,15 @@ use App\Domain\Traffic\TrafficSource;
 use App\Domain\Traffic\TrafficUnavailable;
 use App\Domain\Traffic\VisitWindow;
 use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 
 /**
  * The admin area's Traffic page, from Cloudflare's totals. Visits of the last week are asked live, and the days
  * before it come from the daily snapshots. An answer is kept for an hour, and a failed answer for five minutes, so
- * the page never waits on Cloudflare twice in a row.
+ * the page never waits on Cloudflare twice in a row. An answer with a list missing, with page loads and no visits, or
+ * with no page loads at all, is asked once more, and if it is still not whole it is kept for five minutes only. A
+ * week with no page loads is rare, and an empty answer is more often Cloudflare having a bad hour.
  *
  * @phpstan-import-type RequestDay from TrafficReport
  * @phpstan-import-type VisitDay from TrafficReport
@@ -28,6 +31,12 @@ final readonly class TrafficQuery
 {
     /** Cloudflare keeps a month of daily totals on every plan. */
     public const int DAYS = 30;
+
+    /** How long a whole answer is kept, in seconds. */
+    public const int KEEP_SECONDS = 3600;
+
+    /** How long a failed or partial answer is kept, in seconds, before the page asks Cloudflare again. */
+    public const int RETRY_SECONDS = 300;
 
     public function __construct(
         private TrafficSource $trafficSource,
@@ -57,14 +66,48 @@ final readonly class TrafficQuery
         $kept = $this->trafficSnapshots->between($since, CarbonImmutable::instance(VisitWindow::start($until))->subDay()->toDateTimeImmutable());
 
         try {
-            $page = $this->shape(connected: true, error: null, trafficReport: $this->trafficSource->report($since, $until)->withDays($kept));
-            $this->cacheRepository->put($key, $page, 3600);
+            $trafficReport = $this->report($since, $until);
+            $page = $this->shape(connected: true, error: null, trafficReport: $trafficReport->withDays($kept));
+            $this->cacheRepository->put($key, $page, $this->whole($trafficReport) ? self::KEEP_SECONDS : self::RETRY_SECONDS);
         } catch (TrafficUnavailable $trafficUnavailable) {
             $page = $this->shape(connected: true, error: $trafficUnavailable->getMessage(), trafficReport: new TrafficReport([], [], [], [], [])->withDays($kept));
-            $this->cacheRepository->put($key, $page, 300);
+            $this->cacheRepository->put($key, $page, self::RETRY_SECONDS);
         }
 
         return $page;
+    }
+
+    /**
+     * The live answer, asked once more when it is not whole. When the second answer fails, the first one is shown.
+     *
+     * @throws TrafficUnavailable when the first answer failed
+     */
+    private function report(DateTimeImmutable $since, DateTimeImmutable $until): TrafficReport
+    {
+        $trafficReport = $this->trafficSource->report($since, $until);
+
+        if ($this->whole($trafficReport)) {
+            return $trafficReport;
+        }
+
+        try {
+            return $this->trafficSource->report($since, $until);
+        } catch (TrafficUnavailable) {
+            return $trafficReport;
+        }
+    }
+
+    /**
+     * Whether the visits of the answer hold together and hold a page load. Without the ids for visits, only the
+     * requests are asked, and that answer is whole.
+     */
+    private function whole(TrafficReport $trafficReport): bool
+    {
+        if (! $this->trafficSource->readsVisits()) {
+            return true;
+        }
+
+        return $trafficReport->visitsComplete() && ! $trafficReport->visitsEmpty();
     }
 
     /**

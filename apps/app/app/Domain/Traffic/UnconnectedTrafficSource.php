@@ -16,7 +16,17 @@ final readonly class UnconnectedTrafficSource implements TrafficSource
         return false;
     }
 
+    public function readsVisits(): bool
+    {
+        return false;
+    }
+
     public function report(DateTimeImmutable $since, DateTimeImmutable $until): TrafficReport
+    {
+        return new TrafficReport([], [], [], [], []);
+    }
+
+    public function visits(DateTimeImmutable $since, DateTimeImmutable $until): TrafficReport
     {
         return new TrafficReport([], [], [], [], []);
     }

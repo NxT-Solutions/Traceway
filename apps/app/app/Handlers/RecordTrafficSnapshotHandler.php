@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Handlers;
 
+use App\Domain\Traffic\EmptyDay;
 use App\Domain\Traffic\TrafficDay;
 use App\Domain\Traffic\TrafficSnapshots;
 use App\Domain\Traffic\TrafficSource;
@@ -25,32 +26,61 @@ final readonly class RecordTrafficSnapshotHandler
     ) {}
 
     /**
-     * Asks for each settled day of the visit window that is not kept yet. A day Cloudflare does not answer in full
-     * is asked again on the next run, until it leaves the window.
+     * Asks for the visits of each settled day of the visit window that is not kept yet. A day Cloudflare does not
+     * answer in full is asked again on the next run, until it leaves the window. A day that comes back with nothing
+     * at all is kept with no page loads once it came back empty `EmptyDay::ANSWERS` times, hours apart, and is not
+     * asked again. Any page, referrer, or country in an answer means the day had page loads, so its count starts over.
      *
      * @return int How many days were kept.
      */
     public function handle(): int
     {
-        if (! $this->trafficSource->connected()) {
+        if (! $this->trafficSource->readsVisits()) {
             return 0;
         }
 
         $now = now()->utc()->toImmutable();
+        $hour = $now->startOfHour()->toDateTimeImmutable();
         $first = CarbonImmutable::instance(VisitWindow::start($now->toDateTimeImmutable()));
         $last = $now->subHours(self::SETTLE_HOURS)->startOfDay()->subDay();
         $kept = array_map(fn (TrafficDay $trafficDay): string => $trafficDay->date, $this->trafficSnapshots->between($first->toDateTimeImmutable(), $last->toDateTimeImmutable()));
+        $emptyDays = [];
+
+        foreach ($this->trafficSnapshots->emptyDays($first->toDateTimeImmutable(), $last->toDateTimeImmutable()) as $emptyDay) {
+            $emptyDays[$emptyDay->date] = $emptyDay;
+        }
+
         $saved = 0;
 
         for ($day = $first; $day <= $last; $day = $day->addDay()) {
-            if (in_array($day->toDateString(), $kept, strict: true)) {
+            $date = $day->toDateString();
+
+            if (in_array($date, $kept, strict: true)) {
                 continue;
             }
 
             try {
-                $trafficReport = $this->trafficSource->report($day->toDateTimeImmutable(), $day->endOfDay()->toDateTimeImmutable());
+                $trafficReport = $this->trafficSource->visits($day->toDateTimeImmutable(), $day->endOfDay()->toDateTimeImmutable());
             } catch (TrafficUnavailable) {
                 continue;
+            }
+
+            if ($trafficReport->visitsEmpty()) {
+                $emptyDay = isset($emptyDays[$date]) ? $emptyDays[$date]->answeredAgain($hour) : EmptyDay::first($date, $hour);
+
+                if ($emptyDay->settled()) {
+                    $this->trafficSnapshots->save($emptyDay->trafficDay());
+                    $this->trafficSnapshots->forgetEmpty($date);
+                    $saved++;
+                } else {
+                    $this->trafficSnapshots->saveEmpty($emptyDay);
+                }
+
+                continue;
+            }
+
+            if (isset($emptyDays[$date])) {
+                $this->trafficSnapshots->forgetEmpty($date);
             }
 
             $trafficDay = TrafficDay::fromReport($day->toDateTimeImmutable(), $trafficReport);
