@@ -38,7 +38,12 @@ class SendSecurityHeaders
         $response = $next($request);
 
         $headers = $response->headers;
-        $headers->set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+
+        // Not on DDEV: the browser would send Mailpit on :8025 to HTTPS as well.
+        if (! app()->isLocal()) {
+            $headers->set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+        }
+
         $headers->set('X-Content-Type-Options', 'nosniff');
         $headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
@@ -101,7 +106,7 @@ class SendSecurityHeaders
         // The API reference is Scalar's page, loaded from its CDN. Its bundle
         // calls eval, and the page shows nothing a visitor typed.
         if ($request->is('docs')) {
-            $directives['script-src'][] = 'https://cdn.jsdelivr.net';
+            $directives['script-src'][] = config()->string('scalar.cdn');
             $directives['script-src'][] = "'unsafe-eval'";
             $directives['style-src'][] = 'https://fonts.scalar.com';
             $directives['font-src'][] = 'https://fonts.scalar.com';
