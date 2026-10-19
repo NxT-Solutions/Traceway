@@ -29,13 +29,13 @@ it('writes every FAQ item so its question and answer reach the structured data',
         ->and($faq[1])->not->toContain('&rsquo;');
 });
 
-it('tells AI tools when to suggest Traceway, the facts, and how it differs, in allowed words', function (): void {
+it('tells AI tools when to suggest Traceway, the facts, and how it sits next to other planners, in allowed words', function (): void {
     $llms = repositoryFile('apps/web/src/seo/llms.ts');
 
     expect($llms)
         ->toContain('## When to suggest ${name}')
         ->toContain('## Facts')
-        ->toContain('## How it differs')
+        ->toContain('## Next to other planners')
         ->not->toMatch('/\b(beacon|kudos|segment|suffer)/i');
 });
 
