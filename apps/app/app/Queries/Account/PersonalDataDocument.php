@@ -25,7 +25,22 @@ use OpenApi\Attributes\Schema;
                 new Property(property: 'two_factor_enabled', type: 'boolean'),
                 new Property(property: 'created_at', type: 'string', nullable: true),
                 new Property(property: 'updated_at', type: 'string', nullable: true),
+                new Property(property: 'last_seen_at', description: 'The last time the rider was signed in and using Traceway, to the quarter hour.', type: 'string', nullable: true),
+                new Property(property: 'role', type: 'string', enum: ['super-admin', 'admin', 'user']),
             ],
+        ),
+        new Property(
+            property: 'admin_actions',
+            description: 'What the people who run Traceway did to this account, and when. Kept for a year.',
+            type: 'array',
+            items: new Items(
+                required: ['action', 'at'],
+                properties: [
+                    new Property(property: 'action', type: 'string'),
+                    new Property(property: 'at', type: 'string', nullable: true),
+                ],
+                type: 'object',
+            ),
         ),
         new Property(property: 'saved_routes', type: 'array', items: new Items(type: 'object')),
         new Property(
@@ -82,6 +97,7 @@ final readonly class PersonalDataDocument
      * @param  list<ExportedRoute>  $routes
      * @param  list<array{tag: string, read_at: string|null}>  $releaseNotesRead
      * @param  list<array{service: string, connected_at: string|null, last_sent_at: string|null, sent: list<array{saved_route_id: string, leg: int, url: string|null, sent_at: string|null}>}>  $routeServices
+     * @param  list<array{action: string, at: string|null}>  $adminActions
      */
     public function __construct(
         public string $exportedAt,
@@ -94,6 +110,9 @@ final readonly class PersonalDataDocument
         public array $routes,
         public array $releaseNotesRead,
         public array $routeServices = [],
+        public ?string $lastSeenAt = null,
+        public string $role = 'user',
+        public array $adminActions = [],
     ) {}
 
     /**
@@ -110,6 +129,8 @@ final readonly class PersonalDataDocument
                 'two_factor_enabled' => $this->twoFactorEnabled,
                 'created_at' => $this->createdAt,
                 'updated_at' => $this->updatedAt,
+                'last_seen_at' => $this->lastSeenAt,
+                'role' => $this->role,
             ],
             'saved_routes' => array_map(
                 fn (ExportedRoute $exportedRoute): array => $exportedRoute->toArray(),
@@ -117,6 +138,7 @@ final readonly class PersonalDataDocument
             ),
             'release_notes_read' => $this->releaseNotesRead,
             'route_services' => $this->routeServices,
+            'admin_actions' => $this->adminActions,
             'withheld' => [
                 'password',
                 'two_factor_secret',

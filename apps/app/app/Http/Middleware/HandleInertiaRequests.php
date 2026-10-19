@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Account\Permission;
+use App\Auth\Impersonation;
 use App\Models\User;
 use App\Queries\Account\RouteServicesQuery;
 use App\Queries\Releases\ReleaseNotesQuery;
@@ -49,7 +51,12 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $user,
+                // What the admin area lets this person do, for the Admin link and the buttons on its pages.
+                // While acting as a rider, the admin area is closed, so nothing offers it.
+                'can' => $user instanceof User && ! Impersonation::active($request) ? $this->abilities($user) : null,
             ],
+            // The bar that says whose Traceway this is, and stops acting as them.
+            'impersonating' => $user instanceof User && Impersonation::active($request) ? ['name' => $user->name] : null,
             // What changed in Traceway since the rider last looked, for the bell in the header.
             'whatsNew' => fn (): ?array => $user instanceof User
                 ? resolve(ReleaseNotesQuery::class)->summaryFor($user->id, $user->created_at)
@@ -59,6 +66,26 @@ class HandleInertiaRequests extends Middleware
                 ? resolve(RouteServicesQuery::class)->forRider($user->id)
                 : [],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
+    }
+
+    /**
+     * @return array{admin: bool, viewAnalytics: bool, viewUsers: bool, manageUsers: bool, assignRoles: bool}
+     */
+    private function abilities(User $user): array
+    {
+        $viewAnalytics = $user->can(Permission::ViewAnalytics->value);
+        $viewUsers = $user->can(Permission::ViewUsers->value);
+
+        // The checks load the role and permission relations. The page needs only the answers.
+        $user->makeHidden(['roles', 'permissions']);
+
+        return [
+            'admin' => $viewAnalytics || $viewUsers,
+            'viewAnalytics' => $viewAnalytics,
+            'viewUsers' => $viewUsers,
+            'manageUsers' => $user->can(Permission::ManageUsers->value),
+            'assignRoles' => $user->can(Permission::AssignRoles->value),
         ];
     }
 }

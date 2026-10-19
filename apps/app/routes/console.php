@@ -2,11 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Account\AdminAction;
+use App\Account\AdminRules;
+use App\Account\RiderId;
+use App\Account\Role;
 use App\Commands\PostStatusNoticeCommand;
 use App\Commands\ReadRouteDetailsCommand;
 use App\Commands\RecordServiceChecksCommand;
+use App\Commands\RecordUsageSnapshotCommand;
 use App\Commands\ResolveStatusNoticeCommand;
 use App\Commands\SyncReleasesCommand;
+use App\Contracts\Account\AdminLog;
+use App\Contracts\Account\UserRepository;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Domain\Releases\ReleaseFeed;
 use App\Domain\Status\StatusComponent;
@@ -181,3 +188,59 @@ Artisan::command('status:resolve {id? : The notice to close. Empty closes the ne
 
     return 0;
 })->purpose('Close a notice once the problem is over');
+
+Artisan::command("users:role {email : The rider's sign-in email} {role : super-admin, admin, or user}", function (UserRepository $userRepository, AdminLog $adminLog): int {
+    $email = $this->argument('email');
+    $role = Role::tryFrom(is_string($this->argument('role')) ? $this->argument('role') : '');
+
+    if (! $role instanceof Role) {
+        $this->error('There is no such role. Use one of: '.implode(', ', array_map(fn (Role $role): string => $role->value, Role::cases())).'.');
+
+        return 1;
+    }
+
+    $id = DB::table('users')->whereRaw('lower(email) = ?', [mb_strtolower(is_string($email) ? $email : '')])->value('id');
+
+    if (! is_numeric($id)) {
+        $this->error('No rider signs in with that email.');
+
+        return 1;
+    }
+
+    $riderId = new RiderId((int) $id);
+
+    if (! AdminRules::keepsASuperAdmin($userRepository->role($riderId), $role, $userRepository->countWithRole(Role::SuperAdmin))) {
+        $this->error('This is the last Super Admin. Make someone else a Super Admin first.');
+
+        return 1;
+    }
+
+    $before = $userRepository->role($riderId);
+    $userRepository->assignRole($riderId, $role);
+    $adminLog->record(actorId: null, adminAction: AdminAction::RoleChanged, riderId: $riderId, details: ['from' => $before->value, 'to' => $role->value]);
+    $this->info('The rider is now '.$role->label().'.');
+
+    return 0;
+})->purpose('Give a rider a role: super-admin, admin, or user');
+
+Artisan::command('usage:snapshot', function (DispatchesCommands $dispatchesCommands): int {
+    $forgotten = $dispatchesCommands->dispatch(new RecordUsageSnapshotCommand);
+
+    $this->info('Wrote the active riders for today and forgot '.(is_int($forgotten) ? $forgotten : 0).' old totals.');
+
+    return 0;
+})->purpose('Write how many riders were active, for the admin area, and forget old usage totals');
+
+// Shortly before midnight, so each day's gauge covers that whole day.
+Schedule::command('usage:snapshot')->dailyAt('23:55');
+
+// The activity log of the admin area is kept for a year.
+Artisan::command('admin:prune-log', function (AdminLog $adminLog): int {
+    $deleted = $adminLog->forgetBefore(now()->subYear()->toDateTimeImmutable());
+
+    $this->info('Forgot '.$deleted.' entries of the admin activity log.');
+
+    return 0;
+})->purpose('Forget admin activity older than a year');
+
+Schedule::command('admin:prune-log')->dailyAt('03:10');

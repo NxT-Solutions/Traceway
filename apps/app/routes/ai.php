@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Domain\Usage\UsageMetric;
 use App\Http\Controllers\ShowChatCardFileController;
 use App\Http\Controllers\ShowRouteMapScriptController;
+use App\Http\Middleware\CountUsage;
+use App\Http\Middleware\NoteLastSeen;
 use App\Mcp\Servers\TracewayServer;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
@@ -15,7 +18,7 @@ Route::middleware('throttle:oauth-register')->group(function (): void {
 });
 
 Mcp::web('mcp', TracewayServer::class)
-    ->middleware(['auth:api', 'throttle:mcp'])
+    ->middleware(['auth:api', 'throttle:mcp', NoteLastSeen::class, CountUsage::as(UsageMetric::AssistantRequests)])
     ->name('mcp');
 
 // The map in the chat card fetches this each time it shows. See RouteMapApp.

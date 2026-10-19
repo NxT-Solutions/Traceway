@@ -19,7 +19,7 @@ const contentPages = ['/', '/support', '/privacy', '/terms', '/cookies', '/legal
 const authPages = ['/login', '/register', '/forgot-password'];
 // Public planner pages, open to anyone.
 const publicPages = ['/status'];
-const signedInPages = ['/dashboard', '/saved', '/settings/profile', '/settings/privacy', '/settings/assistants', '/settings/devices', '/settings/appearance', '/settings/whats-new'];
+const signedInPages = ['/dashboard', '/saved', '/settings/profile', '/settings/privacy', '/settings/assistants', '/settings/devices', '/settings/appearance', '/settings/whats-new', '/admin', '/admin/traffic', '/admin/users', '/admin/users/create', '/admin/users/2'];
 
 const browser = await chromium.launch({ executablePath: executable, headless: true });
 const failures = [];

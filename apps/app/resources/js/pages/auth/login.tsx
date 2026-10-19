@@ -12,6 +12,7 @@ type DemoRider = {
     key: string;
     name: string;
     description: string;
+    role: string;
 };
 
 type Props = {
@@ -127,7 +128,12 @@ export default function Login({
                                         disabled={processing}
                                         className="rider"
                                     >
-                                        <b>{rider.name}</b>
+                                        <span className="who">
+                                            <b>{rider.name}</b>
+                                            <span className="role">
+                                                {rider.role}
+                                            </span>
+                                        </span>
                                         <small>{rider.description}</small>
                                     </button>
                                 )}

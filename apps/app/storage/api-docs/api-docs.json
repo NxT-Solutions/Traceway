@@ -2742,9 +2742,42 @@
                             "updated_at": {
                                 "type": "string",
                                 "nullable": true
+                            },
+                            "last_seen_at": {
+                                "description": "The last time the rider was signed in and using Traceway, to the quarter hour.",
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "role": {
+                                "type": "string",
+                                "enum": [
+                                    "super-admin",
+                                    "admin",
+                                    "user"
+                                ]
                             }
                         },
                         "type": "object"
+                    },
+                    "admin_actions": {
+                        "description": "What the people who run Traceway did to this account, and when. Kept for a year.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "action",
+                                "at"
+                            ],
+                            "properties": {
+                                "action": {
+                                    "type": "string"
+                                },
+                                "at": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
                     },
                     "saved_routes": {
                         "type": "array",

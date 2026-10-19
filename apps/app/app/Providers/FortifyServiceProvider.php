@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Account\Role;
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\LogoutResponse;
@@ -96,11 +97,11 @@ class FortifyServiceProvider extends ServiceProvider
     }
 
     /**
-     * @return array<int, array{key: string, name: string, description: string}>
+     * @return array<int, array{key: string, name: string, description: string, role: string}>
      */
     private function demoRiders(): array
     {
-        /** @var array<string, array{name: string, email: string, description: string}> $riders */
+        /** @var array<string, array{name: string, email: string, description: string, role?: string}> $riders */
         $riders = config('demo.riders', []);
 
         return collect($riders)
@@ -108,6 +109,7 @@ class FortifyServiceProvider extends ServiceProvider
                 'key' => $key,
                 'name' => $rider['name'],
                 'description' => $rider['description'],
+                'role' => (Role::tryFrom($rider['role'] ?? '') ?? Role::User)->label(),
             ])
             ->values()
             ->all();

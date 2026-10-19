@@ -6,13 +6,15 @@ import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { forgetPlannerDrafts } from '@/lib/planner-draft';
 import { toUrl } from '@/lib/utils';
 import { logout, status } from '@/routes';
+import { overview as adminOverview } from '@/routes/admin';
+import { index as adminUsers } from '@/routes/admin/users';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
 import { index as whatsNewPage } from '@/routes/releases';
 import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
 import '../../../css/settings-scene.css';
-import ReleaseBell from '@/components/release-bell';
+import SceneHeader from '@/components/scene-header';
 
 const sidebarNavItems: NavItem[] = [
     {
@@ -52,100 +54,17 @@ const sidebarNavItems: NavItem[] = [
     },
 ];
 
-function initials(name: string): string {
-    return name
-        .split(/\s+/)
-        .map((part) => part[0] ?? '')
-        .join('')
-        .slice(0, 2)
-        .toUpperCase();
-}
-
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const cleanup = useMobileNavigation();
-    const page = usePage<{ auth: { user: { name: string } } }>();
-    const { auth } = page.props;
+    const page = usePage();
+    const can = page.props.auth.can;
     const { resolvedAppearance } = useAppearance();
-    const name = auth.user.name;
     const unread = page.props.whatsNew?.unread ?? 0;
 
     return (
         <div className="tw-settings" data-theme={resolvedAppearance}>
-            <header className="hdr">
-                <div className="wrap">
-                    <Link
-                        className="brand"
-                        href="/dashboard"
-                        aria-label="Traceway planner"
-                    >
-                        <svg
-                            width="26"
-                            height="26"
-                            viewBox="0 0 28 28"
-                            fill="none"
-                            aria-hidden="true"
-                        >
-                            <path
-                                d="M6 23 V12 a6 6 0 0 1 6 -6 h4 a6 6 0 0 1 6 6 v3"
-                                stroke="currentColor"
-                                strokeWidth="3"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            />
-                            <circle
-                                cx="22"
-                                cy="22"
-                                r="3"
-                                fill="oklch(0.78 0.17 128)"
-                            />
-                        </svg>
-                        <span>Traceway</span>
-                    </Link>
-                    <div className="hdr-r">
-                        <Link className="plan-nav" href="/dashboard">
-                            <span className="long">Plan your route</span>
-                            <span className="short">Plan</span>
-                        </Link>
-                        <Link
-                            className="saved-nav"
-                            href="/saved"
-                            aria-label="Saved routes"
-                            aria-current={
-                                page.url.startsWith('/saved')
-                                    ? 'page'
-                                    : undefined
-                            }
-                        >
-                            <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 16 16"
-                                fill="none"
-                                aria-hidden="true"
-                            >
-                                <path
-                                    d="M4 2.5h8a1 1 0 0 1 1 1V14l-5-2.5L3 14V3.5a1 1 0 0 1 1-1z"
-                                    stroke="currentColor"
-                                    strokeWidth="1.4"
-                                    strokeLinejoin="round"
-                                />
-                            </svg>
-                            <span>Saved routes</span>
-                        </Link>
-                        <ReleaseBell />
-                        <Link
-                            className="acct"
-                            href={edit()}
-                            aria-current="page"
-                            aria-label="Account and settings"
-                        >
-                            <span className="name">{name}</span>
-                            <span className="avatar">{initials(name)}</span>
-                        </Link>
-                    </div>
-                </div>
-            </header>
+            <SceneHeader current="account" />
             <main className="wrap">
                 <h1>Settings</h1>
                 <p className="sub">Profile, security and appearance.</p>
@@ -171,6 +90,17 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                                 ) : null}
                             </Link>
                         ))}
+                        {can?.admin ? (
+                            <Link
+                                href={
+                                    can.viewAnalytics
+                                        ? adminOverview()
+                                        : adminUsers()
+                                }
+                            >
+                                Admin
+                            </Link>
+                        ) : null}
                         <div className="sep" />
                         <a href="/support">Support Traceway</a>
                         <Link href={status()}>Service status</Link>

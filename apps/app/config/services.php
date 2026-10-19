@@ -73,6 +73,14 @@ return [
         'url' => env('RIDEWITHGPS_URL', 'https://ridewithgps.com'),
     ],
 
+    // The admin area's Traffic page. A read-only Analytics token, not the token the deploy purges the cache with.
+    'cloudflare_analytics' => [
+        'token' => env('CLOUDFLARE_ANALYTICS_TOKEN'),
+        'account_id' => env('CLOUDFLARE_ACCOUNT_ID'),
+        'zone_id' => env('CLOUDFLARE_ZONE_ID'),
+        'site_tag' => env('CLOUDFLARE_WEB_ANALYTICS_SITE_TAG'),
+    ],
+
     // Cloudflare Turnstile under the sign-up and password-reset forms. Both
     // keys empty turns it off.
     'turnstile' => [

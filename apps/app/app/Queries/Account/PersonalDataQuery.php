@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries\Account;
 
+use App\Account\AdminAction;
 use App\Account\Email;
 use App\Account\RiderName;
 use App\Queries\RowReader;
@@ -45,6 +46,9 @@ final class PersonalDataQuery
             $this->routes($riderId),
             $this->releaseNotesRead($riderId),
             $this->routeServices($riderId),
+            $account->iso('last_seen_at'),
+            new RiderRoles()->of($riderId)->value,
+            $this->adminActions($riderId),
         );
     }
 
@@ -112,6 +116,27 @@ final class PersonalDataQuery
         return $read;
     }
 
+    /**
+     * What the people who run Traceway did to this account. Who did it is not part of the rider's data.
+     *
+     * @return list<array{action: string, at: string|null}>
+     */
+    private function adminActions(int $riderId): array
+    {
+        $actions = [];
+
+        foreach (DB::table('admin_actions')->where('rider_id', $riderId)->oldest('created_at')->get(['action', 'created_at']) as $row) {
+            $reader = new RowReader($row);
+            $adminAction = AdminAction::tryFrom($reader->string('action'));
+            $actions[] = [
+                'action' => $adminAction instanceof AdminAction ? $adminAction->label() : $reader->string('action'),
+                'at' => $reader->iso('created_at'),
+            ];
+        }
+
+        return $actions;
+    }
+
     private function account(int $riderId): RowReader
     {
         $row = DB::table('users')->where('id', $riderId)->first([
@@ -121,6 +146,7 @@ final class PersonalDataQuery
             'two_factor_confirmed_at',
             'created_at',
             'updated_at',
+            'last_seen_at',
         ]);
 
         abort_if($row === null, 404);

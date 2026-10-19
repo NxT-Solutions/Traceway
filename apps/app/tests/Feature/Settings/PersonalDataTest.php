@@ -6,6 +6,7 @@ use App\Mail\AccountMessage;
 use App\Models\SavedRoute;
 use App\Models\User;
 use App\Notifications\VerifyEmail;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
@@ -37,6 +38,9 @@ test('a rider can download their data and receives a copy by email', function ()
         'name' => 'Road rider',
         'password' => 'password',
     ]);
+    // The export itself is a visit, noted to the quarter hour.
+    CarbonImmutable::setTestNow('2026-10-19 09:52:30');
+    $user->assignRole('admin');
     SavedRoute::factory()->create([
         'user_id' => $user->id,
         'name' => 'Morning loop',
@@ -46,9 +50,15 @@ test('a rider can download their data and receives a copy by email', function ()
 
     $response->assertOk();
     $response->assertDownload('traceway-data.json');
+
+    $document = json_decode((string) $response->streamedContent(), associative: true, flags: JSON_THROW_ON_ERROR);
     expect($response->streamedContent())
         ->toContain('Morning loop')
-        ->not->toContain($user->password);
+        ->not->toContain($user->password)
+        ->and($document['account']['role'] ?? null)->toBe('admin')
+        ->and($document['account']['last_seen_at'] ?? null)->toStartWith('2026-10-19T09:45:00');
+
+    CarbonImmutable::setTestNow();
 
     Mail::assertQueued(AccountMessage::class, fn (AccountMessage $accountMessage): bool => $accountMessage->hasTo($user->email)
         && $accountMessage->template === 'data-export'

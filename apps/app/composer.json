@@ -23,7 +23,8 @@
         "saloonphp/laravel-plugin": "^5.0",
         "saloonphp/saloon": "^4.0",
         "scalar/laravel": "^0.4.1",
-        "sentry/sentry-laravel": "^4.29"
+        "sentry/sentry-laravel": "^4.29",
+        "spatie/laravel-permission": "^8.0"
     },
     "require-dev": {
         "driftingly/rector-laravel": "^2.6",
