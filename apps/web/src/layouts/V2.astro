@@ -7,8 +7,8 @@ import 'lenis/dist/lenis.css';
 import '../styles/global.css';
 import '../styles/v2.css';
 import Consent from '../components/Consent.astro';
-import { questions } from '../seo/home';
 import * as about from '../seo/site';
+import * as structured from '../seo/structured';
 
 interface Props {
     title?: string;
@@ -20,45 +20,7 @@ const canonical = about.absolute(Astro.site, Astro.url.pathname);
 const image = about.absolute(Astro.site, '/og.png');
 
 // What the page is, in the words search engines and AI answers read.
-const data = {
-    '@context': 'https://schema.org',
-    '@graph': [
-        {
-            '@type': 'WebSite',
-            '@id': `${about.absolute(Astro.site, '/')}#website`,
-            name: about.name,
-            url: about.absolute(Astro.site, '/'),
-            description,
-        },
-        {
-            '@type': 'WebApplication',
-            '@id': `${about.absolute(Astro.site, '/')}#app`,
-            name: about.name,
-            url: about.absolute(Astro.site, '/dashboard'),
-            description,
-            image,
-            applicationCategory: 'SportsApplication',
-            operatingSystem: 'Web',
-            browserRequirements: 'Requires a modern web browser.',
-            featureList: [
-                ...about.sports.map((sport) => `${sport} loops`),
-                ...about.multisport.map((plan) => `${plan} plans`),
-                `Routes for ${about.devices.join(', ')}`,
-                'Via points',
-                'Turn-by-turn directions on Garmin',
-            ],
-            sameAs: [about.repository],
-        },
-        {
-            '@type': 'FAQPage',
-            mainEntity: questions().map(({ question, answer }) => ({
-                '@type': 'Question',
-                name: question,
-                acceptedAnswer: { '@type': 'Answer', text: answer },
-            })),
-        },
-    ],
-};
+const data = structured.home(Astro.site, description);
 ---
 
 <!doctype html>
@@ -78,9 +40,12 @@ const data = {
         <link rel="alternate" type="text/markdown" href="/index.md" title="This page as Markdown" />
         <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="manifest" href="/manifest.webmanifest" />
+        {/* The home-screen manifest is asked for once the page has loaded, so it never waits in line
+            with what the first paint needs. csp.mjs hashes it. */}
+        <script is:inline>addEventListener('load', () => { const link = document.createElement('link'); link.rel = 'manifest'; link.href = '/manifest.webmanifest'; document.head.append(link); });</script>
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content={about.name} />
+        <meta property="og:locale" content="en_GB" />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
         <meta property="og:url" content={canonical} />
@@ -92,7 +57,7 @@ const data = {
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={image} />
-        <script type="application/ld+json" set:html={JSON.stringify(data).replace(/</g, '\\u003c')} />
+        <script type="application/ld+json" set:html={data} />
     </head>
     <body id="top">
         <Consent />

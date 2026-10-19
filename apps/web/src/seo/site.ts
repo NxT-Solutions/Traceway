@@ -23,6 +23,14 @@ export const devices = ['Garmin', 'COROS', 'Suunto', 'Wahoo', 'Hammerhead'];
 
 export const repository = 'https://github.com/NxT-Solutions/Traceway';
 
+// The IndexNow key, served at /indexnow.txt. It is public by design: it only
+// proves that a list of changed pages comes from this site
+// (.github/workflows/production-deploy.yml sends the list after a release).
+export const indexNowKey = 'a97b44a4bccf7295118c7f44f2564a36';
+
+// Who makes and runs Traceway, as the legal notice names them.
+export const publisher = { name: 'NxT-Solutions', locality: 'Westerlo', country: 'BE' };
+
 // Planner paths are private. Search engines and AI crawlers stay out, and a
 // shared route never shows up in a search, because it shows where someone
 // starts.

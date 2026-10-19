@@ -21,16 +21,29 @@ const text = (html: string): string => {
     return words.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
 };
 
-/** The FAQ on the home page, read from the same HTML the page shows. */
+/** The FAQ on the home page, read from the same HTML the page shows. The
+ * icon in a summary is markup without words, so text() drops it. */
 export const questions = (): Question[] =>
-    [
-        ...body.matchAll(
-            /<details>\s*<summary>([\s\S]*?)<svg[\s\S]*?<\/summary>\s*<p>([\s\S]*?)<\/p>\s*<\/details>/g,
-        ),
-    ].map(([, question = '', answer = '']) => ({
-        question: text(question),
-        answer: text(answer),
-    }));
+    [...body.matchAll(/<details>\s*<summary>([\s\S]*?)<\/summary>\s*<p>([\s\S]*?)<\/p>\s*<\/details>/g)].map(
+        ([, question = '', answer = '']) => ({
+            question: text(question),
+            answer: text(answer),
+        }),
+    );
+
+export interface Step {
+    name: string;
+    text: string;
+}
+
+/** The steps under How it works, read from the same HTML the page shows. */
+export const steps = (): Step[] =>
+    [...body.matchAll(/<article class="step[^"]*"[^>]*>[\s\S]*?<h3>([\s\S]*?)<\/h3>\s*<p>([\s\S]*?)<\/p>/g)].map(
+        ([, name = '', words = '']) => ({
+            name: text(name),
+            text: text(words),
+        }),
+    );
 
 /**
  * The home page as Markdown, for AI tools and anything else that reads text.
