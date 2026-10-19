@@ -1,0 +1,25 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.NxT-Solutions/traceway",
+  "title": "Traceway",
+  "description": "Plan loop routes for any sport from a start and a distance, ready for a watch or bike computer.",
+  "version": "1.0.0",
+  "websiteUrl": "https://traceway.online",
+  "repository": {
+    "url": "https://github.com/NxT-Solutions/Traceway",
+    "source": "github"
+  },
+  "icons": [
+    {
+      "src": "https://traceway.online/favicon.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": ["any"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://traceway.online/mcp"
+    }
+  ]
+}
