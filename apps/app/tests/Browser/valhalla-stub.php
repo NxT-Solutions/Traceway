@@ -36,8 +36,10 @@ function metresBetween(array $from, array $to): float
 }
 
 /**
- * Straight segments through the points, each split into steps so the player
- * and the map framing have coordinates along the way.
+ * Segments through the points, each split into steps so the player and the
+ * map framing have coordinates along the way. Each bows 20 metres to one
+ * side at its middle, as a road bends: the planner thins a line to the
+ * metre, which would leave a straight one with its corners alone.
  *
  * @param  list<array{0: float, 1: float}>  $points
  * @return list<array{0: float, 1: float}>
@@ -49,11 +51,18 @@ function straightLine(array $points, int $steps = 20): array
     for ($index = 1, $count = count($points); $index < $count; $index++) {
         $from = $points[$index - 1];
         $to = $points[$index];
+        $squeeze = cos(deg2rad(($from[1] + $to[1]) / 2));
+        $across = ($to[0] - $from[0]) * $squeeze;
+        $up = $to[1] - $from[1];
+        $length = hypot($across, $up);
+        $bow = $length > 0.0 ? 20 / 111_320 / $length : 0.0;
 
         for ($step = 1; $step <= $steps; $step++) {
+            $share = $step / $steps;
+            $side = sin(M_PI * $share) * $bow;
             $line[] = [
-                $from[0] + ($to[0] - $from[0]) * $step / $steps,
-                $from[1] + ($to[1] - $from[1]) * $step / $steps,
+                $from[0] + ($to[0] - $from[0]) * $share - $up * $side / $squeeze,
+                $from[1] + ($to[1] - $from[1]) * $share + $across * $side,
             ];
         }
     }
@@ -180,8 +189,9 @@ if (str_starts_with($path, '/planet/stub/')) {
 }
 
 // The browser's basemap, which mock-servers.mjs hands the page in place of
-// OpenFreeMap's: a plain background and a few towns around the planner's
-// opening view, so the search bar finds names on the map without a server.
+// OpenFreeMap's: a grid of streets for a tap to snap to, and a few towns
+// around the planner's opening view, so the search bar finds names on the map
+// without a server.
 if (preg_match('#^/styles/(\w+)$#', $path, $style) === 1) {
     reply(200, [
         'version' => 8,
@@ -193,6 +203,7 @@ if (preg_match('#^/styles/(\w+)$#', $path, $style) === 1) {
         ]],
         'layers' => [
             ['id' => 'background', 'type' => 'background', 'paint' => ['background-color' => $style[1] === 'dark' ? '#1c2230' : '#eef0e6']],
+            ['id' => 'road_minor', 'type' => 'line', 'source' => 'openmaptiles', 'source-layer' => 'transportation', 'paint' => ['line-color' => $style[1] === 'dark' ? '#3a4254' : '#ffffff', 'line-width' => 2]],
             ['id' => 'place', 'type' => 'circle', 'source' => 'openmaptiles', 'source-layer' => 'place', 'paint' => ['circle-radius' => 3, 'circle-color' => '#8a8f80']],
         ],
     ]);
@@ -215,9 +226,17 @@ if (preg_match('#^/basemap/(\d+)/(\d+)/(\d+)\.pbf$#', $path, $tile) === 1) {
         }
     }
 
+    // A grid of streets in every tile, so a tap anywhere has a road to snap to.
+    $roads = [];
+
+    for ($line = 1; $line <= 8; $line++) {
+        $roads[] = ['line' => [[0.0, $line / 9], [1.0, $line / 9]], 'tags' => ['class' => 'minor']];
+        $roads[] = ['line' => [[$line / 9, 0.0], [$line / 9, 1.0]], 'tags' => ['class' => 'minor']];
+    }
+
     http_response_code(200);
     header('Content-Type: application/vnd.mapbox-vector-tile');
-    echo VectorTiles::tile(['place' => $places]);
+    echo VectorTiles::tile(['transportation' => $roads, 'place' => $places]);
 
     return;
 }
