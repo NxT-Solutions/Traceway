@@ -12,7 +12,7 @@ import { chromium } from 'playwright-core';
 const base = process.env.BASE_URL || 'https://traceway.ddev.site:8443';
 const local = [
     process.env.HOME,
-    'Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+    'Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
 ].join('/');
 const executable = process.env.CHROMIUM_PATH || (existsSync(local) ? local : undefined);
 const routing = 90_000;
