@@ -35,7 +35,9 @@ export function normalise(text: string): string {
         .trim();
 }
 
-function pointOf(geometry: GeoJSON.Geometry): [number, number] | null {
+function pointOf(
+    geometry: maplibregl.MapGeoJSONFeature['geometry'],
+): [number, number] | null {
     if (geometry.type === 'Point') {
         return [geometry.coordinates[0] ?? 0, geometry.coordinates[1] ?? 0];
     }
