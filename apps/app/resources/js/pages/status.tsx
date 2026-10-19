@@ -1,5 +1,6 @@
 import { Head, Link, usePage, usePoll } from '@inertiajs/react';
 import AppLogoIcon from '@/components/app-logo-icon';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -59,9 +60,27 @@ const outsideStatus = [
     { label: 'Garmin Connect', href: 'https://connect.garmin.com/status/' },
 ] as const;
 
-function ago(iso: string | null): string {
+// The server draws this page first, in its own language and time zone. Until
+// the browser has taken it over, times come from the data alone, in UTC, so
+// both write the same words. Then they turn into the reader's own time.
+const utc = {
+    locale: 'en-GB',
+    timeZone: 'UTC',
+    timeZoneName: 'short',
+} as const;
+
+function ago(iso: string | null, hydrated: boolean): string {
     if (iso === null) {
         return 'Not checked yet';
+    }
+
+    if (!hydrated) {
+        return `Checked at ${new Date(iso).toLocaleTimeString(utc.locale, {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: utc.timeZone,
+            timeZoneName: utc.timeZoneName,
+        })}`;
     }
 
     const minutes = Math.max(
@@ -82,16 +101,19 @@ function ago(iso: string | null): string {
     return `Checked ${hours} hour${hours === 1 ? '' : 's'} ago`;
 }
 
-function when(iso: string | null): string {
+function when(iso: string | null, hydrated: boolean): string {
     if (iso === null) {
         return '';
     }
 
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(iso).toLocaleString(hydrated ? undefined : utc.locale, {
         day: 'numeric',
         month: 'short',
         hour: '2-digit',
         minute: '2-digit',
+        ...(hydrated
+            ? {}
+            : { timeZone: utc.timeZone, timeZoneName: utc.timeZoneName }),
     });
 }
 
@@ -185,6 +207,7 @@ function DayBars({ component }: { component: Component }) {
 
 export default function Status() {
     const page = usePage<StatusPage>().props;
+    const hydrated = useHydrated();
 
     usePoll(60_000, {
         only: ['state', 'headline', 'checked_at', 'stale', 'notices', 'groups'],
@@ -228,7 +251,8 @@ export default function Status() {
                             {page.headline}
                         </h1>
                         <p className="text-muted-foreground">
-                            {ago(page.checked_at)}. We check every 5 minutes.
+                            {ago(page.checked_at, hydrated)}. We check every 5
+                            minutes.
                         </p>
                         {/* Read out only when the headline itself changes. */}
                         <p className="sr-only" role="status">
@@ -258,7 +282,8 @@ export default function Status() {
                                         </p>
                                     )}
                                     <p className="mt-2 text-sm text-muted-foreground">
-                                        Since {when(notice.started_at)}
+                                        Since{' '}
+                                        {when(notice.started_at, hydrated)}
                                     </p>
                                 </article>
                             ))}
@@ -344,9 +369,10 @@ export default function Status() {
                                             </p>
                                         )}
                                         <p className="mt-2 text-sm text-muted-foreground">
-                                            {when(notice.started_at)} to{' '}
-                                            {when(notice.resolved_at)}.
-                                            Resolved.
+                                            {when(notice.started_at, hydrated)}{' '}
+                                            to{' '}
+                                            {when(notice.resolved_at, hydrated)}
+                                            . Resolved.
                                         </p>
                                     </li>
                                 ))}

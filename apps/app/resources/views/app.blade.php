@@ -50,6 +50,8 @@
         <meta name="twitter:description" content="{{ $sharePreview['description'] }}">
         <meta name="twitter:image" content="{{ $sharePreview['image'] }}">
         <meta name="twitter:image:alt" content="{{ $sharePreview['image_alt'] }}">
+    @else
+        <meta name="description" content="Plan a loop for any sport and send it to your watch, GPS, or bike computer.">
     @endisset
 
     <link rel="icon" href="/favicon.ico?v=2" sizes="any">

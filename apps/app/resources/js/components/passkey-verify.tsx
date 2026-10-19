@@ -6,6 +6,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
+import { useHydrated } from '@/hooks/use-hydrated';
 
 type Props = {
     routes?: {
@@ -37,7 +38,13 @@ export default function PasskeyVerify({
         },
     });
 
-    if (!isSupported) {
+    // The server cannot ask the browser, and nearly every browser has
+    // passkeys, so the server draws the button. It goes away only once the
+    // browser says it has no passkeys; drawing it late would push the form
+    // down.
+    const hydrated = useHydrated();
+
+    if (!isSupported && hydrated) {
         return null;
     }
 

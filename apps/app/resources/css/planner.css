@@ -664,6 +664,8 @@ body:has(.tw-planner) .tw-pop .swatch:focus-visible{outline:2px solid var(--text
 .player-card .where{margin:0;display:flex;flex-direction:column;align-items:flex-end;font-size:13px;line-height:1.2;white-space:nowrap}
 .player-card .where b{font-size:15px;font-weight:600}
 .player-card .where span{color:var(--muted,#5d6b62)}
+/* On a shared route, --muted is the page's light background colour, not the planner's muted text. */
+.tw-share .player-card{--muted:#5d6b62}
 .player-card .where small{display:inline-flex;align-items:center;gap:6px;color:var(--muted,#5d6b62)}
 .player-card .where small i{width:10px;height:10px;border-radius:50%}
 .player-pin{--pin:#16303a;width:26px;height:26px;border-radius:50%;background:var(--pin);border:3px solid #fff;box-shadow:0 2px 8px rgb(0 0 0 / 0.35);display:flex;align-items:center;justify-content:center;pointer-events:none}

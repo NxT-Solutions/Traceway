@@ -1,9 +1,8 @@
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import Lenis from 'lenis';
-
 (function(){
   var d = document, root = d.documentElement;
+  /* GSAP drives the scroll scene and the chat. The first frame does not need
+     it, so it loads after that frame, in a task of its own. */
+  var gsap = null, ScrollTrigger = null;
   root.classList.add('js');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var clamp = function(v,a,b){ return v < a ? a : v > b ? b : v; };
@@ -51,8 +50,12 @@ import Lenis from 'lenis';
   var lastSideways = null;
   var view = [0, 0, 1200, 800];
 
+  /* The map box changes size only on resize, and fitMap measures it then.
+     Reading it on every frame, after render has changed styles, made the
+     browser lay out the whole page again each time. */
+  var mapRect = null;
   function syncCanvas(){
-    var rect = mapbox.getBoundingClientRect();
+    var rect = mapRect || (mapRect = mapbox.getBoundingClientRect());
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var w = Math.max(1, Math.round(rect.width * dpr));
     var h = Math.max(1, Math.round(rect.height * dpr));
@@ -150,7 +153,7 @@ import Lenis from 'lenis';
   var sideways = window.matchMedia('(max-width: 1023px) and (max-height: 520px) and (orientation: landscape)');
   lastSideways = sideways.matches;
   function fitMap(){
-    var r = mapbox.getBoundingClientRect();
+    var r = mapRect = mapbox.getBoundingClientRect();
     var box = '0 0 1200 800';
     if (narrow && r.width > 0 && r.height > 0){
       var left = 0, top;
@@ -332,12 +335,11 @@ import Lenis from 'lenis';
       lastWidth = window.innerWidth;
       narrow = window.innerWidth < 1024;
       fitMap();
-      if (!reduce) ScrollTrigger.refresh();
+      if (ScrollTrigger) ScrollTrigger.refresh();
     }
     if (reduce) renderStill(); else render(lastP < 0 ? 0 : lastP);
   }
 
-  gsap.registerPlugin(ScrollTrigger);
   fitMap();
   /* Reduced motion: the finished scene, still, with the hero on top. */
   function renderStill(){
@@ -349,12 +351,13 @@ import Lenis from 'lenis';
     syncHeaderCta();
   }
 
-  if (reduce){
-    renderStill();
-  } else {
-    /* Smooth wheel scrolling for a mouse or trackpad. A finger keeps the
-       browser's own scrolling and momentum, which Lenis would only fight. */
-    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches){
+  /* Smooth wheel scrolling for a mouse or trackpad. A finger keeps the
+     browser's own scrolling and momentum, which Lenis would only fight. */
+  var smoothWheel = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (!reduce && !smoothWheel) root.classList.add('native-scroll');
+
+  function scrollScene(Lenis){
+    if (smoothWheel){
       var lenis = new Lenis({
         lerp: 0.075,
         smoothWheel: true,
@@ -365,8 +368,6 @@ import Lenis from 'lenis';
       });
       lenis.on('scroll', ScrollTrigger.update);
       gsap.ticker.add(function(time){ lenis.raf(time * 1000); });
-    } else {
-      root.classList.add('native-scroll');
     }
     gsap.ticker.lagSmoothing(0);
     ScrollTrigger.create({
@@ -380,15 +381,20 @@ import Lenis from 'lenis';
         render(self.progress);
       },
     });
-    render(0);
   }
+
+  if (reduce) renderStill(); else render(0);
   window.addEventListener('resize', onResize);
-  window.addEventListener('scroll', function(){ if (reduce){ headerTheme(); syncHeaderCta(); } }, { passive: true });
+  /* Until the scroll scene runs, the header follows the page by itself. */
+  window.addEventListener('scroll', function(){ if (!ScrollTrigger){ headerTheme(); syncHeaderCta(); } }, { passive: true });
   syncHeaderCta();
 
   /* ---------- ask your AI: the chat plans a loop while it is on screen ---------- */
   var chat = $('chat');
-  if (chat && !reduce){
+  /* Its parts wait out of sight until the chat can play, so a fast reader
+     never sees the finished card blank out and start again. */
+  if (chat && !reduce) chat.classList.add('chat-waiting');
+  function chatScene(){
     var ask = $('chat-ask'), typing = $('chat-typing'), tool = $('chat-tool'), toolT = $('chat-tool-t');
     var card = $('chat-card'), loop = $('chat-loop'), km = $('chat-km'), reply = $('chat-reply');
     var stops = chat.querySelectorAll('.rcard-stop'), facts = chat.querySelectorAll('.rcard-facts li');
@@ -410,6 +416,7 @@ import Lenis from 'lenis';
       gsap.set(facts, { autoAlpha: 0, y: 6 });
     };
     resetChat();
+    chat.classList.remove('chat-waiting');
     var chatTl = gsap.timeline({ paused: true, repeat: -1, repeatDelay: 3.5, defaults: { ease: 'power3.out' } });
     chatTl
       .call(resetChat)
@@ -435,6 +442,23 @@ import Lenis from 'lenis';
     } else {
       chatTl.play();
     }
+  }
+
+  /* Asked for once the first frame is on screen, so the page paints first. */
+  if (!reduce){
+    requestAnimationFrame(function(){ setTimeout(function(){
+      Promise.all([import('gsap'), import('gsap/ScrollTrigger'), import('lenis')]).then(function(mods){
+        gsap = mods[0].gsap;
+        gsap.registerPlugin(mods[1].ScrollTrigger);
+        ScrollTrigger = mods[1].ScrollTrigger;
+        scrollScene(mods[2].default);
+        if (chat) chatScene();
+      }).catch(function(){
+        /* Without GSAP the page shows the finished scene, as with reduced motion. */
+        renderStill();
+        if (chat) chat.classList.remove('chat-waiting');
+      });
+    }, 0); });
   }
 
   /* ---------- reveals ---------- */

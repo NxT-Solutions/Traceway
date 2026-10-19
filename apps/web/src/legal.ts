@@ -396,15 +396,23 @@ const escaped = (text: string): string =>
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;');
 
-/** A line of legal text as HTML: links and bold, everything else escaped. */
+/**
+ * A line of legal text as HTML: links and bold, everything else escaped.
+ * Cloudflare leaves an address between email_off comments alone, so the
+ * mail link works without its decoding script, which would block the page.
+ */
 export const inline = (text: string): string =>
     escaped(text)
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\[(.+?)\]\((.+?)\)/g, (_, label: string, href: string) =>
-            href.startsWith('/') || href.startsWith('mailto:')
+        .replace(/\[(.+?)\]\((.+?)\)/g, (_, label: string, href: string) => {
+            if (href.startsWith('mailto:')) {
+                return `<!--email_off--><a href="${href}">${label}</a><!--/email_off-->`;
+            }
+
+            return href.startsWith('/')
                 ? `<a href="${href}">${label}</a>`
-                : `<a href="${href}" rel="noopener">${label}</a>`,
-        );
+                : `<a href="${href}" rel="noopener">${label}</a>`;
+        });
 
 /** A legal page as Markdown, with its site links made absolute. */
 export const markdown = (page: LegalPage, site: URL | undefined): string => {

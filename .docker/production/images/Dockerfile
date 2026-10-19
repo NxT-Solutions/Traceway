@@ -45,7 +45,7 @@ RUN APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
     && touch /tmp/traceway-build.sqlite \
     && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
     && bun install --frozen-lockfile \
-    && bun run build \
+    && bun run build:ssr \
     && rm -f .env public/hot
 
 FROM node:26-alpine AS web-build
@@ -74,9 +74,14 @@ RUN npm run build
 
 FROM base AS runtime
 
+# Node runs the server-side renderer. bun cannot parse React's production
+# server build, and the bundle carries everything else it needs.
+RUN apk add --no-cache nodejs
+
 COPY apps/app/ /var/www/html/
 COPY --from=php-build /var/www/html/vendor /var/www/html/vendor
 COPY --from=php-build /var/www/html/public/build /var/www/html/public/build
+COPY --from=php-build /var/www/html/bootstrap/ssr /var/www/html/bootstrap/ssr
 COPY --from=mail-build /src/apps/app/resources/views/mail/compiled /var/www/html/resources/views/mail/compiled
 COPY --from=web-build /src/dist /var/www/web
 
@@ -96,7 +101,10 @@ COPY .docker/production/images/configs/php-fpm/zz-traceway.conf /usr/local/etc/p
 COPY .docker/production/images/configs/app/entrypoint.sh /usr/local/bin/traceway-entrypoint
 COPY .docker/production/images/configs/app/post-deploy.sh /usr/local/bin/traceway-post-deploy
 
+# The build writes bootstrap/ssr for its owner only; the renderer runs as
+# www-data.
 RUN chmod +x /usr/local/bin/traceway-entrypoint /usr/local/bin/traceway-post-deploy \
+    && chmod -R a+rX /var/www/html/bootstrap/ssr \
     && install -d -m 0775 \
       /run/nginx \
       /var/lib/nginx/tmp/client_body \

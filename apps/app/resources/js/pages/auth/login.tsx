@@ -49,7 +49,6 @@ export default function Login({
                                 name="email"
                                 required
                                 autoFocus
-                                tabIndex={1}
                                 autoComplete="email"
                                 placeholder="email@example.com"
                             />
@@ -63,7 +62,7 @@ export default function Login({
                             <div className="lab">
                                 <label htmlFor="password">Password</label>
                                 {canResetPassword && (
-                                    <TextLink href={request()} tabIndex={5}>
+                                    <TextLink href={request()}>
                                         Forgot your password?
                                     </TextLink>
                                 )}
@@ -72,7 +71,6 @@ export default function Login({
                                 id="password"
                                 name="password"
                                 required
-                                tabIndex={2}
                                 autoComplete="current-password"
                                 placeholder="Password"
                             />
@@ -87,7 +85,6 @@ export default function Login({
                                 type="checkbox"
                                 id="remember"
                                 name="remember"
-                                tabIndex={3}
                             />
                             <span>Remember me</span>
                         </label>
@@ -95,7 +92,6 @@ export default function Login({
                         <button
                             type="submit"
                             className="fill big"
-                            tabIndex={4}
                             disabled={processing}
                             data-test="login-button"
                         >
@@ -104,9 +100,7 @@ export default function Login({
 
                         <p className="signup">
                             Don't have an account?{' '}
-                            <TextLink href={register()} tabIndex={5}>
-                                Sign up
-                            </TextLink>
+                            <TextLink href={register()}>Sign up</TextLink>
                         </p>
                     </>
                 )}

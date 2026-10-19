@@ -22,11 +22,13 @@ New behaviour needs a Pest test, and a fixed bug needs a test that fails without
 ## 2. The builds
 
 ```bash
-cd apps/app && bun run build && ls public/build/chat
+cd apps/app && bun run build:ssr && ls public/build/chat bootstrap/ssr/app.js
 cd apps/web && npm run build
 ```
 
 `public/build/chat` holds MapLibre and Outfit for the chat card. If it is empty, the card in production falls back to the system font and to no map.
+
+`bootstrap/ssr/app.js` draws the planner's pages on the server. Production runs it with `NODE_ENV=production node bootstrap/ssr/app.js` next to PHP; run it the same way for the browser suites, as CI does, so they see the pages the server draws. Without it, Laravel leaves every page to the browser. bun 1.3 cannot parse React's production server build; where host node is broken, `bun bootstrap/ssr/app.js` without `NODE_ENV` runs React's development build, which is fine for the suites.
 
 ## 3. The browser suites
 
