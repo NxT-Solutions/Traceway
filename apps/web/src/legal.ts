@@ -52,7 +52,7 @@ export const privacy: LegalPage = {
                 '**Your watches.** The name you give a watch, a pairing code that works for 10 minutes, the key the watch uses to fetch your routes (stored only as a hash), and when it last did.',
                 '**AI assistants you connect.** Which app you connected, the sign-in keys it uses, and when they run out.',
                 '**Services you send routes to.** If you connect Wahoo or Ride with GPS, which one, the sign-in keys it gave Traceway (kept encrypted), when you connected, and which routes you sent there.',
-                '**When you last used Traceway.** The time you were last signed in and using the planner, to the quarter of an hour, and your role, which is User unless you help run Traceway. It shows how many riders come back, and it is in your copy of your data.',
+                '**When you last used Traceway.** The time you were last signed in and using the planner, to the quarter of an hour, and your role, which is User unless you help run Traceway. It shows how many riders come back, and helps when you ask for help with your account. It is in your copy of your data.',
                 '**Totals of what is used.** Each day, the server adds up how often each part of Traceway is used, such as routes drawn, files exported, sign-ins, and watch syncs. A total says how many times, never who.',
                 '**Signing in.** While you are signed in, the server keeps a session with your IP address and the name of your browser. It keeps you signed in and helps stop someone else from using your account.',
                 '**Error logs.** When something breaks, the server writes down what happened so it can be fixed. A log line can include your account number. It never includes your password.',
@@ -60,6 +60,13 @@ export const privacy: LegalPage = {
             ],
             after: [
                 'A start point is often a home. Keep that in mind before you share a route.',
+            ],
+        },
+        {
+            heading: 'Who at Traceway can see your account',
+            paragraphs: [
+                'A few people at NxT-Solutions help run Traceway. They can see your name, email address, and role, when you joined and last used Traceway, how many routes you saved, which watches, AI assistants, and services are linked, and which browsers are signed in, by name only and never with your IP address. They never see your password or the secrets for two-step sign-in.',
+                'To help you, or to keep an account safe, they can change your name or email address, sign you out everywhere, turn off two-step sign-in, or delete your account. Deleting it works the same as when you do it yourself, and you get the same email.',
             ],
         },
         {
@@ -128,7 +135,7 @@ export const privacy: LegalPage = {
             heading: 'The legal grounds',
             items: [
                 '**The service you asked for** (GDPR article 6(1)(b)): your account, your routes, your watches, the AI assistants and route services you connect, and the account email.',
-                '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs and reports, speed checks, backups, protection against attacks and scripts, and limits on how often the map services are asked. Also knowing how much Traceway is used, with the time you last used it and daily totals that never say who.',
+                '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs and reports, speed checks, backups, protection against attacks and scripts, and limits on how often the map services are asked. Also knowing how much Traceway is used, with the time you last used it and daily totals that never say who, and helping you with your account when you ask.',
                 '**Your consent** (article 6(1)(a)): counting visits to the pages of this site with Cloudflare, to know how many people visit and to make the site better. You can take it back at any time with Cookie choice at the bottom of every page.',
                 '**A legal duty** (article 6(1)(c)): when the law requires NxT-Solutions to keep something or hand it over.',
             ],

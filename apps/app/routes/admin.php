@@ -15,10 +15,10 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('users', [AdminUsersController::class, 'index'])->middleware('can:view-users')->name('users.index');
     Route::get('users/create', [AdminUsersController::class, 'create'])->middleware('can:manage-users')->name('users.create');
     Route::post('users', [AdminUsersController::class, 'store'])->middleware(['can:manage-users', 'throttle:20,1'])->name('users.store');
-    Route::get('users/{rider}', [AdminUsersController::class, 'show'])->whereNumber('rider')->middleware('can:view-users')->name('users.show');
-    Route::patch('users/{rider}', [AdminUsersController::class, 'update'])->whereNumber('rider')->middleware('can:manage-users')->name('users.update');
-    Route::delete('users/{rider}', [AdminUsersController::class, 'destroy'])->whereNumber('rider')->middleware('can:manage-users')->name('users.destroy');
-    Route::put('users/{rider}/role', [AdminUsersController::class, 'role'])->whereNumber('rider')->middleware('can:assign-roles')->name('users.role');
-    Route::delete('users/{rider}/two-factor', [AdminUsersController::class, 'resetTwoFactor'])->whereNumber('rider')->middleware('can:manage-users')->name('users.two-factor.destroy');
-    Route::delete('users/{rider}/sessions', [AdminUsersController::class, 'endSessions'])->whereNumber('rider')->middleware('can:manage-users')->name('users.sessions.destroy');
+    Route::get('users/{rider}', [AdminUsersController::class, 'show'])->where('rider', '[1-9][0-9]*')->middleware('can:view-users')->name('users.show');
+    Route::patch('users/{rider}', [AdminUsersController::class, 'update'])->where('rider', '[1-9][0-9]*')->middleware('can:manage-users')->name('users.update');
+    Route::delete('users/{rider}', [AdminUsersController::class, 'destroy'])->where('rider', '[1-9][0-9]*')->middleware('can:manage-users')->name('users.destroy');
+    Route::put('users/{rider}/role', [AdminUsersController::class, 'role'])->where('rider', '[1-9][0-9]*')->middleware('can:assign-roles')->name('users.role');
+    Route::delete('users/{rider}/two-factor', [AdminUsersController::class, 'resetTwoFactor'])->where('rider', '[1-9][0-9]*')->middleware('can:manage-users')->name('users.two-factor.destroy');
+    Route::delete('users/{rider}/sessions', [AdminUsersController::class, 'endSessions'])->where('rider', '[1-9][0-9]*')->middleware('can:manage-users')->name('users.sessions.destroy');
 });

@@ -14,7 +14,6 @@ export type AdminOverview = {
         active_week: number;
         active_month: number;
         online_now: number;
-        guests_now: number;
         saved_routes: number;
         routes_month: number;
         watches: number;
@@ -40,7 +39,6 @@ export type AdminTraffic = {
         requests: number;
         cached: number;
         bytes: number;
-        page_views: number;
         threats: number;
         page_loads: number;
         visits: number;
@@ -50,9 +48,7 @@ export type AdminTraffic = {
         requests: number;
         cached: number;
         bytes: number;
-        page_views: number;
         threats: number;
-        uniques: number;
     }[];
     visit_days: { date: string; page_loads: number; visits: number }[];
     top_pages: Ranked[];

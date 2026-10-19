@@ -73,6 +73,9 @@ class HandleInertiaRequests extends Middleware
         $viewAnalytics = $user->can(Permission::ViewAnalytics->value);
         $viewUsers = $user->can(Permission::ViewUsers->value);
 
+        // The checks load the role and permission relations. The page needs only the answers.
+        $user->makeHidden(['roles', 'permissions']);
+
         return [
             'admin' => $viewAnalytics || $viewUsers,
             'viewAnalytics' => $viewAnalytics,

@@ -110,6 +110,8 @@ const pages = [
     // The admin area. The road demo rider is a Super Admin.
     { name: 'admin', url: '/admin', auth: true, full: true },
     { name: 'admin-riders', url: '/admin/users', auth: true, full: true },
+    { name: 'admin-rider', url: '/admin/users/2', auth: true, full: true },
+    { name: 'admin-traffic', url: '/admin/traffic', auth: true, full: true },
     // The bell in the header, open over the map.
     {
         name: 'whats-new-bell',

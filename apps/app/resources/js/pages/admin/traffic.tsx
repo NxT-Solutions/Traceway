@@ -49,7 +49,8 @@ function Report({ traffic }: { traffic: AdminTraffic }) {
         <>
             {traffic.error ? (
                 <p className="note" role="alert">
-                    <b>Cloudflare did not answer.</b> {traffic.error}
+                    <b>Cloudflare traffic is not available right now.</b>{' '}
+                    {traffic.error}
                 </p>
             ) : null}
 

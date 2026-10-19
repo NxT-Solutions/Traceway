@@ -30,6 +30,7 @@ final readonly class AccountCloser
     public function close(RiderId $riderId): void
     {
         $this->revokeRouteServices($riderId);
+        $this->userRepository->endSessions($riderId);
 
         $rider = $this->userRepository->delete($riderId);
         $this->routeImageStore->forgetRider($riderId);

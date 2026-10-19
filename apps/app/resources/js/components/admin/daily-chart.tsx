@@ -38,7 +38,8 @@ function Tip({ active, payload, unit }: TipProps) {
 
 /**
  * One measure over days: bars for counts, a line for a level such as active riders. One series, so the title
- * names it and there is no legend. A table beside it carries the same numbers for screen readers.
+ * names it and there is no legend. A table beside it carries the same numbers for screen readers, so the chart
+ * itself stays out of the tab order.
  */
 export default function DailyChart({
     data,
@@ -72,7 +73,11 @@ export default function DailyChart({
             <figcaption className="vh">{label}</figcaption>
             <ResponsiveContainer width="100%" height="100%">
                 {kind === 'bar' ? (
-                    <BarChart data={data} barCategoryGap={2}>
+                    <BarChart
+                        data={data}
+                        barCategoryGap={2}
+                        accessibilityLayer={false}
+                    >
                         <CartesianGrid vertical={false} />
                         <XAxis {...axis} />
                         <YAxis {...values} />
@@ -90,7 +95,7 @@ export default function DailyChart({
                         />
                     </BarChart>
                 ) : (
-                    <AreaChart data={data}>
+                    <AreaChart data={data} accessibilityLayer={false}>
                         <CartesianGrid vertical={false} />
                         <XAxis {...axis} />
                         <YAxis {...values} />

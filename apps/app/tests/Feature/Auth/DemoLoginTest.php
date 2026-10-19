@@ -37,7 +37,7 @@ it('gives each demo rider a role and shows it on the sign-in page', function ():
         ->and(User::query()->where('email', 'run@traceway.test')->firstOrFail()->getRoleNames()->all())->toBe(['user']);
 
     $this->get(route('login'))
-        ->assertInertia(fn (Assert $page): Assert => $page
+        ->assertInertia(fn (Assert $assert): Assert => $assert
             ->where('demoRiders.0.role', 'Super Admin')
             ->where('demoRiders.1.role', 'Admin')
             ->where('demoRiders.2.role', 'User'));

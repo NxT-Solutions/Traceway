@@ -15,6 +15,10 @@ const fullDate = new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
     timeZone: 'UTC',
 });
+const localDate = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+});
 const dateTime = new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
     month: 'short',
@@ -38,6 +42,11 @@ export function day(date: string): string {
 
 export function longDay(date: string): string {
     return fullDate.format(new Date(`${date}T00:00:00Z`));
+}
+
+/** The calendar day of a moment, where the reader is, so a list and a detail page agree. */
+export function localDay(iso: string): string {
+    return localDate.format(new Date(iso));
 }
 
 export function when(iso: string | null): string {
@@ -67,6 +76,10 @@ export function ago(iso: string | null): string {
     }
 
     const days = Math.round(hours / 24);
+
+    if (days === 1) {
+        return 'Yesterday';
+    }
 
     return days < 60 ? `${days} days ago` : dateTime.format(new Date(iso));
 }

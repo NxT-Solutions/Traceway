@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  * @phpstan-type ActiveDay array{date: string, day: int, week: int, month: int}
  * @phpstan-type Ranked array{label: string, count: int}
  * @phpstan-type Usage array{metric: string, label: string, total: int, days: list<Day>}
- * @phpstan-type Totals array{riders: int, verified: int, two_factor: int, new_week: int, new_month: int, active_day: int, active_week: int, active_month: int, online_now: int, guests_now: int, saved_routes: int, routes_month: int, watches: int, watches_active: int, assistant_riders: int, service_accounts: int}
+ * @phpstan-type Totals array{riders: int, verified: int, two_factor: int, new_week: int, new_month: int, active_day: int, active_week: int, active_month: int, online_now: int, saved_routes: int, routes_month: int, watches: int, watches_active: int, assistant_riders: int, service_accounts: int}
  * @phpstan-type Page array{generated_at: string, days: int, totals: Totals, signups: list<Day>, saved: list<Day>, active: list<ActiveDay>, usage: list<Usage>, sports: list<Ranked>, sends: list<Ranked>, assistants: list<Ranked>}
  */
 final readonly class AdminOverviewQuery
@@ -81,8 +81,7 @@ final readonly class AdminOverviewQuery
             'active_day' => DB::table('users')->where('last_seen_at', '>=', $now->subDay())->count(),
             'active_week' => DB::table('users')->where('last_seen_at', '>=', $now->subDays(7))->count(),
             'active_month' => DB::table('users')->where('last_seen_at', '>=', $now->subDays(30))->count(),
-            'online_now' => (clone $builder)->whereNotNull('user_id')->distinct()->count('user_id'),
-            'guests_now' => (clone $builder)->whereNull('user_id')->count(),
+            'online_now' => $builder->whereNotNull('user_id')->distinct()->count('user_id'),
             'saved_routes' => DB::table('saved_routes')->count(),
             'routes_month' => DB::table('saved_routes')->where('created_at', '>=', $now->subDays(30))->count(),
             'watches' => DB::table('device_links')->whereNotNull('user_id')->whereNotNull('linked_at')->count(),

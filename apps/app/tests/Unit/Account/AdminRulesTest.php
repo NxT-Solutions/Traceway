@@ -12,10 +12,12 @@ it('lets nobody change their own account from the admin area', function (Role $r
     expect(AdminRules::mayManage($role, $role, self: true))->toBeFalse();
 })->with(Role::cases());
 
-it("keeps Super Admins out of an Admin's reach", function (): void {
+it('lets an Admin look after riders only, and a Super Admin everyone', function (): void {
     expect(AdminRules::mayManage(Role::Admin, Role::SuperAdmin, self: false))->toBeFalse()
-        ->and(AdminRules::mayManage(Role::Admin, Role::Admin, self: false))->toBeTrue()
+        ->and(AdminRules::mayManage(Role::Admin, Role::Admin, self: false))->toBeFalse()
         ->and(AdminRules::mayManage(Role::Admin, Role::User, self: false))->toBeTrue()
+        ->and(AdminRules::mayManage(Role::User, Role::User, self: false))->toBeFalse()
+        ->and(AdminRules::mayManage(Role::SuperAdmin, Role::Admin, self: false))->toBeTrue()
         ->and(AdminRules::mayManage(Role::SuperAdmin, Role::SuperAdmin, self: false))->toBeTrue();
 });
 

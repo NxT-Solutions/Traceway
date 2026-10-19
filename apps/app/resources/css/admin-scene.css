@@ -6,7 +6,7 @@
 .tw-admin .snav .tag{font-size:12px;font-weight:600;color:var(--muted);padding:0 12px 6px;letter-spacing:.04em;text-transform:uppercase}
 .tw-admin .num{font-variant-numeric:tabular-nums}
 
-.tw-admin .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px}
+.tw-admin .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(148px,100%),1fr));gap:12px}
 .tw-admin .tile{display:flex;flex-direction:column;gap:6px;padding:16px 18px;border:1px solid var(--panel-b);border-radius:14px;background:var(--panel)}
 .tw-admin .tile .k{color:var(--muted);font-size:13px;font-weight:500}
 .tw-admin .tile .v{font-size:30px;line-height:1;font-weight:600;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
@@ -25,7 +25,8 @@
 .tw-admin .tip{padding:8px 10px;border:1px solid var(--panel-b);border-radius:10px;background:var(--bg);color:var(--text);font-size:13px;box-shadow:0 6px 24px oklch(0 0 0 / 0.18)}
 .tw-admin .tip .t{color:var(--muted)}
 .tw-admin .tip b{font-variant-numeric:tabular-nums}
-.tw-admin .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:40px 32px}
+.tw-admin .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:40px 32px}
+.tw-admin .card header,.tw-admin td .who{overflow-wrap:anywhere}
 
 .tw-admin .rank{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
 .tw-admin .rank li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;font-size:14px}
@@ -73,7 +74,7 @@
 .tw-admin .back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14px;font-weight:500}
 .tw-admin .back:hover{color:var(--text)}
 .tw-admin .check{display:flex;align-items:center;gap:10px;font-size:15px}
-.tw-admin .check input{width:18px;height:18px;accent-color:var(--chart)}
+.tw-admin .check input{width:18px;height:18px;accent-color:var(--plot)}
 .tw-admin .err{margin:0;color:var(--danger);font-size:14px}
 .tw-admin .note{margin:0;padding:14px 16px;border:1px solid var(--panel-b);border-left:3px solid var(--chart);border-radius:12px;background:var(--panel);color:var(--muted);font-size:14px}
 .tw-admin .note b{color:var(--text)}

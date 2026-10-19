@@ -1,5 +1,5 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
-import { ago, count, day } from '@/components/admin/format';
+import { ago, count, localDay } from '@/components/admin/format';
 import { create, index, show } from '@/routes/admin/users';
 import type { AdminUserPage, RoleOption } from '@/types/admin';
 
@@ -185,12 +185,7 @@ export default function Users({
                                         </td>
                                         <td className="dim hide-sm">
                                             {user.created_at
-                                                ? day(
-                                                      user.created_at.slice(
-                                                          0,
-                                                          10,
-                                                      ),
-                                                  )
+                                                ? localDay(user.created_at)
                                                 : '—'}
                                         </td>
                                         <td className="dim hide-sm">

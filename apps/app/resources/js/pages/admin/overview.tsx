@@ -60,7 +60,7 @@ export default function Overview({ overview }: { overview: AdminOverview }) {
                     <StatTile
                         label="Online now"
                         value={totals.online_now}
-                        detail={`and ${count(totals.guests_now)} visitors`}
+                        detail="signed in, last 5 minutes"
                     />
                     <StatTile
                         label="Saved routes"

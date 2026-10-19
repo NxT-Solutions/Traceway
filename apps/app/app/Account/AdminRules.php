@@ -11,8 +11,8 @@ namespace App\Account;
 final readonly class AdminRules
 {
     /**
-     * Nobody changes their own account from the admin area; Settings is for that. Only a Super Admin touches another
-     * Super Admin.
+     * Nobody changes their own account from the admin area; Settings is for that. An Admin looks after riders, not
+     * other Admins, so one Admin cannot take over another's account. A Super Admin looks after everyone.
      */
     public static function mayManage(Role $actor, Role $target, bool $self): bool
     {
@@ -20,7 +20,11 @@ final readonly class AdminRules
             return false;
         }
 
-        return $target !== Role::SuperAdmin || $actor === Role::SuperAdmin;
+        return match ($actor) {
+            Role::SuperAdmin => true,
+            Role::Admin => $target === Role::User,
+            Role::User => false,
+        };
     }
 
     /**

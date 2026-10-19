@@ -10,6 +10,7 @@ use App\Domain\Traffic\TrafficUnavailable;
 use App\Integrations\Cloudflare\Requests\AnalyticsQueryRequest;
 use DateTimeImmutable;
 use DateTimeZone;
+use JsonException;
 use Saloon\Exceptions\Request\FatalRequestException;
 
 /**
@@ -28,8 +29,7 @@ final readonly class CloudflareTrafficSource implements TrafficSource
             zones(filter: {zoneTag: $zoneTag}) {
               httpRequests1dGroups(limit: 400, filter: {date_geq: $since, date_leq: $until}, orderBy: [date_ASC]) {
                 dimensions { date }
-                sum { requests cachedRequests bytes pageViews threats }
-                uniq { uniques }
+                sum { requests cachedRequests bytes threats }
               }
             }
           }
@@ -125,9 +125,15 @@ final readonly class CloudflareTrafficSource implements TrafficSource
             throw new TrafficUnavailable('Cloudflare did not answer.', 0, $fatalRequestException);
         }
 
-        $body = $response->json();
+        throw_if($response->failed(), TrafficUnavailable::class, 'Cloudflare refused the question. Check the token can read analytics.');
 
-        throw_if($response->failed() || (is_array($body['errors'] ?? null) && $body['errors'] !== []), TrafficUnavailable::class, 'Cloudflare refused the question. Check the token can read analytics.');
+        try {
+            $body = $response->json();
+        } catch (JsonException $jsonException) {
+            throw new TrafficUnavailable('Cloudflare answered with something other than numbers.', 0, $jsonException);
+        }
+
+        throw_if(is_array($body['errors'] ?? null) && $body['errors'] !== [], TrafficUnavailable::class, 'Cloudflare refused the question. Check the token can read analytics.');
 
         $viewer = is_array($body['data'] ?? null) ? ($body['data']['viewer'] ?? null) : null;
 
@@ -165,9 +171,7 @@ final readonly class CloudflareTrafficSource implements TrafficSource
                 'requests' => $this->int($this->path($group, 'sum', 'requests')),
                 'cached' => $this->int($this->path($group, 'sum', 'cachedRequests')),
                 'bytes' => $this->int($this->path($group, 'sum', 'bytes')),
-                'page_views' => $this->int($this->path($group, 'sum', 'pageViews')),
                 'threats' => $this->int($this->path($group, 'sum', 'threats')),
-                'uniques' => $this->int($this->path($group, 'uniq', 'uniques')),
             ];
         }
 

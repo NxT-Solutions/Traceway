@@ -18,7 +18,7 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
  * @phpstan-import-type VisitDay from TrafficReport
  * @phpstan-import-type Ranked from TrafficReport
  *
- * @phpstan-type Totals array{requests: int, cached: int, bytes: int, page_views: int, threats: int, page_loads: int, visits: int}
+ * @phpstan-type Totals array{requests: int, cached: int, bytes: int, threats: int, page_loads: int, visits: int}
  * @phpstan-type Page array{connected: bool, error: string|null, days: int, generated_at: string, totals: Totals, request_days: list<RequestDay>, visit_days: list<VisitDay>, top_pages: list<Ranked>, top_referrers: list<Ranked>, countries: list<Ranked>}
  */
 final readonly class TrafficQuery
@@ -75,7 +75,6 @@ final readonly class TrafficQuery
                 'requests' => array_sum(array_column($trafficReport->requestDays, 'requests')),
                 'cached' => array_sum(array_column($trafficReport->requestDays, 'cached')),
                 'bytes' => array_sum(array_column($trafficReport->requestDays, 'bytes')),
-                'page_views' => array_sum(array_column($trafficReport->requestDays, 'page_views')),
                 'threats' => array_sum(array_column($trafficReport->requestDays, 'threats')),
                 'page_loads' => array_sum(array_column($trafficReport->visitDays, 'page_loads')),
                 'visits' => array_sum(array_column($trafficReport->visitDays, 'visits')),

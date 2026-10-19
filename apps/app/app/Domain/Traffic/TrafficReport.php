@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Domain\Traffic;
 
 /**
- * The traffic of a stretch of days. Requests cover everything that reached traceway.online through Cloudflare.
- * Visits cover only the pages of the site, counted after the visitor said yes.
+ * The traffic of a stretch of days. Requests cover everything that reached traceway.online through Cloudflare, and
+ * never say how many people sent them. Visits cover only the pages of the site, counted after the visitor said yes.
  *
- * @phpstan-type RequestDay array{date: string, requests: int, cached: int, bytes: int, page_views: int, threats: int, uniques: int}
+ * @phpstan-type RequestDay array{date: string, requests: int, cached: int, bytes: int, threats: int}
  * @phpstan-type VisitDay array{date: string, page_loads: int, visits: int}
  * @phpstan-type Ranked array{label: string, count: int}
  */

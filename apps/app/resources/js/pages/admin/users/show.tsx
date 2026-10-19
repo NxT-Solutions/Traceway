@@ -128,7 +128,7 @@ export default function ShowUser({
                                 ? 'Two-factor on'
                                 : 'Password only'}
                             {user.passkeys > 0
-                                ? ` · ${count(user.passkeys)} passkeys`
+                                ? ` · ${count(user.passkeys)} ${user.passkeys === 1 ? 'passkey' : 'passkeys'}`
                                 : ''}
                         </dd>
                     </div>
@@ -231,10 +231,20 @@ export default function ShowUser({
                                             defaultValue={user.name}
                                             required
                                             autoComplete="off"
+                                            aria-invalid={
+                                                errors.name ? true : undefined
+                                            }
+                                            aria-describedby={
+                                                errors.name
+                                                    ? 'name-error'
+                                                    : undefined
+                                            }
                                         />
                                     </div>
                                     {errors.name ? (
-                                        <p className="err">{errors.name}</p>
+                                        <p className="err" id="name-error">
+                                            {errors.name}
+                                        </p>
                                     ) : null}
                                 </div>
                                 <div className="field">
@@ -247,10 +257,20 @@ export default function ShowUser({
                                             defaultValue={user.email}
                                             required
                                             autoComplete="off"
+                                            aria-invalid={
+                                                errors.email ? true : undefined
+                                            }
+                                            aria-describedby={
+                                                errors.email
+                                                    ? 'email-error'
+                                                    : undefined
+                                            }
                                         />
                                     </div>
                                     {errors.email ? (
-                                        <p className="err">{errors.email}</p>
+                                        <p className="err" id="email-error">
+                                            {errors.email}
+                                        </p>
                                     ) : null}
                                 </div>
                                 {user.email_verified_at === null ? (

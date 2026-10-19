@@ -7,6 +7,7 @@ import { forgetPlannerDrafts } from '@/lib/planner-draft';
 import { toUrl } from '@/lib/utils';
 import { logout, status } from '@/routes';
 import { overview as adminOverview } from '@/routes/admin';
+import { index as adminUsers } from '@/routes/admin/users';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
 import { index as whatsNewPage } from '@/routes/releases';
@@ -57,7 +58,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const cleanup = useMobileNavigation();
     const page = usePage();
-    const canAdmin = page.props.auth.can?.admin === true;
+    const can = page.props.auth.can;
     const { resolvedAppearance } = useAppearance();
     const unread = page.props.whatsNew?.unread ?? 0;
 
@@ -89,8 +90,16 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                                 ) : null}
                             </Link>
                         ))}
-                        {canAdmin ? (
-                            <Link href={adminOverview()}>Admin</Link>
+                        {can?.admin ? (
+                            <Link
+                                href={
+                                    can.viewAnalytics
+                                        ? adminOverview()
+                                        : adminUsers()
+                                }
+                            >
+                                Admin
+                            </Link>
                         ) : null}
                         <div className="sep" />
                         <a href="/support">Support Traceway</a>

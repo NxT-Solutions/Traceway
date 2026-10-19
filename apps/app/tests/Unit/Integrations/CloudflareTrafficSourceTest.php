@@ -24,8 +24,7 @@ it('reads daily requests and visits from the Analytics API', function (): void {
                 return MockResponse::make(['data' => ['viewer' => ['zones' => [[
                     'httpRequests1dGroups' => [[
                         'dimensions' => ['date' => '2026-10-18'],
-                        'sum' => ['requests' => 1200, 'cachedRequests' => 900, 'bytes' => 5_000_000, 'pageViews' => 300, 'threats' => 4],
-                        'uniq' => ['uniques' => 140],
+                        'sum' => ['requests' => 1200, 'cachedRequests' => 900, 'bytes' => 5_000_000, 'threats' => 4],
                     ]],
                 ]]]]]);
             }
@@ -45,7 +44,7 @@ it('reads daily requests and visits from the Analytics API', function (): void {
         ->report(CarbonImmutable::parse('2026-09-20'), CarbonImmutable::parse('2026-10-19'));
 
     expect($report->requestDays)->toBe([[
-        'date' => '2026-10-18', 'requests' => 1200, 'cached' => 900, 'bytes' => 5_000_000, 'page_views' => 300, 'threats' => 4, 'uniques' => 140,
+        'date' => '2026-10-18', 'requests' => 1200, 'cached' => 900, 'bytes' => 5_000_000, 'threats' => 4,
     ]])
         ->and($report->visitDays)->toBe([['date' => '2026-10-18', 'page_loads' => 80, 'visits' => 50]])
         ->and($report->topPages)->toBe([['label' => '/', 'count' => 60]])
@@ -72,6 +71,26 @@ it('says so when Cloudflare refuses the token', function (): void {
     $connector = new CloudflareAnalyticsConnector('bad');
     $connector->withMockClient(new MockClient([
         AnalyticsQueryRequest::class => MockResponse::make(['data' => null, 'errors' => [['message' => 'not authorized']]]),
+    ]));
+
+    new CloudflareTrafficSource($connector, 'zone', accountId: null, siteTag: null)
+        ->report(CarbonImmutable::parse('2026-09-20'), CarbonImmutable::parse('2026-10-19'));
+})->throws(TrafficUnavailable::class);
+
+it('says so when Cloudflare answers with an error page', function (): void {
+    $connector = new CloudflareAnalyticsConnector('token');
+    $connector->withMockClient(new MockClient([
+        AnalyticsQueryRequest::class => MockResponse::make('<html>Bad gateway</html>', 502, ['Content-Type' => 'text/html']),
+    ]));
+
+    new CloudflareTrafficSource($connector, 'zone', accountId: null, siteTag: null)
+        ->report(CarbonImmutable::parse('2026-09-20'), CarbonImmutable::parse('2026-10-19'));
+})->throws(TrafficUnavailable::class);
+
+it('says so when Cloudflare answers with something that is not JSON', function (): void {
+    $connector = new CloudflareAnalyticsConnector('token');
+    $connector->withMockClient(new MockClient([
+        AnalyticsQueryRequest::class => MockResponse::make('not json', 200, ['Content-Type' => 'text/plain']),
     ]));
 
     new CloudflareTrafficSource($connector, 'zone', accountId: null, siteTag: null)
