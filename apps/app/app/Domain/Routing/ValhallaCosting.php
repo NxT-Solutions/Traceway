@@ -6,7 +6,7 @@ namespace App\Domain\Routing;
 
 /**
  * Turns the rider's filters into Valhalla costing options.
- * Surface, hills, and sport each change which roads are chosen.
+ * Sport, surface, hills, and Quiet first each change which roads are chosen.
  */
 final class ValhallaCosting
 {
@@ -47,12 +47,7 @@ final class ValhallaCosting
                 'locations' => self::locations($waypoints, $routeQuery->shape, $departHeading, $mustVisit, $viaRadius, $headings),
                 'costing' => 'pedestrian',
                 'costing_options' => [
-                    'pedestrian' => [
-                        'walking_speed' => $routeQuery->sport === Sport::Walk ? 5.0 : 6.0,
-                        'use_hills' => $useHills,
-                        'sidewalk_factor' => $routeQuery->surface === Surface::Dirt ? 0.1 : 1.0,
-                        'use_living_streets' => $routeQuery->surface === Surface::Paved ? 0.6 : 0.2,
-                    ],
+                    'pedestrian' => self::pedestrian($routeQuery, $useHills),
                 ],
             ];
         }
@@ -97,7 +92,10 @@ final class ValhallaCosting
         return match ($sport) {
             Sport::Run, Sport::TrailRun, Sport::Walk, Sport::Hike => [
                 'costing' => 'pedestrian',
-                'costing_options' => ['pedestrian' => ['walking_speed' => $sport === Sport::Walk ? 5.0 : 6.0]],
+                'costing_options' => ['pedestrian' => [
+                    'walking_speed' => self::walkingSpeed($sport),
+                    'max_hiking_difficulty' => self::hikingDifficulty($sport),
+                ]],
             ],
             Sport::Road, Sport::Gravel, Sport::Mtb => [
                 'costing' => 'bicycle',
@@ -107,6 +105,59 @@ final class ValhallaCosting
                     default => 'Road',
                 }]],
             ],
+        };
+    }
+
+    /**
+     * Valhalla's pedestrian costing weighs the kind of way, not a road's
+     * class or its surface. A walkway (a footway, or a sidewalk mapped on its
+     * own), a track, and a living street each have their own cost. A path, a
+     * cycleway, and a plain road all cost the same. So Quiet first and Dirt
+     * make the ways without traffic cheaper, and roads lose by comparison.
+     *
+     * A track is mostly unpaved, so Paved leaves tracks alone. A road with a
+     * sidewalk costs the same as any other road: a factor below 1 would draw
+     * a dirt route onto town streets.
+     *
+     * @return array<string, float|int>
+     */
+    private static function pedestrian(RouteQuery $routeQuery, float $useHills): array
+    {
+        $quiet = $routeQuery->preferQuiet;
+
+        return [
+            'walking_speed' => self::walkingSpeed($routeQuery->sport),
+            'use_hills' => $useHills,
+            'walkway_factor' => $quiet || $routeQuery->surface === Surface::Dirt ? 0.5 : 1.0,
+            'sidewalk_factor' => 1.0,
+            'use_tracks' => match ($routeQuery->surface) {
+                Surface::Paved => 0.5,
+                Surface::Mixed => $quiet ? 1.0 : 0.5,
+                Surface::Dirt => 1.0,
+            },
+            'use_living_streets' => $quiet ? 0.9 : 0.6,
+            'max_hiking_difficulty' => self::hikingDifficulty($routeQuery->sport),
+        ];
+    }
+
+    /** Kilometres an hour. A walk and a hike go at a walking pace. */
+    private static function walkingSpeed(Sport $sport): float
+    {
+        return match ($sport) {
+            Sport::Walk, Sport::Hike => 5.0,
+            default => 6.0,
+        };
+    }
+
+    /**
+     * The hardest SAC grade a route may use. A trail run or a hike may take
+     * a mountain path (T2). Valhalla's own limit is a hiking path (T1).
+     */
+    private static function hikingDifficulty(Sport $sport): int
+    {
+        return match ($sport) {
+            Sport::TrailRun, Sport::Hike => 2,
+            default => 1,
         };
     }
 

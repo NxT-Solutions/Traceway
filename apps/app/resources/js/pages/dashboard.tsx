@@ -149,7 +149,7 @@ const roadsOptions = [
     {
         value: 'quiet',
         label: 'Quiet first',
-        copy: 'Score busy roads down hard.',
+        copy: 'Paths and quiet streets come first.',
     },
     {
         value: 'any',
@@ -233,13 +233,13 @@ const sports: SportOption[] = [
     {
         value: 'run',
         label: 'Run',
-        copy: 'Paths and pavements. Busy roads drop out.',
+        copy: 'Paved ground. Footpaths and quiet streets first.',
         group: 'Foot',
     },
     {
         value: 'trail_run',
         label: 'Trail run',
-        copy: 'Footpaths and dirt, with the climb left on.',
+        copy: 'Tracks and footpaths first, with the climb left on.',
         group: 'Foot',
     },
     {
@@ -251,7 +251,7 @@ const sports: SportOption[] = [
     {
         value: 'hike',
         label: 'Hike',
-        copy: 'Trails and hills, at a walking pace.',
+        copy: 'Tracks, trails and mountain paths, at a walking pace.',
         group: 'Foot',
     },
     {
@@ -263,7 +263,7 @@ const sports: SportOption[] = [
     {
         value: 'mtb',
         label: 'Mountain bike',
-        copy: 'Trail and rough track. The hills stay in.',
+        copy: 'Cycle paths and tracks before roads. The hills stay in.',
         group: 'Bike',
     },
     {
@@ -301,7 +301,7 @@ const surfaces = [
     {
         value: 'paved',
         label: 'Paved',
-        copy: 'Asphalt and concrete only.',
+        copy: 'Asphalt and concrete first.',
     },
     {
         value: 'dirt',
@@ -1522,9 +1522,11 @@ export default function Dashboard() {
     const hideSnapRef = useRef<() => void>(() => {});
     const routesRef = useRef<Preview[]>([]);
     const routeIndexRef = useRef(0);
-    const { auth, serviceNotice } = usePage<{
+    const { auth, serviceNotice, sportSurfaces } = usePage<{
         auth: { user: { id: number; name: string } };
         serviceNotice?: ServiceNoticeProps | null;
+        /** The surface each sport starts on, shared with the AI connector. */
+        sportSurfaces: Record<string, string>;
     }>().props;
     // A notice, or a map server going down or coming back, reaches a rider
     // who keeps the planner open.
@@ -1536,7 +1538,9 @@ export default function Dashboard() {
     const [longitude, setLongitude] = useState(saved?.longitude ?? 3.72);
     const [distanceKm, setDistanceKm] = useState(saved?.distanceKm ?? 20);
     const [sport, setSport] = useState(saved?.sport ?? 'road');
-    const [surface, setSurface] = useState(saved?.surface ?? 'paved');
+    const [surface, setSurface] = useState(
+        saved?.surface ?? sportSurfaces[saved?.sport ?? 'road'] ?? 'paved',
+    );
     const [elevation, setElevation] = useState(saved?.elevation ?? 'neutral');
     const [shape, setShape] = useState(saved?.shape ?? 'loop');
     const [roads, setRoads] = useState<'quiet' | 'any'>(
@@ -4943,16 +4947,33 @@ export default function Dashboard() {
         void generate(next);
     }
 
+    /**
+     * A new sport starts on its own surface: dirt for a trail run, paved
+     * for a road ride. Picking the same sport again keeps the surface the
+     * rider chose by hand.
+     */
     function chooseSport(value: string): void {
+        const nextSurface =
+            value === sheetSport ? undefined : sportSurfaces[value];
+
         if (multisport) {
-            updateLeg({ sport: value });
+            updateLeg(
+                nextSurface === undefined
+                    ? { sport: value }
+                    : { sport: value, surface: nextSurface },
+            );
 
             return;
         }
 
         setSport(value);
+
+        if (nextSurface !== undefined) {
+            setSurface(nextSurface);
+        }
+
         setSheet(null);
-        redraw({ sport: value });
+        redraw({ sport: value, surface: nextSurface });
     }
 
     function chooseSurface(value: string): void {

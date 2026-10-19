@@ -112,7 +112,7 @@ final class PlanMultisportTool extends Tool
                 array_map(fn (array $leg): LandLeg => new LandLeg(
                     $leg[0],
                     (int) round($leg[1] * 1000),
-                    SportDefaults::surface($leg[0]),
+                    $leg[0]->defaultSurface(),
                     ElevationBias::Neutral,
                     $quiet,
                 ), $plannedLegs),
@@ -136,7 +136,7 @@ final class PlanMultisportTool extends Tool
             new RiderId($riderId),
             new RouteName($name),
             $first->sport,
-            SportDefaults::surface($first->sport),
+            $first->sport->defaultSurface(),
             ElevationBias::Neutral,
             $quiet ? 'quiet' : 'any',
             $plan->distanceMetres(),
@@ -185,7 +185,7 @@ final class PlanMultisportTool extends Tool
                 ->max(4)
                 ->description('Land legs in order, when there is no event. Up to four.'),
             'quiet_roads' => $schema->boolean()
-                ->description('Keep away from busy roads. Defaults to true.'),
+                ->description('Put paths and quiet streets first. Defaults to true.'),
             'name' => $schema->string()
                 ->max(80)
                 ->description('A name for the saved plan. Optional.'),
