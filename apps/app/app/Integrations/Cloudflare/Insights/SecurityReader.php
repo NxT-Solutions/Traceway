@@ -16,6 +16,7 @@ use DateTimeImmutable;
  * a count that has no limit. An event's IP address is never asked for.
  *
  * @phpstan-import-type DayCount from SecurityReport
+ * @phpstan-import-type PeopleBlock from SecurityReport
  */
 final readonly class SecurityReader
 {
@@ -36,8 +37,10 @@ final readonly class SecurityReader
                 source
                 clientCountryName
                 clientRequestPath
+                clientRequestHTTPMethodName
                 userAgent
                 ruleId
+                description
               }
             }
           }
@@ -100,7 +103,6 @@ final readonly class SecurityReader
         $paths = new Tally;
         $userAgents = new Tally;
         $rules = new Tally;
-        $peoplePages = new Tally;
 
         foreach ($events as $event) {
             $path = CloudflareGraphql::text($event['clientRequestPath'] ?? null);
@@ -111,10 +113,6 @@ final readonly class SecurityReader
             $userAgent = CloudflareGraphql::text($event['userAgent'] ?? null);
             $userAgents->add($userAgent === '' ? '(none)' : $userAgent, 1);
             $rules->add(CloudflareGraphql::text($event['ruleId'] ?? null), 1);
-
-            if (PeoplePages::is($path)) {
-                $peoplePages->add($path, 1);
-            }
         }
 
         return new SecurityReport(
@@ -128,9 +126,43 @@ final readonly class SecurityReader
             paths: $paths->ranked(15),
             userAgents: $userAgents->ranked(10),
             rules: $rules->ranked(10),
-            peoplePages: $peoplePages->ranked(15),
+            peoplePages: $this->peopleBlocks($events),
             turnstile: $this->turnstile($now),
         );
+    }
+
+    /**
+     * The events on pages people use, added up by path, method, and rule, most first. A rule is named by its
+     * description, such as a managed rule's CVE, or by its id when it has none.
+     *
+     * @param  list<array<mixed>>  $events
+     * @return list<PeopleBlock>
+     */
+    private function peopleBlocks(array $events): array
+    {
+        /** @var array<string, PeopleBlock> $blocks */
+        $blocks = [];
+
+        foreach ($events as $event) {
+            $path = CloudflareGraphql::text($event['clientRequestPath'] ?? null);
+            $method = mb_strtoupper(CloudflareGraphql::text($event['clientRequestHTTPMethodName'] ?? null));
+
+            if (! PeoplePages::is($path, $method)) {
+                continue;
+            }
+
+            $description = CloudflareGraphql::text($event['description'] ?? null);
+            $rule = $description === '' ? CloudflareGraphql::text($event['ruleId'] ?? null) : $description;
+            $source = CloudflareGraphql::text($event['source'] ?? null);
+            $key = implode("\n", [$path, $method, $rule, $source]);
+            $blocks[$key] ??= ['path' => $path, 'method' => $method, 'rule' => $rule, 'source' => $source, 'count' => 0];
+            $blocks[$key]['count']++;
+        }
+
+        $ranked = array_values($blocks);
+        usort($ranked, static fn (array $a, array $b): int => [$b['count'], $a['path'], $a['method']] <=> [$a['count'], $b['path'], $b['method']]);
+
+        return array_slice($ranked, 0, 15);
     }
 
     /**

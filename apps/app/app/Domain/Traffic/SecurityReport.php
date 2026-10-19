@@ -11,6 +11,7 @@ namespace App\Domain\Traffic;
  * @phpstan-import-type Ranked from TrafficReport
  *
  * @phpstan-type DayCount array{date: string, count: int}
+ * @phpstan-type PeopleBlock array{path: string, method: string, rule: string, source: string, count: int}
  */
 final readonly class SecurityReport
 {
@@ -32,7 +33,8 @@ final readonly class SecurityReport
      * @param  list<Ranked>  $paths
      * @param  list<Ranked>  $userAgents
      * @param  list<Ranked>  $rules  rule ids
-     * @param  list<Ranked>  $peoplePages  paths of pages people use that a rule stopped, which may be real visitors
+     * @param  list<PeopleBlock>  $peoplePages  requests for pages people use that a rule stopped, which may be real
+     *                                          visitors, by path, method, and rule: its description, or its id without one
      * @param  list<Ranked>  $turnstile  sign-up checks by Turnstile's event type, such as challenge_issued
      */
     public function __construct(

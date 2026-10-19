@@ -141,9 +141,9 @@ it('adds up the reads of what Traceway publishes for assistants, and who sent th
         ]);
 });
 
-it('adds up the firewall events, and finds blocks on pages people use', function (): void {
-    $event = fn (string $path, string $country, string $source = 'firewallCustom'): array => [
-        'action' => 'block', 'source' => $source, 'clientCountryName' => $country, 'clientRequestPath' => $path, 'userAgent' => 'curl/8.7.1', 'ruleId' => $source === 'firewallCustom' ? 'custom-rule' : 'managed-rule',
+it('adds up the firewall events, and finds blocks on pages people use by method and rule', function (): void {
+    $event = fn (string $path, string $country, string $source = 'firewallCustom', string $method = 'GET', string $description = ''): array => [
+        'action' => 'block', 'source' => $source, 'clientCountryName' => $country, 'clientRequestPath' => $path, 'clientRequestHTTPMethodName' => $method, 'userAgent' => 'curl/8.7.1', 'ruleId' => $source === 'firewallCustom' ? 'custom-rule' : 'managed-rule', 'description' => $description,
     ];
     $insights = insights([
         'days' => [
@@ -159,6 +159,8 @@ it('adds up the firewall events, and finds blocks on pages people use', function
             $event('/.env', 'BE'),
             $event('/', 'BE'),
             $event('/login', 'BE'),
+            $event('/login', 'US', 'firewallManaged', 'POST', 'React - RCE - CVE:CVE-2025-55182'),
+            $event('/', 'JP', 'firewallManaged', 'POST', 'React - RCE - CVE:CVE-2025-55182'),
             $event('/wp-login.php', 'NL', 'firewallManaged'),
         ],
     ], [
@@ -173,12 +175,16 @@ it('adds up the firewall events, and finds blocks on pages people use', function
     expect($security->threatDays)->toBe([['date' => '2026-10-18', 'count' => 5], ['date' => '2026-10-19', 'count' => 5]])
         ->and($security->threatCountries)->toBe([['label' => 'BE', 'count' => 6], ['label' => 'FR', 'count' => 4]])
         ->and($security->blockDays)->toBe([['date' => '2026-10-18', 'count' => 770], ['date' => '2026-10-19', 'count' => 470]])
-        ->and($security->events)->toBe(5)
-        ->and($security->sources)->toBe([['label' => 'firewallCustom', 'count' => 4], ['label' => 'firewallManaged', 'count' => 1]])
+        ->and($security->events)->toBe(7)
+        ->and($security->sources)->toBe([['label' => 'firewallCustom', 'count' => 4], ['label' => 'firewallManaged', 'count' => 3]])
         ->and($security->countries[0])->toBe(['label' => 'BE', 'count' => 3])
-        ->and($security->paths[0])->toBe(['label' => '/.env', 'count' => 2])
-        ->and($security->rules)->toBe([['label' => 'custom-rule', 'count' => 4], ['label' => 'managed-rule', 'count' => 1]])
-        ->and($security->peoplePages)->toBe([['label' => '/', 'count' => 1], ['label' => '/login', 'count' => 1]])
+        ->and(array_slice($security->paths, 0, 3))->toBe([['label' => '/', 'count' => 2], ['label' => '/.env', 'count' => 2], ['label' => '/login', 'count' => 2]])
+        ->and($security->rules)->toBe([['label' => 'custom-rule', 'count' => 4], ['label' => 'managed-rule', 'count' => 3]])
+        ->and($security->peoplePages)->toBe([
+            ['path' => '/', 'method' => 'GET', 'rule' => 'custom-rule', 'source' => 'firewallCustom', 'count' => 1],
+            ['path' => '/login', 'method' => 'GET', 'rule' => 'custom-rule', 'source' => 'firewallCustom', 'count' => 1],
+            ['path' => '/login', 'method' => 'POST', 'rule' => 'React - RCE - CVE:CVE-2025-55182', 'source' => 'firewallManaged', 'count' => 1],
+        ])
         ->and($security->turnstile)->toBe([
             ['label' => 'challenge_issued', 'count' => 11],
             ['label' => 'challenge_non_interactive_solved', 'count' => 3],

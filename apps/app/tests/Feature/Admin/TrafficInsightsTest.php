@@ -135,7 +135,7 @@ it("rates each page's Core Web Vitals, and leaves out what was not measured", fu
 it('shows the firewall blocks with their total, and the backups with their last write', function (): void {
     $this->app->instance(TrafficInsights::class, fakeInsights(
         backupHealth: new BackupHealth('traceway-backups', 4248, 40_255_817, [['date' => '2026-10-17', 'count' => 3010]], '2026-10-17'),
-        securityReport: new SecurityReport(blockDays: [['date' => '2026-10-18', 'count' => 770], ['date' => '2026-10-19', 'count' => 470]], peoplePages: [['label' => '/', 'count' => 22]]),
+        securityReport: new SecurityReport(blockDays: [['date' => '2026-10-18', 'count' => 770], ['date' => '2026-10-19', 'count' => 470]], peoplePages: [['path' => '/login', 'method' => 'POST', 'rule' => 'custom-rule', 'source' => 'firewallCustom', 'count' => 22]]),
     ));
 
     $this->actingAs(insightsAdmin())
@@ -143,7 +143,7 @@ it('shows the firewall blocks with their total, and the backups with their last 
         ->assertInertia(fn (Assert $assert): Assert => $assert
             ->loadDeferredProps(fn (Assert $assert): Assert => $assert
                 ->where('insights.blocks', 1240)
-                ->where('insights.people_pages.0', ['label' => '/', 'count' => 22])));
+                ->where('insights.people_pages.0', ['path' => '/login', 'method' => 'POST', 'rule' => 'custom-rule', 'source' => 'firewallCustom', 'count' => 22])));
 
     $this->actingAs(insightsAdmin())
         ->get(route('admin.traffic.backups'))
