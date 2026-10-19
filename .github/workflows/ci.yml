@@ -231,9 +231,6 @@ jobs:
     env:
       BASE_URL: http://127.0.0.1:8000
       CONTENT_URL: http://127.0.0.1:4321
-      # A pull request draws routes through a stand-in router, so it never
-      # waits on the public one. A push to main keeps the real engine.
-      USE_ROUTER_STUB: ${{ github.event_name == 'pull_request' }}
 
     steps:
       - name: Check Out Repository
@@ -270,16 +267,16 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
       # The demo riders sign in only when APP_ENV is local, as in .env.example.
+      # The planner asks the stub for routes, tiles, and places, never the
+      # public servers, so a slow one cannot fail a run.
       - name: Prepare Environment
         run: |
           cp .env.example .env
           sed -i 's|^APP_URL=.*|APP_URL=http://127.0.0.1:8000|' .env
           echo 'SESSION_SECURE_COOKIE=false' >> .env
-          if [ "$USE_ROUTER_STUB" = "true" ]; then
-            sed -i 's|^VALHALLA_URL=.*|VALHALLA_URL=http://127.0.0.1:8002|' .env
-            sed -i 's|^OPENFREEMAP_URL=.*|OPENFREEMAP_URL=http://127.0.0.1:8002|' .env
-            sed -i 's|^NOMINATIM_URL=.*|NOMINATIM_URL=http://127.0.0.1:8002|' .env
-          fi
+          sed -i 's|^VALHALLA_URL=.*|VALHALLA_URL=http://127.0.0.1:8002|' .env
+          sed -i 's|^OPENFREEMAP_URL=.*|OPENFREEMAP_URL=http://127.0.0.1:8002|' .env
+          sed -i 's|^NOMINATIM_URL=.*|NOMINATIM_URL=http://127.0.0.1:8002|' .env
           php artisan key:generate --no-interaction
           mkdir -p database
           touch database/database.sqlite
@@ -335,11 +332,8 @@ jobs:
           (cd "$RUNNER_TEMP/ssr" && NODE_ENV=production node bootstrap/ssr/app.js > "$RUNNER_TEMP/ssr.log" 2>&1 &)
           PHP_CLI_SERVER_WORKERS=4 php artisan serve --no-reload --host=127.0.0.1 --port=8000 > "$RUNNER_TEMP/planner.log" 2>&1 &
           php -S 127.0.0.1:4321 -t ../web/dist > "$RUNNER_TEMP/content.log" 2>&1 &
-          urls=("http://127.0.0.1:13714/health" "$BASE_URL/login" "$CONTENT_URL/")
-          if [ "$USE_ROUTER_STUB" = "true" ]; then
-            PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8002 tests/Browser/valhalla-stub.php > "$RUNNER_TEMP/router.log" 2>&1 &
-            urls+=("http://127.0.0.1:8002/health")
-          fi
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8002 tests/Browser/valhalla-stub.php > "$RUNNER_TEMP/router.log" 2>&1 &
+          urls=("http://127.0.0.1:13714/health" "$BASE_URL/login" "$CONTENT_URL/" "http://127.0.0.1:8002/health")
           for url in "${urls[@]}"; do
             for attempt in $(seq 1 300); do
               curl --silent --fail --output /dev/null "$url" && break
@@ -348,28 +342,19 @@ jobs:
             curl --silent --fail --output /dev/null "$url"
           done
 
-      # Two lanes of about the same length. The phone test is the long one.
-      # On main they take turns: both use the public router, and the brick
-      # the phone lane draws slows the desktop lane's road lookups.
+      # Two lanes of about the same length, side by side. The phone test is
+      # the long one.
       - name: Run Browser Tests
         run: |
           desktop() { node tests/Browser/planner.mjs && node tests/Browser/wcag.mjs; }
           mobile() { node tests/Browser/mobile.mjs; }
           declare -A pid result
           for lane in desktop mobile; do
-            if [ "$USE_ROUTER_STUB" = "true" ]; then
-              "$lane" > "$RUNNER_TEMP/browser-$lane.log" 2>&1 & pid[$lane]=$!
-            elif "$lane" > "$RUNNER_TEMP/browser-$lane.log" 2>&1; then
-              result[$lane]=passed
-            else
-              result[$lane]=FAILED
-            fi
+            "$lane" > "$RUNNER_TEMP/browser-$lane.log" 2>&1 & pid[$lane]=$!
           done
           status=0
           for lane in desktop mobile; do
-            if [ -n "${pid[$lane]:-}" ]; then
-              if wait "${pid[$lane]}"; then result[$lane]=passed; else result[$lane]=FAILED; fi
-            fi
+            if wait "${pid[$lane]}"; then result[$lane]=passed; else result[$lane]=FAILED; fi
             [ "${result[$lane]}" = passed ] || status=1
             echo "::group::$lane lane (${result[$lane]})"
             cat "$RUNNER_TEMP/browser-$lane.log"

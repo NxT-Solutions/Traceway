@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { mockOutsideServers } from './mock-servers.mjs';
 
 const base = process.env.BASE_URL || 'https://traceway.ddev.site:8443';
 // A local Chrome for Testing when there is one, else the Chromium that
@@ -58,6 +59,8 @@ async function audit(page, label) {
 try {
     const desktopContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 800 } });
     const phoneContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
+    await mockOutsideServers(desktopContext);
+    await mockOutsideServers(phoneContext);
     const desktop = await desktopContext.newPage();
     const phone = await phoneContext.newPage();
     desktop.on('pageerror', (error) => failures.push(`desktop page error: ${error.message}`));

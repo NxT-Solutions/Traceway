@@ -3,19 +3,20 @@
 declare(strict_types=1);
 
 /*
-| A stand-in for the public Valhalla server, for the browser tests on a pull
-| request. It answers the planner's routing calls with straight lines, and the
+| A stand-in for the public Valhalla server, for every browser test run. It
+| answers the planner's routing calls with straight lines, and the
 | calls that describe a line with a hill, two turns, and a gravel end, so the
 | climb chart, the surfaces, and the turns show without a fair-use router. It
 | also stands in for the map tiles with no stops, and for Nominatim with one
 | village name for every pin and the same two places for every search, so no
-| test waits on those servers.
-| A push to main keeps the real ones.
+| test waits on those servers. It also draws the browser's basemap, which
+| mock-servers.mjs hands the page in place of OpenFreeMap's.
 |
 |   php -S 127.0.0.1:8002 tests/Browser/valhalla-stub.php
 */
 
 use App\Integrations\Valhalla\Polyline;
+use Tests\Support\VectorTiles;
 
 require __DIR__.'/../../vendor/autoload.php';
 
@@ -178,6 +179,49 @@ if (str_starts_with($path, '/planet/stub/')) {
     return;
 }
 
+// The browser's basemap, which mock-servers.mjs hands the page in place of
+// OpenFreeMap's: a plain background and a few towns around the planner's
+// opening view, so the search bar finds names on the map without a server.
+if (preg_match('#^/styles/(\w+)$#', $path, $style) === 1) {
+    reply(200, [
+        'version' => 8,
+        'name' => 'mock '.$style[1],
+        'sources' => ['openmaptiles' => [
+            'type' => 'vector',
+            'tiles' => ['https://tiles.openfreemap.org/mock/{z}/{x}/{y}.pbf'],
+            'maxzoom' => 14,
+        ]],
+        'layers' => [
+            ['id' => 'background', 'type' => 'background', 'paint' => ['background-color' => $style[1] === 'dark' ? '#1c2230' : '#eef0e6']],
+            ['id' => 'place', 'type' => 'circle', 'source' => 'openmaptiles', 'source-layer' => 'place', 'paint' => ['circle-radius' => 3, 'circle-color' => '#8a8f80']],
+        ],
+    ]);
+
+    return;
+}
+
+if (preg_match('#^/basemap/(\d+)/(\d+)/(\d+)\.pbf$#', $path, $tile) === 1) {
+    [, $zoom, $column, $row] = array_map(intval(...), $tile);
+    $towns = ['Gent' => [3.7174, 51.0543], 'Gentbrugge' => [3.7621, 51.0378], 'Westerlo' => [4.9166, 51.0907], 'Oevel' => [4.9411, 51.1012]];
+    $places = [];
+
+    foreach ($towns as $name => [$longitude, $latitude]) {
+        $tiles = 2 ** $zoom;
+        $across = ($longitude + 180) / 360 * $tiles - $column;
+        $down = (1 - log(tan(deg2rad($latitude)) + 1 / cos(deg2rad($latitude))) / M_PI) / 2 * $tiles - $row;
+
+        if ($across >= 0 && $across < 1 && $down >= 0 && $down < 1) {
+            $places[] = ['at' => [$across, $down], 'tags' => ['name' => $name, 'class' => 'town']];
+        }
+    }
+
+    http_response_code(200);
+    header('Content-Type: application/vnd.mapbox-vector-tile');
+    echo VectorTiles::tile(['place' => $places]);
+
+    return;
+}
+
 // Two places for any search, the town first, so a test can pick one.
 if ($path === '/search') {
     reply(200, [
@@ -203,5 +247,5 @@ if ($path === '/reverse') {
 }
 
 reply(in_array($path, ['/route', '/locate'], strict: true) ? 400 : 404, [
-    'error' => 'The stub answers /route, /locate, /trace_route, /trace_attributes, /height, /planet, its tiles, /search, and /reverse.',
+    'error' => 'The stub answers /route, /locate, /trace_route, /trace_attributes, /height, /planet, its tiles, /styles, /basemap, /search, and /reverse.',
 ]);

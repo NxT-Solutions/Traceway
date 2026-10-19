@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { mockOutsideServers } from './mock-servers.mjs';
 
 const base = process.env.BASE_URL || 'https://traceway.ddev.site:8443';
 // A local Chrome for Testing when there is one, else the Chromium that
@@ -71,6 +72,7 @@ try {
         ignoreHTTPSErrors: true,
         viewport: { width: 1280, height: 800 },
     });
+    await mockOutsideServers(desktop);
     // An uncaught error on a page fails the run, even when the page still looks right.
     const pageErrors = [];
     desktop.on('pageerror', (error) => pageErrors.push(`desktop: ${error.message}`));
@@ -298,6 +300,7 @@ try {
         ignoreHTTPSErrors: true,
         viewport: { width: 390, height: 844 },
     });
+    await mockOutsideServers(phone);
     phone.on('pageerror', (error) => pageErrors.push(`phone: ${error.message}`));
     // A script, style or request the Content-Security-Policy blocks is a broken page too.
     phone.on('console', (message) => message.text().includes('Content Security Policy') && pageErrors.push(`phone: ${message.text()}`));

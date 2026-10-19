@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
+import { mockOutsideServers } from './mock-servers.mjs';
 
 // Every page a rider sees, at the sizes they hold it: desktop, a tablet both
 // ways, a phone both ways, and a small phone. The same open page is turned
@@ -127,6 +128,7 @@ const pages = [
 
 for (const spec of pages) {
     const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 } });
+    await mockOutsideServers(context);
     const page = await context.newPage();
     page.on('pageerror', (error) => failures.push(`${spec.name}: page error: ${error.message}`));
     // A script, style or request the Content-Security-Policy blocks is a broken page too.

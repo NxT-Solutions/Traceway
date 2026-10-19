@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { mockOutsideServers } from './mock-servers.mjs';
 
 // Walks every way a rider meets the climb chart, the surfaces, the turns,
 // and the stops: a generated loop, the next loop, a built route, a brick,
@@ -252,6 +253,7 @@ async function thumbnails(page) {
 try {
     // ── Desktop ─────────────────────────────────────────────────────────
     const desktop = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 860 }, acceptDownloads: true });
+    await mockOutsideServers(desktop);
     const page = await desktop.newPage();
     const settle = watch(page, 'Desktop');
     page.on('pageerror', (error) => pageErrors.push(`desktop: ${error.message}`));
@@ -506,6 +508,7 @@ try {
         hasTouch: true,
         acceptDownloads: true,
     });
+    await mockOutsideServers(phone);
     const mobile = await phone.newPage();
     const settlePhone = watch(mobile, 'Phone');
     mobile.on('pageerror', (error) => pageErrors.push(`phone: ${error.message}`));
