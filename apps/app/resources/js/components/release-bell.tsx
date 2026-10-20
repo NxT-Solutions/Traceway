@@ -64,7 +64,7 @@ function ReleaseToast({
             <button
                 type="button"
                 className="rt-close"
-                aria-label="Close"
+                aria-label={`Close the note about Traceway ${release.tag}`}
                 onClick={() => toast.dismiss(id)}
             >
                 <svg
