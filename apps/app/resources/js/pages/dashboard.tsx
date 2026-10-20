@@ -151,13 +151,13 @@ const roadsOptions = [
         label: 'Quiet first',
         copy: 'Cycle paths and quiet lanes first. Busy roads lose.',
         footCopy:
-            'Footpaths first, and streets where walkers have right of way.',
+            'Walkways and pavements first, and streets where walkers have right of way.',
     },
     {
         value: 'any',
         label: 'Any road',
-        copy: 'Let the shortest line win.',
-        footCopy: 'Let the shortest line win.',
+        copy: 'Roads count for more. On Dirt this changes little.',
+        footCopy: 'No extra pull onto walkways or quiet streets.',
     },
 ] as const;
 
@@ -236,25 +236,25 @@ const sports: SportOption[] = [
     {
         value: 'run',
         label: 'Run',
-        copy: 'Streets and footpaths, footpaths first.',
+        copy: 'Streets and walkways, walkways first.',
         group: 'Foot',
     },
     {
         value: 'trail_run',
         label: 'Trail run',
-        copy: 'Tracks and footpaths first.',
+        copy: 'Tracks and walkways first.',
         group: 'Foot',
     },
     {
         value: 'walk',
         label: 'Walk',
-        copy: 'Footpaths first, and tracks where they help.',
+        copy: 'Walkways first, and tracks where they help.',
         group: 'Foot',
     },
     {
         value: 'hike',
         label: 'Hike',
-        copy: 'Tracks and footpaths first. Mountain paths allowed.',
+        copy: 'Tracks and walkways first. Mountain paths allowed.',
         group: 'Foot',
     },
     {
@@ -281,7 +281,7 @@ const elevations = [
     {
         value: 'neutral',
         label: 'Any',
-        copy: 'Steer round steep climbs a little.',
+        copy: 'Steer round steep climbs.',
     },
     {
         value: 'minimize',
@@ -291,7 +291,7 @@ const elevations = [
     {
         value: 'maximize',
         label: 'Hilly',
-        copy: 'Stop steering round the climbs.',
+        copy: 'No extra push round climbs. A steep one still counts as slow.',
     },
 ] as const;
 
@@ -299,7 +299,7 @@ const surfaces = [
     {
         value: 'mixed',
         label: 'Any',
-        copy: 'Whatever the roads are made of.',
+        copy: 'Rough ground allowed. Smooth roads still win.',
         footCopy: 'Tracks a little before streets.',
     },
     {
@@ -312,7 +312,8 @@ const surfaces = [
         value: 'dirt',
         label: 'Dirt',
         copy: 'Fewer roads, and rough ground allowed.',
-        footCopy: 'Tracks and footpaths first.',
+        footCopy:
+            'Tracks and walkways first. Narrow trails count like streets.',
     },
 ] as const;
 
@@ -744,13 +745,39 @@ const mapBusy = 'The map is busy. Try again in a moment.';
  * Why a spot found no road: none near it, no answer in time, or a sign-in
  * that ran out while the planner was open.
  */
-type SnapMiss = 'far' | 'busy' | 'signed-out';
+type SnapMiss = 'far' | 'far-paved' | 'busy' | 'signed-out';
 
 /** The sport and surface a pin snaps for, so it lands on a way its route may use. */
 type SnapFor = { sport: string; surface: string };
 
+/**
+ * A road bike on Paved may only use smooth ground, as its route does, so its
+ * pin may not land on a track or an unpaved way. Any other ride takes any
+ * way drawn.
+ */
+function needsSmoothGround(snapFor: SnapFor): boolean {
+    return snapFor.sport === 'road' && snapFor.surface === 'paved';
+}
+
+/**
+ * Whether a drawn way is smooth enough for a road bike on Paved, as the
+ * routing engine judges it: not unpaved, and not a track unless it is
+ * paved, since the engine takes an untagged track for dirt.
+ */
+function smoothWay(properties: Record<string, unknown> | null): boolean {
+    const surface = properties?.surface;
+
+    if (surface === 'unpaved') {
+        return false;
+    }
+
+    return properties?.class !== 'track' || surface === 'paved';
+}
+
 const snapMissNotes: Record<SnapMiss, string> = {
     far: farFromRoad,
+    'far-paved':
+        'No paved road is close enough there. Pick a spot nearer one, or set Surface to Any.',
     busy: mapBusy,
     'signed-out': 'You were signed out. Reload the page to sign in again.',
 };
@@ -768,6 +795,7 @@ let roadSnapCache: {
     minY: number;
     maxX: number;
     maxY: number;
+    smoothOnly: boolean;
     segments: SnapSegment[];
 } | null = null;
 
@@ -832,6 +860,7 @@ function snapToRoad(
     map: maplibregl.Map,
     longitude: number,
     latitude: number,
+    smoothOnly = false,
 ): RoadSnap | null {
     if (!map.isStyleLoaded()) {
         return null;
@@ -841,6 +870,7 @@ function snapToRoad(
     const cache = roadSnapCache;
     const covered =
         cache !== null &&
+        cache.smoothOnly === smoothOnly &&
         cursor.x > cache.minX + snapRadius &&
         cursor.x < cache.maxX - snapRadius &&
         cursor.y > cache.minY + snapRadius &&
@@ -893,6 +923,10 @@ function snapToRoad(
                 continue;
             }
 
+            if (smoothOnly && !smoothWay(feature.properties)) {
+                continue;
+            }
+
             for (const line of linesOf(feature.geometry)) {
                 for (let index = 1; index < line.length; index += 1) {
                     const start = line[index - 1];
@@ -914,6 +948,7 @@ function snapToRoad(
             minY: cursor.y - snapReach,
             maxX: cursor.x + snapReach,
             maxY: cursor.y + snapReach,
+            smoothOnly,
             segments,
         };
     }
@@ -1597,9 +1632,15 @@ export default function Dashboard() {
     );
     // A dragged pin sticks to the nearest road or path drawn on screen, so
     // it lands where the rider sees it, not with a jump on release.
-    const dragSnapRef = useRef<(marker: maplibregl.Marker) => void>(() => {});
+    const dragSnapRef = useRef<
+        (marker: maplibregl.Marker, snapFor?: SnapFor) => void
+    >(() => {});
     const snapPointRef = useRef<
-        (longitude: number, latitude: number) => Promise<Coordinate | SnapMiss>
+        (
+            longitude: number,
+            latitude: number,
+            snapFor?: SnapFor,
+        ) => Promise<Coordinate | SnapMiss>
     >(() => Promise.resolve('busy'));
     const multisportRef = useRef<{
         plan: MultisportPlan | null;
@@ -2114,6 +2155,23 @@ export default function Dashboard() {
     // busy a road is, so Surface and Roads say what they do on foot.
     const sheetOnFoot =
         sports.find((item) => item.value === sheetSport)?.group === 'Foot';
+    // Every leg of a multisport plan leaves from the shared start, so it
+    // snaps for the strictest leg: a road ride on Paved if there is one,
+    // else the first leg. Without legs, the planner's own sport and surface.
+    const startLeg = multisport
+        ? (legs.find((item) =>
+              needsSmoothGround({ sport: item.sport, surface: item.surface }),
+          ) ?? legs[0])
+        : undefined;
+    const startSnapFor: SnapFor | undefined =
+        startLeg === undefined
+            ? undefined
+            : { sport: startLeg.sport, surface: startLeg.surface };
+    // A Build point snaps to a way drawn on screen that the ride may use.
+    const buildSmoothOnly = needsSmoothGround({ sport, surface });
+    const noBuildRoad = buildSmoothOnly
+        ? 'No paved road is close enough to put a point there.'
+        : 'No road or path is close enough to put a point there.';
     const sheetSurface = editing?.surface ?? surface;
     const sheetElevation = editing?.elevation ?? elevation;
     const sheetRoads = editing?.roads ?? roads;
@@ -2666,12 +2724,14 @@ export default function Dashboard() {
                 })
                     .setLngLat(leg.finish)
                     .addTo(map);
-                marker.on('drag', () => dragSnapRef.current(marker));
+                // The end snaps for its own leg, not the one being edited.
+                const legFor = { sport: leg.sport, surface: leg.surface };
+                marker.on('drag', () => dragSnapRef.current(marker, legFor));
                 marker.on('dragend', () => {
                     const at = marker.getLngLat();
                     const from = leg.finish;
                     void snapPointRef
-                        .current(at.lng, at.lat)
+                        .current(at.lng, at.lat, legFor)
                         .then((snapped) => {
                             if (typeof snapped === 'string') {
                                 if (from !== null) {
@@ -4187,7 +4247,7 @@ export default function Dashboard() {
         lat: number,
         options: { message?: string; undoable?: boolean } = {},
     ): Promise<void> {
-        const snapped = await snapPoint(lng, lat);
+        const snapped = await snapPoint(lng, lat, startSnapFor);
 
         if (typeof snapped === 'string') {
             markerRef.current?.setLngLat([longitude, latitude]);
@@ -4459,7 +4519,12 @@ export default function Dashboard() {
                 return;
             }
 
-            const point = snapToRoad(map, cursor.lng, cursor.lat);
+            const point = snapToRoad(
+                map,
+                cursor.lng,
+                cursor.lat,
+                buildSmoothOnly,
+            );
             hoverSnapRef.current = {
                 queryLng: cursor.lng,
                 queryLat: cursor.lat,
@@ -4499,10 +4564,11 @@ export default function Dashboard() {
 
     function placeBuildPoint(lng: number, lat: number): void {
         const map = mapRef.current;
-        const point = map === null ? null : snapToRoad(map, lng, lat);
+        const point =
+            map === null ? null : snapToRoad(map, lng, lat, buildSmoothOnly);
 
         if (point === null) {
-            setMessage('No road or path is close enough to put a point there.');
+            setMessage(noBuildRoad);
 
             return;
         }
@@ -4512,10 +4578,11 @@ export default function Dashboard() {
 
     moveBuildPointRef.current = (id, lng, lat) => {
         const map = mapRef.current;
-        const point = map === null ? null : snapToRoad(map, lng, lat);
+        const point =
+            map === null ? null : snapToRoad(map, lng, lat, buildSmoothOnly);
 
         if (point === null) {
-            setMessage('No road or path is close enough to put a point there.');
+            setMessage(noBuildRoad);
 
             return false;
         }
@@ -4593,8 +4660,11 @@ export default function Dashboard() {
             });
         };
         // A spot on a road or path right away when one is drawn near it;
-        // otherwise Traceway looks for the nearest one for the sport.
-        const near = snapOnScreen(lng, lat);
+        // otherwise Traceway looks for the nearest one for the sport. A card
+        // that can only move the transition snaps for the shared start.
+        const cardFor =
+            multisport && layout !== 'chain' ? startSnapFor : undefined;
+        const near = snapOnScreen(lng, lat, cardFor);
 
         if (near !== null) {
             setTapCard(null);
@@ -4606,7 +4676,7 @@ export default function Dashboard() {
 
         setTapCard(null);
         show([lng, lat], 'snapping');
-        void snapFromServer(lng, lat).then((snapped) => {
+        void snapFromServer(lng, lat, cardFor).then((snapped) => {
             if (tapAskRef.current !== ask) {
                 return;
             }
@@ -4827,7 +4897,11 @@ export default function Dashboard() {
      * The nearest road or path to a spot among the ones drawn on screen, as
      * a Build point snaps, or null when none is drawn close enough.
      */
-    function snapOnScreen(lng: number, lat: number): Coordinate | null {
+    function snapOnScreen(
+        lng: number,
+        lat: number,
+        snapFor: SnapFor = { sport: sheetSport, surface: sheetSurface },
+    ): Coordinate | null {
         const map = mapRef.current;
 
         // Zoomed out, the map draws only the big roads, and a few pixels are
@@ -4840,7 +4914,7 @@ export default function Dashboard() {
             return null;
         }
 
-        const point = snapToRoad(map, lng, lat);
+        const point = snapToRoad(map, lng, lat, needsSmoothGround(snapFor));
         const snapped: Coordinate | null =
             point === null ? null : [point.longitude, point.latitude];
 
@@ -4875,8 +4949,10 @@ export default function Dashboard() {
                     surface: snapFor.surface,
                 }),
             });
+            const far = needsSmoothGround(snapFor) ? 'far-paved' : 'far';
+
             if (response.status === 422) {
-                return 'far';
+                return far;
             }
 
             if (response.status === 401 || response.status === 419) {
@@ -4900,7 +4976,7 @@ export default function Dashboard() {
             const snapped: Coordinate = [body.longitude, body.latitude];
 
             return metresBetween([lng, lat], snapped) > farthestSnapMetres
-                ? 'far'
+                ? far
                 : snapped;
         } catch {
             return 'busy';
@@ -4918,15 +4994,21 @@ export default function Dashboard() {
         snapFor?: SnapFor,
     ): Promise<Coordinate | SnapMiss> {
         return (
-            snapOnScreen(lng, lat) ?? (await snapFromServer(lng, lat, snapFor))
+            snapOnScreen(lng, lat, snapFor) ??
+            (await snapFromServer(lng, lat, snapFor))
         );
     }
 
     snapPointRef.current = snapPoint;
 
-    dragSnapRef.current = (marker) => {
+    dragSnapRef.current = (marker, snapFor) => {
         const at = marker.getLngLat();
-        const snapped = snapOnScreen(at.lng, at.lat);
+        const snapped = snapOnScreen(
+            at.lng,
+            at.lat,
+            snapFor ??
+                (marker === markerRef.current ? startSnapFor : undefined),
+        );
 
         if (snapped !== null) {
             marker.setLngLat(snapped);

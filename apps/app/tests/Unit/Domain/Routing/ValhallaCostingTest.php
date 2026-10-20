@@ -187,7 +187,7 @@ dataset('foot sports', [
 ]);
 
 // Walkway factor, use_tracks, and use_living_streets for each surface and roads choice.
-// Quiet first sets walkways and living streets; the surface sets tracks.
+// Quiet first sets walkways and living streets. The surface sets tracks, and Dirt walkways too.
 dataset('foot filters', [
     'paved, any road' => [Surface::Paved, false, 1.0, 0.5, 0.6],
     'paved, quiet first' => [Surface::Paved, true, 0.5, 0.5, 0.9],
@@ -258,11 +258,14 @@ it('gives every surface and roads choice on foot its own costing', function (): 
     expect(array_unique(array_map(serialize(...), $costings)))->toHaveCount(6);
 });
 
-it('snaps a point only onto a way its route may use', function (): void {
-    expect(ValhallaCosting::locate(Sport::Road, Surface::Paved))->toBe([
-        'costing' => 'bicycle',
-        'costing_options' => ['bicycle' => ['bicycle_type' => 'Road', 'avoid_bad_surfaces' => 1.0]],
-    ])
-        ->and(ValhallaCosting::locate(Sport::Mtb, Surface::Dirt)['costing_options']['bicycle']['avoid_bad_surfaces'])->toBe(0.0)
-        ->and(ValhallaCosting::locate(Sport::Hike, Surface::Paved))->toBe(ValhallaCosting::trace(Sport::Hike));
-});
+it('snaps a point with the limits its route is planned with', function (Sport $sport, Surface $surface): void {
+    $route = ValhallaCosting::payload(filteredQuery($sport, $surface, true), [[3.72, 51.05]]);
+    $snap = ValhallaCosting::locate($sport, $surface);
+    $limits = $snap['costing_options'][$snap['costing']];
+
+    // The options that decide which ways a route may use: the bike type
+    // and its bad surfaces, or the walking speed and the hiking grade.
+    expect($snap['costing'])->toBe($route['costing'])
+        ->and(array_keys($limits))->toBe($snap['costing'] === 'bicycle' ? ['bicycle_type', 'avoid_bad_surfaces'] : ['walking_speed', 'max_hiking_difficulty'])
+        ->and(array_intersect_key($route['costing_options'][$route['costing']], $limits))->toBe($limits);
+})->with(Sport::cases())->with(Surface::cases());

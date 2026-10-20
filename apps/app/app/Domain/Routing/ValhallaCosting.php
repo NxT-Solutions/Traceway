@@ -107,7 +107,7 @@ final class ValhallaCosting
      * class or its surface. A walkway, a track, and a living street each have
      * their own cost. A path, a cycleway, and a plain road all cost the same.
      * So on foot Paved cannot keep a walk on paved ground, and nothing keeps
-     * it off a busy road. Quiet first and the surface each move one thing:
+     * it off a busy road. Quiet first and the surface each move their own:
      *
      * - Quiet first makes walkways and living streets cheaper. A walkway is a
      *   footway, or a sidewalk mapped as its own way: Valhalla cannot tell

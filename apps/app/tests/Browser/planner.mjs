@@ -286,7 +286,7 @@ try {
 
     // On foot, the surface choices say what they do on foot.
     await surfaceRow.click();
-    await desktop.getByRole('radio', { name: /^Dirt\b.*Tracks and footpaths first/ }).waitFor({ timeout: 3000 });
+    await desktop.getByRole('radio', { name: /^Dirt\b.*Tracks and walkways first/ }).waitFor({ timeout: 3000 });
     await desktop.getByRole('radio', { name: /^Paved\b/ }).click();
     await surfaceRow.filter({ hasText: 'Paved' }).waitFor({ timeout: 3000 });
     await pickSport('Trail run');
@@ -300,6 +300,33 @@ try {
     await surfaceRow.filter({ hasText: 'Dirt' }).waitFor({ timeout: 3000 });
     await pickSport('Road');
     await surfaceRow.filter({ hasText: 'Paved' }).waitFor({ timeout: 3000 });
+
+    // Zoomed out, a spot asks the routing engine for the nearest way for the
+    // sport and surface. A road ride on Paved with no paved road near is told why.
+    const zoomOut = async () => {
+        await canvas.focus();
+
+        for (let press = 0; press < 6; press++) {
+            await desktop.keyboard.press('-');
+            await desktop.waitForTimeout(150);
+        }
+
+        await desktop.waitForTimeout(600);
+    };
+    let snapAsked = null;
+    await desktop.route('**/routes/snap', async (route) => {
+        snapAsked = route.request().postDataJSON();
+        await route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ message: 'Nothing is close enough.' }) });
+    });
+    await zoomOut();
+    await desktop.keyboard.press('Enter');
+    await desktop.locator('.tap-card .tap-note', { hasText: 'No paved road is close enough' }).waitFor({ timeout: 10000 });
+    await desktop.unroute('**/routes/snap');
+    await desktop.keyboard.press('Escape');
+
+    if (snapAsked?.sport !== 'road' || snapAsked?.surface !== 'paved') {
+        throw new Error(`A road ride on Paved snapped as ${JSON.stringify(snapAsked)}`);
+    }
 
     await desktop.getByRole('tab', { name: 'Multisport' }).click();
     await desktop.getByRole('button', { name: /^Type\s*\w/ }).click();
@@ -338,6 +365,28 @@ try {
         }
 
         await desktop.waitForTimeout(250);
+    }
+
+    // Zoomed out, a tap for that leg asks for a way its own sport may use,
+    // not the planner's road ride.
+    const legAsked = [];
+    await desktop.route('**/routes/snap', async (route) => {
+        legAsked.push(route.request().postDataJSON());
+        await route.continue();
+    });
+    await zoomOut();
+    const legBox = await canvas.boundingBox();
+    await desktop.mouse.click(legBox.x + legBox.width * 0.6, legBox.y + legBox.height * 0.5);
+
+    for (let waited = 0; legAsked.length === 0 && waited < 10000; waited += 250) {
+        await desktop.waitForTimeout(250);
+    }
+
+    await desktop.unroute('**/routes/snap');
+    await desktop.keyboard.press('Escape');
+
+    if (legAsked[0]?.sport !== 'mtb' || legAsked[0]?.surface !== 'dirt') {
+        throw new Error(`A mountain bike leg snapped as ${JSON.stringify(legAsked[0])}`);
     }
 
     await open(desktop, '/saved');
