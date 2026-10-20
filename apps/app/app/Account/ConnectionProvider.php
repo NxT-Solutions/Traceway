@@ -110,7 +110,8 @@ enum ConnectionProvider: string
     }
 
     /**
-     * A limit the rider should know before connecting.
+     * A line the rider may want before connecting, shown on the connections page. The log in tiles show only the
+     * name, so they stay one line each.
      */
     public function note(): ?string
     {

@@ -49,12 +49,6 @@ export default function SignInTile({
                     )}
                     {option.label}
                 </span>
-                {option.note ? (
-                    <small className="note">
-                        <span className="vh">, </span>
-                        {option.note}
-                    </small>
-                ) : null}
             </span>
             {lastUsed ? <LastUsed /> : null}
         </SignInLink>

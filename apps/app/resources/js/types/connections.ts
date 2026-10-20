@@ -19,7 +19,6 @@ export type ConnectionGroup = 'sport' | 'accounts' | 'maps';
 export type SignInOption = {
     slug: ConnectionSlug;
     label: string;
-    note: string | null;
 };
 
 /** What the log in and sign up pages offer: up to four services, and how many more wait behind "More". */

@@ -52,7 +52,7 @@ it('offers the four services riders use most on the log in page, and counts them
     expect(signInOptionsFeatured($first))->toBe(['github', 'discord', 'google', 'wahoo'])
         ->and($first->inertiaProps('connections.more'))->toBe(1)
         ->and($first->inertiaProps('connections.lastUsed'))->toBeNull()
-        ->and($first->inertiaProps('connections.featured.0'))->toBe(['slug' => 'github', 'label' => 'GitHub', 'note' => null]);
+        ->and($first->inertiaProps('connections.featured.0'))->toBe(['slug' => 'github', 'label' => 'GitHub']);
 
     signInOptionsConnectRiders('runsignup', 3);
 
@@ -121,11 +121,11 @@ it('lists every service set up here in its group behind More ways to log in', fu
             ->where('lastUsed', 'wahoo')
             ->where('groups', [
                 ['key' => 'sport', 'label' => 'Sport apps', 'providers' => [
-                    ['slug' => 'wahoo', 'label' => 'Wahoo', 'note' => null],
-                    ['slug' => 'runsignup', 'label' => 'RunSignup', 'note' => 'The account you sign up for races with.'],
+                    ['slug' => 'wahoo', 'label' => 'Wahoo'],
+                    ['slug' => 'runsignup', 'label' => 'RunSignup'],
                 ]],
                 ['key' => 'accounts', 'label' => 'Everyday accounts', 'providers' => [
-                    ['slug' => 'google', 'label' => 'Google', 'note' => null],
+                    ['slug' => 'google', 'label' => 'Google'],
                 ]],
             ]));
 });

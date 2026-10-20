@@ -25,7 +25,7 @@ final readonly class SignInOptionsQuery
     ) {}
 
     /**
-     * @return array{featured: list<array{slug: string, label: string, note: string|null}>, more: int, lastUsed: string|null}
+     * @return array{featured: list<array{slug: string, label: string}>, more: int, lastUsed: string|null}
      */
     public function forLogin(?string $lastUsed): array
     {
@@ -47,7 +47,7 @@ final readonly class SignInOptionsQuery
     /**
      * Every service set up here, in its group, for the "More ways to log in" page.
      *
-     * @return array{groups: list<array{key: string, label: string, providers: list<array{slug: string, label: string, note: string|null}>}>, lastUsed: string|null}
+     * @return array{groups: list<array{key: string, label: string, providers: list<array{slug: string, label: string}>}>, lastUsed: string|null}
      */
     public function all(?string $lastUsed): array
     {
@@ -100,10 +100,10 @@ final readonly class SignInOptionsQuery
     }
 
     /**
-     * @return array{slug: string, label: string, note: string|null}
+     * @return array{slug: string, label: string}
      */
     private function option(ConnectionProvider $connectionProvider): array
     {
-        return ['slug' => $connectionProvider->value, 'label' => $connectionProvider->label(), 'note' => $connectionProvider->note()];
+        return ['slug' => $connectionProvider->value, 'label' => $connectionProvider->label()];
     }
 }
