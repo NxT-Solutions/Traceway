@@ -9,6 +9,7 @@ use App\Domain\Courses\Services\ServiceUnavailable;
 use App\Domain\Routing\Sport;
 use App\Integrations\Wahoo\Requests\CreateRouteRequest;
 use App\Integrations\Wahoo\Requests\FindRoutesRequest;
+use App\Integrations\Wahoo\Requests\GetUserRequest;
 use App\Integrations\Wahoo\Requests\RevokePermissionsRequest;
 use App\Integrations\Wahoo\Requests\UpdateRouteRequest;
 use App\Integrations\Wahoo\WahooConnector;
@@ -16,7 +17,7 @@ use App\Integrations\Wahoo\WahooCourseService;
 use Illuminate\Support\Facades\Date;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
-use Saloon\Http\OAuth2\GetAccessTokenRequest;
+use Saloon\Http\OAuth2\GetRefreshTokenRequest;
 use Saloon\Http\Request;
 use Saloon\Http\Response;
 use Tests\TestCase;
@@ -25,7 +26,7 @@ uses(TestCase::class);
 
 function wahooService(MockClient $mockClient): WahooCourseService
 {
-    $connector = new WahooConnector('client', 'secret', 'https://traceway.test/settings/services/wahoo/callback', 'https://wahoo.test');
+    $connector = new WahooConnector('client', 'secret', 'https://wahoo.test');
     $connector->withMockClient($mockClient);
 
     return new WahooCourseService($connector);
@@ -47,26 +48,41 @@ function wahooBody(Response $response): array
     return $response->getPendingRequest()->body()?->all() ?? [];
 }
 
-it('trades the sign-in code for tokens that run out', function (): void {
+it('refreshes keys that ran out, with the time the new ones run out', function (): void {
     $mock = new MockClient([
-        GetAccessTokenRequest::class => MockResponse::make(['access_token' => 'access', 'refresh_token' => 'refresh', 'expires_in' => 7200]),
+        GetRefreshTokenRequest::class => MockResponse::make(['access_token' => 'access-2', 'refresh_token' => 'refresh-2', 'expires_in' => 7200]),
     ]);
 
-    $serviceTokens = wahooService($mock)->connect('the-code');
+    $serviceTokens = wahooService($mock)->refresh(new ServiceTokens('access', 'refresh', Date::now()->getTimestamp() - 60));
 
-    expect($serviceTokens->accessToken)->toBe('access')
-        ->and($serviceTokens->refreshToken)->toBe('refresh')
+    expect($serviceTokens->accessToken)->toBe('access-2')
+        ->and($serviceTokens->refreshToken)->toBe('refresh-2')
         ->and($serviceTokens->expiresAt)->toBeGreaterThan(Date::now()->getTimestamp() + 7000);
-    $mock->assertSent(fn (Request $request, Response $response): bool => wahooBody($response)['code'] === 'the-code'
-        && wahooBody($response)['grant_type'] === 'authorization_code'
+    $mock->assertSent(fn (Request $request, Response $response): bool => wahooBody($response)['refresh_token'] === 'refresh'
+        && wahooBody($response)['grant_type'] === 'refresh_token'
+        && wahooBody($response)['client_id'] === 'client'
+        && wahooBody($response)['client_secret'] === 'secret'
         && $response->getPendingRequest()->getUrl() === 'https://wahoo.test/oauth/token');
 });
 
-it('reports a sign-in Wahoo turned down', function (): void {
+it('asks to connect again when Wahoo will not refresh the keys', function (?string $refreshToken, int $status): void {
     wahooService(new MockClient([
-        GetAccessTokenRequest::class => MockResponse::make(['error' => 'invalid_grant'], 400),
-    ]))->connect('old-code');
-})->throws(ServiceRefused::class);
+        GetRefreshTokenRequest::class => MockResponse::make(['error' => 'invalid_grant'], $status),
+    ]))->refresh(new ServiceTokens('access', $refreshToken));
+})->with([
+    'no refresh token' => [null, 200],
+    'turned down' => ['refresh', 400],
+])->throws(ServiceRefused::class);
+
+it('says Wahoo is unavailable, not that the keys are dead, when its refresh fails on its side or is too busy', function (int $status): void {
+    wahooService(new MockClient([
+        GetRefreshTokenRequest::class => MockResponse::make(['error' => 'server_error'], $status),
+    ]))->refresh(new ServiceTokens('access', 'refresh'));
+})->with([
+    'a server error' => [500],
+    'down for upkeep' => [503],
+    'too many requests' => [429],
+])->throws(ServiceUnavailable::class);
 
 it('adds a new route to the library as a FIT file with the sport Wahoo knows', function (Sport $sport, int $family): void {
     $mock = new MockClient([
@@ -148,4 +164,54 @@ it('withdraws its access when the rider disconnects', function (): void {
     wahooService($mock)->revoke(new ServiceTokens('access'));
 
     $mock->assertSent(RevokePermissionsRequest::class);
+});
+
+it('reads which Wahoo account its keys belong to', function (): void {
+    $mock = new MockClient([
+        GetUserRequest::class => MockResponse::make(['id' => 60462, 'first' => 'Road', 'last' => 'Rider', 'email' => 'road@wahoo.test']),
+    ]);
+
+    $serviceAccount = wahooService($mock)->account(new ServiceTokens('access'));
+
+    expect($serviceAccount->id)->toBe('60462')
+        ->and($serviceAccount->email)->toBe('road@wahoo.test');
+    $mock->assertSent(fn (GetUserRequest $getUserRequest, Response $response): bool => $response->getPendingRequest()->getUrl() === 'https://wahoo.test/v1/user'
+        && $response->getPendingRequest()->getMethod()->value === 'GET'
+        && $response->getPendingRequest()->headers()->get('Authorization') === 'Bearer access');
+});
+
+it('reads a Wahoo account that shares no email', function (array $user): void {
+    $serviceAccount = wahooService(new MockClient([
+        GetUserRequest::class => MockResponse::make($user),
+    ]))->account(new ServiceTokens('access'));
+
+    expect($serviceAccount->id)->toBe('60462')
+        ->and($serviceAccount->email)->toBeNull();
+})->with([
+    'no email' => [['id' => '60462']],
+    'a blank email' => [['id' => 60462, 'email' => '']],
+]);
+
+it('asks to connect again when Wahoo no longer accepts the keys it asks with', function (): void {
+    wahooService(new MockClient([
+        GetUserRequest::class => MockResponse::make([], 401),
+    ]))->account(new ServiceTokens('access'));
+})->throws(ServiceRefused::class);
+
+it('says Wahoo is unavailable when it does not say whose account it is', function (MockResponse $mockResponse): void {
+    wahooService(new MockClient([
+        GetUserRequest::class => $mockResponse,
+    ]))->account(new ServiceTokens('access'));
+})->with([
+    'a failure' => fn (): MockResponse => MockResponse::make([], 503),
+    'no number' => fn (): MockResponse => MockResponse::make(['email' => 'road@wahoo.test']),
+    'a blank number' => fn (): MockResponse => MockResponse::make(['id' => '']),
+])->throws(ServiceUnavailable::class);
+
+it('leaves keys a new log in replaced alone, because withdrawing at Wahoo would end the new ones too', function (): void {
+    $mock = new MockClient([]);
+
+    wahooService($mock)->supersede(new ServiceTokens('access-old', 'refresh-old'));
+
+    $mock->assertNothingSent();
 });

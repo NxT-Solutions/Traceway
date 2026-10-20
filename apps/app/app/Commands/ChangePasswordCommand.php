@@ -13,5 +13,7 @@ final readonly class ChangePasswordCommand
         public RiderId $riderId,
         #[SensitiveParameter]
         public string $password,
+        /** True for a reset: every session ends and Remember me stops working, wherever someone was signed in. */
+        public bool $endSessions = false,
     ) {}
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries\Admin;
 
-use App\Account\RouteService;
+use App\Account\ConnectionProvider;
 use App\Queries\Account\RiderRoles;
 use App\Queries\RowReader;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
  *
  * @phpstan-type Watch array{label: string|null, provider: string, linked_at: string|null, last_used_at: string|null}
  * @phpstan-type App array{name: string, connected_at: string|null}
- * @phpstan-type Service array{service: string, connected_at: string|null, last_sent_at: string|null}
+ * @phpstan-type Service array{service: string, connected_at: string|null, last_signed_in_at: string|null, last_sent_at: string|null}
  * @phpstan-type Session array{browser: string, last_active_at: string}
  * @phpstan-type User array{id: int, name: string, email: string, role: string, email_verified_at: string|null, two_factor: bool, passkeys: int, created_at: string|null, updated_at: string|null, last_seen_at: string|null, routes: int, watches: list<Watch>, apps: list<App>, services: list<Service>, sessions: list<Session>}
  */
@@ -104,17 +104,18 @@ final readonly class AdminUserQuery
      */
     private function services(int $riderId): array
     {
-        return array_values(DB::table('route_service_accounts')
+        return array_values(DB::table('connected_accounts')
             ->where('user_id', $riderId)
-            ->orderBy('service')
-            ->get(['service', 'connected_at', 'last_sent_at'])
+            ->orderBy('provider')
+            ->get(['provider', 'connected_at', 'last_signed_in_at', 'last_sent_at'])
             ->map(function (object $row): array {
                 $rowReader = new RowReader($row);
-                $service = RouteService::tryFrom($rowReader->string('service'));
+                $connectionProvider = ConnectionProvider::tryFrom($rowReader->string('provider'));
 
                 return [
-                    'service' => $service instanceof RouteService ? $service->label() : $rowReader->string('service'),
+                    'service' => $connectionProvider instanceof ConnectionProvider ? $connectionProvider->label() : $rowReader->string('provider'),
                     'connected_at' => $rowReader->iso('connected_at'),
+                    'last_signed_in_at' => $rowReader->iso('last_signed_in_at'),
                     'last_sent_at' => $rowReader->iso('last_sent_at'),
                 ];
             })

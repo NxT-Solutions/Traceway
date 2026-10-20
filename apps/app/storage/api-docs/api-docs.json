@@ -1618,6 +1618,56 @@
                 ]
             }
         },
+        "/settings/connections/{provider}": {
+            "delete": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Disconnect an account at another service",
+                "description": "Traceway asks the service to withdraw the keys it gave, when it holds any, then forgets the connection and the routes sent through it. A rider cannot disconnect their last way to log in.",
+                "operationId": "disconnectConnection",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "description": "The service.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "google",
+                                "github",
+                                "discord",
+                                "wahoo",
+                                "ride_with_gps",
+                                "runsignup",
+                                "openstreetmap"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Back to Connections, with what happened."
+                    },
+                    "404": {
+                        "description": "Traceway does not know that service.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
         "/settings/devices": {
             "post": {
                 "tags": [
@@ -1862,51 +1912,6 @@
                 "responses": {
                     "302": {
                         "description": "Back to the page the person was on."
-                    }
-                },
-                "security": [
-                    {
-                        "session": []
-                    }
-                ]
-            }
-        },
-        "/settings/services/{service}": {
-            "delete": {
-                "tags": [
-                    "Account"
-                ],
-                "summary": "Disconnect a service the rider sends routes to",
-                "description": "Traceway asks the service to withdraw its access, then forgets the tokens.",
-                "operationId": "disconnectRouteService",
-                "parameters": [
-                    {
-                        "name": "service",
-                        "in": "path",
-                        "description": "The service.",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                "wahoo",
-                                "ride_with_gps"
-                            ]
-                        }
-                    }
-                ],
-                "responses": {
-                    "302": {
-                        "description": "Back to Devices."
-                    },
-                    "404": {
-                        "description": "This Traceway does not send to that service.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
                     }
                 },
                 "security": [
@@ -2706,7 +2711,7 @@
                     "account",
                     "saved_routes",
                     "release_notes_read",
-                    "route_services",
+                    "connections",
                     "withheld"
                 ],
                 "properties": {
@@ -2746,6 +2751,12 @@
                             "last_seen_at": {
                                 "description": "The last time the rider was signed in and using Traceway, to the quarter hour.",
                                 "type": "string",
+                                "nullable": true
+                            },
+                            "pending_email": {
+                                "description": "A new email the rider asked for, waiting for them to open the link sent to it.",
+                                "type": "string",
+                                "format": "email",
                                 "nullable": true
                             },
                             "role": {
@@ -2804,13 +2815,17 @@
                             "type": "object"
                         }
                     },
-                    "route_services": {
-                        "description": "The services the rider connected so Traceway can send routes to them. Their tokens are withheld.",
+                    "connections": {
+                        "description": "The accounts at other services the rider connected, to log in with or send routes to. The keys any of them gave are withheld.",
                         "type": "array",
                         "items": {
                             "required": [
                                 "service",
+                                "account_number",
+                                "account",
+                                "allowed",
                                 "connected_at",
+                                "last_signed_in_at",
                                 "last_sent_at",
                                 "sent"
                             ],
@@ -2818,11 +2833,37 @@
                                 "service": {
                                     "type": "string",
                                     "enum": [
+                                        "google",
+                                        "github",
+                                        "discord",
                                         "wahoo",
-                                        "ride_with_gps"
+                                        "ride_with_gps",
+                                        "runsignup",
+                                        "openstreetmap"
                                     ]
                                 },
+                                "account_number": {
+                                    "description": "The service's own number for the rider's account there.",
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "account": {
+                                    "description": "The email or username the service shared, where Traceway may keep it.",
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "allowed": {
+                                    "description": "What the rider allowed Traceway to do, as the service names it.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
                                 "connected_at": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "last_signed_in_at": {
                                     "type": "string",
                                     "nullable": true
                                 },
@@ -2873,7 +2914,7 @@
                                 "two_factor_secret",
                                 "two_factor_recovery_codes",
                                 "remember_token",
-                                "route_service_tokens"
+                                "connection_keys"
                             ]
                         }
                     }
@@ -3649,13 +3690,12 @@
                 }
             },
             "PasswordUpdateRequest": {
-                "description": "The current password and the replacement. Neither is returned.",
+                "description": "The current password and the replacement. Neither is returned. A rider who signed up with a connected account and has no password yet sets one without the current password, since the page already asked them to confirm it is them.",
                 "required": true,
                 "content": {
                     "application/json": {
                         "schema": {
                             "required": [
-                                "current_password",
                                 "password",
                                 "password_confirmation"
                             ],
@@ -3679,14 +3719,11 @@
                 }
             },
             "ProfileDeleteRequest": {
-                "description": "Confirms the deletion. The password is not returned.",
-                "required": true,
+                "description": "Confirms the deletion. The password is not returned. A rider without a password confirms it is them with a passkey or a connected account first, and sends none.",
+                "required": false,
                 "content": {
                     "application/json": {
                         "schema": {
-                            "required": [
-                                "password"
-                            ],
                             "properties": {
                                 "password": {
                                     "description": "Confirms the deletion. It is not stored in the response.",
@@ -3700,7 +3737,7 @@
                 }
             },
             "ProfileUpdateRequest": {
-                "description": "The name and email of the signed-in person.",
+                "description": "The name and email of the signed-in person. A new email waits until the link sent to it is opened, and asking for one needs the current password, or a confirmation a moment ago for an account without one.",
                 "required": true,
                 "content": {
                     "application/json": {
@@ -3717,6 +3754,11 @@
                                 "email": {
                                     "type": "string",
                                     "format": "email"
+                                },
+                                "current_password": {
+                                    "description": "Needed to ask for a new email, unless the rider confirmed it is them a moment ago. It is not returned.",
+                                    "type": "string",
+                                    "format": "password"
                                 }
                             },
                             "type": "object"

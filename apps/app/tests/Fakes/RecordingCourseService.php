@@ -7,6 +7,7 @@ namespace Tests\Fakes;
 use App\Domain\Courses\Services\CourseService;
 use App\Domain\Courses\Services\CourseUpload;
 use App\Domain\Courses\Services\PublishedCourse;
+use App\Domain\Courses\Services\ServiceAccount;
 use App\Domain\Courses\Services\ServiceRefused;
 use App\Domain\Courses\Services\ServiceTokens;
 use App\Domain\Courses\Services\ServiceUnavailable;
@@ -23,27 +24,27 @@ final class RecordingCourseService implements CourseService
     /** @var list<string> */
     public array $revoked = [];
 
+    /** @var list<string> The access tokens a newer log in or connect replaced, in turn. */
+    public array $superseded = [];
+
+    /** @var list<string> The access tokens Traceway asked whose account they are, in turn. */
+    public array $asked = [];
+
+    /** @var array<string, ServiceAccount> The account each access token belongs to. Any other is account 60462. */
+    public array $accounts = [];
+
     public int $refreshed = 0;
 
-    /** 'refused' or 'unavailable' makes the next publish fail that way. */
+    /** 'refused' or 'unavailable' makes the next publish, look at the account, or letting go of old keys fail that way. */
     public ?string $failure = null;
+
+    /** @var list<string> Access tokens whose account the service cannot look up, as when one rider's account fails. */
+    public array $unavailableFor = [];
 
     /** When false, the service is still reading the upload, as Ride with GPS can be. */
     public bool $ready = true;
 
     public function __construct(private readonly string $slug = 'wahoo') {}
-
-    public function authorizationUrl(string $state): string
-    {
-        return 'https://'.$this->slug.'.test/oauth/authorize?state='.$state;
-    }
-
-    public function connect(string $code): ServiceTokens
-    {
-        throw_if($code === 'refused', ServiceRefused::class, 'The sign-in was turned down.');
-
-        return new ServiceTokens('access-'.$code, 'refresh-'.$code, Date::now()->getTimestamp() + 7200);
-    }
 
     public function refresh(ServiceTokens $serviceTokens): ServiceTokens
     {
@@ -54,9 +55,7 @@ final class RecordingCourseService implements CourseService
 
     public function publish(ServiceTokens $serviceTokens, CourseUpload $courseUpload, ?string $previousId): PublishedCourse
     {
-        throw_if($this->failure === 'refused', ServiceRefused::class, 'The token was withdrawn.');
-
-        throw_if($this->failure === 'unavailable', ServiceUnavailable::class, 'The service is down.');
+        $this->fail();
 
         $this->published[] = ['tokens' => $serviceTokens, 'upload' => $courseUpload, 'previous' => $previousId];
 
@@ -69,8 +68,33 @@ final class RecordingCourseService implements CourseService
         return new PublishedCourse($id, 'https://'.$this->slug.'.test/routes/'.$id);
     }
 
+    public function account(ServiceTokens $serviceTokens): ServiceAccount
+    {
+        $this->asked[] = $serviceTokens->accessToken;
+
+        $this->fail();
+
+        throw_if(in_array($serviceTokens->accessToken, $this->unavailableFor, strict: true), ServiceUnavailable::class, 'The service could not find the account.');
+
+        return $this->accounts[$serviceTokens->accessToken] ?? new ServiceAccount('60462', 'road@'.$this->slug.'.test');
+    }
+
     public function revoke(ServiceTokens $serviceTokens): void
     {
         $this->revoked[] = $serviceTokens->accessToken;
+    }
+
+    public function supersede(ServiceTokens $serviceTokens): void
+    {
+        $this->superseded[] = $serviceTokens->accessToken;
+
+        $this->fail();
+    }
+
+    private function fail(): void
+    {
+        throw_if($this->failure === 'refused', ServiceRefused::class, 'The token was withdrawn.');
+
+        throw_if($this->failure === 'unavailable', ServiceUnavailable::class, 'The service is down.');
     }
 }

@@ -8,6 +8,9 @@ use App\Account\Email;
 use App\Account\RiderId;
 use App\Account\RiderName;
 
+/**
+ * Saves the rider's name, and asks for the email they typed. A new email counts once they confirm it.
+ */
 final readonly class UpdateProfileCommand
 {
     public function __construct(

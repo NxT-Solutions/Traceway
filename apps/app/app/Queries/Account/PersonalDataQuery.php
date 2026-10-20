@@ -45,24 +45,26 @@ final class PersonalDataQuery
             $account->iso('updated_at'),
             $this->routes($riderId),
             $this->releaseNotesRead($riderId),
-            $this->routeServices($riderId),
+            $this->connections($riderId),
             $account->iso('last_seen_at'),
             new RiderRoles()->of($riderId)->value,
             $this->adminActions($riderId),
+            $account->optionalString('pending_email'),
         );
     }
 
     /**
-     * The services the rider connected and what went to each, without their tokens.
+     * The accounts the rider connected, what Traceway keeps about each, and the routes that went to each, without
+     * the keys any of them gave.
      *
-     * @return list<array{service: string, connected_at: string|null, last_sent_at: string|null, sent: list<array{saved_route_id: string, leg: int, url: string|null, sent_at: string|null}>}>
+     * @return list<array{service: string, account_number: string|null, account: string|null, allowed: list<string>, connected_at: string|null, last_signed_in_at: string|null, last_sent_at: string|null, sent: list<array{saved_route_id: string, leg: int, url: string|null, sent_at: string|null}>}>
      */
-    private function routeServices(int $riderId): array
+    private function connections(int $riderId): array
     {
-        $rows = DB::table('route_service_accounts')
+        $rows = DB::table('connected_accounts')
             ->where('user_id', $riderId)
-            ->orderBy('service')
-            ->get(['service', 'connected_at', 'last_sent_at']);
+            ->orderBy('provider')
+            ->get(['provider', 'provider_user_id', 'account_label', 'scopes', 'connected_at', 'last_signed_in_at', 'last_sent_at']);
 
         $sent = [];
 
@@ -76,20 +78,27 @@ final class PersonalDataQuery
             ];
         }
 
-        $services = [];
+        $connections = [];
 
         foreach ($rows as $row) {
             $reader = new RowReader($row);
-            $service = $reader->string('service');
-            $services[] = [
+            $service = $reader->string('provider');
+            $scopes = $reader->optionalString('scopes');
+            $allowed = $scopes === null ? [] : json_decode($scopes, associative: true);
+
+            $connections[] = [
                 'service' => $service,
+                'account_number' => $reader->optionalString('provider_user_id'),
+                'account' => $reader->optionalString('account_label'),
+                'allowed' => is_array($allowed) ? array_values(array_filter($allowed, is_string(...))) : [],
                 'connected_at' => $reader->iso('connected_at'),
+                'last_signed_in_at' => $reader->iso('last_signed_in_at'),
                 'last_sent_at' => $reader->iso('last_sent_at'),
                 'sent' => $sent[$service] ?? [],
             ];
         }
 
-        return $services;
+        return $connections;
     }
 
     /**
@@ -147,6 +156,7 @@ final class PersonalDataQuery
             'created_at',
             'updated_at',
             'last_seen_at',
+            'pending_email',
         ]);
 
         abort_if($row === null, 404);

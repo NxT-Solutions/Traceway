@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Auth\Connections\LastSignIn;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\SavedRoute;
 use App\Models\User;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Testing\TestResponse;
 use Laravel\Passport\ClientRepository;
+use Laravel\Socialite\Facades\Socialite;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
@@ -122,10 +125,50 @@ it('cuts a page off from the window that opened it, except on the way to sign in
     'dashboard' => ['/dashboard', 'same-origin'],
     'sign in' => ['/login', null],
     'sign up' => ['/register', null],
+    'more ways to log in' => ['/login/options', null],
+    'finishing sign up' => ['/login/finish', null],
+    'connections' => ['/settings/connections', 'same-origin'],
 ]);
 
 it('keeps the chat app sign-in window linked to the app that opened it', function (): void {
     expect(chatAppApproval()->headers->has('Cross-Origin-Opener-Policy'))->toBeFalse();
+});
+
+it("keeps the chat app sign-in window linked through another service's sign-in", function (): void {
+    config([
+        'services.google.client_id' => 'google-id',
+        'services.google.client_secret' => 'google-secret',
+        'services.wahoo.client_id' => 'wahoo-id',
+        'services.wahoo.client_secret' => 'wahoo-secret',
+    ]);
+    Socialite::fake('google');
+
+    $responses = [
+        $this->get(route('connections.sign-in', ['provider' => 'google']))->assertRedirect('https://socialite.fake/google/authorize'),
+        $this->get(route('connections.callback', ['provider' => 'google', 'error' => 'access_denied']))->assertRedirect(route('login')),
+        $this->get(route('services.callback', ['provider' => 'wahoo', 'error' => 'access_denied']))->assertRedirect(route('login')),
+    ];
+
+    foreach ($responses as $response) {
+        expect($response->headers->get('X-Frame-Options'))->toBe('DENY')
+            ->and($response->headers->has('Cross-Origin-Opener-Policy'))->toBeFalse();
+    }
+});
+
+it('keeps the last way in mark on this host only, and does not set it on the log in page', function (): void {
+    config(['session.cookie' => '__Host-traceway-session']);
+    $user = User::factory()->create();
+
+    $page = $this->withCookie(LastSignIn::COOKIE, 'google')->get('/login')->assertOk();
+    $login = $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])->assertRedirect();
+    $cookie = collect($login->headers->getCookies())->first(fn (Cookie $cookie): bool => $cookie->getName() === LastSignIn::COOKIE);
+
+    expect(collect($page->headers->getCookies())->map(fn (Cookie $cookie): string => $cookie->getName())->all())->not->toContain(LastSignIn::COOKIE)
+        ->and($cookie)->toBeInstanceOf(Cookie::class)
+        ->and($cookie?->getDomain())->toBeNull()
+        ->and($cookie?->getPath())->toBe('/')
+        ->and($cookie?->isHttpOnly())->toBeTrue()
+        ->and($cookie?->getSameSite())->toBe(Cookie::SAMESITE_LAX);
 });
 
 it('lets an approved chat app send the browser back to itself', function (): void {

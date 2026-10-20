@@ -59,11 +59,12 @@
 .tw-login .nav a{padding:11px 0}
 .tw-login .nav a:hover,.tw-login .nav a[aria-current]{color:var(--ink)}
 .tw-login .hdr-r{margin-left:auto;display:flex;align-items:center;gap:22px}
-.tw-login .fill{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 18px;border:0;border-radius:10px;background:var(--chart);color:var(--chart-ink);font-size:15px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background-color 180ms var(--ease),opacity 80ms var(--ease)}
+.tw-login .fill{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border:0;border-radius:10px;background:var(--chart);color:var(--chart-ink);font-size:15px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background-color 180ms var(--ease),opacity 80ms var(--ease)}
 .tw-login .fill:hover{background:var(--chart-dim)}
 .tw-login .fill:active{transition-duration:80ms;opacity:.72}
 .tw-login .fill.big{height:48px;width:100%;font-size:16px}
-.tw-login .outline{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:48px;width:100%;padding:0 18px;border:1px solid oklch(0.22 0.03 200 / 0.3);border-radius:10px;background:transparent;color:var(--ink);font-size:16px;font-weight:500;cursor:pointer}
+/* outline:0 stops Tailwind's .outline utility drawing a second ring. The focus ring above still wins. */
+.tw-login .outline{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;height:48px;width:100%;padding:0 18px;border:1px solid oklch(0.22 0.03 200 / 0.3);border-radius:10px;background:transparent;color:var(--ink);font-size:16px;font-weight:500;cursor:pointer;outline:0}
 .tw-login .outline:hover{background:var(--card)}
 .tw-login .outline:disabled{opacity:.6;cursor:default}
 .tw-login main{flex:1 1 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:0}
@@ -143,7 +144,7 @@
 .tw-login button.rider b{font-weight:500;font-size:15px}
 .tw-login button.rider small{font-size:13px;color:var(--muted);font-weight:400}
 .tw-login button.rider .who{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
-.tw-login button.rider .role{flex:0 0 auto;padding:1px 8px;border:1px solid var(--hair);border-radius:999px;color:var(--muted);font-size:12px;font-weight:600;line-height:18px;white-space:nowrap}
+.tw-login button.rider .role,.tw-login .last-used{flex:0 0 auto;padding:1px 8px;border:1px solid var(--hair);border-radius:999px;color:var(--muted);font-size:12px;font-weight:600;line-height:18px;white-space:nowrap}
 .tw-login .scene{position:sticky;top:64px;height:calc(100dvh - 64px);min-height:560px;align-self:start;background:var(--ink);color:var(--paper);overflow:hidden}
 .tw-login .scene svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .tw-login .scene .cap{position:absolute;left:clamp(24px,4vw,56px);right:clamp(24px,4vw,56px);bottom:clamp(28px,4vw,56px);display:flex;flex-direction:column;gap:10px;max-width:460px}
@@ -153,6 +154,47 @@
 .tw-login .scene .vig{position:absolute;inset:0;background:linear-gradient(180deg, oklch(0.22 0.03 200 / 0) 46%, oklch(0.22 0.03 200 / 0.72) 68%, oklch(0.22 0.03 200) 84%);pointer-events:none}
 .tw-login .fill .short{display:none}
 .tw-login .err{margin:0;font-size:13px;color:oklch(0.5 0.16 25)}
+/* Log in with a service: one row each on log in and sign up, two columns on "More ways to log in", and the line about the terms. */
+.tw-login .sign-in-options{display:flex;flex-direction:column;gap:12px}
+.tw-login .providers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px;margin:0;padding:0;list-style:none}
+.tw-login .providers.single{grid-template-columns:minmax(0,1fr)}
+.tw-login .providers > li{display:flex;min-width:0}
+/* Google says "Continue with" on screen, so its button takes the whole row. */
+.tw-login .providers > li.wide{grid-column:1 / -1}
+.tw-login .providers .outline{flex:1 1 auto;height:auto;min-height:48px;padding:8px 12px;gap:8px;transition:background-color 180ms var(--ease)}
+.tw-login .providers .outline > svg{flex:0 0 auto}
+.tw-login .providers .outline[aria-busy="true"]{cursor:progress}
+.tw-login .provider .name{display:flex;flex-direction:column;align-items:center;min-width:0;line-height:1.25;text-align:center;overflow-wrap:anywhere}
+/* "Last used" sits on the top edge of a button, so a long service name keeps its room. */
+.tw-login .last-used{background:var(--paper)}
+.tw-login .outline .last-used{position:absolute;top:0;right:10px;transform:translateY(-50%)}
+.tw-login .field .lab .last-used{margin-right:auto}
+.tw-login .more{transition:background-color 180ms var(--ease)}
+.tw-login .more .count{color:var(--muted);font-weight:400}
+.tw-login .more svg{flex:0 0 auto;color:var(--muted)}
+.tw-login .legal{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
+.tw-login .legal a{color:var(--ink);text-decoration:underline;text-decoration-color:oklch(0.22 0.03 200 / 0.35);text-underline-offset:3px}
+.tw-login .legal a:hover{text-decoration-color:currentColor}
+/* A note above the form: a service waiting to be connected, or why a service did not log the rider in. */
+.tw-login .notice{display:flex;align-items:flex-start;gap:12px;margin:0;padding:14px 16px;border:1px solid var(--hair);border-radius:12px;background:var(--card);font-size:15px;color:var(--ink)}
+.tw-login .notice > svg{flex:0 0 auto;margin-top:2px}
+.tw-login .notice p{margin:0;min-width:0;overflow-wrap:anywhere}
+.tw-login .notice b{font-weight:600}
+.tw-login .notice-body{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.tw-login .notice-body .text-btn{margin-bottom:-10px}
+.tw-login .notice.bad{border-color:oklch(0.5 0.16 25 / 0.45)}
+.tw-login .notice.bad > svg{color:oklch(0.5 0.16 25)}
+/* A note takes focus when the page opens with it, so a screen reader reads it first. */
+.tw-login .notice:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.tw-login .text-btn{display:inline-flex;align-items:center;align-self:flex-start;min-height:44px;padding:0;border:0;background:none;color:var(--muted);font-size:15px;font-weight:500;text-decoration:underline;text-underline-offset:3px;cursor:pointer;transition:color 180ms var(--ease)}
+.tw-login .text-btn:hover{color:var(--ink)}
+.tw-login .text-btn:disabled{opacity:.6;cursor:default}
+.tw-login .back{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;min-height:44px;color:var(--muted);font-size:15px;font-weight:500;transition:color 180ms var(--ease)}
+.tw-login .back:hover{color:var(--ink)}
+.tw-login .provider-group{display:flex;flex-direction:column;gap:12px;margin:0}
+.tw-login .provider-group h2{margin:0;font-size:15px;font-weight:600;line-height:1.3;color:var(--ink)}
+.tw-login .via{display:flex;align-items:center;gap:10px;margin:0;font-size:15px;color:var(--muted)}
+.tw-login .via svg{flex:0 0 auto;color:var(--ink)}
 @media (max-width: 640px){
   .tw-login .fill .long{display:none}
   .tw-login .fill .short{display:inline}
@@ -167,7 +209,13 @@
 }
 @media (prefers-reduced-motion: reduce){
   .tw-login button,.tw-login a{transition:none}
+  .tw-login .fill,.tw-login .providers .outline,.tw-login .more,.tw-login .text-btn,.tw-login .back{transition:none}
+  .tw-login .check input::before{transition:none}
 }
 @media (max-width: 480px){
   .tw-login .riders{grid-template-columns:1fr}
+}
+/* Two tiles side by side leave a long name like OpenStreetMap too little room on the narrowest phones. */
+@media (max-width: 374px){
+  .tw-login .providers{grid-template-columns:minmax(0,1fr)}
 }

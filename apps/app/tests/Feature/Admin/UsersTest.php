@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Account\Role;
 use App\Mail\AccountMessage;
+use App\Models\ConnectedAccount;
 use App\Models\SavedRoute;
 use App\Models\User;
 use App\Notifications\ResetPassword;
@@ -11,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Testing\Fluent\AssertableJson;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -65,6 +67,30 @@ it('shows one rider without secrets', function (): void {
             ->missing('user.password'));
 });
 
+it("lists the services a rider connected, without the service's keys", function (): void {
+    $rider = User::factory()->create();
+    ConnectedAccount::factory()->for($rider)->create(['access_token' => 'wahoo-access-token', 'refresh_token' => 'wahoo-refresh-token', 'last_sent_at' => now()]);
+    ConnectedAccount::factory()->for($rider)->signInOnly('google')->create(['last_signed_in_at' => now()]);
+
+    $this->actingAs(adminRider())
+        ->get(route('admin.users.show', $rider->id))
+        ->assertOk()
+        ->assertDontSee('wahoo-access-token')
+        ->assertDontSee('wahoo-refresh-token')
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->has('user.services', 2)
+            ->has('user.services.0', fn (AssertableJson $assertableJson): AssertableJson => $assertableJson
+                ->where('service', 'Google')
+                ->whereType('connected_at', 'string')
+                ->whereType('last_signed_in_at', 'string')
+                ->where('last_sent_at', expected: null))
+            ->has('user.services.1', fn (AssertableJson $assertableJson): AssertableJson => $assertableJson
+                ->where('service', 'Wahoo')
+                ->whereType('connected_at', 'string')
+                ->where('last_signed_in_at', expected: null)
+                ->whereType('last_sent_at', 'string')));
+});
+
 it('opens an account for someone and sends them a link to choose a password', function (): void {
     $this->actingAs(adminRider())
         ->post(route('admin.users.store'), ['name' => 'Hike Hannah', 'email' => 'hannah@traceway.test'])
@@ -90,7 +116,8 @@ it("changes a rider's name and can confirm the email", function (): void {
         ->assertInertiaFlash('toast.type', 'success');
 
     expect($rider->fresh()?->name)->toBe('Renamed')
-        ->and($rider->fresh()?->email_verified_at)->not->toBeNull();
+        ->and($rider->fresh()?->email_verified_at)->not->toBeNull()
+        ->and($rider->fresh()?->welcomed_at)->not->toBeNull();
 });
 
 it('lets a Super Admin give a role, but not take the last Super Admin', function (): void {

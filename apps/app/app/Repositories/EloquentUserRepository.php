@@ -55,6 +55,54 @@ final readonly class EloquentUserRepository implements UserRepository
         return $this->rider($user);
     }
 
+    public function createWithoutPassword(RiderName $riderName, Email $email, bool $emailConfirmed): Rider
+    {
+        $user = DB::transaction(function () use ($riderName, $email, $emailConfirmed): User {
+            $user = User::query()->create([
+                'name' => $riderName->value,
+                'email' => $email->value,
+                'password' => null,
+            ]);
+
+            if ($emailConfirmed) {
+                $user->forceFill(['email_verified_at' => now()])->save();
+            }
+
+            $user->assignRole(Role::User->value);
+
+            return $user;
+        });
+
+        return $this->rider($user);
+    }
+
+    public function findByEmail(Email $email): ?Rider
+    {
+        $user = User::query()->where('email', $email->value)->first();
+
+        return $user instanceof User ? $this->rider($user) : null;
+    }
+
+    public function hasPassword(RiderId $riderId): bool
+    {
+        return DB::table('users')->where('id', $riderId->value)->whereNotNull('password')->exists();
+    }
+
+    public function removePassword(RiderId $riderId): void
+    {
+        $this->model($riderId)->forceFill(['password' => null])->save();
+    }
+
+    public function passkeyCount(RiderId $riderId): int
+    {
+        return DB::table('passkeys')->where('user_id', $riderId->value)->count();
+    }
+
+    public function deletePasskeys(RiderId $riderId): void
+    {
+        DB::table('passkeys')->where('user_id', $riderId->value)->delete();
+    }
+
     public function role(RiderId $riderId): Role
     {
         return Role::strongest($this->model($riderId)->getRoleNames());
@@ -88,7 +136,7 @@ final readonly class EloquentUserRepository implements UserRepository
         $user = $this->model($riderId);
 
         if ($user->email_verified_at === null) {
-            $user->forceFill(['email_verified_at' => now()])->save();
+            $user->forceFill(['email_verified_at' => now(), 'welcomed_at' => $user->welcomed_at ?? now()])->save();
         }
     }
 
@@ -139,10 +187,53 @@ final readonly class EloquentUserRepository implements UserRepository
                 $user->email_verified_at = null;
             }
 
+            if ($user->email !== $email->value) {
+                $user->pending_email = null;
+            }
+
             $user->name = $riderName->value;
             $user->email = $email->value;
             $user->save();
         });
+    }
+
+    public function requestEmailChange(RiderId $riderId, Email $email): void
+    {
+        $this->model($riderId)->forceFill(['pending_email' => $email->value])->save();
+    }
+
+    public function pendingEmail(RiderId $riderId): ?Email
+    {
+        $pending = $this->model($riderId)->pending_email;
+
+        return is_string($pending) && $pending !== '' ? new Email($pending) : null;
+    }
+
+    public function confirmEmailChange(RiderId $riderId, Email $email): ?Email
+    {
+        return DB::transaction(function () use ($riderId, $email): ?Email {
+            $user = $this->model($riderId);
+
+            if ($user->pending_email !== $email->value) {
+                return null;
+            }
+
+            $previous = new Email($user->email);
+
+            $user->forceFill([
+                'email' => $email->value,
+                'email_verified_at' => now(),
+                'welcomed_at' => $user->welcomed_at ?? now(),
+                'pending_email' => null,
+            ])->save();
+
+            return $previous;
+        });
+    }
+
+    public function cancelEmailChange(RiderId $riderId): void
+    {
+        $this->model($riderId)->forceFill(['pending_email' => null])->save();
     }
 
     public function markWelcomed(RiderId $riderId): ?Rider

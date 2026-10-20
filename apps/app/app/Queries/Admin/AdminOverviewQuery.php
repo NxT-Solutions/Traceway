@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries\Admin;
 
+use App\Account\ConnectionProvider;
 use App\Domain\Routing\Sport;
 use App\Domain\Usage\UsageMetric;
 use Carbon\CarbonImmutable;
@@ -87,7 +88,7 @@ final readonly class AdminOverviewQuery
             'watches' => DB::table('device_links')->whereNotNull('user_id')->whereNotNull('linked_at')->count(),
             'watches_active' => DB::table('device_links')->whereNotNull('user_id')->where('last_used_at', '>=', $now->subDays(30))->count(),
             'assistant_riders' => $this->liveTokens($now)->distinct()->count('oauth_access_tokens.user_id'),
-            'service_accounts' => DB::table('route_service_accounts')->count(),
+            'service_accounts' => DB::table('connected_accounts')->count(),
         ];
     }
 
@@ -209,11 +210,7 @@ final readonly class AdminOverviewQuery
 
         foreach (DB::table('sent_routes')->selectRaw('service, count(*) as total')->groupBy('service')->orderByDesc('total')->get() as $row) {
             $ranked[] = [
-                'label' => match ($row->service) {
-                    'wahoo' => 'Wahoo',
-                    'ride_with_gps' => 'Ride with GPS',
-                    default => is_string($row->service) ? $row->service : 'Other',
-                },
+                'label' => is_string($row->service) ? (ConnectionProvider::tryFrom($row->service)?->label() ?? $row->service) : 'Other',
                 'count' => is_numeric($row->total) ? (int) $row->total : 0,
             ];
         }

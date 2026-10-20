@@ -17,10 +17,11 @@ const executable = process.env.CHROMIUM_PATH || (existsSync(local) ? local : und
 // them apart, so the content pages can come from their own address.
 const content = process.env.CONTENT_URL || base;
 const contentPages = ['/', '/support', '/privacy', '/terms', '/cookies', '/legal'];
-const authPages = ['/login', '/register', '/forgot-password'];
+// The options page sends the visitor back to /login when no sign-in service is set up.
+const authPages = ['/login', '/login/options', '/register', '/forgot-password'];
 // Public planner pages, open to anyone.
 const publicPages = ['/status'];
-const signedInPages = ['/dashboard', '/saved', '/settings/profile', '/settings/privacy', '/settings/assistants', '/settings/devices', '/settings/appearance', '/settings/whats-new', '/admin', '/admin/traffic', '/admin/users', '/admin/users/create', '/admin/users/2'];
+const signedInPages = ['/dashboard', '/saved', '/settings/profile', '/settings/privacy', '/settings/assistants', '/settings/devices', '/settings/connections', '/settings/appearance', '/settings/whats-new', '/admin', '/admin/traffic', '/admin/users', '/admin/users/create', '/admin/users/2'];
 
 const browser = await chromium.launch({ executablePath: executable, headless: true });
 const failures = [];
@@ -94,6 +95,21 @@ try {
     }
 
     await scan(desktop, '/settings/security');
+
+    // Disconnecting a connected account asks first. The road rider has demo connections when the seeder ran.
+    await scan(desktop, '/settings/connections');
+    const disconnect = desktop.getByRole('button', { name: /^Disconnect / }).first();
+    if ((await disconnect.count()) > 0 && (await disconnect.isEnabled())) {
+        await disconnect.click();
+        await desktop.getByRole('dialog').waitFor();
+        await audit(desktop, '/settings/connections disconnect dialog');
+        await desktop.keyboard.press('Escape');
+        // The dialog fades out before it leaves the page.
+        const closed = await desktop.getByRole('dialog').waitFor({ state: 'detached', timeout: 2000 }).then(() => true, () => false);
+        if (!closed || !(await disconnect.evaluate((node) => node === document.activeElement))) {
+            failures.push('/settings/connections: Escape did not close the disconnect dialog and give focus back to its button');
+        }
+    }
 
     // The bell in the header: open, checked, closed with Escape, and one release read.
     await scan(desktop, '/dashboard');

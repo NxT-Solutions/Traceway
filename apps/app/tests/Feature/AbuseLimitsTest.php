@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Mail\AccountMessage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\User as SocialiteUser;
 
 uses(RefreshDatabase::class);
 
@@ -103,4 +106,73 @@ it('takes five reset-link requests a minute from one address', function (): void
 
     $this->from(route('password.request'))->post(route('password.email'), ['email' => 'ann@example.com'])
         ->assertSessionHasErrors(['email' => 'There were too many tries from here. Please wait 60 seconds, then try again.']);
+});
+
+it('lets one address start thirty sign-ins with another service a minute', function (): void {
+    config(['services.google.client_id' => 'google-id', 'services.google.client_secret' => 'google-secret']);
+    Socialite::fake('google');
+
+    foreach (range(1, 30) as $ignored) {
+        $this->get(route('connections.sign-in', ['provider' => 'google']))->assertRedirect('https://socialite.fake/google/authorize');
+    }
+
+    $this->get(route('connections.sign-in', ['provider' => 'google']))->assertTooManyRequests();
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.10'])
+        ->get(route('connections.sign-in', ['provider' => 'google']))
+        ->assertRedirect('https://socialite.fake/google/authorize');
+});
+
+/**
+ * The same OpenStreetMap account, which shares no email, comes back from OpenStreetMap, ready for the last step of signing up.
+ */
+function abuseLimitsOpenStreetMapReturns(): void
+{
+    config(['services.openstreetmap.client_id' => 'osm-id', 'services.openstreetmap.client_secret' => 'osm-secret']);
+    Socialite::fake('openstreetmap', (new SocialiteUser)
+        ->map(['id' => '4711', 'name' => 'Ann Rider', 'email' => null])
+        ->setApprovedScopes(['read_prefs']));
+
+    test()->get(route('connections.sign-in', ['provider' => 'openstreetmap']));
+    test()->get(route('connections.callback', ['provider' => 'openstreetmap', 'code' => 'from-openstreetmap', 'state' => 'state']))
+        ->assertRedirect(route('connections.finish'));
+}
+
+it('emails three sign-up links an hour to one address, then says when to try again', function (): void {
+    Mail::fake();
+    $this->freezeTime();
+
+    foreach (range(1, 3) as $ignored) {
+        abuseLimitsOpenStreetMapReturns();
+        $this->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'Ann@example.com'])->assertSessionDoesntHaveErrors();
+    }
+
+    abuseLimitsOpenStreetMapReturns();
+    $this->from(route('connections.finish'))
+        ->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => ' ann@example.com '])
+        ->assertRedirect(route('connections.finish'))
+        ->assertSessionHasErrors(['email' => 'Traceway sent several links already. Check your email, or wait 60 minutes, then try again.']);
+
+    $this->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'ann@example.org'])->assertSessionDoesntHaveErrors();
+
+    expect(Mail::queued(AccountMessage::class))->toHaveCount(4)
+        ->and(Mail::queued(AccountMessage::class, fn (AccountMessage $accountMessage): bool => $accountMessage->hasTo('ann@example.com')))->toHaveCount(3);
+});
+
+it('emails five sign-up links an hour for one account at a service', function (): void {
+    Mail::fake();
+    $this->freezeTime();
+
+    foreach (range(1, 5) as $count) {
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.'.$count]);
+        abuseLimitsOpenStreetMapReturns();
+        $this->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'ann'.$count.'@example.com'])->assertSessionDoesntHaveErrors();
+    }
+
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.6']);
+    abuseLimitsOpenStreetMapReturns();
+    $this->from(route('connections.finish'))
+        ->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'ann6@example.com'])
+        ->assertSessionHasErrors(['email' => 'Traceway sent several links already. Check your email, or wait 60 minutes, then try again.']);
+
+    expect(Mail::queued(AccountMessage::class))->toHaveCount(5);
 });

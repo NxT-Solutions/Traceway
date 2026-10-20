@@ -268,12 +268,19 @@ jobs:
 
       # The demo riders sign in only when APP_ENV is local, as in .env.example.
       # The planner asks the stub for routes, tiles, and places, never the
-      # public servers, so a slow one cannot fail a run.
+      # public servers, so a slow one cannot fail a run. A few sign-in
+      # services get made-up keys, so the log in page shows their buttons and
+      # More ways to log in. The suites never follow them out.
       - name: Prepare Environment
         run: |
           cp .env.example .env
           sed -i 's|^APP_URL=.*|APP_URL=http://127.0.0.1:8000|' .env
           echo 'SESSION_SECURE_COOKIE=false' >> .env
+          for service in GOOGLE GITHUB DISCORD OPENSTREETMAP RUNSIGNUP; do
+            id=$(echo "$service" | tr '[:upper:]' '[:lower:]')
+            sed -i "s|^${service}_CLIENT_ID=.*|${service}_CLIENT_ID=ci-${id}-id|" .env
+            sed -i "s|^${service}_CLIENT_SECRET=.*|${service}_CLIENT_SECRET=ci-${id}-secret|" .env
+          done
           sed -i 's|^VALHALLA_URL=.*|VALHALLA_URL=http://127.0.0.1:8002|' .env
           sed -i 's|^OPENFREEMAP_URL=.*|OPENFREEMAP_URL=http://127.0.0.1:8002|' .env
           sed -i 's|^NOMINATIM_URL=.*|NOMINATIM_URL=http://127.0.0.1:8002|' .env

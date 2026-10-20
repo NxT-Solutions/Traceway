@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Account\ConnectionProvider;
 use App\Account\Role;
 use App\Account\RouteService;
+use App\Auth\Connections\ConnectionFlow;
+use App\Auth\Connections\Providers\RideWithGpsProvider;
+use App\Auth\Connections\Providers\RunSignupProvider;
+use App\Auth\Connections\Providers\WahooProvider;
+use App\Auth\Connections\SocialiteIdentityProviders;
 use App\Auth\GateAdminAccess;
 use App\Auth\SessionImpersonator;
 use App\Auth\SessionRider;
@@ -16,26 +22,36 @@ use App\Commands\AdminDeleteUserCommand;
 use App\Commands\AdminEndSessionsCommand;
 use App\Commands\AdminResetTwoFactorCommand;
 use App\Commands\AdminUpdateUserCommand;
+use App\Commands\CancelEmailChangeCommand;
 use App\Commands\ChangePasswordCommand;
 use App\Commands\ClaimDevicePairingCommand;
-use App\Commands\ConnectRouteServiceCommand;
+use App\Commands\ClaimUnconfirmedAccountCommand;
+use App\Commands\ConfirmEmailChangeCommand;
+use App\Commands\ConfirmRiderEmailCommand;
 use App\Commands\DeleteAccountCommand;
 use App\Commands\DeleteRouteCommand;
 use App\Commands\DisconnectAppCommand;
-use App\Commands\DisconnectRouteServiceCommand;
+use App\Commands\DisconnectConnectionCommand;
 use App\Commands\ExportPersonalDataCommand;
+use App\Commands\IdentifyConnectionsCommand;
+use App\Commands\LinkConnectionCommand;
 use App\Commands\LinkDeviceCommand;
 use App\Commands\MarkAllReleasesReadCommand;
 use App\Commands\MarkReleaseReadCommand;
 use App\Commands\OpenAccountCommand;
+use App\Commands\OpenAccountWithConnectionCommand;
+use App\Commands\OpenAccountWithoutConnectionCommand;
 use App\Commands\PostStatusNoticeCommand;
 use App\Commands\ReadRouteDetailsCommand;
+use App\Commands\RecordConnectionSignInCommand;
 use App\Commands\RecordServiceChecksCommand;
 use App\Commands\RecordTrafficSnapshotCommand;
 use App\Commands\RecordUsageSnapshotCommand;
+use App\Commands\ResendEmailChangeCommand;
 use App\Commands\ResolveStatusNoticeCommand;
 use App\Commands\RevokeDeviceCommand;
 use App\Commands\SaveRouteCommand;
+use App\Commands\SendConnectionSignUpLinkCommand;
 use App\Commands\SendRouteToServiceCommand;
 use App\Commands\StartDevicePairingCommand;
 use App\Commands\StartImpersonationCommand;
@@ -44,15 +60,17 @@ use App\Commands\StoreRouteImageCommand;
 use App\Commands\SyncReleasesCommand;
 use App\Commands\UpdateProfileCommand;
 use App\Commands\WelcomeRiderCommand;
+use App\Commands\WithdrawConnectionAccessCommand;
 use App\Contracts\Account\AdminLog;
 use App\Contracts\Account\ConnectedAppRepository;
+use App\Contracts\Account\ConnectionRepository;
 use App\Contracts\Account\DeviceLinkRepository;
 use App\Contracts\Account\EmailConfirmation;
 use App\Contracts\Account\PasswordLink;
-use App\Contracts\Account\RouteServiceRepository;
 use App\Contracts\Account\UserRepository;
 use App\Contracts\Auth\AdminAccess;
 use App\Contracts\Auth\CurrentRider;
+use App\Contracts\Auth\IdentityProviders;
 use App\Contracts\Auth\Impersonator;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Contracts\Mail\AccountMailer;
@@ -63,6 +81,7 @@ use App\Contracts\Status\StatusRepository;
 use App\Contracts\Usage\UsageCounter;
 use App\Domain\Access\HumanCheck;
 use App\Domain\Access\NoHumanCheck;
+use App\Domain\Connections\GrantedAccesses;
 use App\Domain\Courses\Services\CourseServices;
 use App\Domain\Releases\ReleaseFeed;
 use App\Domain\Routing\Details\RouteDetailer;
@@ -86,26 +105,36 @@ use App\Handlers\AdminDeleteUserHandler;
 use App\Handlers\AdminEndSessionsHandler;
 use App\Handlers\AdminResetTwoFactorHandler;
 use App\Handlers\AdminUpdateUserHandler;
+use App\Handlers\CancelEmailChangeHandler;
 use App\Handlers\ChangePasswordHandler;
 use App\Handlers\ClaimDevicePairingHandler;
-use App\Handlers\ConnectRouteServiceHandler;
+use App\Handlers\ClaimUnconfirmedAccountHandler;
+use App\Handlers\ConfirmEmailChangeHandler;
+use App\Handlers\ConfirmRiderEmailHandler;
 use App\Handlers\DeleteAccountHandler;
 use App\Handlers\DeleteRouteHandler;
 use App\Handlers\DisconnectAppHandler;
-use App\Handlers\DisconnectRouteServiceHandler;
+use App\Handlers\DisconnectConnectionHandler;
 use App\Handlers\ExportPersonalDataHandler;
+use App\Handlers\IdentifyConnectionsHandler;
+use App\Handlers\LinkConnectionHandler;
 use App\Handlers\LinkDeviceHandler;
 use App\Handlers\MarkAllReleasesReadHandler;
 use App\Handlers\MarkReleaseReadHandler;
 use App\Handlers\OpenAccountHandler;
+use App\Handlers\OpenAccountWithConnectionHandler;
+use App\Handlers\OpenAccountWithoutConnectionHandler;
 use App\Handlers\PostStatusNoticeHandler;
 use App\Handlers\ReadRouteDetailsHandler;
+use App\Handlers\RecordConnectionSignInHandler;
 use App\Handlers\RecordServiceChecksHandler;
 use App\Handlers\RecordTrafficSnapshotHandler;
 use App\Handlers\RecordUsageSnapshotHandler;
+use App\Handlers\ResendEmailChangeHandler;
 use App\Handlers\ResolveStatusNoticeHandler;
 use App\Handlers\RevokeDeviceHandler;
 use App\Handlers\SaveRouteHandler;
+use App\Handlers\SendConnectionSignUpLinkHandler;
 use App\Handlers\SendRouteToServiceHandler;
 use App\Handlers\StartDevicePairingHandler;
 use App\Handlers\StartImpersonationHandler;
@@ -114,6 +143,7 @@ use App\Handlers\StoreRouteImageHandler;
 use App\Handlers\SyncReleasesHandler;
 use App\Handlers\UpdateProfileHandler;
 use App\Handlers\WelcomeRiderHandler;
+use App\Handlers\WithdrawConnectionAccessHandler;
 use App\Integrations\Cloudflare\CloudflareAnalyticsConnector;
 use App\Integrations\Cloudflare\CloudflareGraphql;
 use App\Integrations\Cloudflare\CloudflareInsights;
@@ -153,9 +183,9 @@ use App\Repositories\DatabaseTrafficSnapshots;
 use App\Repositories\DatabaseUsageCounter;
 use App\Repositories\DiskRouteImageStore;
 use App\Repositories\EloquentConnectedAppRepository;
+use App\Repositories\EloquentConnectionRepository;
 use App\Repositories\EloquentDeviceLinkRepository;
 use App\Repositories\EloquentReleaseRepository;
-use App\Repositories\EloquentRouteServiceRepository;
 use App\Repositories\EloquentSavedRouteRepository;
 use App\Repositories\EloquentUserRepository;
 use App\Routes\CachedPlaceNamer;
@@ -173,6 +203,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
@@ -180,6 +211,9 @@ use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Passport\Passport;
+use SocialiteProviders\Discord\Provider as DiscordProvider;
+use SocialiteProviders\Manager\SocialiteWasCalled;
+use SocialiteProviders\OpenStreetMap\Provider as OpenStreetMapProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -190,8 +224,13 @@ class AppServiceProvider extends ServiceProvider
     {
         $commandBus = new CommandBus($this->app, [
             OpenAccountCommand::class => OpenAccountHandler::class,
+            OpenAccountWithConnectionCommand::class => OpenAccountWithConnectionHandler::class,
+            OpenAccountWithoutConnectionCommand::class => OpenAccountWithoutConnectionHandler::class,
             WelcomeRiderCommand::class => WelcomeRiderHandler::class,
             UpdateProfileCommand::class => UpdateProfileHandler::class,
+            ConfirmEmailChangeCommand::class => ConfirmEmailChangeHandler::class,
+            CancelEmailChangeCommand::class => CancelEmailChangeHandler::class,
+            ResendEmailChangeCommand::class => ResendEmailChangeHandler::class,
             ChangePasswordCommand::class => ChangePasswordHandler::class,
             DeleteAccountCommand::class => DeleteAccountHandler::class,
             ExportPersonalDataCommand::class => ExportPersonalDataHandler::class,
@@ -204,8 +243,14 @@ class AppServiceProvider extends ServiceProvider
             ClaimDevicePairingCommand::class => ClaimDevicePairingHandler::class,
             LinkDeviceCommand::class => LinkDeviceHandler::class,
             RevokeDeviceCommand::class => RevokeDeviceHandler::class,
-            ConnectRouteServiceCommand::class => ConnectRouteServiceHandler::class,
-            DisconnectRouteServiceCommand::class => DisconnectRouteServiceHandler::class,
+            LinkConnectionCommand::class => LinkConnectionHandler::class,
+            RecordConnectionSignInCommand::class => RecordConnectionSignInHandler::class,
+            DisconnectConnectionCommand::class => DisconnectConnectionHandler::class,
+            SendConnectionSignUpLinkCommand::class => SendConnectionSignUpLinkHandler::class,
+            WithdrawConnectionAccessCommand::class => WithdrawConnectionAccessHandler::class,
+            ClaimUnconfirmedAccountCommand::class => ClaimUnconfirmedAccountHandler::class,
+            ConfirmRiderEmailCommand::class => ConfirmRiderEmailHandler::class,
+            IdentifyConnectionsCommand::class => IdentifyConnectionsHandler::class,
             SendRouteToServiceCommand::class => SendRouteToServiceHandler::class,
             SyncReleasesCommand::class => SyncReleasesHandler::class,
             MarkReleaseReadCommand::class => MarkReleaseReadHandler::class,
@@ -232,7 +277,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(RouteImageStore::class, fn (): DiskRouteImageStore => new DiskRouteImageStore(Storage::disk('local')));
         $this->app->bind(ConnectedAppRepository::class, EloquentConnectedAppRepository::class);
         $this->app->bind(DeviceLinkRepository::class, EloquentDeviceLinkRepository::class);
-        $this->app->bind(RouteServiceRepository::class, EloquentRouteServiceRepository::class);
+        $this->app->bind(ConnectionRepository::class, EloquentConnectionRepository::class);
+        $this->app->bind(IdentityProviders::class, SocialiteIdentityProviders::class);
         $this->app->bind(ReleaseRepository::class, EloquentReleaseRepository::class);
         $this->app->bind(StatusRepository::class, DatabaseStatusRepository::class);
         $this->app->bind(UsageCounter::class, DatabaseUsageCounter::class);
@@ -277,6 +323,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->bind(fn (): CourseServices => $this->courseServices());
+        $this->app->bind(fn (): GrantedAccesses => $this->grantedAccesses());
 
         $this->app->bind(fn (): LineFollower => $this->lineFollower($this->app->make(RoutingEngine::class)));
 
@@ -454,6 +501,23 @@ class AppServiceProvider extends ServiceProvider
         $this->configureAiTools();
         $this->configureRoles();
         $this->configureAssets();
+        $this->configureConnections();
+    }
+
+    /**
+     * The services a rider logs in with or connects. Google and GitHub come with Socialite. The
+     * SocialiteProviders packages add the rest, and Traceway's own providers cover Wahoo, Ride with GPS, and the
+     * fixes RunSignup needs.
+     */
+    protected function configureConnections(): void
+    {
+        Event::listen(static function (SocialiteWasCalled $socialiteWasCalled): void {
+            $socialiteWasCalled->extendSocialite(ConnectionProvider::Discord->value, DiscordProvider::class);
+            $socialiteWasCalled->extendSocialite(ConnectionProvider::Wahoo->value, WahooProvider::class);
+            $socialiteWasCalled->extendSocialite(ConnectionProvider::RideWithGps->value, RideWithGpsProvider::class);
+            $socialiteWasCalled->extendSocialite(ConnectionProvider::RunSignup->value, RunSignupProvider::class);
+            $socialiteWasCalled->extendSocialite(ConnectionProvider::OpenStreetMap->value, OpenStreetMapProvider::class);
+        });
     }
 
     /**
@@ -517,6 +581,35 @@ class AppServiceProvider extends ServiceProvider
                     ),
                 ]);
             }));
+        // A round trip through another service's sign-in page. Each start and each answer counts, so one address
+        // cannot hammer the services with Traceway's keys, or try codes at the callback.
+        RateLimiter::for('connections', fn (Request $request): Limit => Limit::perMinute(30)->by('connections:'.$request->ip()));
+        // Finishing a sign-up from another service emails a link. Only a few an hour go to one email, or for one
+        // account at a service, so the form cannot fill someone's inbox. It counts only while a sign-up waits.
+        RateLimiter::for('sign-up-links', function (Request $request): Limit|array {
+            $pending = new ConnectionFlow($request->session())->pendingSignUp();
+
+            if ($pending === null) {
+                return Limit::none();
+            }
+
+            $connectedIdentity = $pending['identity'];
+            $tooMany = static function (Request $request, array $headers): RedirectResponse {
+                $seconds = $headers['Retry-After'] ?? 3600;
+
+                return back()->withInput()->withErrors([
+                    'email' => sprintf(
+                        'Traceway sent several links already. Check your email, or wait %d minutes, then try again.',
+                        max(1, (int) ceil((is_numeric($seconds) ? (int) $seconds : 3600) / 60)),
+                    ),
+                ]);
+            };
+
+            return [
+                Limit::perHour(3)->by('sign-up-link-email:'.hash('sha256', $request->string('email')->trim()->lower()->toString()))->response($tooMany),
+                Limit::perHour(5)->by('sign-up-link-account:'.$connectedIdentity->provider->value.':'.$connectedIdentity->providerUserId)->response($tooMany),
+            ];
+        });
         // Naming a pin has its own bucket, so a rider who adds many points
         // still gets the climb chart and the course file.
         RateLimiter::for('places', fn (Request $request): Limit => Limit::perMinute(60)->by('places:'.$this->caller($request)));
@@ -596,7 +689,6 @@ class AppServiceProvider extends ServiceProvider
             $services[RouteService::Wahoo->value] = new WahooCourseService(new WahooConnector(
                 $wahoo['client_id'],
                 $wahoo['client_secret'],
-                url('/settings/services/wahoo/callback'),
                 $wahoo['url'] ?? 'https://api.wahooligan.com',
             ));
         }
@@ -605,13 +697,28 @@ class AppServiceProvider extends ServiceProvider
             $services[RouteService::RideWithGps->value] = new RideWithGpsCourseService(new RideWithGpsConnector(
                 $rideWithGps['client_id'],
                 $rideWithGps['client_secret'],
-                url('/settings/services/ride_with_gps/callback'),
                 $rideWithGps['api_key'] ?? null,
                 $rideWithGps['url'] ?? 'https://ridewithgps.com',
             ));
         }
 
         return new CourseServices($services);
+    }
+
+    /**
+     * The services that gave Traceway keys it must hand back when a rider disconnects or deletes their account:
+     * the ones Send to device uses.
+     */
+    private function grantedAccesses(): GrantedAccesses
+    {
+        $courseServices = $this->app->make(CourseServices::class);
+        $accesses = [];
+
+        foreach ($courseServices->available() as $slug) {
+            $accesses[$slug] = $courseServices->for($slug);
+        }
+
+        return new GrantedAccesses($accesses);
     }
 
     /**

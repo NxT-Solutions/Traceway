@@ -98,6 +98,11 @@ final readonly class EloquentDeviceLinkRepository implements DeviceLinkRepositor
             ->delete() === 1;
     }
 
+    public function revokeAll(RiderId $riderId): void
+    {
+        DB::table('device_links')->where('user_id', $riderId->value)->delete();
+    }
+
     public function riderForToken(string $tokenHash): ?RiderId
     {
         $row = DB::table('device_links')

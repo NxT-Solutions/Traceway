@@ -12,7 +12,7 @@ use OpenApi\Attributes\Schema;
 
 #[Schema(
     schema: 'PersonalDataDocument',
-    required: ['exported_at', 'account', 'saved_routes', 'release_notes_read', 'route_services', 'withheld'],
+    required: ['exported_at', 'account', 'saved_routes', 'release_notes_read', 'connections', 'withheld'],
     properties: [
         new Property(property: 'exported_at', type: 'string', format: 'date-time'),
         new Property(
@@ -26,6 +26,7 @@ use OpenApi\Attributes\Schema;
                 new Property(property: 'created_at', type: 'string', nullable: true),
                 new Property(property: 'updated_at', type: 'string', nullable: true),
                 new Property(property: 'last_seen_at', description: 'The last time the rider was signed in and using Traceway, to the quarter hour.', type: 'string', nullable: true),
+                new Property(property: 'pending_email', description: 'A new email the rider asked for, waiting for them to open the link sent to it.', type: 'string', format: 'email', nullable: true),
                 new Property(property: 'role', type: 'string', enum: ['super-admin', 'admin', 'user']),
             ],
         ),
@@ -56,14 +57,18 @@ use OpenApi\Attributes\Schema;
             ),
         ),
         new Property(
-            property: 'route_services',
-            description: 'The services the rider connected so Traceway can send routes to them. Their tokens are withheld.',
+            property: 'connections',
+            description: 'The accounts at other services the rider connected, to log in with or send routes to. The keys any of them gave are withheld.',
             type: 'array',
             items: new Items(
-                required: ['service', 'connected_at', 'last_sent_at', 'sent'],
+                required: ['service', 'account_number', 'account', 'allowed', 'connected_at', 'last_signed_in_at', 'last_sent_at', 'sent'],
                 properties: [
-                    new Property(property: 'service', type: 'string', enum: ['wahoo', 'ride_with_gps']),
+                    new Property(property: 'service', type: 'string', enum: ['google', 'github', 'discord', 'wahoo', 'ride_with_gps', 'runsignup', 'openstreetmap']),
+                    new Property(property: 'account_number', description: "The service's own number for the rider's account there.", type: 'string', nullable: true),
+                    new Property(property: 'account', description: 'The email or username the service shared, where Traceway may keep it.', type: 'string', nullable: true),
+                    new Property(property: 'allowed', description: 'What the rider allowed Traceway to do, as the service names it.', type: 'array', items: new Items(type: 'string')),
                     new Property(property: 'connected_at', type: 'string', nullable: true),
+                    new Property(property: 'last_signed_in_at', type: 'string', nullable: true),
                     new Property(property: 'last_sent_at', type: 'string', nullable: true),
                     new Property(
                         property: 'sent',
@@ -87,7 +92,7 @@ use OpenApi\Attributes\Schema;
         new Property(
             property: 'withheld',
             type: 'array',
-            items: new Items(type: 'string', enum: ['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'route_service_tokens']),
+            items: new Items(type: 'string', enum: ['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'connection_keys']),
         ),
     ],
 )]
@@ -96,7 +101,7 @@ final readonly class PersonalDataDocument
     /**
      * @param  list<ExportedRoute>  $routes
      * @param  list<array{tag: string, read_at: string|null}>  $releaseNotesRead
-     * @param  list<array{service: string, connected_at: string|null, last_sent_at: string|null, sent: list<array{saved_route_id: string, leg: int, url: string|null, sent_at: string|null}>}>  $routeServices
+     * @param  list<array{service: string, account_number: string|null, account: string|null, allowed: list<string>, connected_at: string|null, last_signed_in_at: string|null, last_sent_at: string|null, sent: list<array{saved_route_id: string, leg: int, url: string|null, sent_at: string|null}>}>  $connections
      * @param  list<array{action: string, at: string|null}>  $adminActions
      */
     public function __construct(
@@ -109,10 +114,11 @@ final readonly class PersonalDataDocument
         public ?string $updatedAt,
         public array $routes,
         public array $releaseNotesRead,
-        public array $routeServices = [],
+        public array $connections = [],
         public ?string $lastSeenAt = null,
         public string $role = 'user',
         public array $adminActions = [],
+        public ?string $pendingEmail = null,
     ) {}
 
     /**
@@ -130,6 +136,7 @@ final readonly class PersonalDataDocument
                 'created_at' => $this->createdAt,
                 'updated_at' => $this->updatedAt,
                 'last_seen_at' => $this->lastSeenAt,
+                'pending_email' => $this->pendingEmail,
                 'role' => $this->role,
             ],
             'saved_routes' => array_map(
@@ -137,14 +144,14 @@ final readonly class PersonalDataDocument
                 $this->routes,
             ),
             'release_notes_read' => $this->releaseNotesRead,
-            'route_services' => $this->routeServices,
+            'connections' => $this->connections,
             'admin_actions' => $this->adminActions,
             'withheld' => [
                 'password',
                 'two_factor_secret',
                 'two_factor_recovery_codes',
                 'remember_token',
-                'route_service_tokens',
+                'connection_keys',
             ],
         ];
     }

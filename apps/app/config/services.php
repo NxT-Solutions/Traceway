@@ -2,6 +2,16 @@
 
 declare(strict_types=1);
 
+/*
+| The HTTP client each sign-in service gets: short timeouts, so a slow service fails the rider's request
+| instead of holding a worker, and a User-Agent that says who is asking, as OpenStreetMap's policy requires.
+*/
+$signIn = [
+    'timeout' => 10,
+    'connect_timeout' => 5,
+    'headers' => ['User-Agent' => 'Traceway (+'.rtrim((string) env('APP_URL', 'https://traceway.online'), '/').')'],
+];
+
 return [
 
     /*
@@ -58,19 +68,68 @@ return [
         'url' => env('OPENFREEMAP_URL', 'https://tiles.openfreemap.org'),
     ],
 
-    // Services a rider connects so Traceway can send a route to their device.
-    // A service without a client id stays hidden.
+    /*
+    | Accounts a rider logs in with or connects, under Settings, then Connections. Each key is the Socialite
+    | driver. A service without its keys stays hidden, so each can go live on its own. The redirect is the
+    | callback registered at the service; a path is resolved against the site's own address.
+    */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    'github' => [
+        'client_id' => env('GITHUB_CLIENT_ID'),
+        'client_secret' => env('GITHUB_CLIENT_SECRET'),
+        'redirect' => env('GITHUB_REDIRECT_URI', '/auth/github/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    'discord' => [
+        'client_id' => env('DISCORD_CLIENT_ID'),
+        'client_secret' => env('DISCORD_CLIENT_SECRET'),
+        'redirect' => env('DISCORD_REDIRECT_URI', '/auth/discord/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    // Wahoo and Ride with GPS also take the routes Send to device sends. Their callbacks stay where they were
+    // first registered at each service.
     'wahoo' => [
         'client_id' => env('WAHOO_CLIENT_ID'),
         'client_secret' => env('WAHOO_CLIENT_SECRET'),
+        'redirect' => env('WAHOO_REDIRECT_URI', '/settings/services/wahoo/callback'),
         'url' => env('WAHOO_URL', 'https://api.wahooligan.com'),
+        // Turn on once the email permission is enabled on the Wahoo developer app. Until then Wahoo riders type
+        // their email when they open an account.
+        'request_email' => (bool) env('WAHOO_REQUEST_EMAIL', default: false),
+        'guzzle' => $signIn,
     ],
 
     'ride_with_gps' => [
         'client_id' => env('RIDEWITHGPS_CLIENT_ID'),
         'client_secret' => env('RIDEWITHGPS_CLIENT_SECRET'),
         'api_key' => env('RIDEWITHGPS_API_KEY'),
+        'redirect' => env('RIDEWITHGPS_REDIRECT_URI', '/settings/services/ride_with_gps/callback'),
         'url' => env('RIDEWITHGPS_URL', 'https://ridewithgps.com'),
+        'guzzle' => $signIn,
+    ],
+
+    // "prod" for runsignup.com, "test" for test.runsignup.com, which has its own clients.
+    'runsignup' => [
+        'client_id' => env('RUNSIGNUP_CLIENT_ID'),
+        'client_secret' => env('RUNSIGNUP_CLIENT_SECRET'),
+        'redirect' => env('RUNSIGNUP_REDIRECT_URI', '/auth/runsignup/callback'),
+        'environment' => env('RUNSIGNUP_ENVIRONMENT', 'prod'),
+        'guzzle' => $signIn,
+    ],
+
+    'openstreetmap' => [
+        'client_id' => env('OPENSTREETMAP_CLIENT_ID'),
+        'client_secret' => env('OPENSTREETMAP_CLIENT_SECRET'),
+        'redirect' => env('OPENSTREETMAP_REDIRECT_URI', '/auth/openstreetmap/callback'),
+        'guzzle' => $signIn,
     ],
 
     // The admin area's Traffic page. A read-only Analytics token, not the token the deploy purges the cache with.

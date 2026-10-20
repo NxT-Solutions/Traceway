@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
+import { edit as editConnections } from '@/routes/connections';
 
 type Account = {
     name: string;
@@ -108,11 +109,25 @@ export default function Privacy({
                     )}
                 </div>
 
+                <div>
+                    <h2 className="text-base font-semibold">
+                        Connected accounts
+                    </h2>
+                    <p className="desc">
+                        The accounts you log in with or send routes to are under{' '}
+                        <Link className="cx-link" href={editConnections()}>
+                            Connections
+                        </Link>
+                        , each with what Traceway keeps from it.
+                    </p>
+                </div>
+
                 <p className="desc">
-                    The download includes your account and the full geometry of
-                    each saved route, with every leg of a multisport plan and
-                    the swim you drew. Your password and sign-in secrets stay
-                    here. A copy of the file is also sent to {account.email}.
+                    The download includes your account, the accounts you
+                    connected, and the full geometry of each saved route, with
+                    every leg of a multisport plan and the swim you drew. Your
+                    password and sign-in secrets stay here. A copy of the file
+                    is also sent to {account.email}.
                 </p>
 
                 <a className="fill" href="/settings/privacy/export">

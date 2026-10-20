@@ -1,6 +1,8 @@
 import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
+import SignInLegal from '@/components/sign-in-legal';
+import SignInOptionsGrid from '@/components/sign-in-options';
 import TextLink from '@/components/text-link';
 import Turnstile from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
@@ -9,21 +11,31 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
+import type { SignInOptions } from '@/types';
 
 type Props = {
     passwordRules: string;
     turnstileSiteKey: string | null;
+    connections: SignInOptions;
 };
 
-// The terms and the privacy policy are pages of the content site, not of
-// the planner, so they open as plain links, styled like a TextLink.
-const legalLink =
-    'text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500';
-
-export default function Register({ passwordRules, turnstileSiteKey }: Props) {
+export default function Register({
+    passwordRules,
+    turnstileSiteKey,
+    connections,
+}: Props) {
     return (
         <>
             <Head title="Register" />
+            {connections.featured.length > 0 ? (
+                <>
+                    <SignInOptionsGrid
+                        options={connections}
+                        intent="register"
+                    />
+                    <p className="divider">or sign up with email</p>
+                </>
+            ) : null}
             <Form
                 {...store.form()}
                 resetOnSuccess={['password', 'password_confirmation']}
@@ -93,17 +105,7 @@ export default function Register({ passwordRules, turnstileSiteKey }: Props) {
                                 />
                             </div>
 
-                            <p className="text-sm text-muted-foreground">
-                                By creating an account, you accept the{' '}
-                                <a className={legalLink} href="/terms">
-                                    terms of use
-                                </a>{' '}
-                                and the{' '}
-                                <a className={legalLink} href="/privacy">
-                                    privacy policy
-                                </a>
-                                .
-                            </p>
+                            <SignInLegal intent="create" />
 
                             <Turnstile
                                 siteKey={turnstileSiteKey}

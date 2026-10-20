@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Account;
 
-use App\Contracts\Account\RouteServiceRepository;
+use App\Contracts\Account\ConnectionRepository;
 use App\Contracts\Account\UserRepository;
 use App\Contracts\Mail\AccountMailer;
 use App\Contracts\Routes\RouteImageStore;
-use App\Domain\Courses\Services\CourseServices;
+use App\Domain\Connections\GrantedAccesses;
 use App\Domain\Courses\Services\ServiceRefused;
 use App\Domain\Courses\Services\ServiceTokens;
 use App\Domain\Courses\Services\ServiceUnavailable;
@@ -23,13 +23,13 @@ final readonly class AccountCloser
         private UserRepository $userRepository,
         private AccountMailer $accountMailer,
         private RouteImageStore $routeImageStore,
-        private RouteServiceRepository $routeServiceRepository,
-        private CourseServices $courseServices,
+        private ConnectionRepository $connectionRepository,
+        private GrantedAccesses $grantedAccesses,
     ) {}
 
     public function close(RiderId $riderId): void
     {
-        $this->revokeRouteServices($riderId);
+        $this->withdrawConnections($riderId);
         $this->userRepository->endSessions($riderId);
 
         $rider = $this->userRepository->delete($riderId);
@@ -38,22 +38,23 @@ final readonly class AccountCloser
     }
 
     /**
-     * Withdraws Traceway's access at every service the rider connected. One that cannot be reached does not stop
-     * the deletion.
+     * Withdraws Traceway's access at every service that gave it keys. One that cannot be reached does not stop
+     * the deletion. A connection that keeps no keys goes with the account row.
      */
-    private function revokeRouteServices(RiderId $riderId): void
+    private function withdrawConnections(RiderId $riderId): void
     {
-        foreach ($this->routeServiceRepository->connected($riderId) as $routeService) {
-            $tokens = $this->routeServiceRepository->tokens($riderId, $routeService);
+        foreach ($this->connectionRepository->connected($riderId) as $connectionProvider) {
+            $tokens = $this->connectionRepository->tokens($riderId, $connectionProvider);
 
-            if (! $tokens instanceof RouteServiceTokens || ! $this->courseServices->has($routeService->value)) {
+            if (! $tokens instanceof ConnectionTokens) {
                 continue;
             }
 
             try {
-                $this->courseServices->withdraw($routeService->value, new ServiceTokens($tokens->accessToken, $tokens->refreshToken, $tokens->expiresAt), now()->getTimestamp());
-            } catch (ServiceRefused|ServiceUnavailable) {
-                continue;
+                $this->grantedAccesses->withdraw($connectionProvider->value, new ServiceTokens($tokens->accessToken, $tokens->refreshToken, $tokens->expiresAt), now()->getTimestamp());
+            } catch (ServiceRefused|ServiceUnavailable $exception) {
+                // The report shows a service that may still hold Traceway's access.
+                report($exception);
             }
         }
     }

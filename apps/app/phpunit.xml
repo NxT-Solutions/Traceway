@@ -35,6 +35,21 @@
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="DB_URL" value=""/>
         <env name="CLOUDFLARE_ANALYTICS_TOKEN" value=""/>
+        <!-- Sign-in services stay off unless a test turns one on, whatever the local .env holds. -->
+        <env name="GOOGLE_CLIENT_ID" value=""/>
+        <env name="GOOGLE_CLIENT_SECRET" value=""/>
+        <env name="GITHUB_CLIENT_ID" value=""/>
+        <env name="GITHUB_CLIENT_SECRET" value=""/>
+        <env name="DISCORD_CLIENT_ID" value=""/>
+        <env name="DISCORD_CLIENT_SECRET" value=""/>
+        <env name="WAHOO_CLIENT_ID" value=""/>
+        <env name="WAHOO_CLIENT_SECRET" value=""/>
+        <env name="RIDEWITHGPS_CLIENT_ID" value=""/>
+        <env name="RIDEWITHGPS_CLIENT_SECRET" value=""/>
+        <env name="RUNSIGNUP_CLIENT_ID" value=""/>
+        <env name="RUNSIGNUP_CLIENT_SECRET" value=""/>
+        <env name="OPENSTREETMAP_CLIENT_ID" value=""/>
+        <env name="OPENSTREETMAP_CLIENT_SECRET" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

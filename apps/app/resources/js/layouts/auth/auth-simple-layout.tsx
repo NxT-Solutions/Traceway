@@ -62,7 +62,8 @@ export default function AuthSimpleLayout({
                                 gap: 10,
                             }}
                         >
-                            <h1>{title}</h1>
+                            {/* The page can move focus here once the control the rider used is gone. */}
+                            <h1 tabIndex={-1}>{title}</h1>
                             {description ? (
                                 <p className="lede">{description}</p>
                             ) : null}

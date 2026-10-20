@@ -1,15 +1,23 @@
-import { router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { KeyRound } from 'lucide-react';
 import { destroy } from '@/actions/Laravel/Passkeys/Http/Controllers/PasskeyRegistrationController';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import PasskeyItem from '@/components/passkey-item';
 import PasskeyRegistration from '@/components/passkey-register';
+import { edit as editConnections } from '@/routes/connections';
 import type { Passkey } from '@/types/auth';
 
 export type Props = {
     canManagePasskeys?: boolean;
     passkeys?: Passkey[];
+    /** True when the rider's one passkey is their only way to log in: no password and no connected account. */
+    passkeyIsLastWayIn?: boolean;
+    /** The id of the password card on the same page. */
+    passwordCard?: string;
 };
+
+const lastWayInId = 'passkey-last-way-in';
 
 const EmptyState = () => {
     return (
@@ -27,6 +35,9 @@ const EmptyState = () => {
 
 export default function ManagePasskeys(props: Props) {
     const passkeys = props.passkeys ?? [];
+    const lastWayIn =
+        (props.passkeyIsLastWayIn ?? false) && passkeys.length === 1;
+    const refused = usePage().props.errors.passkey;
 
     const handleDelete = (id: number, onError: () => void) => {
         router.delete(destroy.url(id), {
@@ -58,12 +69,35 @@ export default function ManagePasskeys(props: Props) {
                             key={passkey.id}
                             passkey={passkey}
                             onDelete={handleDelete}
+                            removeBlockedBy={
+                                lastWayIn ? lastWayInId : undefined
+                            }
                         />
                     ))
                 ) : (
                     <EmptyState />
                 )}
             </div>
+
+            {lastWayIn ? (
+                <p className="cx-blocked" id={lastWayInId}>
+                    This passkey is your only way to log in.{' '}
+                    {props.passwordCard === undefined ? (
+                        'Set a password'
+                    ) : (
+                        <a className="cx-link" href={`#${props.passwordCard}`}>
+                            Set a password
+                        </a>
+                    )}{' '}
+                    or{' '}
+                    <Link className="cx-link" href={editConnections()}>
+                        connect an account
+                    </Link>{' '}
+                    first.
+                </p>
+            ) : null}
+
+            <InputError message={refused} role="alert" />
 
             <PasskeyRegistration onSuccess={handleRegisterSuccess} />
         </div>

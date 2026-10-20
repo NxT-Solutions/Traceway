@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 use App\Integrations\Cloudflare\Requests\SiteVerifyRequest;
 use App\Integrations\Cloudflare\TurnstileConnector;
+use App\Mail\AccountMessage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia;
+use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\User as SocialiteUser;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 
@@ -119,4 +123,46 @@ it('gives both forms the public key when the check is on', function (): void {
         ->where('turnstileSiteKey', 'site-key'));
     $this->get(route('password.request'))->assertInertia(fn (AssertableInertia $assertableInertia): AssertableInertia => $assertableInertia
         ->where('turnstileSiteKey', 'site-key'));
+});
+
+/**
+ * A new rider comes back from OpenStreetMap, which shares no email, and lands on the last step of signing up.
+ */
+function turnstileFinishSignUpArrive(): void
+{
+    config(['services.openstreetmap.client_id' => 'osm-id', 'services.openstreetmap.client_secret' => 'osm-secret']);
+    Socialite::fake('openstreetmap', (new SocialiteUser)
+        ->map(['id' => '4711', 'name' => 'Ann Rider', 'email' => null])
+        ->setApprovedScopes(['read_prefs']));
+
+    test()->get(route('connections.sign-in', ['provider' => 'openstreetmap']));
+    test()->get(route('connections.callback', ['provider' => 'openstreetmap', 'code' => 'from-openstreetmap', 'state' => 'state']))
+        ->assertRedirect(route('connections.finish'));
+}
+
+it('asks before emailing the link that finishes a sign-up from another service', function (): void {
+    Mail::fake();
+    turnstileFinishSignUpArrive();
+    turnstileAnswers(MockResponse::make(['success' => false]));
+
+    $this->from(route('connections.finish'))
+        ->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'ann@example.com', 'cf-turnstile-response' => 'a-token'])
+        ->assertRedirect(route('connections.finish'))
+        ->assertSessionHasErrors('turnstile');
+
+    Mail::assertNothingQueued();
+    expect(session('connections.pending'))->toBeString();
+});
+
+it('emails the link when Cloudflare says a person finished the sign-up', function (): void {
+    Mail::fake();
+    turnstileFinishSignUpArrive();
+    $mockClient = turnstileAnswers(MockResponse::make(['success' => true]));
+
+    $this->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'ann@example.com', 'cf-turnstile-response' => 'a-token'])
+        ->assertRedirect(route('login'))
+        ->assertSessionDoesntHaveErrors();
+
+    Mail::assertQueued(AccountMessage::class, fn (AccountMessage $accountMessage): bool => $accountMessage->template === 'connection-sign-up');
+    expect($mockClient->getLastPendingRequest()?->body()?->all()['response'] ?? null)->toBe('a-token');
 });

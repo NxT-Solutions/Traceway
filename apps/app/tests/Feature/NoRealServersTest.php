@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Account\ConnectionProvider;
 use App\Integrations\Nominatim\NominatimConnector;
 use App\Integrations\Nominatim\Requests\SearchRequest;
 use Illuminate\Http\Client\StrayRequestException as HttpStrayRequestException;
 use Illuminate\Support\Facades\Http;
+use Laravel\Socialite\Facades\Socialite;
 use Saloon\Exceptions\StrayRequestException;
 
 /**
@@ -19,3 +21,12 @@ it('stops a Saloon request that has no mock', function (): void {
 it('stops a Laravel HTTP call that has no fake', function (): void {
     Http::get('https://tiles.openfreemap.org/planet');
 })->throws(HttpStrayRequestException::class);
+
+it('stops a sign-in service request that has no fake', function (ConnectionProvider $connectionProvider): void {
+    config([
+        'services.'.$connectionProvider->value.'.client_id' => 'client',
+        'services.'.$connectionProvider->value.'.client_secret' => 'secret',
+    ]);
+
+    Socialite::driver($connectionProvider->value)->userFromToken('a-token');
+})->with(ConnectionProvider::cases())->throws(RuntimeException::class, 'A test reached the ');

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Handlers;
 
+use App\Account\ConnectionTokens;
 use App\Account\RouteService;
-use App\Account\RouteServiceTokens;
 use App\Commands\SendRouteToServiceCommand;
-use App\Contracts\Account\RouteServiceRepository;
+use App\Contracts\Account\ConnectionRepository;
 use App\Contracts\Auth\CurrentRider;
 use App\Domain\Courses\DeviceName;
 use App\Domain\Courses\FitCourse;
@@ -28,7 +28,7 @@ final readonly class SendRouteToServiceHandler
     public function __construct(
         private CurrentRider $currentRider,
         private CourseServices $courseServices,
-        private RouteServiceRepository $routeServiceRepository,
+        private ConnectionRepository $connectionRepository,
         private SharedCourseQuery $sharedCourseQuery,
     ) {}
 
@@ -36,14 +36,15 @@ final readonly class SendRouteToServiceHandler
     {
         $riderId = $sendRouteToServiceCommand->riderId;
         $service = $sendRouteToServiceCommand->routeService;
+        $connection = $service->connection();
 
         $this->currentRider->assertSame($riderId);
 
         abort_unless($this->courseServices->has($service->value), 404);
 
-        $stored = $this->routeServiceRepository->tokens($riderId, $service);
+        $stored = $this->connectionRepository->tokens($riderId, $connection);
 
-        abort_if(! $stored instanceof RouteServiceTokens, 409, 'Connect '.$service->label().' first.');
+        abort_if(! $stored instanceof ConnectionTokens, 409, 'Connect '.$service->label().' first.');
 
         $sharedCourse = $this->sharedCourseQuery->findOwned($sendRouteToServiceCommand->routeId, $riderId->value);
         $upload = $this->upload($sharedCourse, $sendRouteToServiceCommand);
@@ -53,27 +54,27 @@ final readonly class SendRouteToServiceHandler
         try {
             if ($tokens->expiresBy(now()->getTimestamp())) {
                 $tokens = $courseService->refresh($tokens);
-                $this->routeServiceRepository->refreshed($riderId, $service, new RouteServiceTokens($tokens->accessToken, $tokens->refreshToken, $tokens->expiresAt));
+                $this->connectionRepository->refreshed($riderId, $connection, new ConnectionTokens($tokens->accessToken, $tokens->refreshToken, $tokens->expiresAt));
             }
 
             $published = $courseService->publish(
                 $tokens,
                 $upload,
-                $this->routeServiceRepository->sentId($riderId, $sendRouteToServiceCommand->routeId, $sendRouteToServiceCommand->leg, $service),
+                $this->connectionRepository->sentId($riderId, $sendRouteToServiceCommand->routeId, $sendRouteToServiceCommand->leg, $connection),
             );
         } catch (ServiceRefused) {
-            $this->routeServiceRepository->needsReconnect($riderId, $service);
+            $this->connectionRepository->needsReconnect($riderId, $connection);
 
             abort(409, $service->label().' needs you to connect it again.');
         } catch (ServiceUnavailable) {
             abort(502, $this->unavailable($service));
         }
 
-        $this->routeServiceRepository->recordSent(
+        $this->connectionRepository->recordSent(
             $riderId,
             $sendRouteToServiceCommand->routeId,
             $sendRouteToServiceCommand->leg,
-            $service,
+            $connection,
             $published->id,
             $published->url,
         );

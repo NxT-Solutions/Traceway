@@ -20,7 +20,7 @@ export interface LegalPage {
     sections: readonly LegalSection[];
 }
 
-export const legalUpdated = '19 October 2026';
+export const legalUpdated = '20 October 2026';
 
 const operator = 'NxT-Solutions, Westerlo, Belgium';
 const email = '[privacy@nxt-solutions.com](mailto:privacy@nxt-solutions.com)';
@@ -47,16 +47,16 @@ export const privacy: LegalPage = {
         {
             heading: 'What Traceway keeps, and why',
             items: [
-                '**Your account.** Your name, your email address, and your password, stored only as a hash that cannot be turned back into the password. If you turn on two-step sign-in or a passkey, the secret it needs is kept too.',
+                '**Your account.** Your name, your email address, and your password, stored only as a hash that cannot be turned back into the password. An account you open with a connected account has no password until you set one. A new email you ask for waits beside the old one until you open the link sent to it, and your account keeps the old one until then. If you turn on two-step sign-in or a passkey, the secret it needs is kept too.',
                 '**Your saved routes.** The name, the sport, what you asked the planner for, the line itself, its start and finish, every leg of a multisport plan, and the climb, surfaces, turns, and stops along it. Each saved route also gets a picture of the route on the map, for shared links.',
                 '**Your watches.** The name you give a watch, a pairing code that works for 10 minutes, the key the watch uses to fetch your routes (stored only as a hash), and when it last did.',
                 '**AI assistants you connect.** Which app you connected, the sign-in keys it uses, and when they run out.',
-                '**Services you send routes to.** If you connect Wahoo or Ride with GPS, which one, the sign-in keys it gave Traceway (kept encrypted), when you connected, and which routes you sent there.',
+                '**Accounts you connect.** If you log in with, or connect, an account you have at another service, such as Google or GitHub: which service, your account number there, when you connected and when you last logged in with it, and what you allowed. With the number, it keeps the email address Google, Wahoo, Ride with GPS, or RunSignup shares, your username at GitHub or Discord, and your display name at OpenStreetMap. Only Wahoo and Ride with GPS give Traceway keys that it keeps, encrypted, to send your routes. For them, it also keeps which routes you sent there.',
                 '**When you last used Traceway.** The time you last used the planner, the watch app, or a connected AI assistant, to the quarter of an hour, and your role, which is User unless you help run Traceway. It shows how many riders come back, and helps when you ask for help with your account. It is in your copy of your data.',
                 '**Totals of what is used.** Each day, the server adds up how often each part of Traceway is used, such as routes drawn, files exported, sign-ins, and watch syncs. A total says how many times, never who.',
                 '**Signing in.** While you are signed in, the server keeps a session with your IP address and the name of your browser. It keeps you signed in and helps stop someone else from using your account.',
                 '**Error logs.** When something breaks, the server writes down what happened so it can be fixed. A log line can include your account number. It never includes your password.',
-                '**Account email.** Traceway only emails you about your account: the welcome, confirming your address, resetting your password, a change of email or password, a copy of your data when you ask for it, and the goodbye when you delete your account. No newsletters, no marketing.',
+                '**Account email.** Traceway only emails you about your account: the welcome, confirming your address, the link that finishes opening an account with another service, resetting your password, a change of email or password, an account connected or disconnected, a copy of your data when you ask for it, and the goodbye when you delete your account. No newsletters, no marketing.',
             ],
             after: [
                 'A start point is often a home. Keep that in mind before you share a route.',
@@ -65,7 +65,7 @@ export const privacy: LegalPage = {
         {
             heading: 'Who at Traceway can see your account',
             paragraphs: [
-                'A few people at NxT-Solutions help run Traceway. They can see your name, email address, and role, when you joined and last used Traceway, how many routes you saved, which watches, AI assistants, and services are linked, and which browsers are signed in, by name only and never with your IP address. They never see your password or the secrets for two-step sign-in.',
+                'A few people at NxT-Solutions help run Traceway. They can see your name, email address, and role, when you joined and last used Traceway, how many routes you saved, which watches, AI assistants, and services are linked, and which browsers are signed in, by name only and never with your IP address. They never see your password, the secrets for two-step sign-in, or the keys a connected service gave Traceway.',
                 'To help you, or to keep an account safe, they can change your name or email address, sign you out everywhere, turn off two-step sign-in, or delete your account. Deleting it works the same as when you do it yourself, and you get the same email.',
                 'To answer a question, they can also open the planner as you see it. While they do, your password, two-step sign-in, passkeys, and data copy stay closed, and it does not count as you using Traceway.',
                 'Each of these is written down: what was done to your account, by whom, and when. That record is kept for a year. What was done and when is in your copy of your data. If your account is deleted, the record no longer says it was yours.',
@@ -108,7 +108,7 @@ export const privacy: LegalPage = {
             ],
             items: [
                 '**Hetzner Online** hosts the server and the database, in Germany.',
-                '**Cloudflare** passes every visit to traceway.online on to the server, to keep the site fast and to stop attacks, so it sees your IP address and the pages you ask for. It checks that a person, not a script, fills in the sign-up and password reset forms. It also keeps the backup copies of the database, and counts visits to the pages of this site when you agree. NxT-Solutions reads Cloudflare’s totals of requests, visits, and page speed. For the requests Cloudflare blocked, it reads the page asked for, the browser’s name, and the country, never the IP address, and keeps only the totals, for an hour.',
+                '**Cloudflare** passes every visit to traceway.online on to the server, to keep the site fast and to stop attacks, so it sees your IP address and the pages you ask for. It checks that a person, not a script, fills in the sign-up and password reset forms, and the form that finishes opening an account with another service. It also keeps the backup copies of the database, and counts visits to the pages of this site when you agree. NxT-Solutions reads Cloudflare’s totals of requests, visits, and page speed. For the requests Cloudflare blocked, it reads the page asked for, the browser’s name, and the country, never the IP address, and keeps only the totals, for an hour.',
                 '**Resend** sends the account email. It gets your email address and the message. For a copy of your data, that includes the file.',
                 '**Sentry** tells NxT-Solutions when something in Traceway breaks or runs slowly. It gets the address of the page without its search part, your browser type and language, how long each step took, and what went wrong, which can hold the points or the place name the server was asking a map service about. It never gets your name, email address, IP address, cookies, or what you type into a form. Sentry keeps it in Germany.',
                 '**Map services** draw and read the routes: a [Valhalla](https://valhalla1.openstreetmap.de) routing server run by FOSSGIS e.V. in Germany, [Nominatim](https://nominatim.org) from the OpenStreetMap Foundation for place names, and the [OpenFreeMap](https://openfreemap.org) map tiles for water, toilets, and cafés. The Traceway server sends them the points of a route, the name of a place, a place you search for with the middle of your map rounded to about 10 kilometres, a pin rounded to about 100 metres, or which map tiles a route crosses. It never sends your name or email address.',
@@ -119,11 +119,20 @@ export const privacy: LegalPage = {
             ],
         },
         {
-            heading: 'AI assistants, watches, route services, and donations',
+            heading: 'Accounts you log in with',
+            paragraphs: [
+                'You can log in with an account you already have at another service, or connect one under Settings, then Connections. When you do, you go to that company’s own page, log in there, and choose what to allow. The company then tells Traceway who you are. It handles your data there under its own privacy policy, not on behalf of NxT-Solutions.',
+                'Traceway opens a new account straight away only when the service confirms your email address. If it does not, or shares none, Traceway emails you a link that works for 60 minutes. Your account is opened only when you use that link. Open it in the same browser you started in, and the service is connected too. Opened anywhere else, the link still opens your account, but the service is not connected: you can connect it later under Settings, then Connections. If you already have a Traceway account with the email the service confirms, you are logged in to it and the service is connected. Otherwise you log in to your account and say yes before the service is connected.',
+                'Google, Discord, Wahoo, Ride with GPS, and RunSignup are run by companies of the same name. GitHub is run by Microsoft, and OpenStreetMap by the OpenStreetMap Foundation.',
+                'Traceway sends these services nothing about you, except the routes you send to Wahoo or Ride with GPS: each route’s name, sport, line, distance, and climb. From there, the service handles the route under its own privacy policy. Traceway uses the keys Wahoo and Ride with GPS gave it only to send those routes, to look up which account the keys belong to, to renew them, and to withdraw them.',
+                'Disconnect an account, or delete yours, and Traceway forgets the connection. It also asks Wahoo and Ride with GPS to withdraw the keys they gave it, and does the same when you cancel opening an account with one of them. For the others, you can remove Traceway in your account at the service.',
+            ],
+        },
+        {
+            heading: 'AI assistants, watches, and donations',
             paragraphs: [
                 'If you connect an AI assistant, such as Claude or ChatGPT, what you type there is handled by the company behind it, under its own privacy policy. Traceway gives the assistant only what you ask it for: the routes it plans for you and the list of your saved routes.',
                 'The Traceway watch app fetches your routes straight from Traceway. A route file you open in Garmin Connect, or in any other app, is handled by that app’s maker.',
-                'If you connect Wahoo or Ride with GPS, Traceway sends that service the route you send: its name, sport, line, distance, and climb. It sends nothing else about you. From there, the service handles the route under its own privacy policy. Both are American companies. Disconnect, or delete your account, and Traceway asks the service to withdraw its keys.',
                 'Donations go through PayPal or GitHub Sponsors, on their own sites. Traceway never sees your card or bank details. They may pass your name and email address to NxT-Solutions, which keeps them only for its records.',
             ],
         },
@@ -131,12 +140,13 @@ export const privacy: LegalPage = {
             heading: 'Outside the EU',
             paragraphs: [
                 'Cloudflare, Resend, and Sentry are American companies. When your data leaves the European Economic Area, it is protected by the EU-U.S. Data Privacy Framework or by the EU’s standard contractual clauses.',
+                'Most of the services you can log in with are American companies too. The OpenStreetMap Foundation is in the United Kingdom, which the EU recognises as protecting data well. What they learn about you, they learn because you chose to log in with them, connect them, or send them a route.',
             ],
         },
         {
             heading: 'The legal grounds',
             items: [
-                '**The service you asked for** (GDPR article 6(1)(b)): your account, your routes, your watches, the AI assistants and route services you connect, and the account email.',
+                '**The service you asked for** (GDPR article 6(1)(b)): your account, your routes, your watches, the AI assistants you connect, the accounts you choose to log in with or connect, and the account email.',
                 '**Legitimate interests** (article 6(1)(f)): keeping Traceway safe and working, with sessions, error logs and reports, speed checks, backups, protection against attacks and scripts, and limits on how often the map services are asked. Also knowing how much Traceway is used, with the time you last used it and daily totals that never say who, and helping you with your account when you ask.',
                 '**Your consent** (article 6(1)(a)): counting visits to the pages of this site with Cloudflare, to know how many people visit and to make the site better. You can take it back at any time with Cookie choice at the bottom of every page.',
                 '**A legal duty** (article 6(1)(c)): when the law requires NxT-Solutions to keep something or hand it over.',
@@ -148,6 +158,8 @@ export const privacy: LegalPage = {
                 '**Your account and saved routes:** until you delete them, or your account.',
                 '**A session:** until you log out, or 2 hours after you last used Traceway. With “Remember me”, up to 400 days.',
                 '**A pairing code:** 10 minutes.',
+                '**A connected account:** until you disconnect it, or delete your account.',
+                '**A log in with another service that you did not finish:** up to 15 minutes, or up to 60 minutes while the link Traceway emailed you to open your account still works. Then it is forgotten.',
                 '**When you last used Traceway:** until you delete your account.',
                 '**Daily totals of what is used:** two years, not linked to you.',
                 '**What the people who run Traceway did to your account:** one year.',
@@ -156,6 +168,7 @@ export const privacy: LegalPage = {
                 '**Place searches:** 30 days, for the words you typed and the middle of your map rounded to about 10 kilometres, not linked to you.',
                 '**An email that could not be sent:** up to a day, so the problem can be found. Then it is deleted.',
                 '**Your yes or no to counting visits:** in your own browser, for up to a year. Then the pages ask again.',
+                '**How you last logged in:** in your own browser, for up to 400 days.',
                 '**Backups:** something you delete can stay in a backup for up to 14 days. Then it is gone.',
                 '**Error logs:** only the latest. Older lines are overwritten automatically.',
                 '**Error reports at Sentry:** 90 days at most. Then Sentry deletes them.',
@@ -167,10 +180,11 @@ export const privacy: LegalPage = {
                 'You can see, correct, download, and delete your data yourself, in the planner:',
             ],
             items: [
-                '**See it and download it:** Settings, then Your data. The file has your account and every saved route, and a copy is emailed to you.',
+                '**See it and download it:** Settings, then Your data. The file has your account, your connected accounts, and every saved route, and a copy is emailed to you.',
                 '**Correct it:** Settings, then Profile.',
                 '**Delete it:** delete a route in your library, or your whole account under Settings, then Profile. It is deleted straight away.',
                 '**Disconnect a watch or an AI assistant:** Settings, then Devices or AI assistants.',
+                '**Disconnect a connected account:** Settings, then Connections. For Wahoo and Ride with GPS, this also asks the service to withdraw Traceway’s access. For the others, remove Traceway in your account at the service too.',
             ],
             after: [
                 `You also have the right to ask what is kept about you, to object to how it is used, to limit its use, and to take it with you. Email ${email}, and you will get an answer within a month.`,
@@ -180,7 +194,8 @@ export const privacy: LegalPage = {
         {
             heading: 'Keeping it safe',
             paragraphs: [
-                'Every page is sent over an encrypted connection. Passwords and watch keys are stored only as hashes. You can add two-step sign-in or a passkey under Settings, then Security.',
+                'Every page is sent over an encrypted connection. Passwords and watch keys are stored only as hashes, and the keys from connected services are kept encrypted. You can add two-step sign-in or a passkey under Settings, then Security.',
+                'If you reset the password of an account whose email address was never confirmed, or log in to it with a service that confirms that address, Traceway removes every connected account, passkey, and two-step sign-in on it, and signs it out everywhere, so nobody who opened it with your address keeps a way in. Logging in with a service removes the old password too.',
             ],
         },
         {
@@ -224,7 +239,7 @@ export const terms: LegalPage = {
         {
             heading: 'Your account',
             paragraphs: [
-                'You must be 13 or older. Use your own email address, keep your password to yourself, and tell us if you think someone else is using your account. One account is for one person.',
+                'You must be 13 or older. Use your own email address, keep your password to yourself, and tell us if you think someone else is using your account. If you log in with an account at another service, keep that account safe too, because it opens your Traceway account. One account is for one person.',
             ],
         },
         {
@@ -247,7 +262,7 @@ export const terms: LegalPage = {
         {
             heading: 'Other services',
             paragraphs: [
-                'Traceway works with services it does not run: the map services, AI assistants such as Claude and ChatGPT, and watches and apps from Garmin and others. Their own terms apply to them. Traceway is not linked to, or endorsed by, any of them.',
+                'Traceway works with services it does not run: the map services, AI assistants such as Claude and ChatGPT, the accounts you log in with, such as Google and GitHub, and watches and apps from Garmin, Wahoo, Ride with GPS, and others. Their own terms apply to them. Traceway is not linked to, or endorsed by, any of them.',
             ],
         },
         {
@@ -309,6 +324,8 @@ export const cookies: LegalPage = {
                 '**XSRF-TOKEN** protects your forms, so another site cannot send them in your name. It lasts as long as the session.',
                 '**remember_web_…** is set only when you tick “Remember me”. It keeps you signed in for up to 400 days, or until you log out.',
                 '**appearance** remembers light, dark, or the same as your device. It lasts a year.',
+                '**last_sign_in** remembers whether you last logged in on this browser with your password, a passkey, or a connected account, and which one, so the log in page can mark it. It holds only that word, not who you are, and lasts 400 days.',
+                '**finish_sign_up** is set only when you open an account with another service, such as OpenStreetMap, and Traceway emails you a link to finish it. It holds a random code, not who you are, so that the link connects the service only in this browser. It lasts up to 60 minutes.',
             ],
         },
         {
@@ -321,6 +338,12 @@ export const cookies: LegalPage = {
                 '**traceway.library.layout** remembers whether your library shows a grid, a map, or a list.',
                 '**appearance** keeps your light or dark choice here too.',
                 '**traceway.consent** remembers whether you said yes or no to counting your visit, and when, so the pages of this site do not ask again for a year.',
+            ],
+        },
+        {
+            heading: 'Logging in with another service',
+            paragraphs: [
+                'When you log in with an account at another service, such as Google or GitHub, you go to that service’s own page. It may set its own cookies there, under its own policy. Traceway sets none for it, apart from last_sign_in and finish_sign_up above.',
             ],
         },
         {
@@ -375,7 +398,7 @@ export const notice: LegalPage = {
         {
             heading: 'Other names',
             paragraphs: [
-                'Garmin, Connect IQ, ClimbPro, COROS, Suunto, Wahoo, Hammerhead, Bryton, Claude, ChatGPT, Codex, Cursor, and Visual Studio Code are trademarks of their owners. Traceway is not linked to, or endorsed by, any of them.',
+                'Garmin, Garmin Connect, Connect IQ, ClimbPro, COROS, Suunto, Wahoo, Hammerhead, Bryton, Ride with GPS, RunSignup, OpenStreetMap, Google, GitHub, Discord, Claude, ChatGPT, Codex, Cursor, and Visual Studio Code are trademarks of their owners. Traceway is not linked to, or endorsed by, any of them.',
             ],
         },
         {

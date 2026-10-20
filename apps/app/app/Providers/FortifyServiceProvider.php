@@ -4,20 +4,31 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Account\Email;
 use App\Account\Role;
 use App\Actions\Fortify\CreateNewUser;
+use App\Actions\Fortify\DeletePasskeyKeepingAWayIn;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Auth\Connections\ConnectionFlow;
+use App\Auth\Connections\LastSignIn;
+use App\Http\Middleware\GuardSignupForms;
 use App\Http\Responses\LogoutResponse;
+use App\Models\User;
+use App\Queries\Account\ConnectionsQuery;
+use App\Queries\Account\SignInOptionsQuery;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Laravel\Fortify\Contracts\LogoutResponse as LogoutResponseContract;
+use Laravel\Fortify\Events\TwoFactorAuthenticationChallenged;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
+use Laravel\Passkeys\Actions\DeletePasskey;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -27,6 +38,7 @@ class FortifyServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(LogoutResponseContract::class, LogoutResponse::class);
+        $this->app->bind(DeletePasskey::class, DeletePasskeyKeepingAWayIn::class);
     }
 
     /**
@@ -37,6 +49,7 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
+        $this->configureChallenges();
     }
 
     /**
@@ -49,6 +62,21 @@ class FortifyServiceProvider extends ServiceProvider
     }
 
     /**
+     * A password that leads to a two-factor challenge takes the place of a service the rider started with and
+     * left, so the code they give next is not marked "Last used" as that service.
+     */
+    private function configureChallenges(): void
+    {
+        Event::listen(TwoFactorAuthenticationChallenged::class, static function (): void {
+            $request = request();
+
+            if ($request->routeIs('login.store') && $request->hasSession()) {
+                new ConnectionFlow($request->session())->pullSigningInWith();
+            }
+        });
+    }
+
+    /**
      * Configure Fortify views.
      */
     private function configureViews(): void
@@ -57,6 +85,8 @@ class FortifyServiceProvider extends ServiceProvider
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'status' => $request->session()->get('status'),
             'demoRiders' => config('demo.enabled') === true ? $this->demoRiders() : [],
+            'connections' => resolve(SignInOptionsQuery::class)->forLogin(LastSignIn::read($request)),
+            'pendingConnection' => $this->pendingConnection($request),
         ]));
 
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/reset-password', [
@@ -67,33 +97,54 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::requestPasswordResetLinkView(fn (Request $request) => Inertia::render('auth/forgot-password', [
             'status' => $request->session()->get('status'),
-            'turnstileSiteKey' => $this->turnstileSiteKey(),
+            'turnstileSiteKey' => GuardSignupForms::siteKey(),
         ]));
 
         Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/verify-email', [
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::registerView(fn () => Inertia::render('auth/register', [
+        Fortify::registerView(fn (Request $request) => Inertia::render('auth/register', [
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
-            'turnstileSiteKey' => $this->turnstileSiteKey(),
+            'turnstileSiteKey' => GuardSignupForms::siteKey(),
+            'connections' => resolve(SignInOptionsQuery::class)->forLogin(LastSignIn::read($request)),
         ]));
 
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
 
-        Fortify::confirmPasswordView(fn () => Inertia::render('auth/confirm-password'));
+        // A rider without a password confirms with a passkey or a connected service. A rider with one gives it.
+        Fortify::confirmPasswordView(function (Request $request) {
+            $user = $request->user();
+            $hasPassword = ! $user instanceof User || $user->password !== null;
+
+            return Inertia::render('auth/confirm-password', [
+                'hasPassword' => $hasPassword,
+                'connections' => $user instanceof User && ! $hasPassword ? resolve(ConnectionsQuery::class)->signInMethods($user->id) : [],
+            ]);
+        });
     }
 
     /**
-     * The public Turnstile key, or null when the check is off. Both keys are
-     * needed, the same as for the check itself.
+     * A service waiting to be connected once the rider logs in, to the account with its email or, with confirm,
+     * to the one they choose and then say yes. An address is shown shortened, in case someone else uses the
+     * computer next.
+     *
+     * @return array{slug: string, label: string, email: string|null, confirm: bool}|null
      */
-    private function turnstileSiteKey(): ?string
+    private function pendingConnection(Request $request): ?array
     {
-        $siteKey = config('services.turnstile.site_key');
-        $secret = config('services.turnstile.secret_key');
+        $pending = new ConnectionFlow($request->session())->pendingLink();
 
-        return is_string($siteKey) && $siteKey !== '' && is_string($secret) && $secret !== '' ? $siteKey : null;
+        if ($pending === null) {
+            return null;
+        }
+
+        return [
+            'slug' => $pending['identity']->provider->value,
+            'label' => $pending['identity']->provider->label(),
+            'email' => $pending['email'] instanceof Email ? ConnectionFlow::shortEmail($pending['email']) : null,
+            'confirm' => $pending['confirm'],
+        ];
     }
 
     /**

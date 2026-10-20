@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label';
 // oxfmt-ignore
 type Props = {
     passwordRules: string;
+    /** False when the rider opened the account with a connected service and never set a password. */
+    hasPassword: boolean;
 } & ManagePasskeysProps &
     ManageTwoFactorProps;
 
@@ -27,12 +29,20 @@ export default function Security(props: Props) {
 
             <h1 className="sr-only">Security settings</h1>
 
-            <div className="card">
-                <Heading
-                    variant="small"
-                    title="Update password"
-                    description="Ensure your account is using a long, random password to stay secure"
-                />
+            <div className="card scroll-mt-24" id="security-password">
+                {props.hasPassword ? (
+                    <Heading
+                        variant="small"
+                        title="Update password"
+                        description="Ensure your account is using a long, random password to stay secure"
+                    />
+                ) : (
+                    <Heading
+                        variant="small"
+                        title="Set a password"
+                        description="You do not have a password yet. A password gives you another way to log in."
+                    />
+                )}
 
                 <Form
                     {...SecurityController.update.form()}
@@ -58,22 +68,26 @@ export default function Security(props: Props) {
                 >
                     {({ errors, processing }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="current_password">
-                                    Current password
-                                </Label>
+                            {props.hasPassword ? (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="current_password">
+                                        Current password
+                                    </Label>
 
-                                <PasswordInput
-                                    id="current_password"
-                                    ref={currentPasswordInput}
-                                    name="current_password"
-                                    className="mt-1 block w-full"
-                                    autoComplete="current-password"
-                                    placeholder="Current password"
-                                />
+                                    <PasswordInput
+                                        id="current_password"
+                                        ref={currentPasswordInput}
+                                        name="current_password"
+                                        className="mt-1 block w-full"
+                                        autoComplete="current-password"
+                                        placeholder="Current password"
+                                    />
 
-                                <InputError message={errors.current_password} />
-                            </div>
+                                    <InputError
+                                        message={errors.current_password}
+                                    />
+                                </div>
+                            ) : null}
 
                             <div className="grid gap-2">
                                 <Label htmlFor="password">New password</Label>
@@ -115,7 +129,9 @@ export default function Security(props: Props) {
                                     disabled={processing}
                                     data-test="update-password-button"
                                 >
-                                    Save
+                                    {props.hasPassword
+                                        ? 'Save'
+                                        : 'Set password'}
                                 </Button>
                             </div>
                         </>
@@ -132,6 +148,8 @@ export default function Security(props: Props) {
             <ManagePasskeys
                 canManagePasskeys={props.canManagePasskeys}
                 passkeys={props.passkeys}
+                passkeyIsLastWayIn={props.passkeyIsLastWayIn}
+                passwordCard="security-password"
             />
         </>
     );

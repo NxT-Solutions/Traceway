@@ -14,7 +14,8 @@ use Saloon\Traits\Plugins\AcceptsJson;
 use Saloon\Traits\Plugins\HasTimeout;
 
 /**
- * Wahoo's cloud API. A route stored here syncs to the Wahoo app and on to an ELEMNT or ACE.
+ * Wahoo's cloud API. A route stored here syncs to the Wahoo app and on to an ELEMNT or ACE. The rider's sign-in
+ * runs through Socialite; this connector only refreshes and uses the keys it gave.
  */
 final class WahooConnector extends Connector
 {
@@ -29,24 +30,12 @@ final class WahooConnector extends Connector
     public function __construct(
         private readonly string $clientId,
         private readonly string $clientSecret,
-        private readonly string $redirectUri,
         private readonly string $baseUrl = 'https://api.wahooligan.com',
     ) {}
 
     public function resolveBaseUrl(): string
     {
         return rtrim($this->baseUrl, '/');
-    }
-
-    /**
-     * Trades the code from the sign-in redirect for tokens, leaving the answer to the caller.
-     * Saloon's getAccessToken() hides which failures it throws.
-     *
-     * @throws FatalRequestException when the service cannot be reached
-     */
-    public function tradeCode(string $code): Response
-    {
-        return $this->send($this->resolveAccessTokenRequest($code, $this->oauthConfig()));
     }
 
     /**
@@ -67,10 +56,6 @@ final class WahooConnector extends Connector
         return OAuthConfig::make()
             ->setClientId($this->clientId)
             ->setClientSecret($this->clientSecret)
-            ->setRedirectUri($this->redirectUri)
-            ->setDefaultScopes(['user_read', 'routes_read', 'routes_write'])
-            ->setAuthorizeEndpoint('/oauth/authorize')
-            ->setTokenEndpoint('/oauth/token')
-            ->setUserEndpoint('/v1/user');
+            ->setTokenEndpoint('/oauth/token');
     }
 }

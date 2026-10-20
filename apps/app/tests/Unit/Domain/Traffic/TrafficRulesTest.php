@@ -41,6 +41,10 @@ it('knows the pages people use from the paths scanners try', function (): void {
         ->and(PeoplePages::is('/login'))->toBeTrue()
         ->and(PeoplePages::is('/share/abc'))->toBeTrue()
         ->and(PeoplePages::is('/settings/profile'))->toBeTrue()
+        ->and(PeoplePages::is('/auth/google/redirect'))->toBeTrue()
+        ->and(PeoplePages::is('/auth/google/callback'))->toBeTrue()
+        ->and(PeoplePages::is('/login/options'))->toBeTrue()
+        ->and(PeoplePages::is('/login/finish'))->toBeTrue()
         ->and(PeoplePages::is('/.env'))->toBeFalse()
         ->and(PeoplePages::is('/wp-login.php'))->toBeFalse()
         ->and(PeoplePages::is('/xmlrpc.php'))->toBeFalse();
@@ -52,5 +56,6 @@ it('knows a POST to a page people only read comes from a scanner', function (): 
         ->and(PeoplePages::is('/_astro/app.js', 'PUT'))->toBeFalse()
         ->and(PeoplePages::is('/', 'HEAD'))->toBeTrue()
         ->and(PeoplePages::is('/login', 'POST'))->toBeTrue()
+        ->and(PeoplePages::is('/login/finish', 'POST'))->toBeTrue()
         ->and(PeoplePages::is('/settings/profile', 'PATCH'))->toBeTrue();
 });

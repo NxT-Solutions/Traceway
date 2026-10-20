@@ -9,7 +9,7 @@ use App\Domain\Courses\Services\ServiceTokens;
 use App\Domain\Courses\Services\ServiceUnavailable;
 use App\Domain\Routing\Sport;
 use App\Integrations\RideWithGps\Requests\DeleteRouteRequest;
-use App\Integrations\RideWithGps\Requests\GetAccessTokenRequest;
+use App\Integrations\RideWithGps\Requests\GetCurrentUserRequest;
 use App\Integrations\RideWithGps\Requests\GetTaskRequest;
 use App\Integrations\RideWithGps\Requests\RevokeTokenRequest;
 use App\Integrations\RideWithGps\Requests\UploadRouteRequest;
@@ -25,7 +25,7 @@ uses(TestCase::class);
 
 function rideWithGpsService(MockClient $mockClient, int $attempts = 3): RideWithGpsCourseService
 {
-    $connector = new RideWithGpsConnector('client', 'secret', 'https://traceway.test/settings/services/ride_with_gps/callback', baseUrl: 'https://rwgps.test');
+    $connector = new RideWithGpsConnector('client', 'secret', baseUrl: 'https://rwgps.test');
     $connector->withMockClient($mockClient);
 
     return new RideWithGpsCourseService($connector, $attempts, 0);
@@ -47,23 +47,22 @@ function rideWithGpsTask(string $status, array $items = []): MockResponse
     return MockResponse::make(['task' => ['id' => 99, 'status' => $status, 'items' => $items, 'errors' => []]], 202);
 }
 
-it('trades the sign-in code for a token that does not run out', function (): void {
+it('keeps its key, which does not run out', function (): void {
+    $serviceTokens = new ServiceTokens('access');
+
+    expect(rideWithGpsService(new MockClient([]))->refresh($serviceTokens))->toBe($serviceTokens);
+});
+
+it('sends the API key with each request when one is set', function (): void {
+    $connector = new RideWithGpsConnector('client', 'secret', 'the-api-key', 'https://rwgps.test');
     $mock = new MockClient([
-        GetAccessTokenRequest::class => MockResponse::make(['access_token' => 'access', 'token_type' => 'bearer']),
+        UploadRouteRequest::class => rideWithGpsTask('completed', [['item_type' => 'route', 'item_id' => 321]]),
     ]);
+    $connector->withMockClient($mock);
 
-    $serviceTokens = rideWithGpsService($mock)->connect('the-code');
+    new RideWithGpsCourseService($connector, 1, 0)->publish(new ServiceTokens('access'), rideWithGpsUpload(), previousId: null);
 
-    expect($serviceTokens->accessToken)->toBe('access')
-        ->and($serviceTokens->refreshToken)->toBeNull()
-        ->and($serviceTokens->expiresAt)->toBeNull();
-    $mock->assertSent(fn (GetAccessTokenRequest $getAccessTokenRequest, Response $response): bool => $response->getPendingRequest()->body()?->all() === [
-        'grant_type' => 'authorization_code',
-        'code' => 'the-code',
-        'client_id' => 'client',
-        'client_secret' => 'secret',
-        'redirect_uri' => 'https://traceway.test/settings/services/ride_with_gps/callback',
-    ] && $response->getPendingRequest()->getUrl() === 'https://rwgps.test/oauth/token.json');
+    $mock->assertSent(fn (UploadRouteRequest $uploadRouteRequest, Response $response): bool => $response->getPendingRequest()->headers()->get('x-rwgps-api-key') === 'the-api-key');
 });
 
 it('uploads the route as GPX and waits until Ride with GPS has read it', function (): void {
@@ -164,4 +163,63 @@ it('withdraws the token when the rider disconnects', function (): void {
         'client_secret' => 'secret',
         'token' => 'access',
     ]);
+});
+
+it('reads which Ride with GPS account its key belongs to, with the API key when one is set', function (): void {
+    $connector = new RideWithGpsConnector('client', 'secret', 'the-api-key', 'https://rwgps.test');
+    $mock = new MockClient([
+        GetCurrentUserRequest::class => MockResponse::make(['user' => ['id' => 4711, 'name' => 'Road Rider', 'email' => 'road@rwgps.test']]),
+    ]);
+    $connector->withMockClient($mock);
+
+    $serviceAccount = new RideWithGpsCourseService($connector, 1, 0)->account(new ServiceTokens('access'));
+
+    expect($serviceAccount->id)->toBe('4711')
+        ->and($serviceAccount->email)->toBe('road@rwgps.test');
+    $mock->assertSent(fn (GetCurrentUserRequest $getCurrentUserRequest, Response $response): bool => $response->getPendingRequest()->getUrl() === 'https://rwgps.test/api/v1/users/current.json'
+        && $response->getPendingRequest()->getMethod()->value === 'GET'
+        && $response->getPendingRequest()->headers()->get('Authorization') === 'Bearer access'
+        && $response->getPendingRequest()->headers()->get('x-rwgps-api-key') === 'the-api-key');
+});
+
+it('reads a Ride with GPS account that shares no email', function (): void {
+    $serviceAccount = rideWithGpsService(new MockClient([
+        GetCurrentUserRequest::class => MockResponse::make(['user' => ['id' => '4711', 'email' => '']]),
+    ]))->account(new ServiceTokens('access'));
+
+    expect($serviceAccount->id)->toBe('4711')
+        ->and($serviceAccount->email)->toBeNull();
+});
+
+it('asks to connect again when Ride with GPS no longer accepts the key it asks with', function (): void {
+    rideWithGpsService(new MockClient([
+        GetCurrentUserRequest::class => MockResponse::make([], 401),
+    ]))->account(new ServiceTokens('access'));
+})->throws(ServiceRefused::class);
+
+it('says Ride with GPS is unavailable when it does not say whose account it is', function (MockResponse $mockResponse): void {
+    rideWithGpsService(new MockClient([
+        GetCurrentUserRequest::class => $mockResponse,
+    ]))->account(new ServiceTokens('access'));
+})->with([
+    'a failure' => fn (): MockResponse => MockResponse::make([], 500),
+    'no account' => fn (): MockResponse => MockResponse::make(['id' => 4711]),
+    'an account without a number' => fn (): MockResponse => MockResponse::make(['user' => ['email' => 'road@rwgps.test']]),
+    'a blank number' => fn (): MockResponse => MockResponse::make(['user' => ['id' => '']]),
+])->throws(ServiceUnavailable::class);
+
+it('ends the key a new log in replaced, since its keys never run out', function (): void {
+    $mock = new MockClient([
+        RevokeTokenRequest::class => MockResponse::make([]),
+    ]);
+
+    rideWithGpsService($mock)->supersede(new ServiceTokens('access-old'));
+
+    $mock->assertSentCount(1);
+    $mock->assertSent(fn (RevokeTokenRequest $revokeTokenRequest, Response $response): bool => $response->getPendingRequest()->getUrl() === 'https://rwgps.test/oauth/revoke.json'
+        && $response->getPendingRequest()->body()?->all() === [
+            'client_id' => 'client',
+            'client_secret' => 'secret',
+            'token' => 'access-old',
+        ]);
 });

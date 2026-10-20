@@ -2,11 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Domain\Courses\Services\CourseServices;
+use App\Models\ConnectedAccount;
 use App\Models\SavedRoute;
 use App\Models\User;
+use App\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Fakes\RecordingCourseService;
+use Tests\Support\DrawnPage;
 
 uses(RefreshDatabase::class);
 
@@ -246,6 +252,78 @@ it('shows linked devices on the settings page', function (): void {
             ->has('devices', 1)
             ->where('devices.0.label', 'Fenix 8')
             ->where('devices.0.provider', 'Garmin'));
+});
+
+/**
+ * Turns on Wahoo and Ride with GPS, so Send routes to lists them.
+ */
+function deviceLinkRouteServices(): void
+{
+    config([
+        'services.wahoo.client_id' => 'wahoo-client',
+        'services.wahoo.client_secret' => 'wahoo-secret',
+        'services.ride_with_gps.client_id' => 'rwgps-client',
+        'services.ride_with_gps.client_secret' => 'rwgps-secret',
+    ]);
+
+    app()->instance(CourseServices::class, new CourseServices([
+        'wahoo' => new RecordingCourseService('wahoo'),
+        'ride_with_gps' => new RecordingCourseService('ride_with_gps'),
+    ]));
+}
+
+it('tells the devices page whether the rider confirmed their email, since connecting a service waits for it', function (): void {
+    Notification::fake();
+    deviceLinkRouteServices();
+    $user = User::factory()->unverified()->create();
+
+    $this->actingAs($user)
+        ->get(route('devices.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $assert): Assert => $assert
+            ->where('emailVerified', expected: false)
+            ->where('verificationSent', expected: false));
+
+    $this->from(route('devices.edit'))
+        ->post(route('verification.send'))
+        ->assertRedirect(route('devices.edit'));
+
+    Notification::assertSentTo($user, VerifyEmail::class);
+
+    $this->get(route('devices.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $assert): Assert => $assert->where('verificationSent', expected: true));
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('devices.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $assert): Assert => $assert->where('emailVerified', expected: true));
+});
+
+it('turns Connect and Disconnect off for a service until the email is confirmed, and says why', function (): void {
+    deviceLinkRouteServices();
+    $user = User::factory()->unverified()->create();
+    ConnectedAccount::factory()->for($user)->create();
+
+    $htmlDocument = DrawnPage::of($this->actingAs($user)->get(route('devices.edit'))->assertOk());
+    $disconnect = $htmlDocument->querySelector('[data-disconnect="wahoo"]');
+    $connect = $htmlDocument->querySelector('.cx-buttons .cx-action:not([data-disconnect])');
+
+    expect($htmlDocument->getElementById('devices-confirm-email')?->textContent)->toBe('Confirm your email first. Then you can add or remove a connection.')
+        ->and($disconnect?->hasAttribute('disabled'))->toBeTrue()
+        ->and($disconnect?->getAttribute('aria-describedby'))->toBe('devices-confirm-email')
+        ->and($connect?->tagName)->toBe('BUTTON')
+        ->and($connect?->textContent)->toBe('Connect Ride with GPS')
+        ->and($connect?->hasAttribute('disabled'))->toBeTrue()
+        ->and($connect?->getAttribute('aria-describedby'))->toBe('devices-confirm-email');
+
+    $user->markEmailAsVerified();
+
+    $confirmed = DrawnPage::of($this->get(route('devices.edit'))->assertOk());
+
+    expect($confirmed->getElementById('devices-confirm-email'))->toBeNull()
+        ->and($confirmed->querySelector('[data-disconnect="wahoo"]')?->hasAttribute('disabled'))->toBeFalse()
+        ->and($confirmed->querySelector('.cx-buttons .cx-action:not([data-disconnect])')?->tagName)->toBe('A');
 });
 
 it('limits how often one address opens a pairing', function (): void {
