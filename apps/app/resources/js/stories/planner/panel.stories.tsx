@@ -10,7 +10,7 @@ type RowKey = (typeof rowKeys)[number];
 type PanelArgs = {
     /** The route's name in the panel head. */
     name: string;
-    /** The sport chosen in the head's segmented control. */
+    /** The sport chosen in the head's option group. */
     sport: 'Run' | 'Walk' | 'Ride';
     start: string;
     distanceKm: number;
@@ -36,7 +36,7 @@ type PanelArgs = {
  * One choice from two to six, as radios in a hairline frame. Only the chosen radio is in the tab order; the arrow
  * keys move the choice and the focus along, wrapping at the ends, and Home and End jump to them.
  */
-function Segmented({
+function OptionGroup({
     label,
     options,
     initial,
@@ -230,7 +230,7 @@ function Panel(args: PanelArgs) {
                         <Pencil size={18} aria-hidden="true" />
                     </button>
                 </div>
-                <Segmented
+                <OptionGroup
                     label="Sport"
                     options={['Run', 'Walk', 'Ride']}
                     initial={args.sport}
@@ -459,12 +459,12 @@ const sportsInFull: readonly string[] = [
  * Equal options in a hairline frame, for one choice from two to six. Foot and bike get equal weight. Tab reaches
  * the chosen option; the arrow keys move the choice. The `sport` Control picks the start (Ride starts on Road).
  */
-export const SegmentedControl: Story = {
+export const OptionGroups: Story = {
     args: { sport: 'Ride' },
     render: (args) => (
         <PlannerScene>
             <div style={{ display: 'grid', gap: 12, width: 420 }}>
-                <Segmented
+                <OptionGroup
                     key={args.sport}
                     label="Sport"
                     options={sportsInFull}
@@ -473,7 +473,7 @@ export const SegmentedControl: Story = {
                     }
                     onChange={args.onSport}
                 />
-                <Segmented
+                <OptionGroup
                     label="Surface"
                     options={['Paved', 'Dirt']}
                     initial="Paved"

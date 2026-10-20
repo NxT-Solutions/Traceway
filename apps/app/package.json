@@ -11,6 +11,7 @@
         "storybook": "msw init .storybook/msw --no-save && storybook dev --port 6006 --no-open",
         "build-storybook": "msw init .storybook/msw --no-save && storybook build --output-dir storybook-static --quiet",
         "test:storybook": "msw init .storybook/msw --no-save && vitest run --project storybook && vitest run --project storybook-ink",
+        "test:storybook:coverage": "msw init .storybook/msw --no-save && vitest run --project storybook --coverage --coverage.reportsDirectory=storybook-coverage/paper && vitest run --project storybook-ink --coverage --coverage.reportsDirectory=storybook-coverage/ink",
         "test:storybook:contrast": "node .storybook/contrast.mjs",
         "design-system": "bun run build-storybook && node .storybook/design-system/build.mjs",
         "check": "biome check .",

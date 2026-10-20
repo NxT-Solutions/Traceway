@@ -27,6 +27,8 @@ it('keeps the two Storybooks on the same storage rules', function (): void {
     expect($app)->toContain("pathname.startsWith('/storybook/')")
         ->toContain("prefix = 'storybook:'")
         ->toContain('path=/storybook/')
+        // So a request that slips past Storybook fails Laravel's CSRF check.
+        ->toContain("!pair.startsWith('XSRF-TOKEN=')")
         ->and($code($web))->toBe($code($app));
 });
 
@@ -34,5 +36,7 @@ it('answers a request no story mocks in the browser, so it never reaches the pla
     $preview = storybookFile('apps/app/.storybook/preview.tsx');
 
     expect($preview)->toContain('setupWorker(noRealServer())')
-        ->toContain('{ status: 503 }');
+        ->toContain('{ status: 503 }')
+        // Without the mocked server, fetch and XMLHttpRequest refuse the planner's paths instead.
+        ->toContain('refuseRealServer();');
 });

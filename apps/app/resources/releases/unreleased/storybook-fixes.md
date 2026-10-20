@@ -6,6 +6,8 @@ section: Fixes
 - **Show password works from the keyboard.** Press Tab from the password field to reach the eye button and show or hide what you typed.
 - **The open setting stands out on light maps.** When you open a setting in the planner, such as Distance, it is underlined in the Traceway green instead of turning pale green text.
 - **Light and dark switch cleanly.** Changing between light and dark no longer fades the buttons through hard-to-read colours for a moment.
+- **The planner follows your device's light or dark setting.** When your phone or computer switches between light and dark, an open planner now switches with it.
+- **Screen readers hear which planner setting is open.** Distance, Sport, Surface and the other settings say when their choices are showing.
 - **Your passkeys list looks right in dark mode.** The labels next to each passkey, such as iCloud Keychain, are readable again.
 - **The back arrow between loops goes back.** When the planner finds three loops, the ‹ arrow now shows the one before, as it should, instead of the next one.
 - **Screen readers name the 2-step code box.** The box for the six-digit code from your authenticator app is now read out as Authentication code, and the setup key and its copy button are named too.

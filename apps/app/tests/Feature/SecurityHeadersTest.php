@@ -291,7 +291,7 @@ it('sends the headers from every nginx location that answers from disk', functio
     foreach ($locations as [, $match, $body]) {
         $fromDisk = ! str_contains($body, 'fastcgi_pass') && ! str_contains($body, 'deny all');
         // Storybook's own headers (storybook-headers.conf): its build runs inline scripts and frames its stories.
-        $storybook = str_contains($match, '/storybook/');
+        $storybook = str_contains($match, '^/storybook/');
 
         expect(str_contains($body, 'include /etc/nginx/security-headers.conf;'))
             ->toBe($fromDisk && ! $storybook, "location {$match}")

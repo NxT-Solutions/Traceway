@@ -14,6 +14,12 @@ import { mswLoader } from 'msw-storybook-addon/csf3';
 import { Appearance } from '../resources/js/stories/support/appearance';
 import { ThemedDocsContainer } from './docs-container';
 
+// Read once, as the preview loads: a page story's Inertia writes the page's own address into the frame later.
+/** The folder Storybook is served from: /storybook/app/ when published, / in dev and the tests. */
+const storybookFolder = new URL('.', window.location.href).pathname;
+/** Whether this is the published Storybook, on the same site as the planner. */
+const published = window.location.pathname.startsWith('/storybook/');
+
 /**
  * Published, Storybook lives at traceway.online/storybook/app/, on the same site as the planner, so a story runs
  * with a signed-in visitor's cookies. A request to this site that no story mocks gets a 503 here and never reaches
@@ -22,14 +28,12 @@ import { ThemedDocsContainer } from './docs-container';
  * before this one, so a mocked request still gets its mock.
  */
 function noRealServer() {
-    const storybook = new URL('.', window.location.href).pathname;
-
     return http.all('*', ({ request }) => {
         const url = new URL(request.url);
 
         if (
             url.origin !== window.location.origin ||
-            url.pathname.startsWith(storybook)
+            url.pathname.startsWith(storybookFolder)
         ) {
             return undefined;
         }
@@ -42,6 +46,48 @@ function noRealServer() {
             { status: 503 },
         );
     });
+}
+
+/** Whether a request would go to the planner on this site, rather than to Storybook's own files or another site. */
+function toRealServer(target: string | URL): boolean {
+    const url = new URL(target, window.location.href);
+
+    return (
+        published &&
+        url.origin === window.location.origin &&
+        !url.pathname.startsWith(storybookFolder)
+    );
+}
+
+/**
+ * Without the mocked server, a published story's requests would reach the real planner with the visitor's cookies.
+ * fetch and XMLHttpRequest refuse them instead. Off Storybook's published address, nothing changes.
+ */
+function refuseRealServer() {
+    const fetchFromNetwork = window.fetch.bind(window);
+
+    window.fetch = (input, init) => {
+        const target = input instanceof Request ? input.url : input;
+
+        return toRealServer(target)
+            ? Promise.reject(new TypeError('Storybook has no server.'))
+            : fetchFromNetwork(input, init);
+    };
+
+    const open = XMLHttpRequest.prototype.open;
+
+    XMLHttpRequest.prototype.open = function (
+        this: XMLHttpRequest,
+        method: string,
+        url: string | URL,
+        ...rest: [boolean?, string?, string?]
+    ) {
+        if (toRealServer(url)) {
+            throw new TypeError('Storybook has no server.');
+        }
+
+        return open.call(this, method, url, ...(rest as [boolean, string?, string?]));
+    } as typeof XMLHttpRequest.prototype.open;
 }
 
 const preview: Preview = {
@@ -66,7 +112,10 @@ const preview: Preview = {
             } catch (error) {
                 // A browser that blocks service workers still shows every
                 // story; only the ones that need the mocked server go without.
+                // Published, nothing then stands between a story and the real
+                // planner, so its requests to this site are refused here.
                 console.warn('Storybook: the mocked server did not start.', error);
+                refuseRealServer();
             }
 
             return worker;

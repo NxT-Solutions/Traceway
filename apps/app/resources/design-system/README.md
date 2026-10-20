@@ -42,7 +42,7 @@ One family: **Outfit** at 400, 500, 600 and 700 (`fonts/`), stack `Outfit, 'Aven
 
 - Spacing follows a 4px base with half steps the planner really uses: `space-1` 4, `space-1.5` 6, `space-2` 8, `space-2.5` 10, `space-3` 12, `space-3.5` 14, `space-4` 16, `space-5` 20, `space-6` 24.
 - Controls are `radius-lg` (10px). Inner options sit concentric at `radius-seg` (7px, 4px in). Tiles `radius-tile` 12, the panel `radius-panel` 16, padded cards `radius-card` 30, chips `radius-pill`.
-- Heights: header 64, primary fill 48, outline and fields 42, segmented options 34, map buttons 40, ghost icon 36, stepper 30. Touch targets are 44px where a rider taps on the move (nav, account).
+- Heights: header 64, primary fill 48, outline and fields 42, option groups 34, map buttons 40, ghost icon 36, stepper 30. Touch targets are 44px where a rider taps on the move (nav, account).
 - Surfaces are flat and divided by `hair` rules. Only things that float over the map get `shadow-panel`: the panel, popovers, map controls, toasts.
 
 ## Motion and states

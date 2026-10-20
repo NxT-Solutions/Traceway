@@ -15,6 +15,8 @@ on:
       - apps/web/**
       - apps/garmin/store/**
       - apps/garmin/resources/**
+      - .docker/production/images/configs/nginx/**
+      - .docker/production/images/Dockerfile
   push:
     branches: [main]
   workflow_dispatch:
@@ -98,9 +100,13 @@ jobs:
           npm run test-storybook
 
       # The planner's Storybook shows this build under Site (Astro), at ./site.
-      - name: Build Content Site Storybook
+      # The site itself too, for the overview page at /storybook and the
+      # hashes production's nginx config includes.
+      - name: Build Content Site And Its Storybook
         working-directory: apps/web
-        run: npm run build-storybook
+        run: |
+          npm run build
+          npm run build-storybook
 
       # Builds Storybook, then the design system from it. Fails when a story
       # breaks or tokens.json no longer matches app.css and planner.css.
@@ -114,7 +120,40 @@ jobs:
       # pages the stories reach.
       - name: Test Planner Stories
         working-directory: apps/app
-        run: bun run test:storybook --coverage
+        run: bun run test:storybook:coverage
+
+      # Both Storybooks and the overview page as production serves them: the
+      # production nginx config, Storybook's own headers, and the redirect for
+      # a folder without its slash.
+      - name: Serve Storybook Like Production
+        run: |
+          nginx_conf="$(realpath .docker/production/images/configs/nginx)"
+          docker run -d --name storybook -p 127.0.0.1:8090:8080 \
+            -v "$nginx_conf/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            -v "$nginx_conf/security-headers.conf:/etc/nginx/security-headers.conf:ro" \
+            -v "$nginx_conf/storybook-headers.conf:/etc/nginx/storybook-headers.conf:ro" \
+            -v "$(realpath apps/web/nginx-csp.conf):/etc/nginx/nginx-csp.conf:ro" \
+            -v "$(realpath apps/web/dist):/var/www/web:ro" \
+            -v "$(realpath apps/app/storybook-static):/var/www/storybook/app:ro" \
+            -v "$(realpath apps/web/storybook-static):/var/www/storybook/web:ro" \
+            nginx:1.29-alpine > /dev/null
+          for attempt in $(seq 1 50); do curl --silent --fail --output /dev/null http://127.0.0.1:8090/storybook && break; sleep 0.2; done
+          check() {
+            status=$(curl --silent --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:8090$1")
+            [ "$status" = "$2" ] || { echo "::error::$1 answered $status, not $2"; exit 1; }
+          }
+          check /storybook 200
+          check /storybook/app 301
+          check /storybook/app/ 200
+          check /storybook/app/iframe.html 200
+          check /storybook/app/mockServiceWorker.js 200
+          check /storybook/web/ 200
+          check /storybook/web/index.json 200
+          headers=$(curl --silent --head http://127.0.0.1:8090/storybook/app/)
+          grep -qi "frame-ancestors 'self'" <<< "$headers" || { echo "::error::Storybook lost its frame policy"; exit 1; }
+          grep -qi 'x-robots-tag: noindex' <<< "$headers" || { echo "::error::Storybook is not kept out of search"; exit 1; }
+          grep -qi 'referrer-policy: same-origin' <<< "$headers" || { echo "::error::Storybook no longer sends its address to Laravel"; exit 1; }
+          docker rm -f storybook > /dev/null
 
       # The docs pages too: every page of the built Storybook, in Paper and in
       # Ink, through axe's colour-contrast rule.

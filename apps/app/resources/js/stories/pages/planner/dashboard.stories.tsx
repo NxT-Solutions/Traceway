@@ -299,6 +299,14 @@ export const PlanALoop: Story = {
             await expect(
                 await panel.findByText('Loop 1 of 3', {}, answer),
             ).toBeVisible();
+            // The button eases back from its busy look; the story ends once it has, so the accessibility check reads
+            // its colours at rest.
+            const drawAgain = panel.getByRole('button', { name: 'Draw again' });
+            await waitFor(() => expect(drawAgain).toBeEnabled(), answer);
+            await waitFor(
+                () => expect(getComputedStyle(drawAgain).opacity).toBe('1'),
+                answer,
+            );
         });
     },
 };
