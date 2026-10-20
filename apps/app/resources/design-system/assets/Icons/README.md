@@ -1,0 +1,1 @@
+Traceway's own icons. Everything else is lucide-react. `multisport.svg` is a wave over a wheel and two footprints for brick, triathlon, duathlon and aquabike plans; it strokes in ink (#071f20) at 2px on a 24 grid. In React, `MultisportIcon` strokes in `currentColor`.

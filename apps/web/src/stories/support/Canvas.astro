@@ -1,0 +1,44 @@
+---
+/**
+ * Storybook only. Every story renders inside this (see .storybook/preview.ts). It brings the site's
+ * stylesheets the way a page does, so a story looks as on traceway.online.
+ *
+ * Each page loads its own set (Base.astro: global and page, V2.astro: Lenis, global and v2, the
+ * error pages: errors), and the sets do not mix: errors.css sets its own :root, body and links. So
+ * the set goes in the canvas with the story, as a <style>, and leaves with it when the next story
+ * renders. The fonts never change, so preview.ts loads them once.
+ */
+import lenis from 'lenis/dist/lenis.css?inline';
+import errors from '../../styles/errors.css?inline';
+import global from '../../styles/global.css?inline';
+import page from '../../styles/page.css?inline';
+import home from '../../styles/v2.css?inline';
+import type { Sheets } from './types';
+
+interface Props {
+    /** Which page's stylesheets the story gets. */
+    sheets?: Sheets;
+    /** Classes the page puts on <body>, such as the error page's athlete. */
+    bodyClass?: string;
+}
+
+const { sheets = 'page', bodyClass } = Astro.props;
+
+const css = {
+    page: [global, page],
+    home: [lenis, global, home],
+    errors: [errors],
+}[sheets];
+
+// A page renders a whole document, and the canvas keeps only what is in its <body>. With the
+// canvas (in a full-screen story) and this wrapper out of the way, the page's own layout holds,
+// such as body as a column with the footer at the bottom.
+const canvas = '.sb-main-fullscreen #storybook-root,.sb-site{display:contents}';
+
+// A layout preloads the fonts from their build address, which only Astro's build has. preview.ts
+// loads them for Storybook, so the preloads would only fail.
+const story = (await Astro.slots.render('default')).replace(/<link rel="preload"[^>]*>/g, '');
+---
+
+<style is:inline set:html={[canvas, ...css].join('\n')}></style>
+<div class:list={['sb-site', bodyClass]} set:html={story} />

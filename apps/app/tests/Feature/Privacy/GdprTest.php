@@ -265,6 +265,9 @@ it('has the browser talk only to Traceway, apart from the map itself', function 
     // only. The privacy policy names Cloudflare for it.
     $personCheck = ['challenges.cloudflare.com'];
     $links = ['github.com', 'www.paypal.com', 'paypal.me', 'claude.ai', 'chatgpt.com', 'laravel.com', 'usehooks-ts.com', 'www.w3.org', 'localhost', 'www.cloudflarestatus.com', 'connect.garmin.com', 'dash.cloudflare.com'];
+    // The stories' example data (resources/js/stories): links a connected service's page shows, a sent route's
+    // address, and the assistant address on this site. Storybook shows them; it never fetches them.
+    $storyLinks = ['discord.com', 'myaccount.google.com', 'ridewithgps.com', 'example.com', 'traceway.online', 'traceway.ddev.site'];
     $files = [...File::allFiles(resource_path('js')), ...File::allFiles(resource_path('mcp'))];
     $hosts = [];
 
@@ -276,7 +279,7 @@ it('has the browser talk only to Traceway, apart from the map itself', function 
         }
     }
 
-    expect(array_diff(array_keys($hosts), [...$map, ...$personCheck, ...$links]))->toBe([]);
+    expect(array_diff(array_keys($hosts), [...$map, ...$personCheck, ...$links, ...$storyLinks]))->toBe([]);
 })->group('gdpr');
 
 it('names the sign-up check in the privacy policy', function (): void {

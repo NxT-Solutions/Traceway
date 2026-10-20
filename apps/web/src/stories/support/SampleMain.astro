@@ -1,0 +1,26 @@
+---
+/**
+ * Storybook only. The body of an inner page, as Support and the legal pages have it, to show a
+ * layout with something in it.
+ */
+interface Props {
+    /** The kicker above the heading. */
+    kicker?: string;
+    /** The page's heading. */
+    heading?: string;
+}
+
+const { kicker = 'Sample', heading = 'A page in the site’s layout' } = Astro.props;
+---
+
+<main class="wrap page">
+    <p class="kicker">{kicker}</p>
+    <h1>{heading}</h1>
+    <div class="prose">
+        <p>
+            Drop a pin, pick your sport and a distance. Traceway plans a loop from there and back, ready
+            for your watch or bike computer.
+        </p>
+        <p>A second paragraph, with <a href="/support">a link</a> and <strong>bold words</strong>.</p>
+    </div>
+</main>

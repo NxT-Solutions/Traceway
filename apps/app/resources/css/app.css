@@ -32,7 +32,7 @@
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
 
-    --color-muted: var(--muted);
+    --color-muted: var(--muted-fill);
     --color-muted-foreground: var(--muted-foreground);
 
     --color-accent: var(--accent);
@@ -80,11 +80,15 @@
     --secondary: oklch(0.93 0.02 120);
     --secondary-foreground: oklch(0.22 0.03 200);
     --muted: oklch(0.93 0.012 95);
+    /* What bg-muted paints. The settings, sign-in and planner scenes reuse
+       --muted for their quiet text colour, so the fill is resolved here, on the
+       root, and inherited, and a muted tile inside a scene stays a quiet fill. */
+    --muted-fill: var(--muted);
     --muted-foreground: oklch(0.45 0.03 200);
     --accent: oklch(0.93 0.03 128);
     --accent-foreground: oklch(0.22 0.03 200);
     --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.985 0.008 95);
+    --destructive-foreground: oklch(0.5 0.19 27);
     --warning: oklch(0.62 0.15 65);
     --down: oklch(0.577 0.245 27.325);
     --border: oklch(0.88 0.02 120);
@@ -123,11 +127,12 @@
     --secondary: oklch(0.28 0.03 200);
     --secondary-foreground: oklch(0.96 0.01 95);
     --muted: oklch(0.28 0.03 200);
+    --muted-fill: var(--muted);
     --muted-foreground: oklch(0.75 0.02 200);
     --accent: oklch(0.3 0.04 140);
     --accent-foreground: oklch(0.96 0.01 95);
     --destructive: oklch(0.396 0.141 25.723);
-    --destructive-foreground: oklch(0.96 0.01 95);
+    --destructive-foreground: oklch(0.74 0.16 22);
     --warning: oklch(0.8 0.14 75);
     --down: oklch(0.66 0.2 18);
     --border: oklch(0.32 0.03 200);
@@ -165,6 +170,14 @@
         outline: 2px solid var(--ring);
         outline-offset: 2px;
     }
+}
+
+/* Set for two frames while Paper and Ink switch (use-appearance), so colours change at once instead of easing from
+   the other appearance's, which would read as low contrast for a moment. */
+.appearance-changing *,
+.appearance-changing *::before,
+.appearance-changing *::after {
+    transition: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

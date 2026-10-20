@@ -1,0 +1,25 @@
+import { Markdown, Meta } from '@storybook/addon-docs/blocks';
+import brandBook from '../../design-system/README.md?raw';
+
+<Meta title="Start here" />
+
+# Traceway
+
+Traceway plans routes for any sport and sends them to a watch, a GPS or a bike computer. This Storybook maps the whole product, so new work can start here and then move into the code:
+
+- **Foundations** and **Brand**: colours, type, spacing and the mark, read from `resources/design-system/tokens.json`.
+- **UI** and **Components**: the planner's React components, from `resources/js/components`.
+- **Planner**: the map planner's building blocks, from `resources/css/planner.css`.
+- **Pages**: every planner page rendered through Inertia with example props.
+- **Site (Astro)**: the content site in `apps/web`, from its own Storybook (`apps/web/.storybook`), where Astro renders each component and page.
+- **Garmin**: the Connect IQ app's screens, captured in the simulator.
+
+Use the **Appearance** button in the toolbar to switch between Paper and Ink.
+
+## Building from a story
+
+1. Draw the new piece as a story first, with real copy and the tokens below.
+2. Move it into the component or page it belongs to, and point the story at the real component.
+3. The design system in Claude is rebuilt from these stories (`bun run design-system`), so a merged story is what Claude designs with next.
+
+<Markdown>{brandBook}</Markdown>

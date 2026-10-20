@@ -9,6 +9,7 @@ use App\Http\Middleware\GuardSignupForms;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\NoteLastSeen;
+use App\Http\Middleware\RefuseStorybookChanges;
 use App\Http\Middleware\SendSecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -39,8 +40,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        // Outside EncryptCookies, so the old cookies are cleared as they are.
-        $middleware->web(prepend: [ForgetDomainCookies::class]);
+        // Outside EncryptCookies, so the old cookies are cleared as they are. A change sent from a Storybook page is
+        // refused before anything else reads the request.
+        $middleware->web(prepend: [ForgetDomainCookies::class, RefuseStorybookChanges::class]);
 
         $middleware->web(append: [
             HandleAppearance::class,

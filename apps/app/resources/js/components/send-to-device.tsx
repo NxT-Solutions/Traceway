@@ -583,7 +583,10 @@ function CloudSend({
                         ? `Traceway lost its link to ${service.label}. Connect it again.`
                         : `Connect your ${service.label} account once. Then a route goes there in one tap.`}
                 </p>
-                <p role="status" className="text-sm text-destructive">
+                <p
+                    role="status"
+                    className="text-sm text-destructive-foreground"
+                >
                     {notice}
                 </p>
                 <Button
@@ -640,7 +643,7 @@ function CloudSend({
                             className={cn(
                                 'text-sm',
                                 state?.ok === false
-                                    ? 'text-destructive'
+                                    ? 'text-destructive-foreground'
                                     : 'text-muted-foreground',
                             )}
                         >

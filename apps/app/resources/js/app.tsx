@@ -3,33 +3,13 @@ import ImpersonationBar from '@/components/impersonation-bar';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
-import AdminLayout from '@/layouts/admin/layout';
-import AppLayout from '@/layouts/app-layout';
-import AuthLayout from '@/layouts/auth-layout';
-import SettingsLayout from '@/layouts/settings/layout';
+import { pageLayout } from '@/lib/page-layout';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Traceway';
 
 void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
-    layout: (name) => {
-        switch (true) {
-            case name === 'welcome':
-            case name === 'dashboard':
-            case name === 'share':
-            case name === 'saved':
-            case name === 'status':
-                return null;
-            case name.startsWith('auth/'):
-                return AuthLayout;
-            case name.startsWith('settings/'):
-                return SettingsLayout;
-            case name.startsWith('admin/'):
-                return AdminLayout;
-            default:
-                return AppLayout;
-        }
-    },
+    layout: pageLayout,
     strictMode: true,
     withApp(app, { page }) {
         return (

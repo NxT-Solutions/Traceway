@@ -119,14 +119,24 @@ function TwoFactorSetupStep({
                                     <input
                                         type="text"
                                         readOnly
+                                        aria-label="Setup key"
                                         value={manualSetupKey}
                                         className="h-full w-full bg-background p-3 text-foreground outline-none"
                                     />
                                     <button
+                                        type="button"
+                                        aria-label={
+                                            copiedText === manualSetupKey
+                                                ? 'Setup key copied'
+                                                : 'Copy setup key'
+                                        }
                                         onClick={() => copy(manualSetupKey)}
                                         className="border-l border-border px-3 hover:bg-muted"
                                     >
-                                        <IconComponent className="w-4" />
+                                        <IconComponent
+                                            className="w-4"
+                                            aria-hidden="true"
+                                        />
                                     </button>
                                 </>
                             )}
@@ -177,6 +187,7 @@ function TwoFactorVerificationStep({
                             <InputOTP
                                 id="otp"
                                 name="code"
+                                aria-label="Authentication code"
                                 maxLength={OTP_MAX_LENGTH}
                                 onChange={setCode}
                                 disabled={processing}

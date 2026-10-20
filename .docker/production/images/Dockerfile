@@ -61,6 +61,22 @@ ENV PUBLIC_SITE_URL=https://traceway.online
 
 RUN npm run build
 
+# Storybook, served at /storybook/app/ and /storybook/web/. The planner's runs
+# on Node and imports the routes Wayfinder wrote during build:ssr; its Garmin
+# stories show the store screens and the watch's drawables.
+FROM php-build AS storybook-app-build
+
+RUN apk add --no-cache nodejs
+
+COPY apps/garmin/store /var/www/garmin/store
+COPY apps/garmin/resources/drawables /var/www/garmin/resources/drawables
+
+RUN bun run build-storybook
+
+FROM web-build AS storybook-web-build
+
+RUN npm run build-storybook
+
 FROM node:26-alpine AS mail-build
 
 WORKDIR /src/apps/mail
@@ -84,6 +100,8 @@ COPY --from=php-build /var/www/html/public/build /var/www/html/public/build
 COPY --from=php-build /var/www/html/bootstrap/ssr /var/www/html/bootstrap/ssr
 COPY --from=mail-build /src/apps/app/resources/views/mail/compiled /var/www/html/resources/views/mail/compiled
 COPY --from=web-build /src/dist /var/www/web
+COPY --from=storybook-app-build /var/www/html/storybook-static /var/www/storybook/app
+COPY --from=storybook-web-build /src/storybook-static /var/www/storybook/web
 
 RUN rm -f public/hot
 
@@ -95,6 +113,7 @@ RUN --mount=type=secret,id=runtime_env,target=/run/secrets/runtime_env \
 
 COPY .docker/production/images/configs/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY .docker/production/images/configs/nginx/security-headers.conf /etc/nginx/security-headers.conf
+COPY .docker/production/images/configs/nginx/storybook-headers.conf /etc/nginx/storybook-headers.conf
 COPY --from=web-build /src/nginx-csp.conf /etc/nginx/nginx-csp.conf
 COPY .docker/production/images/configs/php/app.ini /usr/local/etc/php/conf.d/zz-app.ini
 COPY .docker/production/images/configs/php/opcache.ini /usr/local/etc/php/conf.d/zz-opcache.ini

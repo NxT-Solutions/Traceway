@@ -2,6 +2,7 @@
 import { Form, Head } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import InputError from '@/components/input-error';
+import StatusMessage from '@/components/status-message';
 import TextLink from '@/components/text-link';
 import Turnstile from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
@@ -22,9 +23,9 @@ export default function ForgotPassword({
             <Head title="Forgot password" />
 
             {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
+                <StatusMessage className="mb-4 justify-center text-center">
                     {status}
-                </div>
+                </StatusMessage>
             )}
 
             <div className="space-y-6">

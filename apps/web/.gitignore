@@ -1,0 +1,2 @@
+# The site's Storybook build (npm run build-storybook).
+/storybook-static

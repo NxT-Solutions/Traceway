@@ -47,9 +47,20 @@ const applyTheme = (appearance: Appearance): void => {
     }
 
     const isDark = isDarkMode(appearance);
+    const root = document.documentElement;
 
-    document.documentElement.classList.toggle('dark', isDark);
-    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+    // Switch at once. Buttons and links ease their colours on hover; without this they would also fade from the
+    // old appearance's colours, and for a moment Paper text would sit on Ink and the other way round.
+    root.classList.add('appearance-changing');
+    root.classList.toggle('dark', isDark);
+    root.style.colorScheme = isDark ? 'dark' : 'light';
+
+    // React draws the planner and settings scenes' data-theme a moment later, so wait two frames before easing again.
+    requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+            root.classList.remove('appearance-changing'),
+        ),
+    );
 };
 
 const subscribe = (callback: () => void) => {
@@ -72,7 +83,16 @@ const mediaQuery = (): MediaQueryList | null => {
     return window.matchMedia('(prefers-color-scheme: dark)');
 };
 
-const handleSystemThemeChange = (): void => applyTheme(currentAppearance);
+// The device's light or dark setting changed. Pages that follow it draw again, so the planner and settings scenes
+// switch with the rest of the page.
+const handleSystemThemeChange = (): void => {
+    applyTheme(currentAppearance);
+    notify();
+};
+
+/** The setting and what it resolves to, so a change on the device alone still counts as a change for React. */
+const snapshot = (): string =>
+    `${currentAppearance}|${isDarkMode(currentAppearance) ? 'dark' : 'light'}`;
 
 export function initializeTheme(): void {
     if (typeof window === 'undefined') {
@@ -92,15 +112,11 @@ export function initializeTheme(): void {
 }
 
 export function useAppearance(): UseAppearanceReturn {
-    const appearance: Appearance = useSyncExternalStore(
+    const [appearance, resolvedAppearance] = useSyncExternalStore(
         subscribe,
-        () => currentAppearance,
-        () => 'system',
-    );
-
-    const resolvedAppearance: ResolvedAppearance = isDarkMode(appearance)
-        ? 'dark'
-        : 'light';
+        snapshot,
+        () => 'system|light',
+    ).split('|') as [Appearance, ResolvedAppearance];
 
     const updateAppearance = (mode: Appearance): void => {
         currentAppearance = mode;

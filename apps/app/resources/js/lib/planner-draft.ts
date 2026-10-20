@@ -35,9 +35,13 @@ export function forgetSharedPlannerDraft(): void {
  */
 export function forgetPlannerDrafts(): void {
     try {
-        const keys = Object.keys(window.localStorage).filter((key) =>
-            key.startsWith(prefix),
-        );
+        // Listed through key(), the storage API itself, rather than the
+        // object's own keys, so a wrapped storage lists what it holds.
+        const storage = window.localStorage;
+        const keys = Array.from(
+            { length: storage.length },
+            (_, index) => storage.key(index) ?? '',
+        ).filter((key) => key.startsWith(prefix));
 
         for (const key of keys) {
             window.localStorage.removeItem(key);

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 32" fill="none" role="img" aria-label="Traceway">
+  <path d="M8.2 25.2 V15.4 a5.1 5.1 0 0 1 5.1 -5.1 h3.4 a5.1 5.1 0 0 1 5.1 5.1 v2.3" stroke="#f7f5ec" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="22.1" cy="23.5" r="2.45" fill="#97cb46"/>
+  <text x="36" y="22.5" font-family="Outfit, 'Avenir Next', 'Segoe UI', system-ui, sans-serif" font-size="19" font-weight="600" letter-spacing="-0.38" fill="#f7f5ec">Traceway</text>
+</svg>

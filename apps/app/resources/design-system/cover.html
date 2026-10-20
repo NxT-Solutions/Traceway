@@ -1,0 +1,39 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+html,body{margin:0}
+.cv{position:relative;width:960px;height:288px;overflow:hidden;background:var(--background);font-family:var(--font-sans)}
+.cv svg{position:absolute;inset:0;display:block}
+.slab{fill:var(--seg-on);rx:var(--radius-card)}
+.mark{fill:var(--chart);rx:var(--radius-lg)}
+.water{fill:var(--m-water)}
+.road{fill:none;stroke:var(--m-minor);stroke-width:2;stroke-linecap:round}
+.halo{fill:none;stroke:var(--seg-on-fg);stroke-opacity:.16;stroke-width:16;stroke-linejoin:round}
+.route{fill:none;stroke:var(--seg-on-fg);stroke-width:5;stroke-linejoin:round;stroke-linecap:round}
+.pin{fill:var(--marker-dot);stroke:var(--seg-on);stroke-width:3}
+.txt{position:absolute;left:40px;bottom:36px;max-width:440px}
+.name{margin:0;font-size:88px;line-height:.95;font-weight:600;letter-spacing:-0.04em;color:var(--foreground)}
+.tag{margin:12px 0 0;font-size:14px;line-height:1.4;color:var(--muted-foreground)}
+</style></head><body>
+<div class="cv">
+<!--
+blocks: seg-on slab (ink on paper, lifted ink at night) 390×264 at radius-card, bleeding right and bottom; chart block 136×88 at radius-lg; m-water band 400×20 pill (rx 10, half its height).
+arrangement: one tall slab with two satellites — the marker block overlaps its left edge, the river crosses it and runs off the right edge, the way the share card puts the map on the right.
+pattern: a literal motif, the route: one closed loop in seg-on-fg (5px route width over a 16px halo, as the planner draws it) on four m-minor road lines, starting at a marker-dot pin. Traceway is a loop on a map, so the pattern is that.
+scales: slab inset 24 (space-6), block corners radius-card 30 and radius-lg 10, loop corners eased at radius-tile 12, road stroke 2.
+-->
+<svg width="960" height="288" viewBox="0 0 960 288" aria-hidden="true">
+<rect class="slab" x="600" y="24" width="390" height="294" rx="30"/>
+<path class="road" d="M600 132 L960 108"/>
+<path class="road" d="M772 24 L752 288"/>
+<path class="road" d="M600 262 L960 230"/>
+<path class="road" d="M884 24 L944 288"/>
+<rect class="water" x="560" y="196" width="420" height="20" rx="10"/>
+<path class="halo" d="M698 112 L790 82 Q802 78 811 87 L894 166 Q903 175 893 183 L822 236 Q812 243 800 239 L714 210 Q702 206 700 194 Z"/>
+<path class="route" d="M698 112 L790 82 Q802 78 811 87 L894 166 Q903 175 893 183 L822 236 Q812 243 800 239 L714 210 Q702 206 700 194 Z"/>
+<circle class="pin" cx="698" cy="112" r="8"/>
+<rect class="mark" x="512" y="48" width="136" height="88" rx="10"/>
+</svg>
+<div class="txt"><h1 class="name">Traceway</h1><p class="tag">Name the distance. Get a loop worth taking.</p></div>
+</div>
+</body></html>

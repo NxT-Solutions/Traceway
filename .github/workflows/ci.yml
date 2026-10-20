@@ -344,6 +344,7 @@ jobs:
           docker run -d --name content -p 127.0.0.1:4321:8080 \
             -v "$nginx_conf/nginx.conf:/etc/nginx/nginx.conf:ro" \
             -v "$nginx_conf/security-headers.conf:/etc/nginx/security-headers.conf:ro" \
+            -v "$nginx_conf/storybook-headers.conf:/etc/nginx/storybook-headers.conf:ro" \
             -v "$(realpath ../web/nginx-csp.conf):/etc/nginx/nginx-csp.conf:ro" \
             -v "$(realpath ../web/dist):/var/www/web:ro" \
             nginx:1.29-alpine > /dev/null

@@ -23,8 +23,10 @@ it('loads the visit counter only from the consent question', function (): void {
         expect($source)->not->toContain('clarity.ms');
     }
 
+    // Storybook runs on the live site under /storybook/ and shows the question in its stories. It never counts.
     expect(file_get_contents($web.'/components/Consent.astro'))
-        ->toContain("location.hostname === 'traceway.online'");
+        ->toContain("location.hostname === 'traceway.online'")
+        ->toContain("!location.pathname.startsWith('/storybook/')");
 });
 
 it('names every page that asks in the privacy policy', function (): void {

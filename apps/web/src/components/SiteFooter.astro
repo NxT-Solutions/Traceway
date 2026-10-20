@@ -2,6 +2,7 @@
 import Mark from './Mark.astro';
 
 interface Props {
+    /** On the home page the section links scroll in place. */
     home?: boolean;
 }
 
@@ -32,6 +33,7 @@ const at = (hash: string): string => (home ? hash : `/${hash}`);
                     <li><a href="/login">Log in</a></li>
                     <li><a href="/dashboard">Open the planner</a></li>
                     <li><a href="/status">Service status</a></li>
+                    <li><a href="/storybook">Storybook</a></li>
                     <li><a href="/support">Support Traceway</a></li>
                 </ul>
             </div>

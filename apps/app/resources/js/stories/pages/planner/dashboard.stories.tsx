@@ -1,0 +1,738 @@
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
+import type { ServiceNoticeProps } from '@/components/service-notice';
+import { plannerDraftKey, recentPlacesKey } from '@/lib/planner-draft';
+import Dashboard from '@/pages/dashboard';
+import { rider } from '../../support/fixtures';
+import { InertiaPage, sharedProps } from '../../support/inertia-page';
+import { catchDownloads } from '../../support/planner-downloads';
+import {
+    type PlannerDraftOptions,
+    plannerDraftDefaults,
+    plannerDraftFor,
+    routeServices,
+    sportSurfaces,
+} from '../../support/planner-pages';
+import {
+    noLoopFromThatPin,
+    type PlannerServer,
+    plannerServer,
+} from '../../support/planner-server';
+
+/** What the `dashboard` route in routes/web.php renders the planner with, besides the shared props. */
+type DashboardProps = {
+    serviceNotice: ServiceNoticeProps | null;
+    sportSurfaces: Record<string, string>;
+};
+
+type PlannerArgs = PlannerDraftOptions & {
+    /** Off: a new rider with nothing kept in this browser, on the default start in Ghent. */
+    draft: boolean;
+    /** The line above the map when route drawing is down. */
+    serviceNotice: boolean;
+};
+
+const draftKey = plannerDraftKey(rider.id);
+/** Keys the planner keeps in this browser besides the draft: the places picked lately and the device brand. */
+const keptKeys = [recentPlacesKey(rider.id), 'traceway.send-to-device.brand'];
+
+function forget(keys: string[]): void {
+    try {
+        for (const key of keys) {
+            window.localStorage.removeItem(key);
+        }
+    } catch {
+        // Storage can be blocked. Then nothing was kept.
+    }
+}
+
+/** Writes the draft the planner opens on, the way it reopens after a rider drew a route and came back later. */
+function keepDraft(args: PlannerArgs): void {
+    try {
+        if (args.draft) {
+            window.localStorage.setItem(
+                draftKey,
+                JSON.stringify(plannerDraftFor(args)),
+            );
+        } else {
+            window.localStorage.removeItem(draftKey);
+        }
+    } catch {
+        // Storage can be blocked. The planner then opens empty.
+    }
+}
+
+const notice: ServiceNoticeProps = {
+    title: 'Route drawing is down right now.',
+    body: 'It is a problem on the map server, not on your side. Please try again in a few minutes.',
+};
+
+/**
+ * The planner, opened on the draft the Controls describe. A new draft remounts the page, since the planner reads
+ * its draft once, on load.
+ */
+function Planner({ serviceNotice, ...args }: PlannerArgs) {
+    keepDraft({ serviceNotice, ...args });
+
+    return (
+        <InertiaPage<DashboardProps>
+            key={JSON.stringify(args)}
+            name="dashboard"
+            component={Dashboard}
+            url="/dashboard"
+            props={{
+                serviceNotice: serviceNotice ? notice : null,
+                sportSurfaces,
+            }}
+            shared={{ ...sharedProps(), routeServices }}
+        />
+    );
+}
+
+/** The mock server of the story that runs now, so its play function can check what the planner sent. */
+let server: PlannerServer = plannerServer();
+
+const sports = ['run', 'trail_run', 'walk', 'hike', 'road', 'gravel', 'mtb'];
+
+/**
+ * The planner at `/dashboard`: the map, the start pin, and the panel that sets the sport, the length, and the
+ * roads. Mock Service Worker plays its server (`stories/support/planner-server.ts`): place search, snapping, three
+ * loops scaled to the asked length, the climb and stops, saving, sending to a device, and course files. The loops
+ * are one sketch of a loop near Westerlo, moved and scaled, never a plan from the routing engine. The Controls set
+ * the draft the planner opens on. The map tiles come from OpenFreeMap, so the map needs a connection; the play
+ * functions check the panel, not the map.
+ */
+const meta = {
+    title: 'Pages/Planner/Dashboard',
+    component: Planner,
+    parameters: { layout: 'fullscreen' },
+    args: {
+        ...plannerDraftDefaults,
+        draft: true,
+        serviceNotice: false,
+    },
+    argTypes: {
+        sport: { control: 'select', options: sports },
+        distanceKm: {
+            name: 'distance (km)',
+            control: { type: 'range', min: 5, max: 200, step: 1 },
+        },
+        surface: {
+            control: 'inline-radio',
+            options: ['paved', 'mixed', 'dirt'],
+        },
+        elevation: {
+            control: 'inline-radio',
+            options: ['neutral', 'minimize', 'maximize'],
+        },
+        shape: { control: 'inline-radio', options: ['loop', 'out_and_back'] },
+        roads: { control: 'inline-radio', options: ['quiet', 'any'] },
+        mapStyle: {
+            name: 'map style',
+            control: 'select',
+            options: ['auto', 'streets', 'light', 'dark'],
+        },
+        name: { control: 'text' },
+        loops: { control: { type: 'range', min: 0, max: 3, step: 1 } },
+        routeIndex: {
+            name: 'chosen loop',
+            control: { type: 'range', min: 0, max: 2, step: 1 },
+        },
+    },
+    beforeEach: ({ msw }) => {
+        server = plannerServer();
+        msw.use(...server.handlers);
+        forget(keptKeys);
+
+        return () => forget([draftKey, ...keptKeys]);
+    },
+} satisfies Meta<typeof Planner>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+/** How long to wait for the mock server, while the map loads its tiles over the same connection. */
+const answer = { timeout: 5000 };
+
+/** The panel, where every check of the planner happens. */
+async function panelOf(canvasElement: HTMLElement): Promise<HTMLElement> {
+    return within(canvasElement).findByRole(
+        'complementary',
+        { name: 'Route plan' },
+        { timeout: 10_000 },
+    );
+}
+
+/** A rider with no draft: the pin on the default start, nothing drawn yet. */
+export const Empty: Story = {
+    args: { draft: false },
+};
+
+/**
+ * Three loops of about 10 km from Westerlo, the first one chosen. The planner asks the mock server for the climb,
+ * the turns, and the stops along it.
+ */
+export const WithRoute: Story = {
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await step('The first of three loops is chosen', async () => {
+            await expect(panel.getByText('Loop 1 of 3')).toBeVisible();
+        });
+
+        await step('The climb, the turns and the stops arrive', async () => {
+            await expect(
+                await panel.findByRole(
+                    'slider',
+                    { name: 'Height along the route' },
+                    answer,
+                ),
+            ).toBeVisible();
+            await expect(
+                await panel.findByText('Turns (5)', {}, answer),
+            ).toBeVisible();
+            await expect(
+                await panel.findByText('Stops on the way (3)', {}, answer),
+            ).toBeVisible();
+            await expect(
+                server.sent('POST', '/routes/details'),
+            ).not.toHaveLength(0);
+            await expect(server.sent('POST', '/routes/stops')).not.toHaveLength(
+                0,
+            );
+        });
+    },
+};
+
+/** The same loops in Ink, with the dark map. */
+export const WithRouteInInk: Story = {
+    globals: { appearance: 'dark' },
+};
+
+/**
+ * A rider picks a sport and a length. Each choice draws again: three loops come back, scaled to the length asked.
+ */
+export const PlanALoop: Story = {
+    args: { loops: 0, sport: 'road', surface: 'paved', distanceKm: 20 },
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Nothing is drawn yet', async () => {
+            await expect(panel.getByText('Loop – of 3')).toBeVisible();
+            await expect(
+                panel.getByRole('button', { name: 'Draw route' }),
+            ).toBeEnabled();
+        });
+
+        await step('Pick Trail run from the sports', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: /^Sport/ }),
+            );
+            const sheet = within(
+                await screen.findByRole('dialog', { name: 'Choose a sport' }),
+            );
+            await userEvent.click(
+                sheet.getByRole('button', { name: /^Trail run/ }),
+            );
+            await expect(
+                await panel.findByText('Loop 1 of 3', {}, answer),
+            ).toBeVisible();
+            const asked = server.sent('POST', '/routes/preview').at(-1)?.body;
+            await expect(asked).toMatchObject({
+                sport: 'trail_run',
+                // A trail run starts on dirt (Sport::defaultSurface).
+                surface: 'dirt',
+                distance_metres: 20_000,
+            });
+            await expect(
+                panel.getByRole('button', { name: /^Sport/ }),
+            ).toHaveTextContent('Trail run');
+        });
+
+        await step('Set the length to 12 km', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: /^Length/ }),
+            );
+            const sheet = within(
+                await screen.findByRole('dialog', { name: 'Length' }),
+            );
+            const field = sheet.getByLabelText('Preferred length');
+            await userEvent.clear(field);
+            await userEvent.type(field, '12');
+            await userEvent.click(sheet.getByRole('button', { name: 'Apply' }));
+            await waitFor(
+                () =>
+                    expect(
+                        server.sent('POST', '/routes/preview').at(-1)?.body,
+                    ).toMatchObject({ distance_metres: 12_000 }),
+                answer,
+            );
+            await expect(
+                panel.getByRole('button', { name: /^Length/ }),
+            ).toHaveTextContent('12 km');
+            await waitFor(
+                () =>
+                    expect(
+                        panel.getByRole('region', { name: 'Result' }),
+                    ).toHaveTextContent(/12\.\d km/),
+                answer,
+            );
+        });
+
+        await step('Draw again asks for three new loops', async () => {
+            const before = server.sent('POST', '/routes/preview').length;
+            await userEvent.click(
+                await panel.findByRole(
+                    'button',
+                    { name: 'Draw again' },
+                    answer,
+                ),
+            );
+            await waitFor(
+                () =>
+                    expect(server.sent('POST', '/routes/preview')).toHaveLength(
+                        before + 1,
+                    ),
+                answer,
+            );
+            await expect(
+                await panel.findByText('Loop 1 of 3', {}, answer),
+            ).toBeVisible();
+            // The button reads Drawing… until the new loops land, then eases back from its busy look; the story ends
+            // once it has, so the accessibility check reads its colours at rest.
+            const drawAgain = await panel.findByRole(
+                'button',
+                { name: 'Draw again' },
+                answer,
+            );
+            await waitFor(() => expect(drawAgain).toBeEnabled(), answer);
+            await waitFor(
+                () => expect(getComputedStyle(drawAgain).opacity).toBe('1'),
+                answer,
+            );
+        });
+    },
+};
+
+/**
+ * Next loop steps through the three loops and back to the first; each brings its own climb and turns. Previous loop
+ * steps the other way.
+ */
+export const StepThroughLoops: Story = {
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+        const next = panel.getByRole('button', { name: 'Next loop' });
+        /** The different lines the planner asked details for so far. */
+        const linesAsked = () =>
+            new Set(
+                server
+                    .sent('POST', '/routes/details')
+                    .map((sent) => JSON.stringify(sent.body?.coordinates)),
+            ).size;
+
+        await step('Loop 1 has its climb and turns', async () => {
+            await expect(panel.getByText('Loop 1 of 3')).toBeVisible();
+            await panel.findByText('Turns (5)', {}, answer);
+            await waitFor(() => expect(linesAsked()).toBe(1), answer);
+        });
+
+        await step('Next loop: loop 2, with its own details', async () => {
+            await userEvent.click(next);
+            await expect(panel.getByText('Loop 2 of 3')).toBeVisible();
+            await waitFor(() => expect(linesAsked()).toBe(2), answer);
+        });
+
+        await step('Loop 3, then round to loop 1', async () => {
+            await userEvent.click(next);
+            await expect(panel.getByText('Loop 3 of 3')).toBeVisible();
+            await waitFor(() => expect(linesAsked()).toBe(3), answer);
+            await userEvent.click(next);
+            await expect(panel.getByText('Loop 1 of 3')).toBeVisible();
+        });
+
+        await step('Previous loop steps back, round to loop 3', async () => {
+            const previous = panel.getByRole('button', {
+                name: 'Previous loop',
+            });
+
+            await userEvent.click(previous);
+            await expect(panel.getByText('Loop 3 of 3')).toBeVisible();
+            await userEvent.click(previous);
+            await expect(panel.getByText('Loop 2 of 3')).toBeVisible();
+        });
+    },
+};
+
+/** The pencil renames the route; Escape takes the old name back. The device name is the first 15 characters. */
+export const RenameRoute: Story = {
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Type a new name and press Enter', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Rename route' }),
+            );
+            const field = panel.getByRole('textbox', { name: 'Route name' });
+            await userEvent.clear(field);
+            await userEvent.type(field, 'Tongerlo abbey loop{Enter}');
+            await expect(
+                panel.getByRole('heading', { name: 'Tongerlo abbey loop' }),
+            ).toBeVisible();
+            await expect(panel.getByText(/15 of 15 characters/)).toBeVisible();
+        });
+
+        await step('Escape keeps the name it had', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Rename route' }),
+            );
+            const field = panel.getByRole('textbox', { name: 'Route name' });
+            await userEvent.clear(field);
+            await userEvent.type(field, 'Something else{Escape}');
+            await expect(
+                panel.getByRole('heading', { name: 'Tongerlo abbey loop' }),
+            ).toBeVisible();
+        });
+
+        await step('The saved route carries the new name', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Save to profile' }),
+            );
+            await expect(
+                await panel.findByRole('button', { name: 'Saved' }, answer),
+            ).toBeDisabled();
+            await expect(server.library()[0]?.name).toBe('Tongerlo abbey loop');
+        });
+    },
+};
+
+/** Save to profile keeps the chosen loop in the library and makes its share link. */
+export const SaveRoute: Story = {
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Save the chosen loop', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Save to profile' }),
+            );
+            await expect(
+                await panel.findByRole('button', { name: 'Saved' }, answer),
+            ).toBeDisabled();
+            await expect(
+                await panel.findByText(
+                    'Saved. Share it from Saved routes.',
+                    {},
+                    answer,
+                ),
+            ).toBeVisible();
+        });
+
+        await step(
+            'The server got the route and gave it a share link',
+            async () => {
+                const [saved] = server.sent('POST', '/routes/saved');
+                await expect(saved?.body).toMatchObject({
+                    name: 'Westerlo morning run',
+                    sport: 'run',
+                    surface: 'paved',
+                });
+                await expect(server.library()[0]?.url).toMatch(
+                    /^\/share\/[0-9a-f-]{36}\?expires=\d+&signature=/,
+                );
+            },
+        );
+    },
+};
+
+/**
+ * Send to device, Wahoo: the planner saves the route first, then sends it to the connected Wahoo account. Ride with
+ * GPS is not connected, so the Karoo asks to connect it.
+ */
+export const SendToDevice: Story = {
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Open Send to device and pick Wahoo', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Send to device' }),
+            );
+            const dialog = within(
+                await screen.findByRole('dialog', { name: 'Send to device' }),
+            );
+            await userEvent.click(
+                dialog.getByRole('button', { name: 'Wahoo' }),
+            );
+            await expect(
+                dialog.getByRole('button', { name: 'Wahoo' }),
+            ).toHaveAttribute('aria-pressed', 'true');
+        });
+
+        await step('Send it in one tap', async () => {
+            const dialog = within(
+                screen.getByRole('dialog', { name: 'Send to device' }),
+            );
+            await userEvent.click(
+                dialog.getByRole('button', { name: 'Send to Wahoo' }),
+            );
+            await expect(
+                await dialog.findByText(/In your Wahoo app/, {}, answer),
+            ).toBeVisible();
+            const [saved] = server.sent('POST', '/routes/saved');
+            const [sent] = server.sent('POST', /\/send\/wahoo$/);
+            await expect(saved).toBeDefined();
+            await expect(sent?.path).toBe(
+                `/routes/saved/${server.library()[0]?.id}/send/wahoo`,
+            );
+            await expect(
+                dialog.getByRole('button', { name: 'Send to Wahoo again' }),
+            ).toBeVisible();
+        });
+
+        await step('A Karoo needs Ride with GPS connected first', async () => {
+            const dialog = within(
+                screen.getByRole('dialog', { name: 'Send to device' }),
+            );
+            await userEvent.click(
+                dialog.getByRole('button', { name: 'Hammerhead Karoo' }),
+            );
+            await expect(
+                dialog.getByRole('button', { name: 'Connect Ride with GPS' }),
+            ).toBeVisible();
+        });
+    },
+};
+
+let downloads: ReturnType<typeof catchDownloads> = {
+    files: [],
+    restore: () => {},
+};
+
+/**
+ * Export GPX builds the file in the browser, with the heights and stops; Download FIT asks the server for the
+ * course. The story catches both files instead of saving them.
+ */
+export const ExportFiles: Story = {
+    beforeEach: () => {
+        downloads = catchDownloads();
+
+        return downloads.restore;
+    },
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Export GPX', async () => {
+            await panel.findByText('Turns (5)', {}, answer);
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Export GPX' }),
+            );
+            const gpx = downloads.files.find(
+                (file) => file.filename === 'traceway.gpx',
+            );
+            await expect(gpx?.blob?.type).toBe('application/gpx+xml');
+            const body = (await gpx?.blob?.text()) ?? '';
+            await expect(body).toContain('<name>Westerlo morning run</name>');
+            await expect(body.match(/<trkpt /g)).toHaveLength(12);
+        });
+
+        await step('Download FIT for a Garmin', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Send to device' }),
+            );
+            const dialog = within(
+                await screen.findByRole('dialog', { name: 'Send to device' }),
+            );
+            await userEvent.click(
+                dialog.getByRole('button', { name: 'Garmin' }),
+            );
+            await userEvent.click(
+                dialog.getByRole('button', { name: 'Download FIT' }),
+            );
+            await waitFor(
+                () =>
+                    expect(
+                        downloads.files.some(
+                            (file) => file.filename === 'traceway.fit',
+                        ),
+                    ).toBe(true),
+                answer,
+            );
+            await expect(
+                server.sent('POST', '/routes/fit')[0]?.body,
+            ).toMatchObject({ name: 'Westerlo morning run', sport: 'run' });
+            const fit = downloads.files.find(
+                (file) => file.filename === 'traceway.fit',
+            );
+            const bytes = new Uint8Array(
+                (await fit?.blob?.arrayBuffer()) ?? new ArrayBuffer(0),
+            );
+            // A FIT file says so in bytes 8 to 11.
+            await expect(String.fromCharCode(...bytes.slice(8, 12))).toBe(
+                '.FIT',
+            );
+            await userEvent.keyboard('{Escape}');
+        });
+
+        await step('A file out asks for a hand with the hosting', async () => {
+            await expect(
+                await panel.findByText(
+                    /Glad it helped\? Traceway is free\./,
+                    {},
+                    answer,
+                ),
+            ).toBeVisible();
+        });
+    },
+};
+
+/** Search finds Tongerlo through the server; the card on the map moves the start there. */
+export const SearchAPlace: Story = {
+    args: { loops: 0 },
+    play: async ({ canvasElement, step }) => {
+        const canvas = within(canvasElement);
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Ask for a new start', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: /^Start/ }),
+            );
+            const search = await canvas.findByRole('combobox', {
+                name: 'Search for your start',
+            });
+            await waitFor(() => expect(search).toHaveFocus());
+            await userEvent.type(search, 'Tongerlo{Enter}');
+        });
+
+        await step('The server finds the town', async () => {
+            await expect(
+                await canvas.findByRole(
+                    'option',
+                    { name: /^Tongerlo Westerlo, Antwerp, Belgium$/ },
+                    answer,
+                ),
+            ).toBeVisible();
+            await expect(
+                server.sent('POST', '/routes/places')[0]?.body,
+            ).toMatchObject({ query: 'Tongerlo' });
+        });
+
+        await step('Start there', async () => {
+            await userEvent.click(
+                canvas.getByRole('option', {
+                    name: /^Tongerlo Westerlo, Antwerp, Belgium$/,
+                }),
+            );
+            const card = within(
+                await canvas.findByRole('dialog', { name: 'Tongerlo' }, answer),
+            );
+            await userEvent.click(
+                await card.findByRole('button', { name: 'Start here' }, answer),
+            );
+            await expect(
+                panel.getByRole('button', { name: /^Start/ }),
+            ).toHaveTextContent('Tongerlo');
+        });
+    },
+};
+
+/** Multisport draws a brick from the transition: a 40 km ride, then a 5 km run, each leg with its own climb. */
+export const Multisport: Story = {
+    args: { loops: 0 },
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Switch to Multisport and draw', async () => {
+            await userEvent.click(
+                panel.getByRole('tab', { name: 'Multisport' }),
+            );
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Draw route' }),
+            );
+            const asked = await waitFor(() => {
+                const [sent] = server.sent('POST', '/routes/multisport');
+                expect(sent).toBeDefined();
+
+                return sent?.body;
+            }, answer);
+            await expect(asked).toMatchObject({
+                layout: 'loops',
+                legs: [
+                    { sport: 'road', distance_metres: 40_000 },
+                    { sport: 'run', distance_metres: 5000 },
+                ],
+            });
+        });
+
+        await step('Both legs come back, in order', async () => {
+            const result = within(
+                panel.getByRole('region', { name: 'Result' }),
+            );
+            await waitFor(
+                () => expect(result.getAllByRole('listitem')).toHaveLength(2),
+                answer,
+            );
+            const [ride, run] = result.getAllByRole('listitem');
+            await expect(ride).toHaveTextContent(/Road\s*40\.\d km/);
+            await expect(run).toHaveTextContent(/Run\s*5\.\d km/);
+        });
+
+        await step('Show the run leg’s climb', async () => {
+            const tab = await panel.findByRole(
+                'tab',
+                { name: '2 Run' },
+                answer,
+            );
+            await userEvent.click(tab);
+            await expect(tab).toHaveAttribute('aria-selected', 'true');
+        });
+    },
+};
+
+/** The routing engine found nothing: the planner says why, and the rider can try again. */
+export const NoLoopCameBack: Story = {
+    args: { loops: 0 },
+    beforeEach: ({ msw }) => {
+        msw.use(noLoopFromThatPin);
+    },
+    play: async ({ canvasElement }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await userEvent.click(
+            panel.getByRole('button', { name: 'Draw route' }),
+        );
+        await expect(
+            await panel.findByText(
+                'No loop came back from that pin. Try another spot or a different distance.',
+                {},
+                answer,
+            ),
+        ).toBeVisible();
+        await expect(
+            panel.getByRole('button', { name: 'Draw route' }),
+        ).toBeEnabled();
+    },
+};
+
+/** On a phone the panel becomes a sheet under the map; its handle opens and closes it. */
+export const Phone: Story = {
+    globals: { viewport: { value: 'phone', isRotated: false } },
+    play: async ({ canvasElement }) => {
+        const panel = within(await panelOf(canvasElement));
+        const handle = panel.getByRole('button', {
+            name: /^(Expand|Collapse) the plan$/,
+        });
+        const open = handle.getAttribute('aria-expanded') === 'true';
+
+        await expect(
+            panel.getByRole('button', { name: /Loop 1 of 3/ }),
+        ).toBeVisible();
+        await userEvent.click(handle);
+        await waitFor(() =>
+            expect(handle).toHaveAttribute('aria-expanded', String(!open)),
+        );
+    },
+};
+
+/** A line above the map when route drawing is down, from the status checks. */
+export const ServiceNotice: Story = {
+    args: { serviceNotice: true },
+};

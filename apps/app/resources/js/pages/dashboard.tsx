@@ -3210,12 +3210,12 @@ export default function Dashboard() {
 
     selectLoopRef.current = chooseLoop;
 
-    function showAnother(): void {
+    function showAnother(step: 1 | -1 = 1): void {
         if (routes.length < 2) {
             return;
         }
 
-        const next = (routeIndex + 1) % routes.length;
+        const next = (routeIndex + step + routes.length) % routes.length;
         const line = routes[next];
         chooseLoop(next);
 
@@ -5608,6 +5608,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'shape'}
                                         onClick={() => setSheet('shape')}
                                     >
                                         <span className="k">Shape</span>
@@ -5619,6 +5621,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'length'}
                                         onClick={() => setSheet('length')}
                                     >
                                         <span className="k">Length</span>
@@ -5630,6 +5634,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'sport'}
                                         onClick={() => setSheet('sport')}
                                     >
                                         <span className="k">Sport</span>
@@ -5641,6 +5647,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'surface'}
                                         onClick={() => setSheet('surface')}
                                     >
                                         <span className="k">Surface</span>
@@ -5652,6 +5660,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'elevation'}
                                         onClick={() => setSheet('elevation')}
                                     >
                                         <span className="k">Hills</span>
@@ -5663,6 +5673,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'roads'}
                                         onClick={() => setSheet('roads')}
                                     >
                                         <span className="k">Roads</span>
@@ -6052,6 +6064,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'length'}
                                         onClick={() => setSheet('length')}
                                     >
                                         <span className="k">Length</span>
@@ -6063,6 +6077,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'sport'}
                                         onClick={() => setSheet('sport')}
                                     >
                                         <span className="k">Sport</span>
@@ -6074,6 +6090,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'surface'}
                                         onClick={() => setSheet('surface')}
                                     >
                                         <span className="k">Surface</span>
@@ -6085,6 +6103,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'elevation'}
                                         onClick={() => setSheet('elevation')}
                                     >
                                         <span className="k">Hills</span>
@@ -6096,6 +6116,8 @@ export default function Dashboard() {
                                     <button
                                         type="button"
                                         className="row"
+                                        aria-haspopup="dialog"
+                                        aria-expanded={sheet === 'roads'}
                                         onClick={() => setSheet('roads')}
                                     >
                                         <span className="k">Roads</span>
@@ -6244,7 +6266,7 @@ export default function Dashboard() {
                                                 disabled={
                                                     busy || routes.length < 2
                                                 }
-                                                onClick={showAnother}
+                                                onClick={() => showAnother(-1)}
                                             >
                                                 ‹
                                             </button>
@@ -6272,7 +6294,7 @@ export default function Dashboard() {
                                                 disabled={
                                                     busy || routes.length < 2
                                                 }
-                                                onClick={showAnother}
+                                                onClick={() => showAnother(1)}
                                             >
                                                 ›
                                             </button>

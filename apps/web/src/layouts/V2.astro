@@ -11,7 +11,9 @@ import * as about from '../seo/site';
 import * as structured from '../seo/structured';
 
 interface Props {
+    /** The page's title. Defaults to the site's (src/seo/site.ts). */
     title?: string;
+    /** What search engines show. Defaults to the site's. */
     description?: string;
 }
 
