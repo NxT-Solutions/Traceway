@@ -6,7 +6,7 @@ import SignInLegal from '@/components/sign-in-legal';
 import Turnstile from '@/components/turnstile';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
-import { cancel, store } from '@/routes/connections/finish';
+import { cancel, existing, store } from '@/routes/connections/finish';
 import type { ConnectionSlug } from '@/types';
 
 type Props = {
@@ -30,6 +30,19 @@ export default function FinishSignUp({
     turnstileSiteKey,
 }: Props) {
     const [cancelling, setCancelling] = useState(false);
+    const [joining, setJoining] = useState(false);
+
+    function joinExistingAccount(): void {
+        router.post(
+            existing.url(),
+            {},
+            {
+                replace: true,
+                onStart: () => setJoining(true),
+                onFinish: () => setJoining(false),
+            },
+        );
+    }
 
     function cancelSignUp(): void {
         router.delete(cancel.url(), {
@@ -47,6 +60,27 @@ export default function FinishSignUp({
                 <ConnectionMark slug={service.slug} size={20} />
                 <span>Signing up with {service.label}</span>
             </p>
+
+            <div className="fields">
+                <p className="legal">Already have a Traceway account?</p>
+                <button
+                    type="button"
+                    className="outline"
+                    disabled={joining || cancelling}
+                    onClick={joinExistingAccount}
+                    data-test="finish-sign-up-existing"
+                >
+                    {joining ? (
+                        <Spinner
+                            aria-hidden="true"
+                            className="motion-reduce:animate-none"
+                        />
+                    ) : null}
+                    Log in to connect {service.label}
+                </button>
+            </div>
+
+            <p className="divider">or open a new account</p>
 
             <Form
                 {...store.form()}
@@ -118,7 +152,7 @@ export default function FinishSignUp({
                         <button
                             type="submit"
                             className="fill big"
-                            disabled={processing || cancelling}
+                            disabled={processing || cancelling || joining}
                             data-test="finish-sign-up-button"
                         >
                             {processing ? (

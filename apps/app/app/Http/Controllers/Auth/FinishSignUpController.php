@@ -72,11 +72,11 @@ class FinishSignUpController extends Controller
         $email = new Email($finishSignUpRequest->email());
 
         // An address typed here, or one the service did not confirm, could be anyone's. It never connects the
-        // service to the account that has it; the owner logs in and connects it from Settings.
+        // service by itself: the rider logs in to the account that has it, then says yes to connecting it.
         if ($connectionsQuery->emailTaken($email->value)) {
-            $dispatchesCommands->dispatch(new WithdrawConnectionAccessCommand($connectedIdentity));
+            $connectionFlow->awaitLogin($connectedIdentity, $email, confirm: true);
 
-            return to_route('login')->withErrors(['connection' => ConnectionProblem::EmailTaken->message($connectionProvider)]);
+            return to_route('login');
         }
 
         $held = $pendingSignUps->hold($connectedIdentity, $riderName, $email, $pending['remember'], $finishSignUpRequest);
@@ -86,6 +86,24 @@ class FinishSignUpController extends Controller
         return to_route('login')
             ->with('status', 'Check your email. A link to finish your account is on its way to '.$email->value.'.')
             ->withCookie($held['cookie']);
+    }
+
+    /**
+     * The rider already has a Traceway account. They log in to it, then say yes to connecting the service.
+     */
+    public function existing(Request $request): RedirectResponse
+    {
+        $connectionFlow = new ConnectionFlow($request->session());
+        $pending = $connectionFlow->pendingSignUp();
+
+        if ($pending === null) {
+            return $this->nothingWaiting($connectionFlow);
+        }
+
+        $connectionFlow->forgetSignUp();
+        $connectionFlow->awaitLogin($pending['identity'], email: null, confirm: true);
+
+        return to_route('login');
     }
 
     public function cancel(Request $request, DispatchesCommands $dispatchesCommands): RedirectResponse

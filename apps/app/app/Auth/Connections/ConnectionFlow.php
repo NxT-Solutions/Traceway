@@ -35,6 +35,8 @@ final readonly class ConnectionFlow
 
     private const string SENT = 'connections.sent';
 
+    private const string AFTER = 'connections.after';
+
     public function __construct(private Session $session) {}
 
     /**
@@ -144,45 +146,78 @@ final readonly class ConnectionFlow
     }
 
     /**
-     * Keeps the identity of a rider who already has a Traceway account with this email, until they log in to
-     * it. Logging in to that account, and no other, connects it.
+     * Keeps a service's account until the rider logs in to Traceway. With an email the service confirmed, logging
+     * in to the account with that email, and no other, connects it. Otherwise ($confirm) the rider logs in to the
+     * account they choose and then says yes to connecting it, so nobody can hand their own service to the next
+     * person on a shared computer.
      */
-    public function awaitLogin(ConnectedIdentity $connectedIdentity, Email $email): void
+    public function awaitLogin(ConnectedIdentity $connectedIdentity, ?Email $email, bool $confirm = false): void
     {
         $this->session->put(self::LINK, $this->seal([
             'identity' => $connectedIdentity->toArray(),
-            'email' => $email->value,
+            'email' => $email?->value,
+            'confirm' => $confirm || ! $email instanceof Email,
             'at' => now()->getTimestamp(),
         ]));
     }
 
     /**
-     * @return array{identity: ConnectedIdentity, email: Email}|null
+     * @return array{identity: ConnectedIdentity, email: Email|null, confirm: bool}|null
      */
     public function pendingLink(): ?array
     {
         $pending = $this->open($this->session->get(self::LINK));
 
-        if ($pending === null || ! $this->fresh($pending['at'] ?? null) || ! is_array($pending['identity'] ?? null) || ! is_string($pending['email'] ?? null)) {
+        if ($pending === null || ! $this->fresh($pending['at'] ?? null) || ! is_array($pending['identity'] ?? null)) {
             $this->session->forget(self::LINK);
 
             return null;
         }
 
         $connectedIdentity = ConnectedIdentity::fromArray($pending['identity']);
+        $email = null;
 
         try {
-            $email = new Email($pending['email']);
+            $email = is_string($pending['email'] ?? null) ? new Email($pending['email']) : null;
         } catch (InvalidArgumentException) {
             return null;
         }
 
-        return $connectedIdentity instanceof ConnectedIdentity ? ['identity' => $connectedIdentity, 'email' => $email] : null;
+        if (! $connectedIdentity instanceof ConnectedIdentity) {
+            return null;
+        }
+
+        return ['identity' => $connectedIdentity, 'email' => $email, 'confirm' => ($pending['confirm'] ?? true) !== false || ! $email instanceof Email];
     }
 
     public function forgetLink(): void
     {
         $this->session->forget(self::LINK);
+    }
+
+    /**
+     * Sends the rider who logs in to the page where they say yes to a waiting service, and remembers where they
+     * were going, such as an AI assistant's approval page, for afterwards.
+     */
+    public function askAfterLogin(string $confirmUrl): void
+    {
+        $intended = $this->session->get('url.intended');
+
+        if (is_string($intended) && $intended !== '' && $intended !== $confirmUrl) {
+            $this->session->put(self::AFTER, $intended);
+        }
+
+        $this->session->put('url.intended', $confirmUrl);
+    }
+
+    /**
+     * Where the rider was going before saying yes or no to a waiting service, once.
+     */
+    public function pullAfter(): ?string
+    {
+        $after = $this->session->pull(self::AFTER);
+
+        return is_string($after) && $after !== '' ? $after : null;
     }
 
     /**

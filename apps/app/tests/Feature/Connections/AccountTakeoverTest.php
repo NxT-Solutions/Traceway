@@ -77,10 +77,13 @@ it('does not hand a service to whoever logs in next on a shared browser with the
 
     takeoverOpenStreetMapReturns();
     $this->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'ann@example.com'])
-        ->assertSessionHasErrors('connection');
+        ->assertRedirect(route('login'));
 
-    $this->post(route('login.store'), ['email' => 'ann@example.com', 'password' => 'password'])->assertRedirect(route('dashboard'));
+    // The owner logs in next. Nothing connects by itself: they are asked, with the other account named, and say no.
+    $this->post(route('login.store'), ['email' => 'ann@example.com', 'password' => 'password'])->assertRedirect(route('connections.pending.show'));
     $this->assertAuthenticatedAs($owner);
+    expect(ConnectedAccount::query()->count())->toBe(0);
+    $this->delete(route('connections.pending.destroy'))->assertRedirect(route('dashboard'));
     expect(ConnectedAccount::query()->count())->toBe(0);
     Mail::assertNothingQueued();
 

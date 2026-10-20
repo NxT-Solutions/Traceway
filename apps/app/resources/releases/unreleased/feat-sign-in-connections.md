@@ -2,6 +2,7 @@
 section: New
 ---
 - **Log in with an account you already have.** On the log in page, you can use an account such as Google or GitHub instead of a password, and the page marks the one you used last time on this browser.
+- **One account, however you log in.** Log in with Google, GitHub, or Discord using the email of your Traceway account, and you are in, with that service connected. For a service that does not confirm your email, such as OpenStreetMap, log in to your account and say yes to connect it.
 - **Open an account without a password.** Start with one of those accounts, and set a password later under Settings, then Security, if you want one.
 - **Your connections in one place.** Settings, then Connections, shows each account you connected and what Traceway keeps from it, and lets you disconnect it.
 - **Emails that keep your account safe.** Traceway emails you when a way to log in is added to your account or taken away.

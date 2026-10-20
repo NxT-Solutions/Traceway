@@ -76,6 +76,7 @@ it("keeps the rider's sign-in and the admin area closed while acting as them", f
     'disconnecting a service' => ['DELETE', '/settings/connections/google'],
     'confirming with a service' => ['GET', '/user/confirm-password/google'],
     'a service answering' => ['GET', '/auth/google/callback'],
+    'saying yes to a waiting service' => ['POST', '/login/connection'],
     'confirming a new email' => ['GET', '/settings/profile/email/1/hash'],
     'sending a new email link again' => ['POST', '/settings/profile/email'],
     'keeping the old email' => ['DELETE', '/settings/profile/email'],

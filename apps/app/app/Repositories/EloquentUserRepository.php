@@ -88,6 +88,11 @@ final readonly class EloquentUserRepository implements UserRepository
         return DB::table('users')->where('id', $riderId->value)->whereNotNull('password')->exists();
     }
 
+    public function removePassword(RiderId $riderId): void
+    {
+        $this->model($riderId)->forceFill(['password' => null])->save();
+    }
+
     public function passkeyCount(RiderId $riderId): int
     {
         return DB::table('passkeys')->where('user_id', $riderId->value)->count();

@@ -50,6 +50,10 @@ final readonly class ClaimUnconfirmedAccountHandler
         $this->deviceLinkRepository->revokeAll($riderId);
         $this->userRepository->resetTwoFactor($riderId);
         $this->userRepository->endSessions($riderId);
+
+        if ($claimUnconfirmedAccountCommand->passwordToo) {
+            $this->userRepository->removePassword($riderId);
+        }
     }
 
     private function withdraw(ConnectionProvider $connectionProvider, ?ConnectionTokens $connectionTokens): void

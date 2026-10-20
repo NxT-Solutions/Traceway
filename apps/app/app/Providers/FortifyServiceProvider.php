@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Account\Email;
 use App\Account\Role;
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\DeletePasskeyKeepingAWayIn;
@@ -124,10 +125,11 @@ class FortifyServiceProvider extends ServiceProvider
     }
 
     /**
-     * A service waiting to be connected once the rider logs in to the account that already has its email. The
-     * address is shown shortened, in case someone else uses the computer next.
+     * A service waiting to be connected once the rider logs in, to the account with its email or, with confirm,
+     * to the one they choose and then say yes. An address is shown shortened, in case someone else uses the
+     * computer next.
      *
-     * @return array{slug: string, label: string, email: string}|null
+     * @return array{slug: string, label: string, email: string|null, confirm: bool}|null
      */
     private function pendingConnection(Request $request): ?array
     {
@@ -140,7 +142,8 @@ class FortifyServiceProvider extends ServiceProvider
         return [
             'slug' => $pending['identity']->provider->value,
             'label' => $pending['identity']->provider->label(),
-            'email' => ConnectionFlow::shortEmail($pending['email']),
+            'email' => $pending['email'] instanceof Email ? ConnectionFlow::shortEmail($pending['email']) : null,
+            'confirm' => $pending['confirm'],
         ];
     }
 

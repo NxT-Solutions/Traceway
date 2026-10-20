@@ -37,7 +37,7 @@ final readonly class GuardImpersonation
             return false;
         }
 
-        return $request->is('admin', 'admin/*', 'user/*', 'passkeys/*', 'auth/*', 'settings/connections/*', 'settings/services/*', 'settings/profile/email', 'settings/profile/email/*', 'settings/security', 'settings/password', 'settings/privacy/export')
+        return $request->is('admin', 'admin/*', 'user/*', 'passkeys/*', 'auth/*', 'login/connection', 'settings/connections/*', 'settings/services/*', 'settings/profile/email', 'settings/profile/email/*', 'settings/security', 'settings/password', 'settings/privacy/export')
             || ($request->is('settings/profile') && ! $request->isMethod('GET'));
     }
 }

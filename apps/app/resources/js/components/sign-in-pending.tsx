@@ -26,8 +26,9 @@ function focusAfterDropping(): void {
 }
 
 /**
- * A service that came back with the email of an account the rider already has. It is connected once they log
- * in to that account, so nobody can take an account over by naming its email at a service.
+ * A service waiting for the rider to log in. With an email the service confirmed, it is connected once they log in
+ * to that account. Otherwise they log in to their account and then say yes, so nobody can take an account over by
+ * naming its email at a service.
  */
 export default function PendingConnectionNotice({
     pending,
@@ -56,9 +57,18 @@ export default function PendingConnectionNotice({
             <ConnectionMark slug={pending.slug} size={20} />
             <div className="notice-body">
                 <p>
-                    You already have a Traceway account with{' '}
-                    <b>{pending.email}</b>. Log in to it once to connect{' '}
-                    {pending.label}.
+                    {pending.email === null ? (
+                        <>Log in to your Traceway account to connect </>
+                    ) : (
+                        <>
+                            You already have a Traceway account with{' '}
+                            <b>{pending.email}</b>. Log in to it to connect{' '}
+                        </>
+                    )}
+                    {pending.label}
+                    {pending.confirm
+                        ? '. You confirm it once you are in.'
+                        : '.'}
                 </p>
                 <button
                     type="button"

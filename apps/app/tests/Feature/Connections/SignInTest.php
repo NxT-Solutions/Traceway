@@ -242,24 +242,23 @@ it('opens no account while sign-up is closed', function (): void {
     Mail::assertNothingQueued();
 });
 
-it('still asks an existing rider to log in to connect while sign-up is closed, since no account opens', function (): void {
+it('still logs an existing rider in, and connects the service, while sign-up is closed, since no account opens', function (): void {
     Mail::fake();
     config(['fortify.features' => []]);
     signInWithServices('google');
     signInGoogleAnswers('1001', 'ann@gmail.com');
-    User::factory()->create(['email' => 'ann@gmail.com']);
+    $user = User::factory()->create(['email' => 'ann@gmail.com']);
 
     $this->get(route('connections.sign-in', ['provider' => 'google']));
     signInGoogleReturns()
-        ->assertRedirect(route('login'))
+        ->assertRedirect(route('dashboard'))
         ->assertSessionDoesntHaveErrors();
 
-    $this->assertGuest();
-    expect(session('connections.link'))->toBeString()
-        ->and(ConnectedAccount::query()->count())->toBe(0);
+    $this->assertAuthenticatedAs($user);
+    expect(ConnectedAccount::query()->sole()->user_id)->toBe($user->id);
 });
 
-it('does not hold a service for an email it did not confirm that has an account, and keeps nothing waiting', function (): void {
+it('does not connect a service by an email it did not confirm: the rider logs in, then says yes', function (): void {
     Mail::fake();
     signInWithServices('google');
     signInGoogleAnswers('1001', 'ann@gmail.com', verified: false);
@@ -268,12 +267,12 @@ it('does not hold a service for an email it did not confirm that has an account,
     $this->get(route('connections.sign-in', ['provider' => 'google']));
     signInGoogleReturns()
         ->assertRedirect(route('login'))
-        ->assertSessionHasErrors(['connection' => 'That email already has a Traceway account. Log in to it, then connect Google in Settings.']);
+        ->assertSessionDoesntHaveErrors();
 
-    expect(session('connections.link'))->toBeNull()
-        ->and(session('connections.pending'))->toBeNull();
+    $this->assertGuest();
+    expect(session('connections.pending'))->toBeNull();
 
-    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])->assertRedirect(route('dashboard'));
+    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])->assertRedirect(route('connections.pending.show'));
 
     $this->assertAuthenticatedAs($user);
     expect(ConnectedAccount::query()->count())->toBe(0);
@@ -300,17 +299,22 @@ function signInWahooAnswers(string $email = 'road@wahoo.test'): RecordingCourseS
     return $wahoo;
 }
 
-it('hands back the keys a service gave when its email has an account and the service did not confirm it', function (): void {
+it('keeps the keys of a service whose email has an account but was not confirmed, until the rider answers', function (): void {
     $recordingCourseService = signInWahooAnswers('ann@example.com');
     User::factory()->create(['email' => 'ann@example.com']);
 
     $this->get(route('connections.sign-in', ['provider' => 'wahoo']));
     $this->get(route('connections.callback', ['provider' => 'wahoo', 'code' => 'from-wahoo', 'state' => 'state']))
         ->assertRedirect(route('login'))
-        ->assertSessionHasErrors(['connection' => 'That email already has a Traceway account. Log in to it, then connect Wahoo in Settings.']);
+        ->assertSessionDoesntHaveErrors();
 
-    expect($recordingCourseService->revoked)->toBe(['access-new'])
+    expect($recordingCourseService->revoked)->toBe([])
+        ->and(session('connections.link'))->toBeString()
         ->and(ConnectedAccount::query()->count())->toBe(0);
+
+    $this->delete(route('connections.pending.destroy'))->assertRedirect(route('login'));
+
+    expect($recordingCourseService->revoked)->toBe(['access-new']);
 });
 
 it('hands back the keys when the rider logged in another way before the service answered', function (): void {

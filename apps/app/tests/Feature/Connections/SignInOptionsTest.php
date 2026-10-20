@@ -253,12 +253,12 @@ it('keeps a note live when another note takes focus first', function (): void {
 it('reads a service waiting to connect once, by focus and not as a live note too', function (): void {
     signInOptionsGoogleWaits();
 
-    $element = signInOptionsNote(DrawnPage::of($this->get(route('login'))->assertOk()), 'Log in to it once to connect Google.');
+    $element = signInOptionsNote(DrawnPage::of($this->get(route('login'))->assertOk()), 'Log in to it to connect Google.');
 
     expect($element->getAttribute('tabindex'))->toBe('-1')
         ->and($element->hasAttribute('role'))->toBeFalse();
 
-    $behindAnError = signInOptionsNote(signInOptionsLoginAfter(failedSignIn: true), 'Log in to it once to connect Google.');
+    $behindAnError = signInOptionsNote(signInOptionsLoginAfter(failedSignIn: true), 'Log in to it to connect Google.');
 
     expect($behindAnError->getAttribute('role'))->toBe('status');
 });

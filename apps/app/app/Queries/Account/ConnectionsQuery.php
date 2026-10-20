@@ -49,6 +49,26 @@ final readonly class ConnectionsQuery
     }
 
     /**
+     * The account with this email, whether its email is confirmed now, and whether any email of it ever was.
+     *
+     * @return array{id: int, confirmed: bool, everConfirmed: bool}|null
+     */
+    public function accountWithEmail(string $email): ?array
+    {
+        $row = DB::table('users')->where('email', mb_strtolower(trim($email)))->first(['id', 'email_verified_at', 'welcomed_at']);
+
+        if ($row === null || ! is_numeric($row->id ?? null)) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $row->id,
+            'confirmed' => $row->email_verified_at !== null,
+            'everConfirmed' => $row->email_verified_at !== null || $row->welcomed_at !== null,
+        ];
+    }
+
+    /**
      * The connected services the rider can log in with here, to confirm it is them without a password.
      *
      * @return list<array{slug: string, label: string}>

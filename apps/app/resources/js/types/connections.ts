@@ -38,7 +38,10 @@ export type SignInOptionGroup = {
 export type PendingConnection = {
     slug: ConnectionSlug;
     label: string;
-    email: string;
+    /** The account's email, shortened, or null when the service shared none. */
+    email: string | null;
+    /** True when the rider says yes to connecting it once they are logged in. */
+    confirm: boolean;
 };
 
 export type ConnectionCapability = {

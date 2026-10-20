@@ -27,6 +27,7 @@ use App\Commands\ChangePasswordCommand;
 use App\Commands\ClaimDevicePairingCommand;
 use App\Commands\ClaimUnconfirmedAccountCommand;
 use App\Commands\ConfirmEmailChangeCommand;
+use App\Commands\ConfirmRiderEmailCommand;
 use App\Commands\DeleteAccountCommand;
 use App\Commands\DeleteRouteCommand;
 use App\Commands\DisconnectAppCommand;
@@ -109,6 +110,7 @@ use App\Handlers\ChangePasswordHandler;
 use App\Handlers\ClaimDevicePairingHandler;
 use App\Handlers\ClaimUnconfirmedAccountHandler;
 use App\Handlers\ConfirmEmailChangeHandler;
+use App\Handlers\ConfirmRiderEmailHandler;
 use App\Handlers\DeleteAccountHandler;
 use App\Handlers\DeleteRouteHandler;
 use App\Handlers\DisconnectAppHandler;
@@ -247,6 +249,7 @@ class AppServiceProvider extends ServiceProvider
             SendConnectionSignUpLinkCommand::class => SendConnectionSignUpLinkHandler::class,
             WithdrawConnectionAccessCommand::class => WithdrawConnectionAccessHandler::class,
             ClaimUnconfirmedAccountCommand::class => ClaimUnconfirmedAccountHandler::class,
+            ConfirmRiderEmailCommand::class => ConfirmRiderEmailHandler::class,
             IdentifyConnectionsCommand::class => IdentifyConnectionsHandler::class,
             SendRouteToServiceCommand::class => SendRouteToServiceHandler::class,
             SyncReleasesCommand::class => SyncReleasesHandler::class,

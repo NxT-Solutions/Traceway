@@ -18,6 +18,8 @@ use App\Account\RouteService;
 use App\Auth\Connections\ConnectionFlow;
 use App\Auth\Connections\ConnectionIntent;
 use App\Auth\Connections\ConnectionSignIn;
+use App\Commands\ClaimUnconfirmedAccountCommand;
+use App\Commands\ConfirmRiderEmailCommand;
 use App\Commands\LinkConnectionCommand;
 use App\Commands\OpenAccountWithConnectionCommand;
 use App\Commands\RecordConnectionSignInCommand;
@@ -80,10 +82,11 @@ class ConnectionCallbackController extends Controller
     }
 
     /**
-     * A rider who connected this account logs in. A new rider opens an account: at once when the service
-     * confirmed their email, after they give or confirm one otherwise. An email that already has an account is
-     * never linked by itself. When the service confirmed it, the rider logs in to that account first. Any other
-     * address could be someone else's, so the rider connects the service from Settings instead.
+     * A rider who connected this account logs in. When the service confirmed an email that a Traceway account
+     * has, that is its owner: they log in, and the service is connected once they are in, after any two-factor
+     * challenge. An address the service did not confirm could be anyone's, so the rider logs in to their account
+     * the usual way and then says yes to connecting it. A new rider opens an account: at once when the service
+     * confirmed their email, after they give or confirm one otherwise.
      *
      * @throws ConnectionFailed when no account opens for the answer
      */
@@ -106,16 +109,31 @@ class ConnectionCallbackController extends Controller
         }
 
         $email = $connectedIdentity->email;
+        $account = $email instanceof Email ? $this->connectionsQuery->accountWithEmail($email->value) : null;
 
         // Before the sign-up check, since an existing rider opens no account.
-        if ($email instanceof Email && $this->connectionsQuery->emailTaken($email->value)) {
+        if ($account !== null) {
             if (! $connectedIdentity->emailVerified) {
-                throw ConnectionFailed::because($connectionProvider, ConnectionProblem::EmailTaken);
+                $connectionFlow->awaitLogin($connectedIdentity, $email, confirm: true);
+
+                return to_route('login');
+            }
+
+            $owner = new RiderId($account['id']);
+
+            // The service proved the address. Whoever opened the account with it before anyone confirmed it may
+            // have added their own ways in, and chosen the password, so those go, as with a reset link.
+            if (! $account['everConfirmed']) {
+                $this->dispatchesCommands->dispatch(new ClaimUnconfirmedAccountCommand($owner, passwordToo: true));
+            }
+
+            if (! $account['confirmed']) {
+                $this->dispatchesCommands->dispatch(new ConfirmRiderEmailCommand($owner));
             }
 
             $connectionFlow->awaitLogin($connectedIdentity, $email);
 
-            return to_route('login');
+            return $this->connectionSignIn->logIn($request, $owner, $connectionProvider, $remember);
         }
 
         if (! Features::enabled(Features::registration())) {

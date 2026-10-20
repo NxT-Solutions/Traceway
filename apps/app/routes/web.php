@@ -58,13 +58,18 @@ Route::middleware('guest')->group(function (): void {
         ->middleware('throttle:signup')
         ->name('connections.finish.store');
     Route::delete('login/finish', [FinishSignUpController::class, 'cancel'])->name('connections.finish.cancel');
+    Route::post('login/finish/existing', [FinishSignUpController::class, 'existing'])->name('connections.finish.existing');
     // The link in the email. Opening it only shows the page; the button opens the account.
     Route::get('login/finish/{token}', [SignUpLinkController::class, 'show'])->name('connections.finish.link');
     Route::post('login/finish/{token}', [SignUpLinkController::class, 'store'])
         ->middleware('throttle:signup')
         ->name('connections.finish.open');
-    Route::delete('login/connection', [PendingConnectionController::class, 'destroy'])->name('connections.pending.destroy');
 });
+
+// A service waiting for the rider to log in. Once in, they say yes to connecting it, or not now.
+Route::get('login/connection', [PendingConnectionController::class, 'show'])->middleware('auth')->name('connections.pending.show');
+Route::post('login/connection', [PendingConnectionController::class, 'store'])->middleware('auth')->name('connections.pending.store');
+Route::delete('login/connection', [PendingConnectionController::class, 'destroy'])->name('connections.pending.destroy');
 
 // Every service sends the rider back here, signed in or not. Wahoo and Ride with GPS keep the callbacks they were
 // first registered with.

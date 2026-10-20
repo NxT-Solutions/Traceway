@@ -31,6 +31,11 @@ interface UserRepository
      */
     public function hasPassword(RiderId $riderId): bool;
 
+    /**
+     * Takes the password away, so the rider logs in another way or sets a new one.
+     */
+    public function removePassword(RiderId $riderId): void;
+
     public function passkeyCount(RiderId $riderId): int;
 
     public function deletePasskeys(RiderId $riderId): void;

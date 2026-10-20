@@ -307,37 +307,44 @@ it('needs a name and an email', function (): void {
     expect(User::query()->count())->toBe(0);
 });
 
-it('does not hold a service for an email that has an account, since the rider only typed it', function (): void {
+it('does not connect a service to an account by an email the rider only typed: they log in, then say yes', function (): void {
     Mail::fake();
     $user = User::factory()->create(['email' => 'grace@example.com']);
     finishSignUpArrive(email: null);
 
     $this->post(route('connections.finish.store'), ['name' => 'Grace', 'email' => 'Grace@example.com'])
         ->assertRedirect(route('login'))
-        ->assertSessionHasErrors(['connection' => 'That email already has a Traceway account. Log in to it, then connect Google in Settings.']);
+        ->assertSessionDoesntHaveErrors();
 
     $this->assertGuest();
     expect(User::query()->sole()->is($user))->toBeTrue()
         ->and(ConnectedAccount::query()->count())->toBe(0)
-        ->and(session('connections.link'))->toBeNull()
         ->and(session('connections.pending'))->toBeNull();
     Mail::assertNothingQueued();
     $this->get(route('login'))
-        ->assertInertia(fn (Assert $assert): Assert => $assert->where('pendingConnection', expected: null));
+        ->assertInertia(fn (Assert $assert): Assert => $assert->where('pendingConnection.confirm', expected: true));
 
-    $this->post(route('login.store'), ['email' => 'grace@example.com', 'password' => 'password'])->assertRedirect(route('dashboard'));
+    $this->post(route('login.store'), ['email' => 'grace@example.com', 'password' => 'password'])->assertRedirect(route('connections.pending.show'));
     expect(ConnectedAccount::query()->count())->toBe(0);
+
+    $this->post(route('connections.pending.store'))->assertRedirect(route('dashboard'));
+    expect(ConnectedAccount::query()->sole()->user_id)->toBe($user->id);
 });
 
-it('hands back the keys a service gave when the email the rider types already has an account', function (): void {
+it('hands back the keys a service gave when the rider with the typed email says not now', function (): void {
     Mail::fake();
-    User::factory()->create(['email' => 'grace@example.com']);
+    $user = User::factory()->create(['email' => 'grace@example.com']);
     $recordingCourseService = finishSignUpArriveWithWahoo();
 
     $this->post(route('connections.finish.store'), ['name' => 'Grace', 'email' => 'grace@example.com'])
-        ->assertSessionHasErrors('connection');
+        ->assertRedirect(route('login'));
+    expect($recordingCourseService->revoked)->toBe([]);
 
-    expect($recordingCourseService->revoked)->toBe(['access-new']);
+    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])->assertRedirect(route('connections.pending.show'));
+    $this->delete(route('connections.pending.destroy'))->assertRedirect(route('dashboard'));
+
+    expect($recordingCourseService->revoked)->toBe(['access-new'])
+        ->and(ConnectedAccount::query()->count())->toBe(0);
 });
 
 it('starts over when nothing is waiting to finish', function (string $method): void {
