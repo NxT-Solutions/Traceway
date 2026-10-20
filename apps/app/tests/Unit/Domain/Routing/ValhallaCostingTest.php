@@ -187,11 +187,12 @@ dataset('foot sports', [
 ]);
 
 // Walkway factor, use_tracks, and use_living_streets for each surface and roads choice.
+// Quiet first sets walkways and living streets. The surface sets tracks, and Dirt walkways too.
 dataset('foot filters', [
     'paved, any road' => [Surface::Paved, false, 1.0, 0.5, 0.6],
     'paved, quiet first' => [Surface::Paved, true, 0.5, 0.5, 0.9],
-    'any surface, any road' => [Surface::Mixed, false, 1.0, 0.5, 0.6],
-    'any surface, quiet first' => [Surface::Mixed, true, 0.5, 1.0, 0.9],
+    'any surface, any road' => [Surface::Mixed, false, 1.0, 0.75, 0.6],
+    'any surface, quiet first' => [Surface::Mixed, true, 0.5, 0.75, 0.9],
     'dirt, any road' => [Surface::Dirt, false, 0.5, 1.0, 0.6],
     'dirt, quiet first' => [Surface::Dirt, true, 0.5, 1.0, 0.9],
 ]);
@@ -244,3 +245,27 @@ it('matches a trail run or a hike onto the mountain paths it may use', function 
         ->and(ValhallaCosting::trace(Sport::Hike)['costing_options']['pedestrian'])->toBe(['walking_speed' => 5.0, 'max_hiking_difficulty' => 2])
         ->and(ValhallaCosting::trace(Sport::Run)['costing_options']['pedestrian'])->toBe(['walking_speed' => 6.0, 'max_hiking_difficulty' => 1]);
 });
+
+it('gives every surface and roads choice on foot its own costing', function (): void {
+    $costings = [];
+
+    foreach (Surface::cases() as $surface) {
+        foreach ([true, false] as $quiet) {
+            $costings[] = ValhallaCosting::payload(filteredQuery(Sport::Walk, $surface, $quiet), [[3.72, 51.05]])['costing_options'];
+        }
+    }
+
+    expect(array_unique(array_map(serialize(...), $costings)))->toHaveCount(6);
+});
+
+it('snaps a point with the limits its route is planned with', function (Sport $sport, Surface $surface): void {
+    $route = ValhallaCosting::payload(filteredQuery($sport, $surface, quiet: true), [[3.72, 51.05]]);
+    $snap = ValhallaCosting::locate($sport, $surface);
+    $limits = $snap['costing_options'][$snap['costing']];
+
+    // The options that decide which ways a route may use: the bike type
+    // and its bad surfaces, or the walking speed and the hiking grade.
+    expect($snap['costing'])->toBe($route['costing'])
+        ->and(array_keys($limits))->toBe($snap['costing'] === 'bicycle' ? ['bicycle_type', 'avoid_bad_surfaces'] : ['walking_speed', 'max_hiking_difficulty'])
+        ->and(array_intersect_key($route['costing_options'][$route['costing']], $limits))->toBe($limits);
+})->with(Sport::cases())->with(Surface::cases());

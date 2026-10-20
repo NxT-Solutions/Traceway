@@ -188,12 +188,12 @@ final class PlanLoopTool extends Tool
                 ->required(),
             'surface' => $schema->string()
                 ->enum(['paved', 'mixed', 'dirt'])
-                ->description('The ground underfoot or under the tyres. Leave it out to use what suits the sport.'),
+                ->description('Leave it out to use what suits the sport. On foot, dirt puts tracks and walkways first, and paved cannot keep a walk on paved ground. On a bike, paved keeps a road bike off gravel and dirt, and for other bikes changes only the roughest ground; dirt uses fewer roads and allows rough ground.'),
             'hills' => $schema->string()
                 ->enum(['flat', 'any', 'hilly'])
-                ->description('flat avoids climbing, any takes the hills as they come, and hilly stops steering round them. Defaults to any.'),
+                ->description('flat avoids climbing, any steers round steep climbs, and hilly adds no extra push round climbs, though a steep one still counts as slow. Defaults to any.'),
             'quiet_roads' => $schema->boolean()
-                ->description('Put paths and quiet streets first. Defaults to true.'),
+                ->description('On foot, put walkways first. On a bike, put cycle paths and quiet lanes first, and busy roads lose. Defaults to true.'),
             'via' => $schema->string()
                 ->description('A place the loop should pass through, like a village or a café. Optional.'),
             'name' => $schema->string()

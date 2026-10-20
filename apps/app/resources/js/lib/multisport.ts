@@ -62,15 +62,16 @@ export const layouts = [
     },
 ] as const;
 
-function leg(
-    sport: string,
-    distanceKm: number,
-    surface = 'paved',
-): Omit<LandLeg, 'id'> {
+/**
+ * A leg of a preset session, before it is planned. Its surface comes from
+ * the sport, from the same source the AI connector uses.
+ */
+type PresetLeg = Omit<LandLeg, 'id' | 'surface'>;
+
+function leg(sport: string, distanceKm: number): PresetLeg {
     return {
         sport,
         distanceKm,
-        surface,
         elevation: 'neutral',
         roads: 'quiet',
         finish: null,
@@ -360,16 +361,31 @@ export function raceOf(
     );
 }
 
-export function withIds(legs: ReadonlyArray<Omit<LandLeg, 'id'>>): LandLeg[] {
+/**
+ * Legs ready to plan, each on its sport's own surface (`sportSurfaces`
+ * from the server).
+ */
+export function withIds(
+    legs: ReadonlyArray<PresetLeg>,
+    surfaces: Record<string, string>,
+): LandLeg[] {
     return legs.map((item) => ({
         ...item,
+        surface: surfaces[item.sport] ?? 'paved',
         finish: item.finish === null ? null : [...item.finish],
         id: crypto.randomUUID(),
     }));
 }
 
-export function newLeg(sport: string): LandLeg {
-    return { ...leg(sport, sport === 'run' ? 5 : 20), id: crypto.randomUUID() };
+export function newLeg(
+    sport: string,
+    surfaces: Record<string, string>,
+): LandLeg {
+    return {
+        ...leg(sport, sport === 'run' ? 5 : 20),
+        surface: surfaces[sport] ?? 'paved',
+        id: crypto.randomUUID(),
+    };
 }
 
 export type Colour = { hex: string; name: string };

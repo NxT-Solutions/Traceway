@@ -274,9 +274,19 @@ try {
         await sportSheet.getByRole('button', { name: new RegExp(`^${name}\\b`) }).click();
         await sportSheet.waitFor({ state: 'hidden', timeout: 3000 });
     };
+    // The loop is drawn on that surface, not only labelled with it.
+    const preview = desktop.waitForRequest((request) => request.url().includes('/routes/preview') && request.method() === 'POST', { timeout: 10000 });
     await pickSport('Trail run');
     await surfaceRow.filter({ hasText: 'Dirt' }).waitFor({ timeout: 3000 });
+    const asked = (await preview).postDataJSON();
+
+    if (asked?.sport !== 'trail_run' || asked?.surface !== 'dirt') {
+        throw new Error(`A trail run was drawn as ${JSON.stringify({ sport: asked?.sport, surface: asked?.surface })}`);
+    }
+
+    // On foot, the surface choices say what they do on foot.
     await surfaceRow.click();
+    await desktop.getByRole('radio', { name: /^Dirt\b.*Tracks and walkways first/ }).waitFor({ timeout: 3000 });
     await desktop.getByRole('radio', { name: /^Paved\b/ }).click();
     await surfaceRow.filter({ hasText: 'Paved' }).waitFor({ timeout: 3000 });
     await pickSport('Trail run');
@@ -290,6 +300,57 @@ try {
     await surfaceRow.filter({ hasText: 'Dirt' }).waitFor({ timeout: 3000 });
     await pickSport('Road');
     await surfaceRow.filter({ hasText: 'Paved' }).waitFor({ timeout: 3000 });
+
+    // Zoomed out, a spot asks the routing engine for the nearest way for the
+    // sport and surface. A road ride on Paved with no paved road near is told why.
+    const zoomOut = async () => {
+        await canvas.focus();
+
+        for (let press = 0; press < 6; press++) {
+            await desktop.keyboard.press('-');
+            await desktop.waitForTimeout(150);
+        }
+
+        await desktop.waitForTimeout(600);
+    };
+    let snapAsked = null;
+    await desktop.route('**/routes/snap', async (route) => {
+        snapAsked = route.request().postDataJSON();
+        await route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ message: 'Nothing is close enough.' }) });
+    });
+    await zoomOut();
+    await desktop.keyboard.press('Enter');
+    await desktop.locator('.tap-card .tap-note', { hasText: 'No paved road is close enough' }).waitFor({ timeout: 10000 });
+    await desktop.unroute('**/routes/snap');
+    await desktop.keyboard.press('Escape');
+
+    if (snapAsked?.sport !== 'road' || snapAsked?.surface !== 'paved') {
+        throw new Error(`A road ride on Paved snapped as ${JSON.stringify(snapAsked)}`);
+    }
+
+    // In Build, with no paved way drawn near the tap, a road ride on Paved
+    // asks the routing engine, which knows a compacted cycle path or a good
+    // track from a dirt one, and the point lands where it says.
+    const buildAsked = [];
+    await desktop.route('**/routes/snap', async (route) => {
+        const body = route.request().postDataJSON();
+        buildAsked.push(body);
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ latitude: body.latitude, longitude: body.longitude }) });
+    });
+    await desktop.getByRole('tab', { name: 'Build' }).click();
+    const buildBox = await canvas.boundingBox();
+    await desktop.mouse.click(buildBox.x + buildBox.width * 0.7, buildBox.y + buildBox.height * 0.3);
+    await desktop.locator('.pts .pt[data-point]').first().waitFor({ timeout: 10000 });
+    await desktop.unroute('**/routes/snap');
+
+    if (buildAsked.length > 0 && (buildAsked[0].sport !== 'road' || buildAsked[0].surface !== 'paved')) {
+        throw new Error(`A Build point for a road ride on Paved snapped as ${JSON.stringify(buildAsked[0])}`);
+    }
+
+    console.log(`  build point placed (${buildAsked.length > 0 ? 'from the routing engine' : 'on a drawn way'})`);
+    await desktop.getByRole('button', { name: 'Undo' }).click();
+    await desktop.locator('.pts .pt[data-point]').first().waitFor({ state: 'detached', timeout: 3000 });
+    await desktop.getByRole('tab', { name: 'Generate' }).click();
 
     await desktop.getByRole('tab', { name: 'Multisport' }).click();
     await desktop.getByRole('button', { name: /^Type\s*\w/ }).click();
@@ -312,9 +373,45 @@ try {
     await (await answered(desktop, desktop.getByRole('button', { name: 'Move the transition here' }), 'No "Move the transition here" for Oevel')).click();
     await desktop.locator('section[aria-label="Legs"]').getByText('Oevel').waitFor({ timeout: 5000 });
 
-    // A leg that changes sport takes that sport's surface too.
+    // A leg that changes sport takes that sport's surface too, in the plan itself.
     await pickSport('Mountain bike');
     await surfaceRow.filter({ hasText: 'Dirt' }).waitFor({ timeout: 3000 });
+
+    for (let waited = 0; ; waited += 250) {
+        const legs = (await draft())?.multisport?.legs ?? [];
+
+        if (legs.some((item) => item.sport === 'mtb' && item.surface === 'dirt')) {
+            break;
+        }
+
+        if (waited > 3000) {
+            throw new Error(`The mountain bike leg was not planned on Dirt: ${JSON.stringify(legs.map((item) => [item.sport, item.surface]))}`);
+        }
+
+        await desktop.waitForTimeout(250);
+    }
+
+    // Zoomed out, a tap for that leg asks for a way its own sport may use,
+    // not the planner's road ride.
+    const legAsked = [];
+    await desktop.route('**/routes/snap', async (route) => {
+        legAsked.push(route.request().postDataJSON());
+        await route.continue();
+    });
+    await zoomOut();
+    const legBox = await canvas.boundingBox();
+    await desktop.mouse.click(legBox.x + legBox.width * 0.6, legBox.y + legBox.height * 0.5);
+
+    for (let waited = 0; legAsked.length === 0 && waited < 10000; waited += 250) {
+        await desktop.waitForTimeout(250);
+    }
+
+    await desktop.unroute('**/routes/snap');
+    await desktop.keyboard.press('Escape');
+
+    if (legAsked[0]?.sport !== 'mtb' || legAsked[0]?.surface !== 'dirt') {
+        throw new Error(`A mountain bike leg snapped as ${JSON.stringify(legAsked[0])}`);
+    }
 
     await open(desktop, '/saved');
     await desktop.getByRole('link', { name: 'Plan your route' }).waitFor();
