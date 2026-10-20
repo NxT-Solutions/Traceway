@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import type { MouseEvent } from 'react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import {
     focusAfterRead,
     markAllReleasesRead,
@@ -14,6 +15,76 @@ import type { UnreadRelease, WhatsNew } from '@/types/releases';
 import '../../css/release-bell.css';
 
 const TOASTED_KEY = 'traceway.release-toasted';
+
+/**
+ * The card the toast shows: the version, the release in its own words, and a
+ * way to read the notes. Sonner leaves a custom toast unstyled,
+ * so it reads the app's colour tokens itself.
+ */
+function ReleaseToast({
+    id,
+    release,
+}: {
+    id: string | number;
+    release: UnreadRelease;
+}) {
+    return (
+        <div className="release-toast">
+            <div className="rt-body">
+                <p className="rt-meta">
+                    New in Traceway{' '}
+                    <span className="rt-tag">{release.tag}</span>
+                </p>
+                <p className="rt-name">{release.name}</p>
+                {release.headline ? (
+                    <p className="rt-line">{release.headline}</p>
+                ) : null}
+                <Button
+                    size="sm"
+                    className="rt-action"
+                    onClick={() => {
+                        toast.dismiss(id);
+                        router.visit(
+                            `${whatsNewPage.url()}#${releaseAnchor(release.tag)}`,
+                        );
+                    }}
+                >
+                    See what's new
+                    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path
+                            d="M3 8h9.5M8.5 4l4 4-4 4"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                </Button>
+            </div>
+            <button
+                type="button"
+                className="rt-close"
+                aria-label="Close"
+                onClick={() => toast.dismiss(id)}
+            >
+                <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M3 3l8 8M11 3l-8 8"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                    />
+                </svg>
+            </button>
+        </div>
+    );
+}
 
 /**
  * Says once, in a toast, that a new version is out. The bell keeps the count
@@ -46,16 +117,8 @@ function useNewReleaseToast(newest: UnreadRelease | undefined): void {
             return;
         }
 
-        toast.info(`Traceway ${newest.tag} is out`, {
-            description: newest.headline ?? newest.name,
+        toast.custom((id) => <ReleaseToast id={id} release={newest} />, {
             duration: 12000,
-            action: {
-                label: "See what's new",
-                onClick: () =>
-                    router.visit(
-                        `${whatsNewPage.url()}#${releaseAnchor(newest.tag)}`,
-                    ),
-            },
         });
     }, [newest]);
 }
