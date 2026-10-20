@@ -97,9 +97,11 @@ export type AdminUser = {
         last_used_at: string | null;
     }[];
     apps: { name: string; connected_at: string | null }[];
+    /** Every account the rider connected at another service, to log in with or send routes to. */
     services: {
         service: string;
         connected_at: string | null;
+        last_signed_in_at: string | null;
         last_sent_at: string | null;
     }[];
     sessions: { browser: string; last_active_at: string }[];

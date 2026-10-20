@@ -19,8 +19,8 @@ final class PeoplePages
 
     /** @var list<string> */
     private const array PREFIXES = [
-        '/settings', '/share/', '/routes', '/admin', '/docs/', '/build/', '/_astro/', '/oauth/', '/api/device/',
-        '/email/', '/reset-password/', '/.well-known/oauth-',
+        '/settings', '/share/', '/routes', '/admin', '/docs/', '/build/', '/_astro/', '/oauth/', '/auth/', '/login/',
+        '/api/device/', '/email/', '/reset-password/', '/.well-known/oauth-',
     ];
 
     /** @var list<string> */

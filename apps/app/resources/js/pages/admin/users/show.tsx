@@ -170,24 +170,43 @@ export default function ShowUser({
                         ))
                     )}
                 </ul>
-                <ul className="list" aria-label="AI assistants and apps">
-                    {user.apps.length === 0 && user.services.length === 0 ? (
+                <ul className="list" aria-label="AI assistants">
+                    {user.apps.length === 0 ? (
                         <li>
-                            <small>No assistant or app connected.</small>
+                            <small>No assistant connected.</small>
                         </li>
-                    ) : null}
-                    {user.apps.map((app) => (
-                        <li key={app.name}>
-                            <span>{app.name}</span>
-                            <small>Connected {when(app.connected_at)}</small>
+                    ) : (
+                        user.apps.map((app) => (
+                            <li key={app.name}>
+                                <span>{app.name}</span>
+                                <small>
+                                    Connected {when(app.connected_at)}
+                                </small>
+                            </li>
+                        ))
+                    )}
+                </ul>
+                <ul className="list" aria-label="Connected accounts">
+                    {user.services.length === 0 ? (
+                        <li>
+                            <small>No account at another service.</small>
                         </li>
-                    ))}
-                    {user.services.map((service) => (
-                        <li key={service.service}>
-                            <span>{service.service}</span>
-                            <small>Last sent {ago(service.last_sent_at)}</small>
-                        </li>
-                    ))}
+                    ) : (
+                        user.services.map((service) => (
+                            <li key={service.service}>
+                                <span>{service.service}</span>
+                                <small>
+                                    Connected {when(service.connected_at)}.
+                                    {service.last_signed_in_at === null
+                                        ? ''
+                                        : ` Last logged in ${ago(service.last_signed_in_at)}.`}
+                                    {service.last_sent_at === null
+                                        ? ''
+                                        : ` Last sent ${ago(service.last_sent_at)}.`}
+                                </small>
+                            </li>
+                        ))
+                    )}
                 </ul>
             </section>
 

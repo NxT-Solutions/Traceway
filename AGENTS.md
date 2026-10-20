@@ -12,7 +12,8 @@ This is a Turborepo.
 Traceway plans routes for any sport and exports them as course files for a watch, a GPS, or a bike computer. The browser map is the planner. The device navigates the file on its own basemap. Foot and bike are equal: run, trail run, walk, hike, road, gravel, and mountain bike.
 
 - `app/Domain` does not import Saloon, Eloquent, or HTTP.
-- Outbound HTTP uses Saloon connectors in `app/Integrations`.
+- Outbound HTTP uses Saloon connectors in `app/Integrations`. The one exception is the sign-in handshake with a connected service, which is Socialite in `app/Auth/Connections`. Everything done with a connection afterwards is Saloon.
+- A connection keeps the service's keys only when Traceway needs them, such as to send routes. See `docs/device-providers.md` before adding one.
 - Route geometry comes from the routing engine. An LLM does not emit coordinates.
 - A device name is 1 to 15 characters.
 - Do not use Strava orange, their wordmark, the chevron mark, or the words beacon, kudos, segment, or suffer.

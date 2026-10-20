@@ -103,8 +103,26 @@ const pages = [
     },
     // The longest of the legal pages, from the content site.
     { name: 'legal', url: () => `${content}/privacy`, full: true },
+    { name: 'login', url: '/login', full: true },
+    // Every sign-in service set up here, grouped. Without any it is /login again.
+    { name: 'login-options', url: '/login/options', full: true },
     { name: 'register', url: '/register', full: true },
     { name: 'status', url: '/status', full: true },
+    { name: 'connections', url: '/settings/connections', auth: true, full: true },
+    // Asking before disconnecting one, when the road rider has a connection to disconnect.
+    {
+        name: 'connections-disconnect',
+        url: '/settings/connections',
+        auth: true,
+        prepare: async (page) => {
+            const disconnect = page.getByRole('button', { name: /^Disconnect / }).first();
+            if ((await disconnect.count()) > 0 && (await disconnect.isEnabled())) {
+                await disconnect.click();
+                await page.getByRole('dialog').waitFor();
+            }
+        },
+    },
+    { name: 'devices', url: '/settings/devices', auth: true, full: true },
     { name: 'assistants', url: '/settings/assistants', auth: true, full: true },
     { name: 'privacy', url: '/settings/privacy', auth: true, full: true },
     { name: 'whats-new', url: '/settings/whats-new', auth: true, full: true },

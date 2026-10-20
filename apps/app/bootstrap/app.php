@@ -26,7 +26,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->trustProxies(at: '*');
+        // Cloudflare, then Caddy, sit in front, and Caddy passes on the host it answered for. Laravel takes only the
+        // visitor's address and https from them. A forwarded host or port is never used: Caddy sets neither, so only
+        // a visitor could send one through Cloudflare, and a link in an email would then lead to their site.
+        $middleware->trustProxies(at: '*', headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO);
+
+        // Only the host in APP_URL is answered. Laravel leaves this check out in local development and in tests.
+        $middleware->trustHosts();
 
         // Outermost, so error pages and the maintenance page get the headers too.
         $middleware->prepend(SendSecurityHeaders::class);

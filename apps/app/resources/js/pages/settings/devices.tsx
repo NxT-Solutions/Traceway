@@ -1,11 +1,20 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
+import ConfirmEmailFirst from '@/components/connections/confirm-email-first';
+import ConnectLink from '@/components/connections/connect-link';
+import DisconnectBlocked from '@/components/connections/disconnect-blocked';
+import DisconnectButton from '@/components/connections/disconnect-button';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { RouteServiceStatus } from '@/types/route-services';
+import { edit as editConnections } from '@/routes/connections';
+import { edit } from '@/routes/devices';
+import type {
+    RouteServiceSlug,
+    RouteServiceStatus,
+} from '@/types/route-services';
 
 type Device = {
     id: string;
@@ -32,14 +41,30 @@ const serviceNote: Record<string, string> = {
         'Routes go to your Ride with GPS library. From there, Send to Device puts one on a Karoo, Bryton, or Wahoo.',
 };
 
+/** After a disconnect the button is gone, so focus goes to the list the service is still in. */
+const focusAfterDisconnect = ['devices-send-to', 'devices-title'];
+
+/** The sentence Connect and Disconnect point to while the rider's email waits to be confirmed. */
+const confirmEmailId = 'devices-confirm-email';
+
 export default function Devices({
     devices,
     services = [],
+    disconnectBlocked = {},
+    emailVerified,
+    verificationSent,
 }: {
     devices: Device[];
     services?: RouteServiceStatus[];
+    /** Why a service cannot be disconnected yet, such as it being the rider's last way to log in. */
+    disconnectBlocked?: Partial<Record<RouteServiceSlug, string | null>>;
+    /** False until the rider confirms their email. Connect and Disconnect wait for it. */
+    emailVerified: boolean;
+    /** True right after the rider asked for the confirmation email again. */
+    verificationSent: boolean;
 }) {
     const form = useForm({ code: '', label: 'Garmin' });
+    const locked = !emailVerified;
 
     function link(event: FormEvent<HTMLFormElement>): void {
         event.preventDefault();
@@ -53,7 +78,9 @@ export default function Devices({
         <>
             <Head title="Devices" />
 
-            <h1 className="sr-only">Devices</h1>
+            <h1 id="devices-title" className="sr-only" tabIndex={-1}>
+                Devices
+            </h1>
 
             <div className="card">
                 <Heading
@@ -157,58 +184,100 @@ export default function Devices({
                     <Heading
                         variant="small"
                         title="Send routes to"
-                        description="Connect an account once. Then Send to device puts a route there in one tap."
+                        id="devices-send-to"
+                        focusable
+                        description="Connect an account once. Then Send to device puts a route there in one tap, and you can log in with it too."
                     />
 
-                    <ul className="grid gap-3">
-                        {services.map((service) => (
-                            <li
-                                key={service.service}
-                                className="flex items-center justify-between gap-4"
-                            >
-                                <div className="text-sm">
-                                    <p className="font-medium">
-                                        {service.label}
-                                    </p>
-                                    <p className="text-muted-foreground">
-                                        {service.connected
-                                            ? service.needs_reconnect
-                                                ? `Traceway lost its link to ${service.label}. Connect it again.`
-                                                : `Connected ${written(service.connected_at)}. ${service.last_sent_at === null ? 'No route sent yet.' : `Last route sent ${written(service.last_sent_at)}.`}`
-                                            : serviceNote[service.service]}
-                                    </p>
-                                </div>
-                                {service.connected &&
-                                !service.needs_reconnect ? (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() =>
-                                            router.delete(
-                                                `/settings/services/${service.service}`,
-                                                { preserveScroll: true },
-                                            )
-                                        }
-                                    >
-                                        Disconnect {service.label}
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        type="button"
-                                        onClick={() =>
-                                            window.location.assign(
-                                                `/settings/services/${service.service}/connect`,
-                                            )
-                                        }
-                                    >
-                                        {service.connected
-                                            ? `Connect ${service.label} again`
-                                            : `Connect ${service.label}`}
-                                    </Button>
-                                )}
-                            </li>
-                        ))}
+                    {locked ? (
+                        <ConfirmEmailFirst
+                            id={confirmEmailId}
+                            sent={verificationSent}
+                        />
+                    ) : null}
+
+                    <ul className="grid gap-4">
+                        {services.map((service) => {
+                            const blocked = service.connected
+                                ? (disconnectBlocked[service.service] ?? null)
+                                : null;
+                            const blockedId = `devices-blocked-${service.service}`;
+                            const why = [
+                                blocked === null ? null : blockedId,
+                                locked ? confirmEmailId : null,
+                            ].filter((reason) => reason !== null);
+
+                            return (
+                                <li
+                                    key={service.service}
+                                    className="flex flex-wrap items-center justify-between gap-3"
+                                >
+                                    <div className="min-w-0 flex-[1_1_14rem] text-sm">
+                                        <p className="font-medium">
+                                            {service.label}
+                                        </p>
+                                        <p className="text-muted-foreground">
+                                            {service.connected
+                                                ? service.needs_reconnect
+                                                    ? `Traceway lost its link to ${service.label}. Connect it again.`
+                                                    : `Connected ${written(service.connected_at)}. ${service.last_sent_at === null ? 'No route sent yet.' : `Last route sent ${written(service.last_sent_at)}.`}`
+                                                : serviceNote[service.service]}
+                                        </p>
+                                        {blocked === null ? null : (
+                                            <DisconnectBlocked
+                                                id={blockedId}
+                                                message={blocked}
+                                                className="mt-1"
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="cx-buttons">
+                                        {!service.connected ||
+                                        service.needs_reconnect ? (
+                                            <ConnectLink
+                                                slug={service.service}
+                                                label={service.label}
+                                                again={service.connected}
+                                                returnTo={edit.url()}
+                                                disabled={locked}
+                                                describedBy={
+                                                    locked
+                                                        ? confirmEmailId
+                                                        : undefined
+                                                }
+                                            />
+                                        ) : null}
+                                        {service.connected ? (
+                                            <DisconnectButton
+                                                slug={service.service}
+                                                label={service.label}
+                                                withdrawsAccess
+                                                sendsRoutes
+                                                manageUrl={null}
+                                                disabled={
+                                                    blocked !== null || locked
+                                                }
+                                                describedBy={
+                                                    why.length === 0
+                                                        ? undefined
+                                                        : why.join(' ')
+                                                }
+                                                focusAfter={
+                                                    focusAfterDisconnect
+                                                }
+                                            />
+                                        ) : null}
+                                    </div>
+                                </li>
+                            );
+                        })}
                     </ul>
+
+                    <p className="cx-more">
+                        <Link className="cx-link" href={editConnections()}>
+                            All connections
+                        </Link>
+                    </p>
                 </div>
             )}
         </>

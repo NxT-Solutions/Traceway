@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 use App\Account\AdminAction;
 use App\Account\AdminRules;
+use App\Account\ConnectionProvider;
 use App\Account\RiderId;
 use App\Account\Role;
+use App\Commands\IdentifyConnectionsCommand;
+use App\Commands\KeepConnectionAccessCommand;
 use App\Commands\PostStatusNoticeCommand;
 use App\Commands\ReadRouteDetailsCommand;
 use App\Commands\RecordServiceChecksCommand;
@@ -16,6 +19,7 @@ use App\Commands\SyncReleasesCommand;
 use App\Contracts\Account\AdminLog;
 use App\Contracts\Account\UserRepository;
 use App\Contracts\Bus\DispatchesCommands;
+use App\Domain\Connections\ConnectionTally;
 use App\Domain\Releases\ReleaseFeed;
 use App\Domain\Status\StatusComponent;
 use App\Integrations\ReleaseNotes\ReleaseNotesDirectory;
@@ -23,6 +27,7 @@ use App\Queries\Routes\UnreadRoutesQuery;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function (): void {
@@ -258,3 +263,48 @@ Artisan::command('admin:prune-log', function (AdminLog $adminLog): int {
 })->purpose('Forget admin activity older than a year');
 
 Schedule::command('admin:prune-log')->dailyAt('03:10');
+
+Artisan::command('connections:identify', function (DispatchesCommands $dispatchesCommands): int {
+    $tally = $dispatchesCommands->dispatch(new IdentifyConnectionsCommand);
+    $tally = $tally instanceof ConnectionTally ? $tally : new ConnectionTally;
+
+    $counts = 'Found the account of '.$tally->done.' of '.$tally->total().' Wahoo and Ride with GPS connections from before. '
+        .$tally->refused.' need connecting again, '.$tally->unreachable.' could not be asked, and '.$tally->skipped.' belong to another rider.';
+
+    // The scheduler throws a command's output away, so the counts go to the log too.
+    $this->info($counts);
+    Log::info($counts);
+
+    return 0;
+})->purpose('Ask Wahoo and Ride with GPS whose account each connection from before is, so it logs the rider in');
+
+Artisan::command('connections:keep-access', function (DispatchesCommands $dispatchesCommands): int {
+    $tally = $dispatchesCommands->dispatch(new KeepConnectionAccessCommand(ConnectionProvider::GarminConnect));
+    $tally = $tally instanceof ConnectionTally ? $tally : new ConnectionTally;
+
+    $counts = 'Refreshed the keys of '.$tally->done.' of '.$tally->total().' Garmin Connect connections. '
+        .$tally->refused.' need connecting again, and '.$tally->unreachable.' could not be asked.';
+
+    // The scheduler throws a command's output away, so the counts go to the log too.
+    $this->info($counts);
+    Log::info($counts);
+
+    return 0;
+})->purpose('Refresh the keys Garmin Connect gave Traceway, so it can still remove its access when a rider disconnects');
+
+// A connection from before that Wahoo or Ride with GPS could not answer for at
+// deploy is asked again each night, so it does not wait for the next deploy.
+// A slow service must not hold up the status checks either.
+Schedule::command('connections:identify')
+    ->dailyAt('04:40')
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
+// Garmin's keys refresh for about three months. A rider who connected Garmin
+// Connect and then logs in another way would let them run out, and Traceway
+// could no longer end its registration at Garmin when they disconnect. A slow
+// Garmin must not hold up the status checks.
+Schedule::command('connections:keep-access')
+    ->weeklyOn(1, '04:20')
+    ->withoutOverlapping(60)
+    ->runInBackground();

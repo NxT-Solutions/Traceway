@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Mail\AccountMessage;
+use App\Models\ConnectedAccount;
 use App\Models\Release;
-use App\Models\RouteServiceAccount;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,10 +38,16 @@ it('keeps the password and sign-in secrets out of the download', function (): vo
         'external_url' => null,
         'sent_at' => now(),
     ]);
-    RouteServiceAccount::factory()->create([
-        'user_id' => $user->id,
+    ConnectedAccount::factory()->for($user)->create([
+        'provider_user_id' => '60462',
+        'account_label' => 'owner@wahoo.test',
         'access_token' => 'wahoo-token-should-stay',
         'refresh_token' => 'wahoo-refresh-should-stay',
+        'scopes' => ['user_read', 'routes_write'],
+    ]);
+    ConnectedAccount::factory()->signInOnly('google')->for($user)->create([
+        'provider_user_id' => '1180',
+        'account_label' => 'owner@gmail.test',
     ]);
 
     $response = $this->actingAs($user)->get(route('privacy.export'));
@@ -66,9 +72,14 @@ it('keeps the password and sign-in secrets out of the download', function (): vo
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',
-        'route_service_tokens',
-    ])->and($document['route_services'][0]['service'])->toBe('wahoo')
-        ->and($document['route_services'][0]['sent'][0]['saved_route_id'])->toBe($savedRoute->id)
+        'connection_keys',
+    ])->and(array_column($document['connections'], 'service'))->toBe(['google', 'wahoo'])
+        ->and(array_keys($document['connections'][1]))->toBe(['service', 'account_number', 'account', 'allowed', 'connected_at', 'last_signed_in_at', 'last_sent_at', 'sent'])
+        ->and($document['connections'][0]['account'])->toBe('owner@gmail.test')
+        ->and($document['connections'][0]['sent'])->toBe([])
+        ->and($document['connections'][1]['account_number'])->toBe('60462')
+        ->and($document['connections'][1]['allowed'])->toBe(['user_read', 'routes_write'])
+        ->and($document['connections'][1]['sent'][0]['saved_route_id'])->toBe($savedRoute->id)
         ->and(array_keys($document['account']))->not->toContain('password', 'two_factor_secret', 'remember_token');
 
     Mail::assertQueued(AccountMessage::class, function (AccountMessage $accountMessage) use ($stored): bool {
@@ -78,6 +89,8 @@ it('keeps the password and sign-in secrets out of the download', function (): vo
             && is_string($attachment)
             && $stored instanceof User
             && ! str_contains($attachment, 'totp-secret-should-stay')
+            && ! str_contains($attachment, 'wahoo-token-should-stay')
+            && ! str_contains($attachment, 'wahoo-refresh-should-stay')
             && ! str_contains($attachment, (string) $stored->password);
     });
 })->group('gdpr');

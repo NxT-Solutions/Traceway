@@ -34,9 +34,18 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user();
+        $confirmedAt = $request->session()->get('auth.password_confirmed_at', 0);
+        $timeout = config('auth.password_timeout', 10800);
+
         return Inertia::render('settings/profile', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            // A rider who signed up with a connected account confirms it is them another way before deleting.
+            'hasPassword' => ! $user instanceof User || $user->password !== null,
+            'confirmedRecently' => is_numeric($confirmedAt) && is_numeric($timeout) && (int) $confirmedAt >= now()->getTimestamp() - (int) $timeout,
+            // A new email the rider asked for, waiting for them to open the link sent to it.
+            'pendingEmail' => $user instanceof User ? $user->pending_email : null,
         ]);
     }
 
@@ -72,13 +81,22 @@ class ProfileController extends Controller
 
         abort_unless($user instanceof User, 403);
 
+        $email = new Email($profileUpdateRequest->string('email')->toString());
+
         $dispatchesCommands->dispatch(new UpdateProfileCommand(
             riderId: new RiderId($user->id),
             name: new RiderName($profileUpdateRequest->string('name')->toString()),
-            email: new Email($profileUpdateRequest->string('email')->toString()),
+            email: $email,
         ));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
+        // A password typed here proves it is the rider, the same as the confirm page does.
+        if ($profileUpdateRequest->filled('current_password')) {
+            $profileUpdateRequest->session()->put('auth.password_confirmed_at', now()->getTimestamp());
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => mb_strtolower($user->email) === $email->value
+            ? __('Profile updated.')
+            : __('Check :email. Your account signs in with it once you open the link sent there.', ['email' => $email->value])]);
 
         return to_route('profile.edit');
     }

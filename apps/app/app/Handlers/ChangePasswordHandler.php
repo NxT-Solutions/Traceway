@@ -22,6 +22,11 @@ final readonly class ChangePasswordHandler
         $this->currentRider->assertSameOrGuest($changePasswordCommand->riderId);
 
         $rider = $this->userRepository->changePassword($changePasswordCommand->riderId, $changePasswordCommand->password);
+
+        if ($changePasswordCommand->endSessions) {
+            $this->userRepository->endSessions($changePasswordCommand->riderId);
+        }
+
         $this->accountMailer->passwordChanged($rider->name, $rider->email);
     }
 }

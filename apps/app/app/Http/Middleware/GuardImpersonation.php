@@ -12,7 +12,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * While a Super Admin acts as a rider, the rider's sign-in and the admin area stay closed: no password, two-factor,
- * passkeys, deleting the account, or emailing a copy of the data, and no admin pages until they stop.
+ * passkeys, connected accounts, deleting the account, or emailing a copy of the data, and no admin pages until
+ * they stop. The connections page itself may be looked at.
  */
 final readonly class GuardImpersonation
 {
@@ -36,7 +37,7 @@ final readonly class GuardImpersonation
             return false;
         }
 
-        return $request->is('admin', 'admin/*', 'user/*', 'passkeys/*', 'settings/security', 'settings/password', 'settings/privacy/export')
+        return $request->is('admin', 'admin/*', 'user/*', 'passkeys/*', 'auth/*', 'settings/connections/*', 'settings/services/*', 'settings/profile/email', 'settings/profile/email/*', 'settings/security', 'settings/password', 'settings/privacy/export')
             || ($request->is('settings/profile') && ! $request->isMethod('GET'));
     }
 }

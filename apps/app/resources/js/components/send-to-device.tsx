@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { csrfToken } from '@/lib/places';
 import { cn } from '@/lib/utils';
+import { connect as connectService } from '@/routes/connections';
 import type {
     RouteServiceSlug,
     RouteServiceStatus,
@@ -418,7 +419,7 @@ function BrandSteps({
         }
 
         window.location.assign(
-            `/settings/services/${slug}/connect?return=${encodeURIComponent('/saved')}`,
+            connectService.url(slug, { query: { return: '/saved' } }),
         );
     }
 

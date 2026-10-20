@@ -3,6 +3,7 @@ import { router } from '@inertiajs/react';
 import { usePasskeyVerify } from '@laravel/passkeys/react';
 import { KeyRound } from 'lucide-react';
 import InputError from '@/components/input-error';
+import LastUsed from '@/components/sign-in-last-used';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
@@ -15,7 +16,10 @@ type Props = {
     };
     label?: string;
     loadingLabel?: string;
-    separator?: string;
+    /** False leaves the divider to the page, when it has more ways in above the form. */
+    separator?: string | false;
+    /** The rider last logged in on this browser with a passkey. */
+    lastUsed?: boolean;
     variant?: 'default' | 'paper';
 };
 
@@ -24,6 +28,7 @@ export default function PasskeyVerify({
     label,
     loadingLabel,
     separator,
+    lastUsed = false,
     variant = 'default',
 }: Props = {}) {
     const { verify, isLoading, error, isSupported } = usePasskeyVerify({
@@ -82,11 +87,14 @@ export default function PasskeyVerify({
                     {isLoading
                         ? (loadingLabel ?? 'Authenticating…')
                         : (label ?? 'Sign in with a passkey')}
+                    {lastUsed ? <LastUsed /> : null}
                 </button>
                 {error ? <InputError message={error} /> : null}
-                <p className="divider">
-                    {separator ?? 'or continue with email'}
-                </p>
+                {separator === false ? null : (
+                    <p className="divider">
+                        {separator ?? 'or continue with email'}
+                    </p>
+                )}
             </>
         );
     }
@@ -111,16 +119,18 @@ export default function PasskeyVerify({
                 )}
             </div>
 
-            <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                    <Separator className="w-full" />
+            {separator === false ? null : (
+                <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                        <Separator className="w-full" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">
+                            {separator ?? 'Or continue with email'}
+                        </span>
+                    </div>
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                        {separator ?? 'Or continue with email'}
-                    </span>
-                </div>
-            </div>
+            )}
         </>
     );
 }

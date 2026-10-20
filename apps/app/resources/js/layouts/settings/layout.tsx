@@ -9,6 +9,7 @@ import { logout, status } from '@/routes';
 import { overview as adminOverview } from '@/routes/admin';
 import { index as adminUsers } from '@/routes/admin/users';
 import { edit as editAppearance } from '@/routes/appearance';
+import { edit as editConnections } from '@/routes/connections';
 import { edit } from '@/routes/profile';
 import { index as whatsNewPage } from '@/routes/releases';
 import { edit as editSecurity } from '@/routes/security';
@@ -25,6 +26,11 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Security',
         href: editSecurity(),
+        icon: null,
+    },
+    {
+        title: 'Connections',
+        href: editConnections(),
         icon: null,
     },
     {
@@ -67,7 +73,9 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
             <SceneHeader current="account" />
             <main className="wrap">
                 <h1>Settings</h1>
-                <p className="sub">Profile, security and appearance.</p>
+                <p className="sub">
+                    Profile, security, connections and appearance.
+                </p>
                 <div className="layout">
                     <nav className="snav" aria-label="Settings sections">
                         {sidebarNavItems.map((item, index) => (

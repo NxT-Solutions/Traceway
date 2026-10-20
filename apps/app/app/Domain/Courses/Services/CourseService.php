@@ -4,33 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domain\Courses\Services;
 
+use App\Domain\Connections\GrantedAccess;
+
 /**
- * A service that keeps routes for a rider and passes them on to a device, such as Wahoo.
- * The rider connects once with OAuth. After that Traceway sends a course on request.
+ * A service that keeps routes for a rider and passes them on to a device, such as Wahoo. The rider connects once,
+ * which also logs them in. After that Traceway sends a course on request with the keys it keeps.
  */
-interface CourseService
+interface CourseService extends GrantedAccess
 {
-    /**
-     * Where to send the rider to allow Traceway. The state comes back on the callback.
-     */
-    public function authorizationUrl(string $state): string;
-
-    /**
-     * Trades the code from the callback for tokens.
-     *
-     * @throws ServiceRefused when the code is not accepted
-     * @throws ServiceUnavailable when the service cannot be reached
-     */
-    public function connect(string $code): ServiceTokens;
-
-    /**
-     * New tokens for ones that ran out. A service without refresh tokens returns the same ones.
-     *
-     * @throws ServiceRefused when the rider has to connect again
-     * @throws ServiceUnavailable when the service cannot be reached
-     */
-    public function refresh(ServiceTokens $serviceTokens): ServiceTokens;
-
     /**
      * Puts the course in the rider's library at the service, replacing the one it sent before.
      *
@@ -40,7 +21,10 @@ interface CourseService
     public function publish(ServiceTokens $serviceTokens, CourseUpload $courseUpload, ?string $previousId): PublishedCourse;
 
     /**
-     * Withdraws Traceway's access. A failure here does not stop the rider from disconnecting.
+     * The rider's account at the service the keys belong to.
+     *
+     * @throws ServiceRefused when the rider has to connect again
+     * @throws ServiceUnavailable when the service cannot be reached or does not say who the rider is
      */
-    public function revoke(ServiceTokens $serviceTokens): void;
+    public function account(ServiceTokens $serviceTokens): ServiceAccount;
 }

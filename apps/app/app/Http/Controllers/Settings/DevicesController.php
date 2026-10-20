@@ -4,22 +4,26 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
+use App\Account\ConnectionProvider;
 use App\Account\DeviceLabel;
 use App\Account\DeviceLinkId;
 use App\Account\PairingCode;
 use App\Account\RiderId;
+use App\Account\RouteService;
 use App\Commands\LinkDeviceCommand;
 use App\Commands\RevokeDeviceCommand;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\LinkDeviceRequest;
 use App\Models\User;
+use App\Queries\Account\ConnectionsQuery;
 use App\Queries\Account\DeviceLinksQuery;
 use App\Queries\Account\RouteServicesQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Fortify\Fortify;
 use OpenApi\Attributes\Delete;
 use OpenApi\Attributes\JsonContent;
 use OpenApi\Attributes\Parameter;
@@ -31,13 +35,23 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class DevicesController extends Controller
 {
-    public function edit(Request $request, DeviceLinksQuery $deviceLinksQuery, RouteServicesQuery $routeServicesQuery): Response
+    public function edit(Request $request, DeviceLinksQuery $deviceLinksQuery, RouteServicesQuery $routeServicesQuery, ConnectionsQuery $connectionsQuery): Response
     {
-        $riderId = $this->user($request)->id;
+        $user = $this->user($request);
+        $riderId = $user->id;
 
         return Inertia::render('settings/devices', [
             'devices' => $deviceLinksQuery->forRider($riderId),
             'services' => $routeServicesQuery->forRider($riderId),
+            // Why Disconnect is turned off for a service, the same as on the connections page, or null.
+            'disconnectBlocked' => $connectionsQuery->disconnectBlocked(
+                $riderId,
+                array_map(static fn (RouteService $routeService): ConnectionProvider => $routeService->connection(), RouteService::cases()),
+            ),
+            // Connecting or disconnecting a service waits until the email is confirmed, the same as on the
+            // connections page.
+            'emailVerified' => $user->hasVerifiedEmail(),
+            'verificationSent' => $request->session()->get('status') === Fortify::VERIFICATION_LINK_SENT,
         ]);
     }
 

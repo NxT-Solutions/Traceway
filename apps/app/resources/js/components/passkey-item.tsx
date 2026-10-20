@@ -15,9 +15,15 @@ import type { Passkey } from '@/types/auth';
 type Props = {
     passkey: Passkey;
     onDelete: (id: number, onError: () => void) => void;
+    /** The id of the sentence that says why this passkey cannot be removed. Removing is off while it is set. */
+    removeBlockedBy?: string;
 };
 
-export default function PasskeyItem({ passkey, onDelete }: Props) {
+export default function PasskeyItem({
+    passkey,
+    onDelete,
+    removeBlockedBy,
+}: Props) {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleDelete = () => {
@@ -62,9 +68,13 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
                         variant="ghost"
                         size="sm"
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        disabled={removeBlockedBy !== undefined}
+                        aria-describedby={removeBlockedBy}
                     >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Remove</span>
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        <span className="sr-only">
+                            Remove passkey {passkey.name}
+                        </span>
                     </Button>
                 </DialogTrigger>
                 <DialogContent>

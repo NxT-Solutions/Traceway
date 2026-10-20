@@ -7,12 +7,14 @@ namespace App\Integrations\Wahoo;
 use App\Domain\Courses\Services\CourseService;
 use App\Domain\Courses\Services\CourseUpload;
 use App\Domain\Courses\Services\PublishedCourse;
+use App\Domain\Courses\Services\ServiceAccount;
 use App\Domain\Courses\Services\ServiceRefused;
 use App\Domain\Courses\Services\ServiceTokens;
 use App\Domain\Courses\Services\ServiceUnavailable;
 use App\Domain\Routing\Sport;
 use App\Integrations\Wahoo\Requests\CreateRouteRequest;
 use App\Integrations\Wahoo\Requests\FindRoutesRequest;
+use App\Integrations\Wahoo\Requests\GetUserRequest;
 use App\Integrations\Wahoo\Requests\RevokePermissionsRequest;
 use App\Integrations\Wahoo\Requests\UpdateRouteRequest;
 use Saloon\Exceptions\Request\FatalRequestException;
@@ -27,24 +29,6 @@ final readonly class WahooCourseService implements CourseService
 {
     public function __construct(private WahooConnector $wahooConnector) {}
 
-    public function authorizationUrl(string $state): string
-    {
-        return $this->wahooConnector->getAuthorizationUrl(state: $state);
-    }
-
-    public function connect(string $code): ServiceTokens
-    {
-        try {
-            $response = $this->wahooConnector->tradeCode($code);
-        } catch (FatalRequestException $fatalRequestException) {
-            throw new ServiceUnavailable('Wahoo could not be reached.', $fatalRequestException->getCode(), previous: $fatalRequestException);
-        }
-
-        throw_if($response->failed(), ServiceRefused::class, 'Wahoo did not accept the sign-in.');
-
-        return $this->tokens($response);
-    }
-
     public function refresh(ServiceTokens $serviceTokens): ServiceTokens
     {
         throw_if($serviceTokens->refreshToken === null, ServiceRefused::class, 'Wahoo gave no refresh token.');
@@ -55,6 +39,8 @@ final readonly class WahooCourseService implements CourseService
             throw new ServiceUnavailable('Wahoo could not be reached.', $fatalRequestException->getCode(), previous: $fatalRequestException);
         }
 
+        // A server error or a busy answer says nothing about the keys, so the rider is not asked to connect again.
+        throw_if($this->busy($response), ServiceUnavailable::class, 'Wahoo could not refresh the sign-in now ('.$response->status().').');
         throw_if($response->failed(), ServiceRefused::class, 'Wahoo did not refresh the sign-in.');
 
         return $this->tokens($response, $serviceTokens->refreshToken);
@@ -101,6 +87,17 @@ final readonly class WahooCourseService implements CourseService
         throw $this->failure($response);
     }
 
+    public function account(ServiceTokens $serviceTokens): ServiceAccount
+    {
+        $response = $this->send(new GetUserRequest, $serviceTokens);
+
+        throw_unless($response->successful(), ServiceUnavailable::class, 'Wahoo did not say who the rider is ('.$response->status().').');
+
+        $email = $response->json('email');
+
+        return new ServiceAccount($this->id($response->json()), is_string($email) && $email !== '' ? $email : null);
+    }
+
     public function revoke(ServiceTokens $serviceTokens): void
     {
         try {
@@ -109,6 +106,13 @@ final readonly class WahooCourseService implements CourseService
             // The rider is disconnecting either way.
         }
     }
+
+    /**
+     * Does nothing. Wahoo's only way to withdraw, DELETE /v1/permissions, ends the whole grant, so it would stop
+     * the new keys too. Wahoo allows an app at most 10 unrevoked keys per rider and lets an old one lapse after 60
+     * days, so the replaced keys are left to run out.
+     */
+    public function supersede(ServiceTokens $serviceTokens): void {}
 
     /**
      * @return array<string, string|int|float>
@@ -169,11 +173,14 @@ final readonly class WahooCourseService implements CourseService
         return null;
     }
 
-    private function id(mixed $route): string
+    /**
+     * The number Wahoo gave a route or an account.
+     */
+    private function id(mixed $answer): string
     {
-        $id = is_array($route) ? ($route['id'] ?? null) : null;
+        $id = is_array($answer) ? ($answer['id'] ?? null) : null;
 
-        throw_if(! is_int($id) && ! is_string($id), ServiceUnavailable::class, 'Wahoo did not say which route it stored.');
+        throw_if((! is_int($id) && ! is_string($id)) || $id === '', ServiceUnavailable::class, 'Wahoo did not say which one it means.');
 
         return (string) $id;
     }
@@ -196,6 +203,14 @@ final readonly class WahooCourseService implements CourseService
     private function failure(Response $response): ServiceUnavailable
     {
         return new ServiceUnavailable('Wahoo did not take the route ('.$response->status().').');
+    }
+
+    /**
+     * Wahoo failed on its side, timed out, or asked Traceway to slow down. Trying again later may work.
+     */
+    private function busy(Response $response): bool
+    {
+        return $response->serverError() || in_array($response->status(), [408, 429], strict: true);
     }
 
     private function tokens(Response $response, ?string $refreshToken = null): ServiceTokens

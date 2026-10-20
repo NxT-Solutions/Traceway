@@ -214,6 +214,16 @@ return static function (Config $config): void {
         ->because('outbound HTTP is a Saloon connector under App\Integrations.');
 
     $rules[] = Rule::allClasses()
+        ->except('App\Auth\Connections', 'App\Providers')
+        ->that(new ResideInOneOfTheseNamespaces('App'))
+        ->should(new NotDependsOnTheseNamespaces(['Laravel\Socialite', 'SocialiteProviders', 'GuzzleHttp']))
+        ->because('logging in with another service is a Socialite handshake in App\Auth\Connections. What Traceway does with a connection afterwards is a Saloon connector.');
+
+    $rules[] = Rule::namespace('App\Auth\Connections')
+        ->should(new NotDependsOnTheseNamespaces(['App\Http', 'App\Handlers', 'App\Repositories', 'Saloon']))
+        ->because('the sign-in adapter returns identities. Controllers decide what to do with them.');
+
+    $rules[] = Rule::allClasses()
         ->except('App\Models', 'App\Repositories')
         ->that(new ResideInOneOfTheseNamespaces('App'))
         ->should(new NotDependsOnTheseNamespaces(['Illuminate\Database\Eloquent']))

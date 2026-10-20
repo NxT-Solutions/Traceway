@@ -58,3 +58,13 @@ php artisan routes:details --limit=1000
 # the bell shows the new release as soon as the site opens. A bad notes file is
 # reported and skipped, not a failed deploy.
 php artisan releases:sync || true
+
+php artisan up || true
+trap - EXIT
+
+# Wahoo and Ride with GPS connections from before have no account number from
+# the service, so they cannot log the rider in yet. Ask each service once with
+# the keys Traceway keeps. This runs with the site open again, so a slow service
+# keeps no rider out. A service that is down waits for the scheduler's nightly
+# run, and nothing here fails the deploy.
+php artisan connections:identify || true

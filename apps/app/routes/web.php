@@ -2,9 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Account\ConnectionProvider;
+use App\Account\RouteService;
 use App\Domain\Routing\Sport;
 use App\Domain\Usage\UsageMetric;
+use App\Http\Controllers\Auth\AppleCallbackController;
+use App\Http\Controllers\Auth\ConnectionCallbackController;
 use App\Http\Controllers\Auth\DemoLoginController;
+use App\Http\Controllers\Auth\FinishSignUpController;
+use App\Http\Controllers\Auth\PendingConnectionController;
+use App\Http\Controllers\Auth\SignInOptionsController;
+use App\Http\Controllers\Auth\SignUpLinkController;
+use App\Http\Controllers\Auth\StartConnectionController;
 use App\Http\Controllers\BuildRouteController;
 use App\Http\Controllers\DestroySavedRouteController;
 use App\Http\Controllers\ExportFitCourseController;
@@ -37,6 +46,44 @@ use Inertia\Inertia;
 Route::post('login/demo/{rider}', DemoLoginController::class)
     ->middleware('guest')
     ->name('login.demo');
+
+// Logging in, or opening an account, with an account at another service.
+Route::middleware('guest')->group(function (): void {
+    Route::get('login/options', SignInOptionsController::class)->name('login.options');
+    Route::get('auth/{provider}/redirect', [StartConnectionController::class, 'signIn'])
+        ->whereIn('provider', ConnectionProvider::slugs())
+        ->middleware('throttle:connections')
+        ->name('connections.sign-in');
+    Route::get('login/finish', [FinishSignUpController::class, 'show'])->name('connections.finish');
+    Route::post('login/finish', [FinishSignUpController::class, 'store'])
+        ->middleware('throttle:signup')
+        ->name('connections.finish.store');
+    Route::delete('login/finish', [FinishSignUpController::class, 'cancel'])->name('connections.finish.cancel');
+    // The link in the email. Opening it only shows the page; the button opens the account.
+    Route::get('login/finish/{token}', [SignUpLinkController::class, 'show'])->name('connections.finish.link');
+    Route::post('login/finish/{token}', [SignUpLinkController::class, 'store'])
+        ->middleware('throttle:signup')
+        ->name('connections.finish.open');
+    Route::delete('login/connection', [PendingConnectionController::class, 'destroy'])->name('connections.pending.destroy');
+});
+
+// Every service sends the rider back here, signed in or not. Wahoo and Ride with GPS keep the callbacks they were
+// first registered with.
+Route::get('auth/{provider}/callback', ConnectionCallbackController::class)
+    ->whereIn('provider', ConnectionProvider::slugs())
+    ->middleware('throttle:connections')
+    ->name('connections.callback');
+Route::get('settings/services/{provider}/callback', ConnectionCallbackController::class)
+    ->whereIn('provider', array_map(static fn (RouteService $routeService): string => $routeService->value, RouteService::cases()))
+    ->middleware('throttle:connections')
+    ->name('services.callback');
+
+// Apple posts its answer from its own site. Outside the web middleware: no session to replace the rider's own,
+// and no CSRF token to ask Apple for. The answer goes on to the callback above, where the session is checked.
+Route::post('auth/apple/callback', AppleCallbackController::class)
+    ->withoutMiddleware('web')
+    ->middleware('throttle:connections')
+    ->name('connections.apple');
 
 Route::get('/', fn () => Inertia::render('welcome'))->name('home');
 
@@ -94,7 +141,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('routes/saved/{savedRoute}/image', StoreRouteImageController::class)->whereUuid('savedRoute')->middleware('throttle:saving')->name('routes.saved.image');
     Route::post('routes/saved/{savedRoute}/send/{service}', SendRouteToServiceController::class)
         ->whereUuid('savedRoute')
-        ->whereIn('service', ['wahoo', 'ride_with_gps'])
+        ->whereIn('service', array_map(static fn (RouteService $routeService): string => $routeService->value, RouteService::cases()))
         ->middleware(['throttle:20,1', CountUsage::as(UsageMetric::RouteSends)])
         ->name('routes.saved.send');
 });

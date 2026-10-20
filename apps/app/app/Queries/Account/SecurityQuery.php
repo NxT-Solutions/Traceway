@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Queries\Account;
 
+use App\Account\ConnectionProvider;
+use App\Contracts\Auth\IdentityProviders;
 use App\Queries\RowReader;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -11,22 +13,50 @@ use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Features;
 use Laravel\Passkeys\Support\Aaguids;
 
-final class SecurityQuery
+final readonly class SecurityQuery
 {
+    public function __construct(private IdentityProviders $identityProviders) {}
+
     public function page(int $riderId): SecurityPage
     {
         $twoFactor = Features::canManageTwoFactorAuthentication();
+        $passkeys = Features::canManagePasskeys() ? $this->passkeys($riderId) : [];
+        $hasPassword = DB::table('users')->where('id', $riderId)->whereNotNull('password')->exists();
 
         return new SecurityPage(
             canManageTwoFactor: $twoFactor,
             canManagePasskeys: Features::canManagePasskeys(),
-            passkeys: Features::canManagePasskeys() ? $this->passkeys($riderId) : [],
+            passkeys: $passkeys,
             passwordRules: Password::defaults()->toPasswordRulesString(),
+            hasPassword: $hasPassword,
+            passkeyIsLastWayIn: ! $hasPassword && count($passkeys) === 1 && ! $this->logsInWithAService($riderId),
             twoFactorEnabled: $twoFactor ? $this->twoFactorEnabled($riderId) : null,
             requiresConfirmation: $twoFactor
                 ? Features::optionEnabled(Features::twoFactorAuthentication(), 'confirm')
                 : null,
         );
+    }
+
+    /**
+     * True when a connection to a service that is set up here still logs the rider in. A Wahoo or Ride with GPS
+     * connection from before has no number from the service yet, so it cannot.
+     */
+    private function logsInWithAService(int $riderId): bool
+    {
+        $slugs = DB::table('connected_accounts')
+            ->where('user_id', $riderId)
+            ->whereNotNull('provider_user_id')
+            ->pluck('provider');
+
+        foreach ($slugs as $slug) {
+            $connectionProvider = is_string($slug) ? ConnectionProvider::tryFrom($slug) : null;
+
+            if ($connectionProvider instanceof ConnectionProvider && $this->identityProviders->isEnabled($connectionProvider)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function twoFactorEnabled(int $riderId): bool

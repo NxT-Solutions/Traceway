@@ -33,6 +33,16 @@ it('draws the sign-in pages and the status page on the server', function (string
     Http::assertSent(fn (Request $request): bool => $request->url() === 'http://127.0.0.1:13714/render');
 })->with(['/login', '/register', '/forgot-password', '/status']);
 
+it('draws More ways to log in on the server', function (): void {
+    config(['services.google.client_id' => 'google-id', 'services.google.client_secret' => 'google-secret']);
+
+    $this->get('/login/options')
+        ->assertOk()
+        ->assertSee('Drawn on the server');
+
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'http://127.0.0.1:13714/render');
+});
+
 it('leaves the planner, the library, the settings, and the admin pages to the browser', function (string $path): void {
     $rider = User::factory()->create();
     $rider->assignRole(Role::SuperAdmin->value);
@@ -43,7 +53,7 @@ it('leaves the planner, the library, the settings, and the admin pages to the br
         ->assertDontSee('Drawn on the server');
 
     Http::assertNothingSent();
-})->with(['/dashboard', '/saved', '/settings/profile', '/settings/devices', '/admin', '/admin/users']);
+})->with(['/dashboard', '/saved', '/settings/profile', '/settings/devices', '/settings/connections', '/admin', '/admin/users']);
 
 it('draws the page in the browser when the server renderer is down', function (): void {
     Http::fake(['127.0.0.1:13714/*' => Http::failedConnection()]);

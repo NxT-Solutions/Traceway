@@ -2,6 +2,16 @@
 
 declare(strict_types=1);
 
+/*
+| The HTTP client each sign-in service gets: short timeouts, so a slow service fails the rider's request
+| instead of holding a worker, and a User-Agent that says who is asking, as OpenStreetMap's policy requires.
+*/
+$signIn = [
+    'timeout' => 10,
+    'connect_timeout' => 5,
+    'headers' => ['User-Agent' => 'Traceway (+'.rtrim((string) env('APP_URL', 'https://traceway.online'), '/').')'],
+];
+
 return [
 
     /*
@@ -58,19 +68,125 @@ return [
         'url' => env('OPENFREEMAP_URL', 'https://tiles.openfreemap.org'),
     ],
 
-    // Services a rider connects so Traceway can send a route to their device.
-    // A service without a client id stays hidden.
+    /*
+    | Accounts a rider logs in with or connects, under Settings, then Connections. Each key is the Socialite
+    | driver. A service without its keys stays hidden, so each can go live on its own. The redirect is the
+    | callback registered at the service; a path is resolved against the site's own address.
+    */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    // Sign in with Apple signs its own client secret with the private key for every request, so there is none
+    // to set. The client id is the Services ID, not an app's bundle id. The key is the .p8 file's text.
+    'apple' => [
+        'client_id' => env('APPLE_CLIENT_ID'),
+        'client_secret' => null,
+        'team_id' => env('APPLE_TEAM_ID'),
+        'key_id' => env('APPLE_KEY_ID'),
+        'private_key' => env('APPLE_PRIVATE_KEY'),
+        'redirect' => env('APPLE_REDIRECT_URI', '/auth/apple/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    'facebook' => [
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect' => env('FACEBOOK_REDIRECT_URI', '/auth/facebook/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    // Instagram's own login, for business and creator accounts. Its app id and secret are not Facebook's.
+    'instagram' => [
+        'client_id' => env('INSTAGRAM_CLIENT_ID'),
+        'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
+        'redirect' => env('INSTAGRAM_REDIRECT_URI', '/auth/instagram/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    // The OAuth 2.0 client id and secret, not the API key.
+    'x' => [
+        'client_id' => env('X_CLIENT_ID'),
+        'client_secret' => env('X_CLIENT_SECRET'),
+        'redirect' => env('X_REDIRECT_URI', '/auth/x/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    'github' => [
+        'client_id' => env('GITHUB_CLIENT_ID'),
+        'client_secret' => env('GITHUB_CLIENT_SECRET'),
+        'redirect' => env('GITHUB_REDIRECT_URI', '/auth/github/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    'discord' => [
+        'client_id' => env('DISCORD_CLIENT_ID'),
+        'client_secret' => env('DISCORD_CLIENT_SECRET'),
+        'redirect' => env('DISCORD_REDIRECT_URI', '/auth/discord/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    'strava' => [
+        'client_id' => env('STRAVA_CLIENT_ID'),
+        'client_secret' => env('STRAVA_CLIENT_SECRET'),
+        'redirect' => env('STRAVA_REDIRECT_URI', '/auth/strava/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    // Garmin's developer program, with OAuth 2.0 and PKCE. The client id is the consumer key.
+    'garmin_connect' => [
+        'client_id' => env('GARMIN_CONNECT_CLIENT_ID'),
+        'client_secret' => env('GARMIN_CONNECT_CLIENT_SECRET'),
+        'redirect' => env('GARMIN_CONNECT_REDIRECT_URI', '/auth/garmin_connect/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    // Wahoo and Ride with GPS also take the routes Send to device sends. Their callbacks stay where they were
+    // first registered at each service.
     'wahoo' => [
         'client_id' => env('WAHOO_CLIENT_ID'),
         'client_secret' => env('WAHOO_CLIENT_SECRET'),
+        'redirect' => env('WAHOO_REDIRECT_URI', '/settings/services/wahoo/callback'),
         'url' => env('WAHOO_URL', 'https://api.wahooligan.com'),
+        // Turn on once the email permission is enabled on the Wahoo developer app. Until then Wahoo riders type
+        // their email when they open an account.
+        'request_email' => (bool) env('WAHOO_REQUEST_EMAIL', default: false),
+        'guzzle' => $signIn,
     ],
 
     'ride_with_gps' => [
         'client_id' => env('RIDEWITHGPS_CLIENT_ID'),
         'client_secret' => env('RIDEWITHGPS_CLIENT_SECRET'),
         'api_key' => env('RIDEWITHGPS_API_KEY'),
+        'redirect' => env('RIDEWITHGPS_REDIRECT_URI', '/settings/services/ride_with_gps/callback'),
         'url' => env('RIDEWITHGPS_URL', 'https://ridewithgps.com'),
+        'guzzle' => $signIn,
+    ],
+
+    'runkeeper' => [
+        'client_id' => env('RUNKEEPER_CLIENT_ID'),
+        'client_secret' => env('RUNKEEPER_CLIENT_SECRET'),
+        'redirect' => env('RUNKEEPER_REDIRECT_URI', '/auth/runkeeper/callback'),
+        'guzzle' => $signIn,
+    ],
+
+    // "prod" for runsignup.com, "test" for test.runsignup.com, which has its own clients.
+    'runsignup' => [
+        'client_id' => env('RUNSIGNUP_CLIENT_ID'),
+        'client_secret' => env('RUNSIGNUP_CLIENT_SECRET'),
+        'redirect' => env('RUNSIGNUP_REDIRECT_URI', '/auth/runsignup/callback'),
+        'environment' => env('RUNSIGNUP_ENVIRONMENT', 'prod'),
+        'guzzle' => $signIn,
+    ],
+
+    'openstreetmap' => [
+        'client_id' => env('OPENSTREETMAP_CLIENT_ID'),
+        'client_secret' => env('OPENSTREETMAP_CLIENT_SECRET'),
+        'redirect' => env('OPENSTREETMAP_REDIRECT_URI', '/auth/openstreetmap/callback'),
+        'guzzle' => $signIn,
     ],
 
     // The admin area's Traffic page. A read-only Analytics token, not the token the deploy purges the cache with.

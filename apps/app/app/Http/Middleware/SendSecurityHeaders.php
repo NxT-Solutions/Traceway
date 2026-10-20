@@ -21,10 +21,11 @@ use Symfony\Component\HttpFoundation\Response;
 class SendSecurityHeaders
 {
     /**
-     * The pages a chat app's sign-in window passes through. They keep their
-     * link to the window that opened them, which the app may wait on.
+     * The pages a chat app's sign-in window passes through, including a round
+     * trip through another service's sign-in. They keep their link to the
+     * window that opened them, which the app may wait on.
      */
-    private const array SIGN_IN_WINDOW = ['oauth/*', 'login', 'two-factor-challenge', 'register'];
+    private const array SIGN_IN_WINDOW = ['oauth/*', 'login', 'login/*', 'auth/*', 'settings/services/*/callback', 'two-factor-challenge', 'register'];
 
     private const string PERMISSIONS = 'accelerometer=(), camera=(), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()';
 

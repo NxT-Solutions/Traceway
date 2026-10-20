@@ -46,6 +46,7 @@ export const privatePaths = [
     '/reset-password',
     '/email',
     '/oauth',
+    '/auth/',
     '/mcp',
 ];
 

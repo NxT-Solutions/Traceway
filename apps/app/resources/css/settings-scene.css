@@ -47,7 +47,8 @@
 .tw-settings .saved-nav,.tw-settings .acct{transition:background-color 180ms var(--ease),color 180ms var(--ease),opacity 80ms var(--ease)}
 .tw-settings .plan-nav .short{display:none}
 .tw-settings .fill:hover{background:var(--chart-dim)}
-.tw-settings .outline{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 16px;border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);font-size:15px;font-weight:500;cursor:pointer}
+/* outline:0 stops Tailwind's .outline utility drawing a second ring. The focus ring above still wins. */
+.tw-settings .outline{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 16px;border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);font-size:15px;font-weight:500;cursor:pointer;outline:0}
 .tw-settings .outline:hover{background:var(--hover)}
 .tw-settings .outline.danger{border-color:var(--danger);color:var(--danger)}
 .tw-settings .outline.danger:hover{background:transparent;filter:brightness(1.1)}
@@ -201,6 +202,48 @@
 .tw-settings .release-notes li::marker{color:var(--muted)}
 .tw-settings .release-notes a{color:var(--text);text-decoration:underline;text-underline-offset:3px}
 .tw-settings .release-notes code{padding:1px 5px;border-radius:5px;background:var(--hover);font-size:.92em}
+/* Connections: the accounts a rider logs in with or sends routes to, what each does, and what Traceway keeps. */
+.tw-settings .cx-list{display:flex;flex-direction:column;margin:0;padding:0;list-style:none;border:1px solid var(--hair);border-radius:12px}
+.tw-settings .cx-row{display:flex;flex-direction:column;gap:12px;min-width:0;padding:16px;border-bottom:1px solid var(--hair)}
+.tw-settings .cx-row:last-child{border-bottom:0}
+.tw-settings .cx-name{margin:0;font-size:17px;line-height:1.3;font-weight:600;color:var(--text)}
+.tw-settings .cx-account{font-size:14px;color:var(--text);overflow-wrap:anywhere}
+.tw-settings .cx-pills{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.tw-settings .cx-pill{display:inline-flex;align-items:center;gap:5px;min-height:26px;padding:2px 10px;border:1px solid transparent;border-radius:999px;background:var(--icon-box);color:var(--text);font-size:13px;font-weight:500}
+.tw-settings .cx-pill svg{flex:0 0 auto;color:var(--chart)}
+.tw-settings[data-theme="light"] .cx-pill svg{color:var(--chart-ink)}
+.tw-settings .cx-later{border-color:var(--outline);border-style:dashed;background:transparent;color:var(--muted)}
+.tw-settings .cx-later-word{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.tw-settings .cx-warn{display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 12px;border:1px solid var(--panel-b);border-left:3px solid var(--danger);border-radius:10px;background:var(--panel);color:var(--text);font-size:14px}
+.tw-settings .cx-warn svg{flex:0 0 auto;margin-top:2px;color:var(--danger)}
+.tw-settings .cx-note{margin:0;color:var(--muted);font-size:14px}
+.tw-settings .cx-blocked{margin:0;color:var(--text);font-size:14px}
+.tw-settings .cx-link{color:var(--text);font-weight:500;text-decoration:underline;text-decoration-color:var(--outline);text-underline-offset:3px;transition:text-decoration-color 180ms var(--ease)}
+.tw-settings .cx-link:hover{text-decoration-color:currentColor}
+.tw-settings .cx-more{margin:0}
+.tw-settings .cx-more .cx-link{display:inline-flex;align-items:center;min-height:44px}
+.tw-settings .cx-buttons{display:flex;flex-wrap:wrap;gap:8px}
+.tw-settings .outline.cx-action{min-height:44px;height:auto;padding-block:8px;text-align:center;transition:background-color 180ms var(--ease),border-color 180ms var(--ease),color 180ms var(--ease)}
+.tw-settings .outline.cx-action[aria-busy="true"]{cursor:progress}
+.tw-settings .outline.cx-action:disabled,.tw-settings .outline.danger.cx-action:disabled:hover{border-color:var(--hair);background:transparent;color:var(--muted);filter:none;cursor:not-allowed}
+.tw-settings .cx-spin{flex:0 0 auto;animation:cx-spin 900ms linear infinite}
+@keyframes cx-spin{to{transform:rotate(360deg)}}
+.tw-settings .cx-empty{margin:0;padding:14px 16px;border:1px dashed var(--outline);border-radius:12px;color:var(--text);font-size:15px}
+.tw-settings .cx-group{display:flex;flex-direction:column;gap:12px}
+.tw-settings .cx-group h3{margin:0;color:var(--muted);font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.tw-settings .cx-app{gap:14px;min-width:0}
+.tw-settings .cx-app .cx-action{align-self:flex-start;margin-top:auto}
+.tw-settings .cx-part{display:flex;flex-direction:column;gap:6px}
+.tw-settings .cx-part-title{margin:0;color:var(--text);font-size:13px;font-weight:600}
+.tw-settings .cx-keeps{display:flex;flex-direction:column;gap:4px;margin:0;padding-left:18px;color:var(--muted);font-size:14px;list-style:disc}
+.tw-settings .cx-keeps li::marker{color:var(--muted)}
+/* Connect and Disconnect wait until the email is confirmed: one note says so, with a way to get the email again. */
+.tw-settings .cx-confirm{display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 12px 0;border:1px solid var(--panel-b);border-radius:10px;background:var(--panel);color:var(--text);font-size:14px}
+.tw-settings .cx-confirm > svg{flex:0 0 auto;margin-top:2px;color:var(--text)}
+.tw-settings .cx-confirm-body{display:flex;flex-direction:column;min-width:0}
+.tw-settings .cx-confirm-body p{margin:0}
+.tw-settings .cx-confirm-row{display:flex;flex-wrap:wrap;align-items:center;column-gap:12px}
+.tw-settings .cx-confirm-row .cx-link{display:inline-flex;align-items:center;min-height:44px;padding:0;border:0;background:transparent;font:inherit;font-weight:500;cursor:pointer}
 
 @media (max-width: 640px){
   .tw-settings .fill .long,.tw-settings .plan-nav .long{display:none}
@@ -224,4 +267,6 @@
   .tw-settings button,.tw-settings a{transition:none}
   .tw-settings .card button{transition:none !important}
   .tw-settings .ai-ask,.tw-settings .ai-reply,.tw-settings .ai-route,.tw-settings .ai-via,.tw-settings .ai-saved{animation:none;opacity:1;transform:none;stroke-dashoffset:0}
+  .tw-settings .outline.cx-action,.tw-settings .cx-link{transition:none}
+  .tw-settings .cx-spin{animation:none}
 }

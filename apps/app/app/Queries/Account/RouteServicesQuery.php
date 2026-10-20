@@ -10,7 +10,8 @@ use App\Queries\RowReader;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The services this Traceway can send to, and where the rider stands with each. Tokens are never selected.
+ * The services this Traceway can send to, and where the rider stands with each. Tokens are never selected. The
+ * connection to each also logs the rider in; the connections page lists them with the rest.
  */
 final readonly class RouteServicesQuery
 {
@@ -21,10 +22,11 @@ final readonly class RouteServicesQuery
      */
     public function forRider(int $riderId): array
     {
-        $rows = DB::table('route_service_accounts')
+        $rows = DB::table('connected_accounts')
             ->where('user_id', $riderId)
-            ->get(['service', 'needs_reconnect', 'connected_at', 'last_sent_at'])
-            ->keyBy('service');
+            ->whereIn('provider', array_map(static fn (RouteService $routeService): string => $routeService->value, RouteService::cases()))
+            ->get(['provider', 'needs_reconnect', 'connected_at', 'last_sent_at'])
+            ->keyBy('provider');
 
         $services = [];
 

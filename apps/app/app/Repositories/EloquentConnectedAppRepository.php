@@ -29,4 +29,19 @@ final class EloquentConnectedAppRepository implements ConnectedAppRepository
                 ->update(['revoked' => true]);
         });
     }
+
+    public function disconnectAll(RiderId $riderId): void
+    {
+        DB::transaction(function () use ($riderId): void {
+            $builder = DB::table('oauth_access_tokens')->where('user_id', $riderId->value);
+
+            DB::table('oauth_refresh_tokens')
+                ->whereIn('access_token_id', (clone $builder)->select('id'))
+                ->update(['revoked' => true]);
+
+            $builder->update(['revoked' => true]);
+
+            DB::table('oauth_auth_codes')->where('user_id', $riderId->value)->update(['revoked' => true]);
+        });
+    }
 }

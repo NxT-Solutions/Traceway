@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 use App\Mail\TracewayMail;
 
-dataset('templates', ['verify-email', 'welcome', 'reset-password', 'password-changed', 'email-changed', 'account-deleted', 'data-export']);
+dataset('templates', ['verify-email', 'welcome', 'reset-password', 'password-changed', 'email-changed', 'account-deleted', 'data-export', 'connection-added', 'connection-removed', 'connection-sign-up', 'confirm-new-email']);
 
 $values = [
     'name' => 'Road & Co',
     'email' => 'road@traceway.test',
     'new_email' => 'new@traceway.test',
+    'service' => 'Ride & Go',
     'url' => 'https://traceway.test/link?a=1&b=2',
+    'reset' => 'https://traceway.test/reset?a=1&b=2',
     'home' => 'https://traceway.test',
 ];
 
@@ -59,3 +61,21 @@ test('every template ends with the privacy policy and the terms', function (stri
         ->toContain('Privacy policy: '.url('/privacy'))
         ->toContain('Terms of use: '.url('/terms'));
 })->with('templates');
+
+test('a connection message names the service and links to the password reset', function (string $template) use ($values): void {
+    expect(TracewayMail::html($template, $values))
+        ->toContain('Ride &amp; Go')
+        ->toContain('href="https://traceway.test/reset?a=1&amp;b=2"')
+        ->and(TracewayMail::text($template, $values))
+        ->toContain('Ride & Go')
+        ->toContain('reset your password: https://traceway.test/reset?a=1&b=2');
+})->with(['connection-added', 'connection-removed']);
+
+test('the sign-up link names the service and says no account is opened without it', function () use ($values): void {
+    expect(TracewayMail::html('connection-sign-up', $values))
+        ->toContain('To finish opening your Traceway account with Ride &amp; Go, confirm this is your email.')
+        ->toContain('Finish your account</a>')
+        ->and(TracewayMail::text('connection-sign-up', $values))
+        ->toContain('Finish your account: https://traceway.test/link?a=1&b=2')
+        ->toContain('If you did not ask for this, ignore this email. No account is opened.');
+});

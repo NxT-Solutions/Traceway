@@ -1,11 +1,15 @@
-import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { Form, Head, Link, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { confirm as confirmIdentity } from '@/routes/profile';
+import { cancel, resend } from '@/routes/profile/email';
 import { send } from '@/routes/verification';
 import type { Auth } from '@/types';
 
@@ -16,11 +20,23 @@ type PageProps = {
 export default function Profile({
     mustVerifyEmail,
     status,
+    hasPassword,
+    confirmedRecently,
+    pendingEmail = null,
 }: {
     mustVerifyEmail: boolean;
     status?: string;
+    hasPassword: boolean;
+    confirmedRecently: boolean;
+    /** A new email the rider asked for, waiting for them to open the link sent to it. */
+    pendingEmail?: string | null;
 }) {
     const { auth } = usePage<PageProps>().props;
+    const [email, setEmail] = useState(auth.user.email);
+    // Asking for a new email needs the password, or a confirmation a moment ago for an account without one.
+    const changingEmail =
+        email.trim().toLowerCase() !== auth.user.email.toLowerCase();
+    const mustProveIt = changingEmail && !confirmedRecently;
 
     return (
         <>
@@ -32,8 +48,44 @@ export default function Profile({
                 <Heading
                     variant="small"
                     title="Profile"
-                    description="Your name and the email you sign in with."
+                    description="Your name and the email you log in with. A new email counts once you open the link sent to it."
                 />
+
+                {pendingEmail !== null && (
+                    <div className="hint" role="status">
+                        <p>
+                            Waiting for you to confirm{' '}
+                            <strong>{pendingEmail}</strong>. Open the link sent
+                            there. Until then you log in with {auth.user.email}.
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                    router.post(
+                                        resend.url(),
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Send the link again
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                    router.delete(cancel.url(), {
+                                        preserveScroll: true,
+                                    })
+                                }
+                            >
+                                Keep {auth.user.email}
+                            </Button>
+                        </div>
+                    </div>
+                )}
 
                 <Form
                     {...ProfileController.update.form()}
@@ -70,7 +122,10 @@ export default function Profile({
                                     id="email"
                                     type="email"
                                     className="mt-1 block w-full"
-                                    defaultValue={auth.user.email}
+                                    value={email}
+                                    onChange={(event) =>
+                                        setEmail(event.target.value)
+                                    }
                                     name="email"
                                     required
                                     autoComplete="username"
@@ -82,6 +137,57 @@ export default function Profile({
                                     message={errors.email}
                                 />
                             </div>
+
+                            {mustProveIt && hasPassword && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="current_password">
+                                        Current password
+                                    </Label>
+
+                                    <PasswordInput
+                                        id="current_password"
+                                        name="current_password"
+                                        className="mt-1 block w-full"
+                                        autoComplete="current-password"
+                                        placeholder="Current password"
+                                        aria-describedby="current-password-why"
+                                    />
+
+                                    <p
+                                        id="current-password-why"
+                                        className="text-sm text-muted-foreground"
+                                    >
+                                        Enter your password to change the email
+                                        you log in with.
+                                    </p>
+
+                                    <InputError
+                                        className="mt-2"
+                                        message={errors.current_password}
+                                    />
+                                </div>
+                            )}
+
+                            {mustProveIt && !hasPassword && (
+                                <div className="grid gap-2">
+                                    <p className="text-sm text-muted-foreground">
+                                        To change the email you log in with,
+                                        first{' '}
+                                        <Link
+                                            href={confirmIdentity()}
+                                            className="text-foreground underline underline-offset-4"
+                                        >
+                                            confirm it is you
+                                        </Link>
+                                        .
+                                    </p>
+
+                                    <InputError
+                                        className="mt-2"
+                                        message={errors.current_password}
+                                    />
+                                </div>
+                            )}
 
                             {mustVerifyEmail &&
                                 auth.user.email_verified_at === null && (
@@ -121,7 +227,10 @@ export default function Profile({
                 </Form>
             </div>
 
-            <DeleteUser />
+            <DeleteUser
+                hasPassword={hasPassword}
+                confirmedRecently={confirmedRecently}
+            />
         </>
     );
 }

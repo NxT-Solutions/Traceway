@@ -7,10 +7,12 @@ namespace App\Integrations\RideWithGps;
 use App\Domain\Courses\Services\CourseService;
 use App\Domain\Courses\Services\CourseUpload;
 use App\Domain\Courses\Services\PublishedCourse;
+use App\Domain\Courses\Services\ServiceAccount;
 use App\Domain\Courses\Services\ServiceRefused;
 use App\Domain\Courses\Services\ServiceTokens;
 use App\Domain\Courses\Services\ServiceUnavailable;
 use App\Integrations\RideWithGps\Requests\DeleteRouteRequest;
+use App\Integrations\RideWithGps\Requests\GetCurrentUserRequest;
 use App\Integrations\RideWithGps\Requests\GetTaskRequest;
 use App\Integrations\RideWithGps\Requests\RevokeTokenRequest;
 use App\Integrations\RideWithGps\Requests\UploadRouteRequest;
@@ -34,26 +36,6 @@ final readonly class RideWithGpsCourseService implements CourseService
         private int $attempts = 8,
         private int $pauseMilliseconds = 750,
     ) {}
-
-    public function authorizationUrl(string $state): string
-    {
-        return $this->rideWithGpsConnector->getAuthorizationUrl(state: $state);
-    }
-
-    public function connect(string $code): ServiceTokens
-    {
-        try {
-            $response = $this->rideWithGpsConnector->tradeCode($code);
-        } catch (FatalRequestException $fatalRequestException) {
-            throw new ServiceUnavailable('Ride with GPS could not be reached.', $fatalRequestException->getCode(), previous: $fatalRequestException);
-        }
-
-        throw_if($response->failed(), ServiceRefused::class, 'Ride with GPS did not accept the sign-in.');
-        throw_unless(is_string($response->json('access_token')), ServiceUnavailable::class, 'Ride with GPS gave no token.');
-
-        // Ride with GPS tokens do not run out and come without a refresh token.
-        return new ServiceTokens($this->rideWithGpsConnector->authenticator($response)->getAccessToken());
-    }
 
     public function refresh(ServiceTokens $serviceTokens): ServiceTokens
     {
@@ -96,6 +78,21 @@ final readonly class RideWithGpsCourseService implements CourseService
         return $this->follow((string) $taskId, $task, $serviceTokens);
     }
 
+    public function account(ServiceTokens $serviceTokens): ServiceAccount
+    {
+        $response = $this->send(new GetCurrentUserRequest, $serviceTokens);
+
+        throw_unless($response->successful(), ServiceUnavailable::class, 'Ride with GPS did not say who the rider is ('.$response->status().').');
+
+        $user = $response->json('user');
+        $id = is_array($user) ? ($user['id'] ?? null) : null;
+        $email = is_array($user) ? ($user['email'] ?? null) : null;
+
+        throw_if((! is_int($id) && ! is_string($id)) || $id === '', ServiceUnavailable::class, 'Ride with GPS did not say who the rider is.');
+
+        return new ServiceAccount((string) $id, is_string($email) && $email !== '' ? $email : null);
+    }
+
     public function revoke(ServiceTokens $serviceTokens): void
     {
         try {
@@ -107,6 +104,15 @@ final readonly class RideWithGpsCourseService implements CourseService
         } catch (FatalRequestException) {
             // The rider is disconnecting either way.
         }
+    }
+
+    /**
+     * Ride with GPS ends one key at a time, and its keys never run out. A key a new log in replaced would
+     * otherwise stay live where Traceway can no longer reach it.
+     */
+    public function supersede(ServiceTokens $serviceTokens): void
+    {
+        $this->revoke($serviceTokens);
     }
 
     /**

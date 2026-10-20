@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use App\Account\Role;
 use App\Auth\Impersonation;
+use App\Models\ConnectedAccount;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -45,17 +47,22 @@ it('lets a Super Admin see Traceway as a rider and come back', function (): void
 });
 
 it("keeps the rider's sign-in and the admin area closed while acting as them", function (string $method, string $path): void {
+    config(['services.google.client_id' => 'google-id', 'services.google.client_secret' => 'google-secret']);
     $user = riderAs(Role::SuperAdmin);
     $rider = riderAs(Role::Admin);
     $rider->forceFill(['two_factor_secret' => 'kept'])->save();
+    $connectedAccount = ConnectedAccount::factory()->for($rider)->signInOnly('google')->create();
 
     $this->actingAs($user)->post(route('admin.users.impersonate', $rider->id));
 
-    $this->call($method, $path, ['password' => 'password', 'current_password' => 'password'])
+    $this->withSession(['auth.password_confirmed_at' => Date::now()->getTimestamp()])
+        ->call($method, $path, ['password' => 'password', 'current_password' => 'password'])
         ->assertRedirect();
 
     $this->assertAuthenticatedAs($rider);
-    expect(User::query()->find($rider->id)?->two_factor_secret)->toBe('kept');
+    $this->assertModelExists($connectedAccount);
+    expect(User::query()->find($rider->id)?->two_factor_secret)->toBe('kept')
+        ->and(session('connections.flow'))->toBeNull();
 })->with([
     'the admin area' => ['GET', '/admin'],
     'an admin write' => ['DELETE', '/admin/users/1/sessions'],
@@ -65,7 +72,25 @@ it("keeps the rider's sign-in and the admin area closed while acting as them", f
     'changing the password' => ['PUT', '/settings/password'],
     'deleting the account' => ['DELETE', '/settings/profile'],
     'emailing the data copy' => ['GET', '/settings/privacy/export'],
+    'connecting a service' => ['GET', '/settings/connections/google/connect'],
+    'disconnecting a service' => ['DELETE', '/settings/connections/google'],
+    'confirming with a service' => ['GET', '/user/confirm-password/google'],
+    'a service answering' => ['GET', '/auth/google/callback'],
+    'confirming a new email' => ['GET', '/settings/profile/email/1/hash'],
+    'sending a new email link again' => ['POST', '/settings/profile/email'],
+    'keeping the old email' => ['DELETE', '/settings/profile/email'],
 ]);
+
+it("lets a Super Admin acting as a rider look at the rider's connections", function (): void {
+    $user = riderAs(Role::SuperAdmin);
+    $rider = riderAs(Role::User);
+
+    $this->actingAs($user)->post(route('admin.users.impersonate', $rider->id));
+
+    $this->get(route('connections.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $assert): Assert => $assert->component('settings/connections'));
+});
 
 it('lets only a Super Admin act as someone, and never as another Super Admin or themselves', function (): void {
     $user = riderAs(Role::Admin);
