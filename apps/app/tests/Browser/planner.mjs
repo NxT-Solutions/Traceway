@@ -274,9 +274,19 @@ try {
         await sportSheet.getByRole('button', { name: new RegExp(`^${name}\\b`) }).click();
         await sportSheet.waitFor({ state: 'hidden', timeout: 3000 });
     };
+    // The loop is drawn on that surface, not only labelled with it.
+    const preview = desktop.waitForRequest((request) => request.url().includes('/routes/preview') && request.method() === 'POST', { timeout: 10000 });
     await pickSport('Trail run');
     await surfaceRow.filter({ hasText: 'Dirt' }).waitFor({ timeout: 3000 });
+    const asked = (await preview).postDataJSON();
+
+    if (asked?.sport !== 'trail_run' || asked?.surface !== 'dirt') {
+        throw new Error(`A trail run was drawn as ${JSON.stringify({ sport: asked?.sport, surface: asked?.surface })}`);
+    }
+
+    // On foot, the surface choices say what they do on foot.
     await surfaceRow.click();
+    await desktop.getByRole('radio', { name: /^Dirt\b.*Tracks and footpaths first/ }).waitFor({ timeout: 3000 });
     await desktop.getByRole('radio', { name: /^Paved\b/ }).click();
     await surfaceRow.filter({ hasText: 'Paved' }).waitFor({ timeout: 3000 });
     await pickSport('Trail run');
@@ -312,9 +322,23 @@ try {
     await (await answered(desktop, desktop.getByRole('button', { name: 'Move the transition here' }), 'No "Move the transition here" for Oevel')).click();
     await desktop.locator('section[aria-label="Legs"]').getByText('Oevel').waitFor({ timeout: 5000 });
 
-    // A leg that changes sport takes that sport's surface too.
+    // A leg that changes sport takes that sport's surface too, in the plan itself.
     await pickSport('Mountain bike');
     await surfaceRow.filter({ hasText: 'Dirt' }).waitFor({ timeout: 3000 });
+
+    for (let waited = 0; ; waited += 250) {
+        const legs = (await draft())?.multisport?.legs ?? [];
+
+        if (legs.some((item) => item.sport === 'mtb' && item.surface === 'dirt')) {
+            break;
+        }
+
+        if (waited > 3000) {
+            throw new Error(`The mountain bike leg was not planned on Dirt: ${JSON.stringify(legs.map((item) => [item.sport, item.surface]))}`);
+        }
+
+        await desktop.waitForTimeout(250);
+    }
 
     await open(desktop, '/saved');
     await desktop.getByRole('link', { name: 'Plan your route' }).waitFor();

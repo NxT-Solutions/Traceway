@@ -29,7 +29,7 @@ class SnapPointController extends Controller
     )]
     #[RequestBody(
         ref: '#/components/requestBodies/SnapPointRequest',
-        description: 'A point and the sport used to choose a road or a path.',
+        description: 'A point, and the sport and surface used to choose a road or a path.',
         required: true,
     )]
     #[Response(
@@ -63,9 +63,9 @@ class SnapPointController extends Controller
     {
         $latitude = $snapPointRequest->float('latitude');
         $longitude = $snapPointRequest->float('longitude');
-        // The sport's own costing: a hike may snap onto a mountain path its
-        // route may use, and a road bike only onto a way it can ride.
-        $costing = ValhallaCosting::trace($snapPointRequest->sport());
+        // The route's own costing: a hike may snap onto a mountain path its
+        // route may use, and a road bike on Paved only onto a way it rides.
+        $costing = ValhallaCosting::locate($snapPointRequest->sport(), $snapPointRequest->surface());
 
         // A router that did not answer is not a spot without roads: the
         // rider tries again rather than looking for another spot.

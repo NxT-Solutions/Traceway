@@ -46,7 +46,7 @@ final class LocateRequest extends Request implements HasBody
     public ?bool $throwOnMaxTries = false;
 
     /**
-     * @param  array<string, array<string, float|int|string>>  $costingOptions  The same options the route is planned with, so a point lands only on a way the route may use.
+     * @param  array<string, array<string, float|int|string>>  $costingOptions  The options that decide which ways the route may use, so a point lands only on one of them.
      */
     public function __construct(
         private readonly float $latitude,

@@ -3725,7 +3725,7 @@
                 }
             },
             "SnapPointRequest": {
-                "description": "A point and the sport used to choose a road or a path.",
+                "description": "A point, and the sport and surface used to choose a road or a path.",
                 "required": true,
                 "content": {
                     "application/json": {
@@ -3756,6 +3756,15 @@
                                         "trail_run",
                                         "walk",
                                         "hike"
+                                    ]
+                                },
+                                "surface": {
+                                    "description": "The route's surface. Without it, the sport's own.",
+                                    "type": "string",
+                                    "enum": [
+                                        "paved",
+                                        "mixed",
+                                        "dirt"
                                     ]
                                 }
                             },

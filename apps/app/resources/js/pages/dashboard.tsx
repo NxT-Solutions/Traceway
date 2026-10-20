@@ -149,12 +149,15 @@ const roadsOptions = [
     {
         value: 'quiet',
         label: 'Quiet first',
-        copy: 'Paths and quiet streets come first.',
+        copy: 'Cycle paths and quiet lanes first. Busy roads lose.',
+        footCopy:
+            'Footpaths first, and streets where walkers have right of way.',
     },
     {
         value: 'any',
         label: 'Any road',
         copy: 'Let the shortest line win.',
+        footCopy: 'Let the shortest line win.',
     },
 ] as const;
 
@@ -233,25 +236,25 @@ const sports: SportOption[] = [
     {
         value: 'run',
         label: 'Run',
-        copy: 'Paved ground, with footpaths and quiet streets first.',
+        copy: 'Streets and footpaths, footpaths first.',
         group: 'Foot',
     },
     {
         value: 'trail_run',
         label: 'Trail run',
-        copy: 'Tracks and footpaths first, with the climb left on.',
+        copy: 'Tracks and footpaths first.',
         group: 'Foot',
     },
     {
         value: 'walk',
         label: 'Walk',
-        copy: 'The same loop, slower, for a shorter day.',
+        copy: 'Footpaths first, and tracks where they help.',
         group: 'Foot',
     },
     {
         value: 'hike',
         label: 'Hike',
-        copy: 'Tracks, trails and mountain paths, at a walking pace.',
+        copy: 'Tracks and footpaths first. Mountain paths allowed.',
         group: 'Foot',
     },
     {
@@ -263,13 +266,13 @@ const sports: SportOption[] = [
     {
         value: 'mtb',
         label: 'Mountain bike',
-        copy: 'Cycle paths and tracks before roads. The hills stay in.',
+        copy: 'Cycle paths before roads. Rough ground allowed.',
         group: 'Bike',
     },
     {
         value: 'gravel',
         label: 'Gravel',
-        copy: 'Smooth dirt where the map knows it. Pavement still counts.',
+        copy: 'Tarmac or dirt, cycle paths first.',
         group: 'Bike',
     },
 ];
@@ -278,7 +281,7 @@ const elevations = [
     {
         value: 'neutral',
         label: 'Any',
-        copy: 'Take the hills as they come.',
+        copy: 'Steer round steep climbs a little.',
     },
     {
         value: 'minimize',
@@ -297,16 +300,19 @@ const surfaces = [
         value: 'mixed',
         label: 'Any',
         copy: 'Whatever the roads are made of.',
+        footCopy: 'Tracks a little before streets.',
     },
     {
         value: 'paved',
         label: 'Paved',
         copy: 'Asphalt and concrete first.',
+        footCopy: 'No pull onto farm and forest tracks.',
     },
     {
         value: 'dirt',
         label: 'Dirt',
-        copy: 'Prefer unpaved where the map knows it.',
+        copy: 'Fewer roads, and rough ground allowed.',
+        footCopy: 'Tracks and footpaths first.',
     },
 ] as const;
 
@@ -739,6 +745,9 @@ const mapBusy = 'The map is busy. Try again in a moment.';
  * that ran out while the planner was open.
  */
 type SnapMiss = 'far' | 'busy' | 'signed-out';
+
+/** The sport and surface a pin snaps for, so it lands on a way its route may use. */
+type SnapFor = { sport: string; surface: string };
 
 const snapMissNotes: Record<SnapMiss, string> = {
     far: farFromRoad,
@@ -1551,7 +1560,7 @@ export default function Dashboard() {
     );
     const savedPlan = useRef(savedMultisport(saved)).current;
     const [legs, setLegs] = useState<LandLeg[]>(
-        () => savedPlan?.legs ?? withIds(presets[0].legs),
+        () => savedPlan?.legs ?? withIds(presets[0].legs, sportSurfaces),
     );
     const [layout, setLayout] = useState<Layout>(savedPlan?.layout ?? 'loops');
     const [swim, setSwim] = useState<Coordinate[] | null>(
@@ -2101,6 +2110,10 @@ export default function Dashboard() {
         'Quiet first';
     const editing = multisport ? (legs[activeLeg] ?? legs[0]) : undefined;
     const sheetSport = editing?.sport ?? sport;
+    // Valhalla routes a foot route by the kind of way, not its surface or how
+    // busy a road is, so Surface and Roads say what they do on foot.
+    const sheetOnFoot =
+        sports.find((item) => item.value === sheetSport)?.group === 'Foot';
     const sheetSurface = editing?.surface ?? surface;
     const sheetElevation = editing?.elevation ?? elevation;
     const sheetRoads = editing?.roads ?? roads;
@@ -3897,7 +3910,7 @@ export default function Dashboard() {
 
         setSheet(null);
 
-        const nextLegs = withIds(preset.legs).map((leg) => ({
+        const nextLegs = withIds(preset.legs, sportSurfaces).map((leg) => ({
             ...leg,
             stretch: true,
         }));
@@ -4033,7 +4046,10 @@ export default function Dashboard() {
         const last = legs[legs.length - 1];
         const nextLegs = [
             ...legs,
-            newLeg(last !== undefined && last.sport === 'run' ? 'road' : 'run'),
+            newLeg(
+                last !== undefined && last.sport === 'run' ? 'road' : 'run',
+                sportSurfaces,
+            ),
         ];
         dirty.current = true;
         setLegs(nextLegs);
@@ -4351,7 +4367,16 @@ export default function Dashboard() {
                 setPlacing(null);
             }
 
-            void snapPoint(lng, lat).then((snapped) => {
+            // The end snaps for its own leg, even after the next leg took over.
+            const ending = legsRef.current[leg];
+
+            void snapPoint(
+                lng,
+                lat,
+                ending === undefined
+                    ? undefined
+                    : { sport: ending.sport, surface: ending.surface },
+            ).then((snapped) => {
                 if (finishAskRef.current !== ask) {
                     return;
                 }
@@ -4833,6 +4858,7 @@ export default function Dashboard() {
     async function snapFromServer(
         lng: number,
         lat: number,
+        snapFor: SnapFor = { sport: sheetSport, surface: sheetSurface },
     ): Promise<Coordinate | SnapMiss> {
         try {
             const response = await fetch('/routes/snap', {
@@ -4842,7 +4868,12 @@ export default function Dashboard() {
                     'Content-Type': 'application/json',
                     'X-XSRF-TOKEN': csrfToken(),
                 },
-                body: JSON.stringify({ latitude: lat, longitude: lng, sport }),
+                body: JSON.stringify({
+                    latitude: lat,
+                    longitude: lng,
+                    sport: snapFor.sport,
+                    surface: snapFor.surface,
+                }),
             });
             if (response.status === 422) {
                 return 'far';
@@ -4878,13 +4909,17 @@ export default function Dashboard() {
 
     /**
      * Every pin lands on a road or path, never in a field or a forest: on
-     * screen first, then from the routing engine.
+     * screen first, then from the routing engine. A pin snaps for the leg
+     * being edited, or for the planner's own sport and surface.
      */
     async function snapPoint(
         lng: number,
         lat: number,
+        snapFor?: SnapFor,
     ): Promise<Coordinate | SnapMiss> {
-        return snapOnScreen(lng, lat) ?? (await snapFromServer(lng, lat));
+        return (
+            snapOnScreen(lng, lat) ?? (await snapFromServer(lng, lat, snapFor))
+        );
     }
 
     snapPointRef.current = snapPoint;
@@ -6622,7 +6657,9 @@ export default function Dashboard() {
                             <RadioRow
                                 key={option.value}
                                 label={option.label}
-                                copy={option.copy}
+                                copy={
+                                    sheetOnFoot ? option.footCopy : option.copy
+                                }
                                 selected={sheetRoads === option.value}
                                 onSelect={() => {
                                     if (multisport) {
@@ -6847,7 +6884,9 @@ export default function Dashboard() {
                             <RadioRow
                                 key={option.value}
                                 label={option.label}
-                                copy={option.copy}
+                                copy={
+                                    sheetOnFoot ? option.footCopy : option.copy
+                                }
                                 selected={sheetSurface === option.value}
                                 onSelect={() => chooseSurface(option.value)}
                             />

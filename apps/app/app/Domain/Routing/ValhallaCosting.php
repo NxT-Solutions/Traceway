@@ -31,12 +31,6 @@ final class ValhallaCosting
             ElevationBias::Neutral => 0.5,
             ElevationBias::Maximize => 1.0,
         };
-        $avoidBadSurfaces = match ($routeQuery->surface) {
-            Surface::Paved => 1.0,
-            Surface::Mixed => 0.35,
-            Surface::Dirt => 0.0,
-        };
-
         $onFoot = match ($routeQuery->sport) {
             Sport::Run, Sport::TrailRun, Sport::Walk, Sport::Hike => true,
             Sport::Road, Sport::Gravel, Sport::Mtb => false,
@@ -74,7 +68,7 @@ final class ValhallaCosting
                 'bicycle' => [
                     'bicycle_type' => $bicycleType,
                     'use_hills' => $useHills,
-                    'avoid_bad_surfaces' => $avoidBadSurfaces,
+                    'avoid_bad_surfaces' => self::avoidBadSurfaces($routeQuery->surface),
                     'use_roads' => $useRoads,
                 ],
             ],
@@ -112,13 +106,19 @@ final class ValhallaCosting
      * Valhalla's pedestrian costing weighs the kind of way, not a road's
      * class or its surface. A walkway, a track, and a living street each have
      * their own cost. A path, a cycleway, and a plain road all cost the same.
-     * So Quiet first and Dirt make the ways without traffic cheaper, and
-     * roads lose by comparison.
+     * So on foot Paved cannot keep a walk on paved ground, and nothing keeps
+     * it off a busy road. Quiet first and the surface each move one thing:
      *
-     * A walkway is a footway, or a sidewalk mapped as its own way: Valhalla
-     * cannot tell them apart. A track is mostly unpaved, so Paved leaves
-     * tracks alone. A road tagged with a sidewalk costs the same as any other
-     * road: a factor below 1 would draw a dirt route onto town streets.
+     * - Quiet first makes walkways and living streets cheaper. A walkway is a
+     *   footway, or a sidewalk mapped as its own way: Valhalla cannot tell
+     *   them apart. A living street is one where walkers have right of way.
+     * - The surface sets tracks, which are mostly unpaved: Paved leaves them
+     *   alone, Any makes them a little cheaper, and Dirt as cheap as Valhalla
+     *   allows (a factor of 0.8). Dirt makes walkways cheaper too, since in a
+     *   town the unpaved ground is mostly park and forest footpaths: priced
+     *   like a track, they lost a third of it to the streets.
+     * - A road tagged with a sidewalk costs the same as any other road: a
+     *   factor below 1 would draw a dirt route onto town streets.
      *
      * @return array<string, float|int>
      */
@@ -133,7 +133,7 @@ final class ValhallaCosting
             'sidewalk_factor' => 1.0,
             'use_tracks' => match ($routeQuery->surface) {
                 Surface::Paved => 0.5,
-                Surface::Mixed => $quiet ? 1.0 : 0.5,
+                Surface::Mixed => 0.75,
                 Surface::Dirt => 1.0,
             },
             'use_living_streets' => $quiet ? 0.9 : 0.6,
@@ -159,6 +159,38 @@ final class ValhallaCosting
         return match ($sport) {
             Sport::TrailRun, Sport::Hike => 2,
             default => 1,
+        };
+    }
+
+    /**
+     * The costing a tapped point snaps with: the sport's own ways and no
+     * others. On Paved a road bike may not ride a gravel track, so its point
+     * may not land on one either.
+     *
+     * @return array{costing: string, costing_options: array<string, array<string, float|int|string>>}
+     */
+    public static function locate(Sport $sport, Surface $surface): array
+    {
+        $costing = self::trace($sport);
+        $bicycle = $costing['costing_options']['bicycle'] ?? null;
+
+        if ($bicycle === null) {
+            return $costing;
+        }
+
+        return [
+            'costing' => $costing['costing'],
+            'costing_options' => ['bicycle' => $bicycle + ['avoid_bad_surfaces' => self::avoidBadSurfaces($surface)]],
+        ];
+    }
+
+    /** 1.0 keeps a bike off any surface worse than its type rides well. */
+    private static function avoidBadSurfaces(Surface $surface): float
+    {
+        return match ($surface) {
+            Surface::Paved => 1.0,
+            Surface::Mixed => 0.35,
+            Surface::Dirt => 0.0,
         };
     }
 

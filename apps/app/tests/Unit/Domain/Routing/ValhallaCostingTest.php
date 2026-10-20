@@ -187,11 +187,12 @@ dataset('foot sports', [
 ]);
 
 // Walkway factor, use_tracks, and use_living_streets for each surface and roads choice.
+// Quiet first sets walkways and living streets; the surface sets tracks.
 dataset('foot filters', [
     'paved, any road' => [Surface::Paved, false, 1.0, 0.5, 0.6],
     'paved, quiet first' => [Surface::Paved, true, 0.5, 0.5, 0.9],
-    'any surface, any road' => [Surface::Mixed, false, 1.0, 0.5, 0.6],
-    'any surface, quiet first' => [Surface::Mixed, true, 0.5, 1.0, 0.9],
+    'any surface, any road' => [Surface::Mixed, false, 1.0, 0.75, 0.6],
+    'any surface, quiet first' => [Surface::Mixed, true, 0.5, 0.75, 0.9],
     'dirt, any road' => [Surface::Dirt, false, 0.5, 1.0, 0.6],
     'dirt, quiet first' => [Surface::Dirt, true, 0.5, 1.0, 0.9],
 ]);
@@ -243,4 +244,25 @@ it('matches a trail run or a hike onto the mountain paths it may use', function 
     expect(ValhallaCosting::trace(Sport::TrailRun)['costing_options']['pedestrian'])->toBe(['walking_speed' => 6.0, 'max_hiking_difficulty' => 2])
         ->and(ValhallaCosting::trace(Sport::Hike)['costing_options']['pedestrian'])->toBe(['walking_speed' => 5.0, 'max_hiking_difficulty' => 2])
         ->and(ValhallaCosting::trace(Sport::Run)['costing_options']['pedestrian'])->toBe(['walking_speed' => 6.0, 'max_hiking_difficulty' => 1]);
+});
+
+it('gives every surface and roads choice on foot its own costing', function (): void {
+    $costings = [];
+
+    foreach (Surface::cases() as $surface) {
+        foreach ([true, false] as $quiet) {
+            $costings[] = ValhallaCosting::payload(filteredQuery(Sport::Walk, $surface, $quiet), [[3.72, 51.05]])['costing_options'];
+        }
+    }
+
+    expect(array_unique(array_map(serialize(...), $costings)))->toHaveCount(6);
+});
+
+it('snaps a point only onto a way its route may use', function (): void {
+    expect(ValhallaCosting::locate(Sport::Road, Surface::Paved))->toBe([
+        'costing' => 'bicycle',
+        'costing_options' => ['bicycle' => ['bicycle_type' => 'Road', 'avoid_bad_surfaces' => 1.0]],
+    ])
+        ->and(ValhallaCosting::locate(Sport::Mtb, Surface::Dirt)['costing_options']['bicycle']['avoid_bad_surfaces'])->toBe(0.0)
+        ->and(ValhallaCosting::locate(Sport::Hike, Surface::Paved))->toBe(ValhallaCosting::trace(Sport::Hike));
 });

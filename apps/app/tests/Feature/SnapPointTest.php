@@ -57,7 +57,7 @@ it('snaps a ride point onto the nearest road', function (): void {
     expect($body)->toMatchArray([
         'verbose' => true,
         'costing' => 'bicycle',
-        'costing_options' => ['bicycle' => ['bicycle_type' => 'Road']],
+        'costing_options' => ['bicycle' => ['bicycle_type' => 'Road', 'avoid_bad_surfaces' => 1.0]],
         'locations' => [[
             'lat' => 51.05,
             'lon' => 3.72,
@@ -89,6 +89,29 @@ it('snaps a hike onto a path a person can walk', function (): void {
     // A hike's route may take a mountain path, so its point may land on one.
     expect($body['costing'] ?? null)->toBe('pedestrian')
         ->and($body['costing_options'] ?? null)->toBe(['pedestrian' => ['walking_speed' => 5.0, 'max_hiking_difficulty' => 2]]);
+});
+
+it('snaps a dirt ride onto rough ground its route may use', function (): void {
+    $mockClient = snapConnector(MockResponse::make([
+        [
+            'edges' => [[
+                'correlated_lat' => 51.02,
+                'correlated_lon' => 3.7,
+            ]],
+        ],
+    ]));
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.snap'), [
+            'latitude' => 51.02,
+            'longitude' => 3.7,
+            'sport' => 'road',
+            'surface' => 'dirt',
+        ])
+        ->assertOk();
+
+    expect($mockClient->getLastPendingRequest()?->body()?->all()['costing_options'] ?? null)
+        ->toBe(['bicycle' => ['bicycle_type' => 'Road', 'avoid_bad_surfaces' => 0.0]]);
 });
 
 it('refuses a point that is not on a road or path', function (): void {
