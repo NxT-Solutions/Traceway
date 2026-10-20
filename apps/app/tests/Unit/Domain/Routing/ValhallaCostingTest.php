@@ -259,7 +259,7 @@ it('gives every surface and roads choice on foot its own costing', function (): 
 });
 
 it('snaps a point with the limits its route is planned with', function (Sport $sport, Surface $surface): void {
-    $route = ValhallaCosting::payload(filteredQuery($sport, $surface, true), [[3.72, 51.05]]);
+    $route = ValhallaCosting::payload(filteredQuery($sport, $surface, quiet: true), [[3.72, 51.05]]);
     $snap = ValhallaCosting::locate($sport, $surface);
     $limits = $snap['costing_options'][$snap['costing']];
 
