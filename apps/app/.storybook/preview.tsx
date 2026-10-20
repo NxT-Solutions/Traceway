@@ -1,3 +1,5 @@
+// First, before anything reads storage: under /storybook/ stories get storage of their own.
+import './own-storage';
 import '@fontsource/outfit/400.css';
 import '@fontsource/outfit/500.css';
 import '@fontsource/outfit/600.css';

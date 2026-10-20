@@ -42,8 +42,12 @@
         }
     };
 
-    // Only the live site counts, so local work and test runs never reach Cloudflare.
-    const live = import.meta.env.PROD && location.hostname === 'traceway.online';
+    // Only the live site counts, so local work and test runs never reach Cloudflare. Storybook, on the live
+    // site under /storybook/, shows this question in its stories and never counts either.
+    const live =
+        import.meta.env.PROD &&
+        location.hostname === 'traceway.online' &&
+        !location.pathname.startsWith('/storybook/');
     let started = false;
 
     const beacon = 'https://static.cloudflareinsights.com/beacon.min.js';

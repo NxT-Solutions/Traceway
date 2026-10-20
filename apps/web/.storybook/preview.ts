@@ -1,3 +1,5 @@
+// First, before anything reads storage: under /storybook/ stories get storage of their own.
+import './own-storage';
 // The site's fonts, as its layouts load them: Outfit 400 to 600 with a metric-matched fallback
 // (fonts.css), and 700 for the error pages (ErrorPage.astro). Each story brings its own
 // stylesheets (src/stories/support/Canvas.astro).

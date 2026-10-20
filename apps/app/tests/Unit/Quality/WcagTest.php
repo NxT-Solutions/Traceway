@@ -51,7 +51,10 @@ it('keeps text at 4.5 to 1 and the focus ring at 3 to 1', function (): void {
             ['muted-foreground', 'background', 4.5],
             ['muted-foreground', 'muted', 4.5],
             ['primary-foreground', 'primary', 4.5],
-            ['destructive-foreground', 'destructive', 4.5],
+            // Error text: field errors, the destructive alert on its card, failed sends. The red fills
+            // (destructive Button and Badge) carry white text.
+            ['destructive-foreground', 'background', 4.5],
+            ['destructive-foreground', 'card', 4.5],
             ['ring', 'background', 3.0],
             ['ring', 'card', 3.0],
             // The status page's dots, day bars, and notice border. Each also has a word.

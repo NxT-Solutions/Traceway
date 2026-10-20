@@ -290,10 +290,34 @@ it('sends the headers from every nginx location that answers from disk', functio
 
     foreach ($locations as [, $match, $body]) {
         $fromDisk = ! str_contains($body, 'fastcgi_pass') && ! str_contains($body, 'deny all');
+        // Storybook's own headers (storybook-headers.conf): its build runs inline scripts and frames its stories.
+        $storybook = str_contains($match, '/storybook/');
 
         expect(str_contains($body, 'include /etc/nginx/security-headers.conf;'))
-            ->toBe($fromDisk, "location {$match}");
+            ->toBe($fromDisk && ! $storybook, "location {$match}")
+            ->and(str_contains($body, 'include /etc/nginx/storybook-headers.conf;'))
+            ->toBe($storybook, "location {$match}");
     }
+});
+
+it('keeps Storybook framed by this site only, out of search, and sending its address to Laravel', function (): void {
+    $headers = file_get_contents(dirname(base_path(), 2).'/.docker/production/images/configs/nginx/storybook-headers.conf') ?: '';
+    preg_match('/add_header Content-Security-Policy "([^"]+)"/', $headers, $match);
+    expect($match)->toHaveKey(1);
+
+    $policy = policyOf(new Response(headers: ['Content-Security-Policy' => $match[1]]));
+
+    expect($policy['default-src'])->toBe(["'self'"])
+        ->and($policy['frame-ancestors'])->toBe(["'self'"])
+        ->and($policy['object-src'])->toBe(["'none'"])
+        ->and($headers)->toContain('add_header X-Robots-Tag "noindex, nofollow" always;')
+        // RefuseStorybookChanges reads the path from the Referer, so Storybook pages must send it to this site.
+        ->and($headers)->toContain('add_header Referrer-Policy "same-origin" always;')
+        ->and($headers)->toContain('add_header Strict-Transport-Security');
+
+    $dockerfile = file_get_contents(dirname(base_path(), 2).'/.docker/production/images/Dockerfile') ?: '';
+
+    expect($dockerfile)->toContain('/etc/nginx/storybook-headers.conf');
 });
 
 it('puts the page policy on the planner error pages', function (): void {

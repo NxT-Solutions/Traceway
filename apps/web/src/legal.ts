@@ -20,7 +20,7 @@ export interface LegalPage {
     sections: readonly LegalSection[];
 }
 
-export const legalUpdated = '20 October 2026';
+export const legalUpdated = '21 October 2026';
 
 const operator = 'NxT-Solutions, Westerlo, Belgium';
 const email = '[privacy@nxt-solutions.com](mailto:privacy@nxt-solutions.com)';
@@ -86,8 +86,8 @@ export const privacy: LegalPage = {
                 'To be exact about where it runs and what it sees:',
             ],
             items: [
-                '**Where it runs:** the home page (/), Support Traceway (/support), and the legal pages: privacy (/privacy), terms (/terms), cookies (/cookies), and legal notice (/legal).',
-                '**Where it never runs:** the planner and everything you reach after you log in, such as your routes, your library, and your settings. Also the log in and sign up pages, shared route links, error pages, the Traceway watch app, AI assistants connected to Traceway, and the emails Traceway sends.',
+                '**Where it runs:** the home page (/), Support Traceway (/support), the Storybook page (/storybook), and the legal pages: privacy (/privacy), terms (/terms), cookies (/cookies), and legal notice (/legal).',
+                '**Where it never runs:** the planner and everything you reach after you log in, such as your routes, your library, and your settings. Also the log in and sign up pages, shared route links, error pages, the two Storybooks the Storybook page opens (/storybook/app/ and /storybook/web/), the Traceway watch app, AI assistants connected to Traceway, and the emails Traceway sends.',
                 '**What Cloudflare gets:** which page you opened, the site that sent you there, your browser and device type, and how fast the page loaded. Like any website, it sees your IP address. It sets no cookie and keeps nothing in your browser.',
                 '**What Traceway sees:** only totals, such as how many people opened a page and from which country. Never your name, your email address, or your routes, and a visit is not linked to your Traceway account.',
             ],
