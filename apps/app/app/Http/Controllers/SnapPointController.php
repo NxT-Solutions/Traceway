@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Routing\Sport;
+use App\Domain\Routing\ValhallaCosting;
 use App\Http\Requests\SnapPointRequest;
 use App\Integrations\Valhalla\Requests\LocateRequest;
 use App\Integrations\Valhalla\ValhallaConnector;
@@ -61,13 +61,11 @@ class SnapPointController extends Controller
     )]
     public function __invoke(SnapPointRequest $snapPointRequest, ValhallaConnector $valhallaConnector): JsonResponse
     {
-        $sport = $snapPointRequest->sport();
         $latitude = $snapPointRequest->float('latitude');
         $longitude = $snapPointRequest->float('longitude');
-        $onFoot = match ($sport) {
-            Sport::Run, Sport::TrailRun, Sport::Walk, Sport::Hike => true,
-            Sport::Road, Sport::Gravel, Sport::Mtb => false,
-        };
+        // The sport's own costing: a hike may snap onto a mountain path its
+        // route may use, and a road bike only onto a way it can ride.
+        $costing = ValhallaCosting::trace($snapPointRequest->sport());
 
         // A router that did not answer is not a spot without roads: the
         // rider tries again rather than looking for another spot.
@@ -75,7 +73,8 @@ class SnapPointController extends Controller
             $response = $valhallaConnector->send(new LocateRequest(
                 latitude: $latitude,
                 longitude: $longitude,
-                costing: $onFoot ? 'pedestrian' : 'bicycle',
+                costing: $costing['costing'],
+                costingOptions: $costing['costing_options'],
             ));
 
             if ($response->failed()) {

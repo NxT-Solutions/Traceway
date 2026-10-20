@@ -5,22 +5,13 @@ declare(strict_types=1);
 namespace App\Mcp;
 
 use App\Domain\Routing\Sport;
-use App\Domain\Routing\Surface;
 
 /**
- * The ground each sport asks for when the person does not say.
+ * How the connector names each sport in a reply. The ground a sport asks
+ * for is Sport::defaultSurface(), shared with the planner.
  */
 final class SportDefaults
 {
-    public static function surface(Sport $sport): Surface
-    {
-        return match ($sport) {
-            Sport::Road, Sport::Run => Surface::Paved,
-            Sport::Gravel, Sport::Walk => Surface::Mixed,
-            Sport::Mtb, Sport::TrailRun, Sport::Hike => Surface::Dirt,
-        };
-    }
-
     public static function label(Sport $sport): string
     {
         return match ($sport) {

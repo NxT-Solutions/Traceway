@@ -91,7 +91,7 @@ final class PlanLoopTool extends Tool
             return Response::error('The place search did not answer. Try again in a moment, or give "latitude, longitude".');
         }
 
-        $surface = Surface::tryFrom($this->text($validated, 'surface')) ?? SportDefaults::surface($sport);
+        $surface = Surface::tryFrom($this->text($validated, 'surface')) ?? $sport->defaultSurface();
         $elevation = match ($this->text($validated, 'hills')) {
             'flat' => ElevationBias::Minimize,
             'hilly' => ElevationBias::Maximize,
@@ -191,9 +191,9 @@ final class PlanLoopTool extends Tool
                 ->description('The ground underfoot or under the tyres. Leave it out to use what suits the sport.'),
             'hills' => $schema->string()
                 ->enum(['flat', 'any', 'hilly'])
-                ->description('Avoid climbing, do not mind, or look for it. Defaults to any.'),
+                ->description('flat avoids climbing, any takes the hills as they come, and hilly stops steering round them. Defaults to any.'),
             'quiet_roads' => $schema->boolean()
-                ->description('Keep away from busy roads. Defaults to true.'),
+                ->description('Put paths and quiet streets first. Defaults to true.'),
             'via' => $schema->string()
                 ->description('A place the loop should pass through, like a village or a café. Optional.'),
             'name' => $schema->string()

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\Sport;
 use App\Domain\Usage\UsageMetric;
 use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\BuildRouteController;
@@ -73,6 +74,7 @@ Route::get('docs/account', fn (): RedirectResponse => redirect()->to('/docs'));
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('dashboard', fn (ServiceStatusQuery $serviceStatusQuery) => Inertia::render('dashboard', [
         'serviceNotice' => $serviceStatusQuery->banner(),
+        'sportSurfaces' => Sport::defaultSurfaces(),
     ]))->name('dashboard');
     Route::get('saved', SavedRouteLibraryController::class)->name('routes.library');
     Route::post('routes/preview', PreviewRouteController::class)->middleware(['throttle:routing', CountUsage::as(UsageMetric::RoutePreviews)])->name('routes.preview');

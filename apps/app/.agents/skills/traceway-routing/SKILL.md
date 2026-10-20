@@ -1,12 +1,15 @@
 ---
 name: traceway-routing
-description: How Traceway generates a sport route. Use when changing filters, scoring, GraphHopper custom models, or loop generation.
+description: How Traceway generates a sport route. Use when changing filters, costing, sport defaults, or loop generation.
 ---
 
 # Traceway routing
 
-Geometry comes from GraphHopper through `App\Domain\Routing\RoutingEngine`. An LLM never emits coordinates.
+Geometry comes from the routing engine through `App\Domain\Routing\RoutingEngine`. Production uses Valhalla (`ROUTER_DRIVER=valhalla`, the public server). An LLM never emits coordinates.
 
-Sport behaviour will live in versioned custom-model JSON. The scorer in `CandidateScorer` ranks distance error, surface, climb, cycleway share, trunk roads, and ferries. Unknown surface stays unknown.
+- `ValhallaCosting` turns the rider's filters into Valhalla costing options. On foot it is `pedestrian`; on a bike it is `bicycle`.
+- Valhalla's pedestrian costing weighs the kind of way (footway, track, living street, a road with a sidewalk), not a road's class or its surface. Quiet first and Dirt on foot work by making footways and tracks cheaper. Check an option against Valhalla's source for the version in `.ddev/commands/host/valhalla` before relying on it.
+- `Sport::defaultSurface()` is the one source for the surface a sport starts on. The planner gets it as the `sportSurfaces` prop, and the AI connector uses it when the person does not say.
+- `RouteCleanliness` ranks loop candidates: no doubled-back road first, then the closest length.
 
-Tests for the scorer and `RouteQuery` are in `tests/Unit/Domain/Routing`. Record Saloon fixtures for HTTP. Do not call a live graph from CI.
+Tests for the costing and `RouteQuery` are in `tests/Unit/Domain/Routing`. Record Saloon fixtures for HTTP. Do not call a live router from CI. Measure a costing change on the local server (`ddev valhalla start`), not the public one.

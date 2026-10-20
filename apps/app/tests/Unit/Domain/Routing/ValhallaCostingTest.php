@@ -147,7 +147,7 @@ it('holds a ride-home bend to the area it was aimed at', function (): void {
         ->and($payload['locations'][1]['radius'])->toBe(900);
 });
 
-it('sends a hike on foot', function (): void {
+it('sends a dirt hike onto tracks and footpaths, not town streets', function (): void {
     $payload = ValhallaCosting::payload(new RouteQuery(
         sport: Sport::Hike,
         shape: Shape::Loop,
@@ -160,5 +160,87 @@ it('sends a hike on foot', function (): void {
 
     expect($payload['costing'])->toBe('pedestrian')
         ->and($payload['costing_options']['pedestrian']['use_hills'])->toBe(1.0)
-        ->and($payload['costing_options']['pedestrian']['sidewalk_factor'])->toBe(0.1);
+        ->and($payload['costing_options']['pedestrian']['walkway_factor'])->toBe(0.5)
+        ->and($payload['costing_options']['pedestrian']['use_tracks'])->toBe(1.0)
+        ->and($payload['costing_options']['pedestrian']['sidewalk_factor'])->toBe(1.0);
+});
+
+function filteredQuery(Sport $sport, Surface $surface, bool $quiet): RouteQuery
+{
+    return new RouteQuery(
+        sport: $sport,
+        shape: Shape::Loop,
+        distanceMetres: 10_000,
+        surface: $surface,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+        preferQuiet: $quiet,
+    );
+}
+
+dataset('foot sports', [
+    'run' => [Sport::Run, 6.0, 1],
+    'trail run' => [Sport::TrailRun, 6.0, 2],
+    'walk' => [Sport::Walk, 5.0, 1],
+    'hike' => [Sport::Hike, 5.0, 2],
+]);
+
+// Walkway factor, use_tracks, and use_living_streets for each surface and roads choice.
+dataset('foot filters', [
+    'paved, any road' => [Surface::Paved, false, 1.0, 0.5, 0.6],
+    'paved, quiet first' => [Surface::Paved, true, 0.5, 0.5, 0.9],
+    'any surface, any road' => [Surface::Mixed, false, 1.0, 0.5, 0.6],
+    'any surface, quiet first' => [Surface::Mixed, true, 0.5, 1.0, 0.9],
+    'dirt, any road' => [Surface::Dirt, false, 0.5, 1.0, 0.6],
+    'dirt, quiet first' => [Surface::Dirt, true, 0.5, 1.0, 0.9],
+]);
+
+it('costs a foot route by its sport, surface, and roads', function (Sport $sport, float $speed, int $difficulty, Surface $surface, bool $quiet, float $walkway, float $tracks, float $livingStreets): void {
+    $payload = ValhallaCosting::payload(filteredQuery($sport, $surface, $quiet), [[3.72, 51.05]]);
+
+    expect($payload['costing'])->toBe('pedestrian')
+        ->and($payload['costing_options'])->toBe(['pedestrian' => [
+            'walking_speed' => $speed,
+            'use_hills' => 0.5,
+            'walkway_factor' => $walkway,
+            'sidewalk_factor' => 1.0,
+            'use_tracks' => $tracks,
+            'use_living_streets' => $livingStreets,
+            'max_hiking_difficulty' => $difficulty,
+        ]]);
+})->with('foot sports')->with('foot filters');
+
+dataset('bike sports', [
+    'road' => [Sport::Road, 'Road'],
+    'gravel' => [Sport::Gravel, 'Cross'],
+    'mountain bike' => [Sport::Mtb, 'Mountain'],
+]);
+
+// avoid_bad_surfaces and use_roads for each surface and roads choice.
+dataset('bike filters', [
+    'paved, any road' => [Surface::Paved, false, 1.0, 0.85],
+    'paved, quiet first' => [Surface::Paved, true, 1.0, 0.2],
+    'any surface, any road' => [Surface::Mixed, false, 0.35, 0.45],
+    'any surface, quiet first' => [Surface::Mixed, true, 0.35, 0.2],
+    'dirt, any road' => [Surface::Dirt, false, 0.0, 0.1],
+    'dirt, quiet first' => [Surface::Dirt, true, 0.0, 0.1],
+]);
+
+it('costs a ride by its sport, surface, and roads', function (Sport $sport, string $bicycleType, Surface $surface, bool $quiet, float $badSurfaces, float $roads): void {
+    $payload = ValhallaCosting::payload(filteredQuery($sport, $surface, $quiet), [[3.72, 51.05]]);
+
+    expect($payload['costing'])->toBe('bicycle')
+        ->and($payload['costing_options'])->toBe(['bicycle' => [
+            'bicycle_type' => $bicycleType,
+            'use_hills' => 0.5,
+            'avoid_bad_surfaces' => $badSurfaces,
+            'use_roads' => $roads,
+        ]]);
+})->with('bike sports')->with('bike filters');
+
+it('matches a trail run or a hike onto the mountain paths it may use', function (): void {
+    expect(ValhallaCosting::trace(Sport::TrailRun)['costing_options']['pedestrian'])->toBe(['walking_speed' => 6.0, 'max_hiking_difficulty' => 2])
+        ->and(ValhallaCosting::trace(Sport::Hike)['costing_options']['pedestrian'])->toBe(['walking_speed' => 5.0, 'max_hiking_difficulty' => 2])
+        ->and(ValhallaCosting::trace(Sport::Run)['costing_options']['pedestrian'])->toBe(['walking_speed' => 6.0, 'max_hiking_difficulty' => 1]);
 });

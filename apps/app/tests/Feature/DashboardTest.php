@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 final class DashboardTest extends TestCase
@@ -25,5 +26,19 @@ final class DashboardTest extends TestCase
 
         $testResponse = $this->get(route('dashboard'));
         $testResponse->assertOk();
+    }
+
+    public function test_the_planner_starts_each_sport_on_the_same_surface_as_the_ai_connector(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('dashboard'))->assertInertia(fn (Assert $assert): Assert => $assert
+            ->component('dashboard')
+            ->where('sportSurfaces.road', 'paved')
+            ->where('sportSurfaces.trail_run', 'dirt')
+            ->where('sportSurfaces.mtb', 'dirt')
+            ->where('sportSurfaces.walk', 'mixed')
+            ->has('sportSurfaces', 7)
+        );
     }
 }
