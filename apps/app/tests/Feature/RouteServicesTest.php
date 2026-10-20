@@ -170,7 +170,7 @@ it('brings the rider back with a message when the service turns the sign-in down
         ->assertRedirect('/saved');
 
     expect(ConnectedAccount::query()->count())->toBe(0)
-        ->and(session(SessionKey::FLASH_DATA)['toast'] ?? null)->toBe(['type' => 'error', 'message' => 'Wahoo turned the request down. Try again.']);
+        ->and(session(SessionKey::FLASH_DATA)['toast'] ?? null)->toBe(['type' => 'error', 'message' => 'Wahoo turned the request down. Try again. If it keeps happening, disconnect Wahoo in Settings, under Connections, and connect it again.']);
     Mail::assertNothingQueued();
 });
 

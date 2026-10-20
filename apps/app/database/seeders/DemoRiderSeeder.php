@@ -43,14 +43,14 @@ class DemoRiderSeeder extends Seeder
     }
 
     /**
-     * Road logs in with Google and Strava too, so Settings, then Connections shows connected accounts. Neither
-     * keeps keys, and Strava shares no email address.
+     * Road logs in with Google and OpenStreetMap too, so Settings, then Connections shows connected accounts.
+     * Neither keeps keys, and OpenStreetMap shares no email address, so it is labelled by its display name.
      */
     private function connect(User $user, string $email): void
     {
         $connections = [
             ConnectionProvider::Google->value => $email,
-            ConnectionProvider::Strava->value => null,
+            ConnectionProvider::OpenStreetMap->value => 'road-rider',
         ];
 
         foreach ($connections as $provider => $label) {

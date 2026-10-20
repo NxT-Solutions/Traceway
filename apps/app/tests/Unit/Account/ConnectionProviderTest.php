@@ -90,7 +90,7 @@ it('keeps keys only where Traceway needs them, and then removes its own access',
 
 it('keeps no account name where the service does not allow it', function (ConnectionProvider $connectionProvider): void {
     expect($connectionProvider->keepsAccountLabel())
-        ->toBe(! in_array($connectionProvider, [ConnectionProvider::Strava, ConnectionProvider::GarminConnect, ConnectionProvider::Runkeeper], strict: true));
+        ->toBe($connectionProvider !== ConnectionProvider::GarminConnect);
 })->with(ConnectionProvider::cases());
 
 it('links to a secure page at the service, or to none', function (ConnectionProvider $connectionProvider): void {
@@ -116,7 +116,7 @@ it('groups the services so a rider finds theirs', function (): void {
 
     expect($groups)->toBe([
         'accounts' => ['google', 'apple', 'facebook', 'instagram', 'x', 'github', 'discord'],
-        'sport' => ['strava', 'garmin_connect', 'wahoo', 'ride_with_gps', 'runkeeper', 'runsignup'],
+        'sport' => ['garmin_connect', 'wahoo', 'ride_with_gps', 'runsignup'],
         'maps' => ['openstreetmap'],
     ])
         ->and(ConnectionGroup::Accounts->label())->toBe('Everyday accounts')
@@ -130,7 +130,7 @@ it('ranks every service in its own place', function (): void {
 
     expect($ranks)->toBe(range(1, count(ConnectionProvider::cases())))
         ->and(ConnectionProvider::Google->rank())->toBe(1)
-        ->and(ConnectionProvider::RunSignup->rank())->toBe(14);
+        ->and(ConnectionProvider::RunSignup->rank())->toBe(12);
 });
 
 it('never uses words that belong to another brand', function (): void {
@@ -152,6 +152,11 @@ it('names the service in what it says went wrong, except where the service does 
     expect(str_contains($message, 'Ride with GPS'))->toBe(! $general)
         ->and($message)->toEndWith('.');
 })->with(ConnectionProblem::cases());
+
+it('tells a rider Wahoo keeps turning down to connect it again, which clears every key Wahoo holds for Traceway', function (): void {
+    expect(ConnectionProblem::Refused->message(ConnectionProvider::Wahoo))->toContain('disconnect Wahoo in Settings, under Connections, and connect it again')
+        ->and(ConnectionProblem::Refused->message(ConnectionProvider::Google))->toBe('Google turned the request down. Try again.');
+});
 
 it('has a slug for each sign-in service in config/services.php, with the keys Socialite needs', function (): void {
     $services = config('services');

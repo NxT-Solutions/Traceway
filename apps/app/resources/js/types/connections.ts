@@ -9,11 +9,9 @@ export type ConnectionSlug =
     | 'x'
     | 'github'
     | 'discord'
-    | 'strava'
     | 'garmin_connect'
     | 'wahoo'
     | 'ride_with_gps'
-    | 'runkeeper'
     | 'runsignup'
     | 'openstreetmap';
 

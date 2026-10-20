@@ -107,18 +107,18 @@ it('asks a new rider for their email when the service did not confirm one', func
 ]);
 
 it('does not offer the name from a service that does not let Traceway keep it', function (): void {
-    config(['services.strava.client_id' => 'strava-id', 'services.strava.client_secret' => 'strava-secret']);
-    Socialite::fake('strava', (new SocialiteUser)
+    config(['services.garmin_connect.client_id' => 'garmin-id', 'services.garmin_connect.client_secret' => 'garmin-secret']);
+    Socialite::fake('garmin_connect', (new SocialiteUser)
         ->map(['id' => '4711', 'name' => 'Road Rider', 'email' => null])
-        ->setApprovedScopes(['read']));
+        ->setToken('garmin-token'));
 
-    $this->get(route('connections.sign-in', ['provider' => 'strava']));
-    $this->get(route('connections.callback', ['provider' => 'strava', 'code' => 'from-strava', 'state' => 'state']))
+    $this->get(route('connections.sign-in', ['provider' => 'garmin_connect']));
+    $this->get(route('connections.callback', ['provider' => 'garmin_connect', 'code' => 'from-garmin', 'state' => 'state']))
         ->assertRedirect(route('connections.finish'));
 
     $this->get(route('connections.finish'))
         ->assertInertia(fn (Assert $assert): Assert => $assert
-            ->where('service', ['slug' => 'strava', 'label' => 'Strava'])
+            ->where('service', ['slug' => 'garmin_connect', 'label' => 'Garmin Connect'])
             ->where('name', '')
             ->where('email', ''));
 });

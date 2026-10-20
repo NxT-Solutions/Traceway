@@ -78,7 +78,7 @@ it('only confirms with a service the rider connected', function (): void {
 
 it('offers a rider without a password the connected services that are set up here', function (): void {
     $user = confirmWithConnectionRider();
-    ConnectedAccount::factory()->for($user)->signInOnly('strava')->create();
+    ConnectedAccount::factory()->for($user)->signInOnly('discord')->create();
 
     $this->actingAs($user)
         ->get(route('password.confirm'))

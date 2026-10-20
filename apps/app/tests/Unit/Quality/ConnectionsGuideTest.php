@@ -18,7 +18,7 @@ function connectionsGuideText(string $path): string
 }
 
 /**
- * The services a sentence of the privacy policy names, such as "For Strava, Garmin Connect, and Runkeeper, it".
+ * The services a sentence of the privacy policy names, such as "Only Wahoo, Ride with GPS, and Garmin Connect give".
  *
  * @return list<string>
  */

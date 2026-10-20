@@ -11,7 +11,6 @@ use App\Auth\Connections\ConnectionFlow;
 use App\Auth\Connections\Providers\GarminConnectProvider;
 use App\Auth\Connections\Providers\RideWithGpsProvider;
 use App\Auth\Connections\Providers\RunSignupProvider;
-use App\Auth\Connections\Providers\StravaProvider;
 use App\Auth\Connections\Providers\WahooProvider;
 use App\Auth\Connections\SocialiteIdentityProviders;
 use App\Auth\GateAdminAccess;
@@ -221,7 +220,6 @@ use SocialiteProviders\Discord\Provider as DiscordProvider;
 use SocialiteProviders\Instagram\Provider as InstagramProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use SocialiteProviders\OpenStreetMap\Provider as OpenStreetMapProvider;
-use SocialiteProviders\RunKeeper\Provider as RunkeeperProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -515,7 +513,7 @@ class AppServiceProvider extends ServiceProvider
     /**
      * The services a rider logs in with or connects. Google, Facebook, GitHub, and X come with Socialite. The
      * SocialiteProviders packages add the rest, and Traceway's own providers cover Wahoo, Ride with GPS, Garmin
-     * Connect, and the fixes Strava and RunSignup need.
+     * Connect, and the fixes RunSignup needs.
      */
     protected function configureConnections(): void
     {
@@ -523,11 +521,9 @@ class AppServiceProvider extends ServiceProvider
             $socialiteWasCalled->extendSocialite(ConnectionProvider::Apple->value, AppleProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::Instagram->value, InstagramProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::Discord->value, DiscordProvider::class);
-            $socialiteWasCalled->extendSocialite(ConnectionProvider::Strava->value, StravaProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::GarminConnect->value, GarminConnectProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::Wahoo->value, WahooProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::RideWithGps->value, RideWithGpsProvider::class);
-            $socialiteWasCalled->extendSocialite(ConnectionProvider::Runkeeper->value, RunkeeperProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::RunSignup->value, RunSignupProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::OpenStreetMap->value, OpenStreetMapProvider::class);
         });

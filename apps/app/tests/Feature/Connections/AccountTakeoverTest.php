@@ -21,18 +21,18 @@ use Tests\Fakes\RecordingCourseService;
 uses(RefreshDatabase::class);
 
 /**
- * Someone else's Strava account, which shares no email, comes back from Strava.
+ * Someone else's OpenStreetMap account, which shares no email, comes back from OpenStreetMap.
  */
-function takeoverStravaReturns(): void
+function takeoverOpenStreetMapReturns(): void
 {
-    config(['services.strava.client_id' => 'strava-id', 'services.strava.client_secret' => 'strava-secret']);
+    config(['services.openstreetmap.client_id' => 'osm-id', 'services.openstreetmap.client_secret' => 'osm-secret']);
 
-    Socialite::fake('strava', (new SocialiteUser)
+    Socialite::fake('openstreetmap', (new SocialiteUser)
         ->map(['id' => '777', 'name' => 'Not Ann', 'email' => null])
-        ->setApprovedScopes(['read']));
+        ->setApprovedScopes(['read_prefs']));
 
-    test()->get(route('connections.sign-in', ['provider' => 'strava']));
-    test()->get(route('connections.callback', ['provider' => 'strava', 'code' => 'from-strava', 'state' => 'state']));
+    test()->get(route('connections.sign-in', ['provider' => 'openstreetmap']));
+    test()->get(route('connections.callback', ['provider' => 'openstreetmap', 'code' => 'from-openstreetmap', 'state' => 'state']));
 }
 
 function takeoverResetPassword(User $user, string $password = 'owner-password'): void
@@ -48,7 +48,7 @@ function takeoverResetPassword(User $user, string $password = 'owner-password'):
 it('opens no account and connects nothing when someone signs up with an address that is not theirs', function (): void {
     Mail::fake();
 
-    takeoverStravaReturns();
+    takeoverOpenStreetMapReturns();
     $this->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'ann@example.com'])
         ->assertRedirect(route('login'));
 
@@ -57,15 +57,15 @@ it('opens no account and connects nothing when someone signs up with an address 
         ->and(ConnectedAccount::query()->count())->toBe(0);
     Mail::assertQueued(AccountMessage::class, fn (AccountMessage $accountMessage): bool => $accountMessage->template === 'connection-sign-up'
         && $accountMessage->hasTo('ann@example.com')
-        && $accountMessage->values['service'] === 'Strava');
+        && $accountMessage->values['service'] === 'OpenStreetMap');
 
-    // The owner of the address opens their own account, and the other person's Strava has no way into it.
+    // The owner of the address opens their own account, and the other person's OpenStreetMap has no way into it.
     $this->post(route('register.store'), ['name' => 'Ann', 'email' => 'ann@example.com', 'password' => 'password', 'password_confirmation' => 'password'])
         ->assertRedirect(route('dashboard'));
     auth()->logout();
     $this->flushSession();
 
-    takeoverStravaReturns();
+    takeoverOpenStreetMapReturns();
 
     $this->assertGuest();
     expect(ConnectedAccount::query()->count())->toBe(0);
@@ -75,7 +75,7 @@ it('does not hand a service to whoever logs in next on a shared browser with the
     Mail::fake();
     $owner = User::factory()->create(['email' => 'ann@example.com']);
 
-    takeoverStravaReturns();
+    takeoverOpenStreetMapReturns();
     $this->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'ann@example.com'])
         ->assertSessionHasErrors('connection');
 
@@ -86,17 +86,17 @@ it('does not hand a service to whoever logs in next on a shared browser with the
 
     auth()->logout();
     $this->flushSession();
-    takeoverStravaReturns();
+    takeoverOpenStreetMapReturns();
 
     $this->assertGuest();
 });
 
 it('lets an account whose email nobody confirmed add no service to log in with', function (): void {
-    config(['services.strava.client_id' => 'strava-id', 'services.strava.client_secret' => 'strava-secret']);
+    config(['services.openstreetmap.client_id' => 'osm-id', 'services.openstreetmap.client_secret' => 'osm-secret']);
 
     $this->post(route('register.store'), ['name' => 'Ann', 'email' => 'ann@example.com', 'password' => 'password', 'password_confirmation' => 'password']);
     $this->withSession(['auth.password_confirmed_at' => Date::now()->getTimestamp()])
-        ->get(route('connections.connect', ['provider' => 'strava']))
+        ->get(route('connections.connect', ['provider' => 'openstreetmap']))
         ->assertRedirect(route('verification.notice'));
 
     expect(session('connections.flow'))->toBeNull()
@@ -109,7 +109,7 @@ it('takes every way in off an unconfirmed account when the owner of the address 
     $wahoo = new RecordingCourseService('wahoo');
     app()->instance(CourseServices::class, new CourseServices(['wahoo' => $wahoo]));
     $user = User::factory()->unverified()->withTwoFactor()->create(['email' => 'ann@example.com', 'remember_token' => 'remember-before']);
-    ConnectedAccount::factory()->for($user)->signInOnly('strava')->create(['provider_user_id' => '777']);
+    ConnectedAccount::factory()->for($user)->signInOnly('openstreetmap')->create(['provider_user_id' => '777']);
     ConnectedAccount::factory()->for($user)->create(['provider_user_id' => '60462', 'access_token' => 'access-left', 'expires_at' => now()->addHour()]);
     DB::table('passkeys')->insert([
         'user_id' => $user->id,
@@ -140,7 +140,7 @@ it('takes every way in off an unconfirmed account when the owner of the address 
         ->and($user->email_verified_at)->not->toBeNull();
     expect(Mail::queued(AccountMessage::class)->map(fn (AccountMessage $accountMessage): string => $accountMessage->template)->all())->toBe(['password-changed', 'welcome']);
 
-    takeoverStravaReturns();
+    takeoverOpenStreetMapReturns();
 
     $this->assertGuest();
 });

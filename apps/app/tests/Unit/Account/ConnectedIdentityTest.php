@@ -88,11 +88,11 @@ it('keeps the keys only for a service that needs them', function (): void {
     expect(connectedIdentityFrom(ConnectionProvider::Wahoo, connectionTokens: $connectionTokens)->tokens)->toBe($connectionTokens)
         ->and(connectedIdentityFrom(ConnectionProvider::GarminConnect, connectionTokens: $connectionTokens)->tokens)->toBe($connectionTokens)
         ->and(connectedIdentityFrom(ConnectionProvider::Google, connectionTokens: $connectionTokens)->tokens)->toBeNull()
-        ->and(connectedIdentityFrom(ConnectionProvider::Strava, connectionTokens: $connectionTokens)->tokens)->toBeNull();
+        ->and(connectedIdentityFrom(ConnectionProvider::OpenStreetMap, connectionTokens: $connectionTokens)->tokens)->toBeNull();
 });
 
 it('keeps an account label only where the service allows it, cleaned and shortened', function (): void {
-    expect(connectedIdentityFrom(ConnectionProvider::Strava, label: 'roadrider')->accountLabel)->toBeNull()
+    expect(connectedIdentityFrom(ConnectionProvider::GarminConnect, label: 'roadrider')->accountLabel)->toBeNull()
         ->and(connectedIdentityFrom(ConnectionProvider::GitHub, label: "road\x00rider")->accountLabel)->toBe('road rider')
         ->and(connectedIdentityFrom(ConnectionProvider::GitHub, label: " \n ")->accountLabel)->toBeNull()
         ->and(connectedIdentityFrom(ConnectionProvider::GitHub, label: null)->accountLabel)->toBeNull()
@@ -125,8 +125,8 @@ it('writes its values with the keys and nothing it was not given', function (): 
         'expires_at' => 1_792_490_400,
         'scopes' => ['user_read', 'routes_write'],
     ])
-        ->and(new ConnectedIdentity(ConnectionProvider::Strava, '4711')->toArray())->toBe([
-            'provider' => 'strava',
+        ->and(new ConnectedIdentity(ConnectionProvider::OpenStreetMap, '4711')->toArray())->toBe([
+            'provider' => 'openstreetmap',
             'id' => '4711',
             'email' => null,
             'email_verified' => false,

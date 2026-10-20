@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "07ffa33722c35a1e94f162749829d7b9",
+    "content-hash": "d5e7fe4257ccd4bb92f8bb96d08d181d",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -6247,47 +6247,6 @@
             "time": "2022-01-27T23:58:54+00:00"
         },
         {
-            "name": "socialiteproviders/runkeeper",
-            "version": "4.1.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/SocialiteProviders/RunKeeper.git",
-                "reference": "3155f457d72e600134272e724d7303e389b0af9a"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/SocialiteProviders/RunKeeper/zipball/3155f457d72e600134272e724d7303e389b0af9a",
-                "reference": "3155f457d72e600134272e724d7303e389b0af9a",
-                "shasum": ""
-            },
-            "require": {
-                "ext-json": "*",
-                "php": "^7.2 || ^8.0",
-                "socialiteproviders/manager": "~4.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "SocialiteProviders\\RunKeeper\\": ""
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Brian Faust",
-                    "email": "hello@brianfaust.de"
-                }
-            ],
-            "description": "RunKeeper OAuth2 Provider for Laravel Socialite",
-            "support": {
-                "source": "https://github.com/SocialiteProviders/RunKeeper/tree/4.1.0"
-            },
-            "time": "2020-12-01T23:10:59+00:00"
-        },
-        {
             "name": "socialiteproviders/runsignup",
             "version": "5.0.0",
             "source": {
@@ -6337,47 +6296,6 @@
                 "source": "https://github.com/socialiteproviders/providers"
             },
             "time": "2025-08-22T23:14:08+00:00"
-        },
-        {
-            "name": "socialiteproviders/strava",
-            "version": "4.1.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/SocialiteProviders/Strava.git",
-                "reference": "6152d4f9b7418dac0c79d740057686be6f5c4375"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/SocialiteProviders/Strava/zipball/6152d4f9b7418dac0c79d740057686be6f5c4375",
-                "reference": "6152d4f9b7418dac0c79d740057686be6f5c4375",
-                "shasum": ""
-            },
-            "require": {
-                "ext-json": "*",
-                "php": "^7.2 || ^8.0",
-                "socialiteproviders/manager": "~4.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "SocialiteProviders\\Strava\\": ""
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Brian Faust",
-                    "email": "hello@brianfaust.de"
-                }
-            ],
-            "description": "Strava OAuth2 Provider for Laravel Socialite",
-            "support": {
-                "source": "https://github.com/SocialiteProviders/Strava/tree/4.1.0"
-            },
-            "time": "2020-12-01T23:10:59+00:00"
         },
         {
             "name": "spatie/laravel-package-tools",

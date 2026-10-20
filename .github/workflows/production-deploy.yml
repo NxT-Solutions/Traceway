@@ -74,12 +74,8 @@ jobs:
           GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
           DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
-          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
-          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           GARMIN_CONNECT_CLIENT_ID: ${{ secrets.GARMIN_CONNECT_CLIENT_ID }}
           GARMIN_CONNECT_CLIENT_SECRET: ${{ secrets.GARMIN_CONNECT_CLIENT_SECRET }}
-          RUNKEEPER_CLIENT_ID: ${{ secrets.RUNKEEPER_CLIENT_ID }}
-          RUNKEEPER_CLIENT_SECRET: ${{ secrets.RUNKEEPER_CLIENT_SECRET }}
           RUNSIGNUP_CLIENT_ID: ${{ secrets.RUNSIGNUP_CLIENT_ID }}
           RUNSIGNUP_CLIENT_SECRET: ${{ secrets.RUNSIGNUP_CLIENT_SECRET }}
           OPENSTREETMAP_CLIENT_ID: ${{ secrets.OPENSTREETMAP_CLIENT_ID }}
@@ -142,8 +138,6 @@ jobs:
           upsert_env "GITHUB_CLIENT_SECRET" "${GH_OAUTH_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "DISCORD_CLIENT_ID" "${DISCORD_CLIENT_ID:-}" "$runtime_env"
           upsert_env "DISCORD_CLIENT_SECRET" "${DISCORD_CLIENT_SECRET:-}" "$runtime_env"
-          upsert_env "STRAVA_CLIENT_ID" "${STRAVA_CLIENT_ID:-}" "$runtime_env"
-          upsert_env "STRAVA_CLIENT_SECRET" "${STRAVA_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "GARMIN_CONNECT_CLIENT_ID" "${GARMIN_CONNECT_CLIENT_ID:-}" "$runtime_env"
           upsert_env "GARMIN_CONNECT_CLIENT_SECRET" "${GARMIN_CONNECT_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "WAHOO_CLIENT_ID" "${WAHOO_CLIENT_ID:-}" "$runtime_env"
@@ -152,8 +146,6 @@ jobs:
           upsert_env "RIDEWITHGPS_CLIENT_ID" "${RIDEWITHGPS_CLIENT_ID:-}" "$runtime_env"
           upsert_env "RIDEWITHGPS_CLIENT_SECRET" "${RIDEWITHGPS_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "RIDEWITHGPS_API_KEY" "${RIDEWITHGPS_API_KEY:-}" "$runtime_env"
-          upsert_env "RUNKEEPER_CLIENT_ID" "${RUNKEEPER_CLIENT_ID:-}" "$runtime_env"
-          upsert_env "RUNKEEPER_CLIENT_SECRET" "${RUNKEEPER_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "RUNSIGNUP_CLIENT_ID" "${RUNSIGNUP_CLIENT_ID:-}" "$runtime_env"
           upsert_env "RUNSIGNUP_CLIENT_SECRET" "${RUNSIGNUP_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "OPENSTREETMAP_CLIENT_ID" "${OPENSTREETMAP_CLIENT_ID:-}" "$runtime_env"

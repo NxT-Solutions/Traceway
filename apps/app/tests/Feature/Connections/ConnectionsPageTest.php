@@ -26,7 +26,7 @@ it('lists what the rider connected, then what they could add', function (): void
     connectionsPageWith('google', 'wahoo', 'github');
     $user = User::factory()->create(['password' => null]);
     ConnectedAccount::factory()->for($user)->signInOnly('google')->create(['account_label' => 'ann@gmail.com']);
-    ConnectedAccount::factory()->for($user)->signInOnly('strava')->create(['account_label' => 'Ann on Strava']);
+    ConnectedAccount::factory()->for($user)->signInOnly('garmin_connect')->create(['account_label' => 'Ann on Garmin']);
 
     $this->actingAs($user)
         ->get(route('connections.edit'))
@@ -46,12 +46,12 @@ it('lists what the rider connected, then what they could add', function (): void
             ->where('connected.0.withdraws_access', expected: false)
             ->where('connected.0.can_disconnect', expected: false)
             ->where('connected.0.disconnect_blocked', 'Add a password or a passkey first, so you can still log in.')
-            ->where('connected.1.slug', 'strava')
+            ->where('connected.1.slug', 'garmin_connect')
             ->where('connected.1.available', expected: false)
             ->where('connected.1.account_label', expected: null)
             ->where('connected.1.capabilities', [
                 ['key' => 'sign_in', 'label' => 'Log in', 'later' => false],
-                ['key' => 'import_routes', 'label' => 'Bring in routes', 'later' => true],
+                ['key' => 'send_routes', 'label' => 'Send routes', 'later' => true],
             ])
             ->where('connected.1.can_disconnect', expected: true)
             ->where('connected.1.disconnect_blocked', expected: null)

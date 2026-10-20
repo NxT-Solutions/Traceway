@@ -42,7 +42,7 @@ it('knows the pages people use from the paths scanners try', function (): void {
         ->and(PeoplePages::is('/share/abc'))->toBeTrue()
         ->and(PeoplePages::is('/settings/profile'))->toBeTrue()
         ->and(PeoplePages::is('/auth/google/redirect'))->toBeTrue()
-        ->and(PeoplePages::is('/auth/strava/callback'))->toBeTrue()
+        ->and(PeoplePages::is('/auth/google/callback'))->toBeTrue()
         ->and(PeoplePages::is('/login/options'))->toBeTrue()
         ->and(PeoplePages::is('/login/finish'))->toBeTrue()
         ->and(PeoplePages::is('/.env'))->toBeFalse()

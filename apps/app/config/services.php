@@ -129,13 +129,6 @@ return [
         'guzzle' => $signIn,
     ],
 
-    'strava' => [
-        'client_id' => env('STRAVA_CLIENT_ID'),
-        'client_secret' => env('STRAVA_CLIENT_SECRET'),
-        'redirect' => env('STRAVA_REDIRECT_URI', '/auth/strava/callback'),
-        'guzzle' => $signIn,
-    ],
-
     // Garmin's developer program, with OAuth 2.0 and PKCE. The client id is the consumer key.
     'garmin_connect' => [
         'client_id' => env('GARMIN_CONNECT_CLIENT_ID'),
@@ -163,13 +156,6 @@ return [
         'api_key' => env('RIDEWITHGPS_API_KEY'),
         'redirect' => env('RIDEWITHGPS_REDIRECT_URI', '/settings/services/ride_with_gps/callback'),
         'url' => env('RIDEWITHGPS_URL', 'https://ridewithgps.com'),
-        'guzzle' => $signIn,
-    ],
-
-    'runkeeper' => [
-        'client_id' => env('RUNKEEPER_CLIENT_ID'),
-        'client_secret' => env('RUNKEEPER_CLIENT_SECRET'),
-        'redirect' => env('RUNKEEPER_REDIRECT_URI', '/auth/runkeeper/callback'),
         'guzzle' => $signIn,
     ],
 

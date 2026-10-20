@@ -14,17 +14,17 @@ use Tests\Support\DrawnPage;
 uses(RefreshDatabase::class);
 
 /**
- * A rider who opened the account with Google, connected Strava, and never set a password.
+ * A rider who opened the account with Google, connected GitHub, and never set a password.
  */
 function confirmItIsYouRider(): User
 {
-    foreach (['google', 'strava'] as $slug) {
+    foreach (['google', 'github'] as $slug) {
         config(["services.{$slug}.client_id" => $slug.'-id', "services.{$slug}.client_secret" => $slug.'-secret']);
     }
 
     $user = User::factory()->create(['password' => null]);
     ConnectedAccount::factory()->for($user)->signInOnly('google')->create(['provider_user_id' => '1001']);
-    ConnectedAccount::factory()->for($user)->signInOnly('strava')->create(['provider_user_id' => '2002']);
+    ConnectedAccount::factory()->for($user)->signInOnly('github')->create(['provider_user_id' => '2002']);
 
     return $user;
 }
@@ -66,8 +66,8 @@ it('says Continue with Google, as Google asks, and Confirm with the services tha
     $htmlDocument = DrawnPage::of($this->actingAs(confirmItIsYouRider())->get(route('password.confirm'))->assertOk());
 
     expect(confirmItIsYouButtons($htmlDocument))->toBe([
+        ['Confirm with GitHub', 'Confirm with GitHub'],
         ['Continue with Google, to confirm it is you', 'Continue with Google'],
-        ['Confirm with Strava', 'Confirm with Strava'],
     ]);
 });
 

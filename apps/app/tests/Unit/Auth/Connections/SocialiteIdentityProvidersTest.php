@@ -100,13 +100,13 @@ it('lists the services that are on in the order the sign-in page offers them', f
 
     expect(identityProvidersFor()->enabled())->toBe([]);
 
-    foreach (['openstreetmap', 'wahoo', 'google', 'strava'] as $slug) {
+    foreach (['openstreetmap', 'wahoo', 'google', 'garmin_connect'] as $slug) {
         config(['services.'.$slug.'.client_id' => $slug.'-id', 'services.'.$slug.'.client_secret' => $slug.'-secret']);
     }
 
     expect(identityProvidersFor()->enabled())->toBe([
         ConnectionProvider::Google,
-        ConnectionProvider::Strava,
+        ConnectionProvider::GarminConnect,
         ConnectionProvider::Wahoo,
         ConnectionProvider::OpenStreetMap,
     ]);
@@ -261,7 +261,7 @@ it('trusts an email as confirmed only when the service says it confirmed it', fu
     'X' => ['x', [], true],
     'Facebook' => ['facebook', ['email_verified' => true], false],
     'Wahoo' => ['wahoo', ['email_verified' => true], false],
-    'Strava, with a verified flag' => ['strava', ['verified' => true], false],
+    'OpenStreetMap, with a verified flag' => ['openstreetmap', ['verified' => true], false],
 ]);
 
 it('never trusts an email the service did not send', function (): void {
@@ -292,7 +292,7 @@ it('keeps the keys only for services that need them, with the time they run out'
     'Ride with GPS' => ['ride_with_gps', true],
     'Garmin Connect' => ['garmin_connect', true],
     'Google' => ['google', false],
-    'Strava' => ['strava', false],
+    'OpenStreetMap' => ['openstreetmap', false],
     'GitHub' => ['github', false],
 ]);
 
@@ -331,9 +331,7 @@ it('labels the account the way each service knows the rider', function (string $
     'Google by email' => ['google', 'roadrider', 'road@gmail.test', 'road@gmail.test'],
     'Wahoo by email' => ['wahoo', null, 'road@wahoo.test', 'road@wahoo.test'],
     'Facebook by name without an email' => ['facebook', 'Road Rider', null, 'Road Rider'],
-    'Strava not at all' => ['strava', 'roadrider', 'road@strava.test', null],
     'Garmin Connect not at all' => ['garmin_connect', 'roadrider', null, null],
-    'Runkeeper not at all' => ['runkeeper', 'roadrider', 'road@runkeeper.test', null],
 ]);
 
 it('labels an Instagram account by its username, which the provider hands over as the name', function (): void {

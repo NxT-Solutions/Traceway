@@ -16,25 +16,25 @@ afterEach(function (): void {
 });
 
 /**
- * A Strava account with no email comes back, and its owner lands on the last step of signing up.
+ * An OpenStreetMap account, which has no email, comes back, and its owner lands on the last step of signing up.
  */
-function signUpHostStravaReturns(): void
+function signUpHostOpenStreetMapReturns(): void
 {
-    config(['services.strava.client_id' => 'strava-id', 'services.strava.client_secret' => 'strava-secret']);
+    config(['services.openstreetmap.client_id' => 'osm-id', 'services.openstreetmap.client_secret' => 'osm-secret']);
 
-    Socialite::fake('strava', (new SocialiteUser)
+    Socialite::fake('openstreetmap', (new SocialiteUser)
         ->map(['id' => '777', 'name' => 'Mallory', 'email' => null])
-        ->setApprovedScopes(['read']));
+        ->setApprovedScopes(['read_prefs']));
 
-    test()->get(route('connections.sign-in', ['provider' => 'strava']));
-    test()->get(route('connections.callback', ['provider' => 'strava', 'code' => 'from-strava', 'state' => 'state']))
+    test()->get(route('connections.sign-in', ['provider' => 'openstreetmap']));
+    test()->get(route('connections.callback', ['provider' => 'openstreetmap', 'code' => 'from-openstreetmap', 'state' => 'state']))
         ->assertRedirect(route('connections.finish'));
 }
 
 it("puts the emailed link on Traceway's own address, whatever host the request names", function (string $url, array $headers): void {
     Mail::fake();
     config(['app.url' => 'https://traceway.test']);
-    signUpHostStravaReturns();
+    signUpHostOpenStreetMapReturns();
 
     $this->withHeaders($headers)
         ->post($url, ['name' => 'Boss', 'email' => 'boss@example.com'])

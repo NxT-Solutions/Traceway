@@ -126,17 +126,17 @@ it('gives both forms the public key when the check is on', function (): void {
 });
 
 /**
- * A new rider comes back from Strava, which shares no email, and lands on the last step of signing up.
+ * A new rider comes back from OpenStreetMap, which shares no email, and lands on the last step of signing up.
  */
 function turnstileFinishSignUpArrive(): void
 {
-    config(['services.strava.client_id' => 'strava-id', 'services.strava.client_secret' => 'strava-secret']);
-    Socialite::fake('strava', (new SocialiteUser)
+    config(['services.openstreetmap.client_id' => 'osm-id', 'services.openstreetmap.client_secret' => 'osm-secret']);
+    Socialite::fake('openstreetmap', (new SocialiteUser)
         ->map(['id' => '4711', 'name' => 'Ann Rider', 'email' => null])
-        ->setApprovedScopes(['read']));
+        ->setApprovedScopes(['read_prefs']));
 
-    test()->get(route('connections.sign-in', ['provider' => 'strava']));
-    test()->get(route('connections.callback', ['provider' => 'strava', 'code' => 'from-strava', 'state' => 'state']))
+    test()->get(route('connections.sign-in', ['provider' => 'openstreetmap']));
+    test()->get(route('connections.callback', ['provider' => 'openstreetmap', 'code' => 'from-openstreetmap', 'state' => 'state']))
         ->assertRedirect(route('connections.finish'));
 }
 

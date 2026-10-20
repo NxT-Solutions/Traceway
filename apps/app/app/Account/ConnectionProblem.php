@@ -47,7 +47,11 @@ enum ConnectionProblem: string
         return match ($this) {
             self::Cancelled => $service.' did not connect, because it was cancelled there.',
             self::Expired => 'That took too long, or it started in another tab. Try again.',
-            self::Refused => $service.' turned the request down. Try again.',
+            // Disconnecting ends Traceway's whole grant at Wahoo, every key with it, so it also clears Wahoo's cap
+            // of 10 open keys per rider.
+            self::Refused => $connectionProvider === ConnectionProvider::Wahoo
+                ? 'Wahoo turned the request down. Try again. If it keeps happening, disconnect Wahoo in Settings, under Connections, and connect it again.'
+                : $service.' turned the request down. Try again.',
             self::Unavailable => $service.' could not be reached. Try again in a minute.',
             self::Incomplete => $service.' did not say who you are. Try again, or use another way to log in.',
             self::TakenByAnotherRider => 'This '.$service.' account is already connected to another Traceway account.',

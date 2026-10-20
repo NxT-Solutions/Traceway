@@ -49,16 +49,12 @@
         <env name="GITHUB_CLIENT_SECRET" value=""/>
         <env name="DISCORD_CLIENT_ID" value=""/>
         <env name="DISCORD_CLIENT_SECRET" value=""/>
-        <env name="STRAVA_CLIENT_ID" value=""/>
-        <env name="STRAVA_CLIENT_SECRET" value=""/>
         <env name="GARMIN_CONNECT_CLIENT_ID" value=""/>
         <env name="GARMIN_CONNECT_CLIENT_SECRET" value=""/>
         <env name="WAHOO_CLIENT_ID" value=""/>
         <env name="WAHOO_CLIENT_SECRET" value=""/>
         <env name="RIDEWITHGPS_CLIENT_ID" value=""/>
         <env name="RIDEWITHGPS_CLIENT_SECRET" value=""/>
-        <env name="RUNKEEPER_CLIENT_ID" value=""/>
-        <env name="RUNKEEPER_CLIENT_SECRET" value=""/>
         <env name="RUNSIGNUP_CLIENT_ID" value=""/>
         <env name="RUNSIGNUP_CLIENT_SECRET" value=""/>
         <env name="OPENSTREETMAP_CLIENT_ID" value=""/>

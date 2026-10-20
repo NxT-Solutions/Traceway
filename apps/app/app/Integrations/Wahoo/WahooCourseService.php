@@ -109,8 +109,9 @@ final readonly class WahooCourseService implements CourseService
 
     /**
      * Does nothing. Wahoo's only way to withdraw, DELETE /v1/permissions, ends the whole grant, so it would stop
-     * the new keys too. Wahoo allows an app at most 10 unrevoked keys per rider and lets an old one lapse after 60
-     * days, so the replaced keys are left to run out.
+     * the new keys too. Wahoo allows an app at most 10 unrevoked keys per rider. It drops an old key once a newer
+     * one is used, and every new key here is used at once: a log in reads the rider with it, and a refresh comes
+     * right before the call that needs it. Any key left over lapses after 60 days.
      */
     public function supersede(ServiceTokens $serviceTokens): void {}
 

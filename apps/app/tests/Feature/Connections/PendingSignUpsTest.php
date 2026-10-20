@@ -37,7 +37,7 @@ function pendingSignUpsCacheWithAnotherRead(): Repository
 
 function pendingSignUpsHold(PendingSignUps $pendingSignUps): string
 {
-    $connectedIdentity = ConnectedIdentity::fromService(ConnectionProvider::Strava, '4711', email: null, emailVerified: false, name: null, accountLabel: null, connectionTokens: null, scopes: ['read']);
+    $connectedIdentity = ConnectedIdentity::fromService(ConnectionProvider::OpenStreetMap, '4711', email: null, emailVerified: false, name: null, accountLabel: null, connectionTokens: null, scopes: ['read_prefs']);
 
     return $pendingSignUps->hold($connectedIdentity, new RiderName('Ann'), new Email('ann@example.com'), remember: false, request: Request::create('/login/finish', 'POST'))['token'];
 }
@@ -63,7 +63,7 @@ it('gives a link to one of two posts that arrive at the same moment', function (
 
 it('ties the sign-up to the browser that asked for it', function (): void {
     $pendingSignUps = new PendingSignUps(new Repository(new ArrayStore));
-    $connectedIdentity = ConnectedIdentity::fromService(ConnectionProvider::Strava, '4711', email: null, emailVerified: false, name: null, accountLabel: null, connectionTokens: null, scopes: ['read']);
+    $connectedIdentity = ConnectedIdentity::fromService(ConnectionProvider::OpenStreetMap, '4711', email: null, emailVerified: false, name: null, accountLabel: null, connectionTokens: null, scopes: ['read_prefs']);
     $held = $pendingSignUps->hold($connectedIdentity, new RiderName('Ann'), new Email('ann@example.com'), remember: false, request: Request::create('/login/finish', 'POST'));
     $pending = $pendingSignUps->find($held['token']);
     $browser = (string) $held['cookie']->getValue();

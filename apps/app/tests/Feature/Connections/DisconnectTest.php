@@ -74,7 +74,7 @@ it('keeps the last way a rider without a password can log in', function (array $
     Mail::assertNothingQueued();
 })->with([
     'no other way in' => [[]],
-    'only a service that is no longer set up' => [['strava']],
+    'only a service that is no longer set up' => [['discord']],
 ]);
 
 it('lets a rider without a password disconnect while another service still logs them in', function (): void {
@@ -115,12 +115,12 @@ it('lets a rider without a password disconnect while a passkey still logs them i
 
 it('disconnects a service that is no longer set up here', function (): void {
     $user = User::factory()->create();
-    $connectedAccount = disconnectLinked($user, 'strava');
+    $connectedAccount = disconnectLinked($user, 'discord');
 
     $this->actingAs($user)
-        ->delete(route('connections.destroy', ['provider' => 'strava']))
+        ->delete(route('connections.destroy', ['provider' => 'discord']))
         ->assertRedirect(route('connections.edit'))
-        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Strava disconnected.']);
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Discord disconnected.']);
 
     $this->assertModelMissing($connectedAccount);
 });

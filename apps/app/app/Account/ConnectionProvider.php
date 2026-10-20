@@ -18,11 +18,9 @@ enum ConnectionProvider: string
     case X = 'x';
     case GitHub = 'github';
     case Discord = 'discord';
-    case Strava = 'strava';
     case GarminConnect = 'garmin_connect';
     case Wahoo = 'wahoo';
     case RideWithGps = 'ride_with_gps';
-    case Runkeeper = 'runkeeper';
     case RunSignup = 'runsignup';
     case OpenStreetMap = 'openstreetmap';
 
@@ -44,11 +42,9 @@ enum ConnectionProvider: string
             self::X => 'X',
             self::GitHub => 'GitHub',
             self::Discord => 'Discord',
-            self::Strava => 'Strava',
             self::GarminConnect => 'Garmin Connect',
             self::Wahoo => 'Wahoo',
             self::RideWithGps => 'Ride with GPS',
-            self::Runkeeper => 'Runkeeper',
             self::RunSignup => 'RunSignup',
             self::OpenStreetMap => 'OpenStreetMap',
         };
@@ -57,7 +53,7 @@ enum ConnectionProvider: string
     public function group(): ConnectionGroup
     {
         return match ($this) {
-            self::Strava, self::GarminConnect, self::Wahoo, self::RideWithGps, self::Runkeeper, self::RunSignup => ConnectionGroup::Sport,
+            self::GarminConnect, self::Wahoo, self::RideWithGps, self::RunSignup => ConnectionGroup::Sport,
             self::OpenStreetMap => ConnectionGroup::Maps,
             default => ConnectionGroup::Accounts,
         };
@@ -101,7 +97,7 @@ enum ConnectionProvider: string
         return match ($this) {
             self::Facebook, self::Instagram, self::X => [ConnectionCapability::ShareRoutes],
             self::Discord, self::RunSignup => [ConnectionCapability::Notifications],
-            self::Strava, self::RideWithGps, self::Runkeeper => [ConnectionCapability::ImportRoutes],
+            self::RideWithGps => [ConnectionCapability::ImportRoutes],
             self::GarminConnect => [ConnectionCapability::SendRoutes],
             self::Wahoo => [ConnectionCapability::SyncRoutes],
             self::OpenStreetMap => [ConnectionCapability::MapNotes],
@@ -124,11 +120,9 @@ enum ConnectionProvider: string
             self::X => ['Your X account number and username.', 'No password, and no access to your posts.'],
             self::GitHub => ['Your GitHub account number and username.', 'No password, and no access to your code.'],
             self::Discord => ['Your Discord account number and username.', 'No password, and no access to your messages.'],
-            self::Strava => ['Your Strava athlete number.', 'No activities, and no access to your Strava account.'],
             self::GarminConnect => ['Your Garmin Connect user number.', 'The keys Garmin gave Traceway, kept encrypted, so Traceway can remove its access when you disconnect.', 'No activities or health data.'],
             self::Wahoo => ['Your Wahoo account number and email address.', 'The keys Wahoo gave Traceway, kept encrypted, to send routes.', 'Which routes you sent there.'],
             self::RideWithGps => ['Your Ride with GPS account number and email address.', 'The key Ride with GPS gave Traceway, kept encrypted, to send routes.', 'Which routes you sent there.'],
-            self::Runkeeper => ['Your Runkeeper account number.', 'No activities, and no access to your Runkeeper account.'],
             self::RunSignup => ['Your RunSignup account number and email address.', 'No races, and no access to your RunSignup account.'],
             self::OpenStreetMap => ['Your OpenStreetMap account number and display name.', 'No home location, and no access to your edits.'],
         };
@@ -158,8 +152,6 @@ enum ConnectionProvider: string
             self::Instagram => 'https://www.instagram.com/accounts/manage_access/',
             self::X => 'https://x.com/settings/connected_apps',
             self::GitHub => 'https://github.com/settings/applications',
-            self::Strava => 'https://www.strava.com/settings/apps',
-            self::Runkeeper => 'https://runkeeper.com/settings/apps',
             self::RunSignup => 'https://runsignup.com/Profile/OAuth2',
             self::OpenStreetMap => 'https://www.openstreetmap.org/oauth2/authorized_applications',
             self::Discord, self::GarminConnect, self::Wahoo, self::RideWithGps => null,
@@ -179,16 +171,12 @@ enum ConnectionProvider: string
     }
 
     /**
-     * False for services whose account Traceway knows only by its number: Strava, whose terms limit how long its
-     * data is kept, and Garmin Connect and Runkeeper, which share no name. Their name is not kept, nor offered as
-     * the rider's account name, and the connection shows only when it was made.
+     * False for services whose account Traceway knows only by its number: Garmin Connect shares no name. Its name
+     * is not kept, nor offered as the rider's account name, and the connection shows only when it was made.
      */
     public function keepsAccountLabel(): bool
     {
-        return match ($this) {
-            self::Strava, self::GarminConnect, self::Runkeeper => false,
-            default => true,
-        };
+        return $this !== self::GarminConnect;
     }
 
     /**
@@ -207,18 +195,16 @@ enum ConnectionProvider: string
         return match ($this) {
             self::Google => 1,
             self::Apple => 2,
-            self::Strava => 3,
-            self::GarminConnect => 4,
-            self::Facebook => 5,
-            self::Wahoo => 6,
-            self::RideWithGps => 7,
-            self::X => 8,
-            self::GitHub => 9,
-            self::Discord => 10,
-            self::Instagram => 11,
-            self::OpenStreetMap => 12,
-            self::Runkeeper => 13,
-            self::RunSignup => 14,
+            self::GarminConnect => 3,
+            self::Facebook => 4,
+            self::Wahoo => 5,
+            self::RideWithGps => 6,
+            self::X => 7,
+            self::GitHub => 8,
+            self::Discord => 9,
+            self::Instagram => 10,
+            self::OpenStreetMap => 11,
+            self::RunSignup => 12,
         };
     }
 }

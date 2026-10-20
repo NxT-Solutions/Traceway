@@ -123,17 +123,17 @@ it('lets one address start thirty sign-ins with another service a minute', funct
 });
 
 /**
- * The same Strava account, which shares no email, comes back from Strava, ready for the last step of signing up.
+ * The same OpenStreetMap account, which shares no email, comes back from OpenStreetMap, ready for the last step of signing up.
  */
-function abuseLimitsStravaReturns(): void
+function abuseLimitsOpenStreetMapReturns(): void
 {
-    config(['services.strava.client_id' => 'strava-id', 'services.strava.client_secret' => 'strava-secret']);
-    Socialite::fake('strava', (new SocialiteUser)
+    config(['services.openstreetmap.client_id' => 'osm-id', 'services.openstreetmap.client_secret' => 'osm-secret']);
+    Socialite::fake('openstreetmap', (new SocialiteUser)
         ->map(['id' => '4711', 'name' => 'Ann Rider', 'email' => null])
-        ->setApprovedScopes(['read']));
+        ->setApprovedScopes(['read_prefs']));
 
-    test()->get(route('connections.sign-in', ['provider' => 'strava']));
-    test()->get(route('connections.callback', ['provider' => 'strava', 'code' => 'from-strava', 'state' => 'state']))
+    test()->get(route('connections.sign-in', ['provider' => 'openstreetmap']));
+    test()->get(route('connections.callback', ['provider' => 'openstreetmap', 'code' => 'from-openstreetmap', 'state' => 'state']))
         ->assertRedirect(route('connections.finish'));
 }
 
@@ -142,11 +142,11 @@ it('emails three sign-up links an hour to one address, then says when to try aga
     $this->freezeTime();
 
     foreach (range(1, 3) as $ignored) {
-        abuseLimitsStravaReturns();
+        abuseLimitsOpenStreetMapReturns();
         $this->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'Ann@example.com'])->assertSessionDoesntHaveErrors();
     }
 
-    abuseLimitsStravaReturns();
+    abuseLimitsOpenStreetMapReturns();
     $this->from(route('connections.finish'))
         ->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => ' ann@example.com '])
         ->assertRedirect(route('connections.finish'))
@@ -164,12 +164,12 @@ it('emails five sign-up links an hour for one account at a service', function ()
 
     foreach (range(1, 5) as $count) {
         $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.'.$count]);
-        abuseLimitsStravaReturns();
+        abuseLimitsOpenStreetMapReturns();
         $this->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'ann'.$count.'@example.com'])->assertSessionDoesntHaveErrors();
     }
 
     $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.6']);
-    abuseLimitsStravaReturns();
+    abuseLimitsOpenStreetMapReturns();
     $this->from(route('connections.finish'))
         ->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => 'ann6@example.com'])
         ->assertSessionHasErrors(['email' => 'Traceway sent several links already. Check your email, or wait 60 minutes, then try again.']);
