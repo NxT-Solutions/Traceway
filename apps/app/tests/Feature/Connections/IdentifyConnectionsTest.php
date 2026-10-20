@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Courses\Services\CourseServices;
 use App\Domain\Courses\Services\ServiceAccount;
+use App\Mail\AccountMessage;
 use App\Models\ConnectedAccount;
 use App\Models\User;
 use Illuminate\Console\Scheduling\Event;
@@ -11,6 +12,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use Tests\Fakes\RecordingCourseService;
@@ -180,15 +182,49 @@ it('stops asking a service that cannot be reached for the rest of the run, and s
     identifyConnectionsCarriedOver(User::factory()->create(), 'ride_with_gps', 'bob-rwgps', ['connected_at' => now()->subYears(2)]);
     identifyConnectionsCarriedOver(User::factory()->create(), 'ride_with_gps', 'cat-rwgps');
     identifyConnectionsCarriedOver(User::factory()->create(), 'ride_with_gps', 'dan-rwgps');
+    identifyConnectionsCarriedOver(User::factory()->create(), 'ride_with_gps', 'eve-rwgps');
     $connectedAccount = identifyConnectionsCarriedOver(User::factory()->create(), 'wahoo', 'ann-wahoo');
 
     $this->artisan('connections:identify')
-        ->expectsOutput('Found the account of 1 of 4 Wahoo and Ride with GPS connections from before. 0 need connecting again, 3 could not be asked, and 0 belong to another rider.')
+        ->expectsOutput('Found the account of 1 of 5 Wahoo and Ride with GPS connections from before. 0 need connecting again, 4 could not be asked, and 0 belong to another rider.')
         ->assertSuccessful();
 
-    expect($services['ride_with_gps']->asked)->toBe(['bob-rwgps'])
+    expect($services['ride_with_gps']->asked)->toBe(['bob-rwgps', 'cat-rwgps', 'dan-rwgps'])
         ->and($services['wahoo']->asked)->toBe(['ann-wahoo'])
         ->and($connectedAccount->refresh()->provider_user_id)->toBe('60462');
+});
+
+it("still asks the others when the service cannot find one rider's account", function (): void {
+    $services = identifyConnectionsServices();
+    $services['ride_with_gps']->unavailableFor = ['bob-rwgps'];
+    $stuck = identifyConnectionsCarriedOver(User::factory()->create(), 'ride_with_gps', 'bob-rwgps', ['connected_at' => now()->subYears(2)]);
+    $connectedAccount = identifyConnectionsCarriedOver(User::factory()->create(), 'ride_with_gps', 'cat-rwgps');
+
+    $this->artisan('connections:identify')
+        ->expectsOutput('Found the account of 1 of 2 Wahoo and Ride with GPS connections from before. 0 need connecting again, 1 could not be asked, and 0 belong to another rider.')
+        ->assertSuccessful();
+
+    expect($services['ride_with_gps']->asked)->toBe(['bob-rwgps', 'cat-rwgps'])
+        ->and($stuck->refresh()->provider_user_id)->toBeNull()
+        ->and($stuck->needs_reconnect)->toBeFalse()
+        ->and($connectedAccount->refresh()->provider_user_id)->toBe('60462');
+});
+
+it('emails each rider whose connection from before now logs them in, as for any new way in', function (): void {
+    Mail::fake();
+    $services = identifyConnectionsServices();
+    $services['wahoo']->accounts['ann-wahoo'] = new ServiceAccount('60462');
+    $services['wahoo']->accounts['bob-wahoo'] = new ServiceAccount('60462');
+    identifyConnectionsCarriedOver(User::factory()->create(['name' => 'Ann', 'email' => 'ann@example.com']), 'wahoo', 'ann-wahoo', ['connected_at' => now()->subYears(2)]);
+    // Bob's keys belong to the account Ann connected first, so it does not log Bob in, and Bob hears nothing.
+    identifyConnectionsCarriedOver(User::factory()->create(['email' => 'bob@example.com']), 'wahoo', 'bob-wahoo');
+
+    $this->artisan('connections:identify')->assertSuccessful();
+
+    Mail::assertQueuedCount(1);
+    Mail::assertQueued(AccountMessage::class, fn (AccountMessage $accountMessage): bool => $accountMessage->hasTo('ann@example.com')
+        && $accountMessage->template === 'connection-added'
+        && $accountMessage->values['service'] === 'Wahoo');
 });
 
 it('leaves an account another rider connected already without a number, asks to connect again, and reports it once', function (): void {

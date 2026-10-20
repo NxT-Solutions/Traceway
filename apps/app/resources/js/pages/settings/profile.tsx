@@ -1,3 +1,4 @@
+import type { Page } from '@inertiajs/core';
 import { Form, Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
@@ -37,6 +38,10 @@ export default function Profile({
     const changingEmail =
         email.trim().toLowerCase() !== auth.user.email.toLowerCase();
     const mustProveIt = changingEmail && !confirmedRecently;
+    // Inertia keeps the page's state after a post, so the field takes the email the server kept: a new one waits
+    // for its link, and it must not be sent again with the next save.
+    const keepServerEmail = (page: Page) =>
+        setEmail((page.props as unknown as PageProps).auth.user.email);
 
     return (
         <>
@@ -66,7 +71,10 @@ export default function Profile({
                                     router.post(
                                         resend.url(),
                                         {},
-                                        { preserveScroll: true },
+                                        {
+                                            preserveScroll: true,
+                                            onSuccess: keepServerEmail,
+                                        },
                                     )
                                 }
                             >
@@ -78,6 +86,13 @@ export default function Profile({
                                 onClick={() =>
                                     router.delete(cancel.url(), {
                                         preserveScroll: true,
+                                        onSuccess: (page) => {
+                                            keepServerEmail(page);
+                                            // The note with this button is gone, so focus goes to the email.
+                                            document
+                                                .getElementById('email')
+                                                ?.focus();
+                                        },
                                     })
                                 }
                             >
@@ -92,6 +107,7 @@ export default function Profile({
                     options={{
                         preserveScroll: true,
                     }}
+                    onSuccess={keepServerEmail}
                     className="space-y-6"
                 >
                     {({ processing, errors }) => (
@@ -168,7 +184,8 @@ export default function Profile({
                                 </div>
                             )}
 
-                            {mustProveIt && !hasPassword && (
+                            {/* Shown before the rider types, since the round trip to confirm leaves the page. */}
+                            {!confirmedRecently && !hasPassword && (
                                 <div className="grid gap-2">
                                     <p className="text-sm text-muted-foreground">
                                         To change the email you log in with,

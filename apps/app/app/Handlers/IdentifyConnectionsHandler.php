@@ -9,6 +9,8 @@ use App\Account\ConnectionTokens;
 use App\Account\RiderId;
 use App\Account\RouteService;
 use App\Contracts\Account\ConnectionRepository;
+use App\Contracts\Account\UserRepository;
+use App\Contracts\Mail\AccountMailer;
 use App\Domain\Connections\ConnectionTally;
 use App\Domain\Courses\Services\CourseService;
 use App\Domain\Courses\Services\CourseServices;
@@ -21,17 +23,22 @@ use RuntimeException;
 
 /**
  * Gives each Wahoo and Ride with GPS connection carried over from before the service's number for its account, so
- * it logs the rider in. Only connections with keys the service has not turned down are asked. Keys the service
- * turns down are forgotten, and the rider connects again. A service that cannot answer is left alone until the
- * next run. An account that another rider connected already is reported once, because it cannot belong to two
- * riders.
+ * it logs the rider in, and emails the rider that it does, as for any new way in. Only connections with keys the
+ * service has not turned down are asked. Keys the service turns down are forgotten, and the rider connects again.
+ * A service that cannot answer is left alone until the next run. An account that another rider connected already
+ * is reported once, because it cannot belong to two riders.
  */
 final readonly class IdentifyConnectionsHandler
 {
+    /** Failures in a row that mean the service is down, not one rider's account. */
+    private const int OUTAGE = 3;
+
     public function __construct(
         private ConnectionRepository $connectionRepository,
         private CourseServices $courseServices,
         private Repository $repository,
+        private UserRepository $userRepository,
+        private AccountMailer $accountMailer,
     ) {}
 
     public function handle(): ConnectionTally
@@ -49,6 +56,7 @@ final readonly class IdentifyConnectionsHandler
             $connectionProvider = $routeService->connection();
             $courseService = $this->courseServices->for($routeService->value);
             $riders = $this->connectionRepository->unidentifiedWithLiveKeys($connectionProvider);
+            $failedInARow = 0;
 
             foreach ($riders as $index => $riderId) {
                 try {
@@ -57,15 +65,25 @@ final readonly class IdentifyConnectionsHandler
                     // The keys are dead, so they could not end anyone's access either.
                     $this->connectionRepository->forgetKeys($riderId, $connectionProvider);
                     $refused++;
+                    $failedInARow = 0;
 
                     continue;
                 } catch (ServiceUnavailable) {
-                    // A service that is down or slow would hold up every connection after this one too. They
-                    // all wait for the next run.
-                    $unreachable += count($riders) - $index;
+                    // One rider's account can fail on its own, so the others are still asked. Several in a row is
+                    // the service being down or slow, which would hold up every connection after them too, so
+                    // the rest wait for the next run.
+                    $unreachable++;
 
-                    break;
+                    if (++$failedInARow >= self::OUTAGE) {
+                        $unreachable += count($riders) - $index - 1;
+
+                        break;
+                    }
+
+                    continue;
                 }
+
+                $failedInARow = 0;
 
                 $owner = $this->connectionRepository->riderFor($connectionProvider, $serviceAccount->id);
 
@@ -83,6 +101,8 @@ final readonly class IdentifyConnectionsHandler
                 }
 
                 $this->connectionRepository->identify($riderId, $connectionProvider, $serviceAccount->id, $serviceAccount->email);
+                $rider = $this->userRepository->find($riderId);
+                $this->accountMailer->connectionAdded($rider->name, $rider->email, $connectionProvider);
                 $done++;
             }
         }

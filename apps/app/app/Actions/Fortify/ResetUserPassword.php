@@ -10,6 +10,7 @@ use App\Commands\ClaimUnconfirmedAccountCommand;
 use App\Concerns\PasswordValidationRules;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Models\User;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
 
@@ -47,5 +48,11 @@ class ResetUserPassword implements ResetsUserPasswords
             password: $password,
             endSessions: true,
         ));
+
+        // The link proved the address, so it counts as confirmed, and the next reset does not claim the account
+        // again and take away what the owner set up since.
+        if (! $user->hasVerifiedEmail() && $user->markEmailAsVerified()) {
+            event(new Verified($user));
+        }
     }
 }

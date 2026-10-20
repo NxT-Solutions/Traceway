@@ -161,11 +161,43 @@ it('shows the rider what the link opens without opening it, so a mail scanner do
             ->where('name', 'Ann Rider')
             ->where('email', 'ann@example.com')
             ->where('connects', expected: true)
+            ->where('account', expected: null)
             ->has('token'));
 
     $this->assertGuest();
     expect(User::query()->count())->toBe(0)
         ->and(ConnectedAccount::query()->count())->toBe(0);
+});
+
+it('refuses an address that is not one, and keeps the sign-up waiting for a better one', function (string $email): void {
+    Mail::fake();
+    finishSignUpArrive(email: null);
+
+    $this->post(route('connections.finish.store'), ['name' => 'Ann', 'email' => $email])
+        ->assertSessionHasErrors('email');
+
+    $this->get(route('connections.finish'))->assertOk();
+    Mail::assertNothingQueued();
+})->with([
+    'no dot in the domain' => 'ann@gmail',
+    'a letter outside ASCII' => 'jöe@example.com',
+]);
+
+it('names the account at the service that the link connects, but only in the browser that asked for it', function (): void {
+    Mail::fake();
+    finishSignUpArrive(email: 'someone@gmail.com');
+    $link = finishSignUpLink('Ann', 'ann@example.com');
+
+    $this->get($link)->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('connects', expected: true)
+        ->where('account', 'someone@gmail.com'));
+
+    $this->flushSession();
+    $this->withCookie(PendingSignUps::COOKIE, '');
+
+    $this->get($link)->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('connects', expected: false)
+        ->where('account', expected: null));
 });
 
 it('opens the account with the email confirmed, connects the service, and logs the rider in when they use the link', function (): void {

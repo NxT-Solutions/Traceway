@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\URL;
  * The link that makes a new email count, sent to that email. It is signed without the host, and the address it
  * leads to is built from APP_URL, so a forged Host header cannot send it elsewhere.
  */
-final class ConfirmNewEmail extends Notification implements ShouldQueueAfterCommit
+class ConfirmNewEmail extends Notification implements ShouldQueueAfterCommit
 {
     use Queueable;
 

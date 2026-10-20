@@ -115,9 +115,15 @@ it('says Garmin is unavailable when it cannot be reached to end the registration
     ]))->revoke(new ServiceTokens('access'));
 })->throws(ServiceUnavailable::class);
 
-it('lets the rider go when Garmin fails to end the registration in another way', function (): void {
+it('says Garmin did not end the registration when it fails in another way, so the caller reports it', function (int $status): void {
+    garminConnectAccess(api: new MockClient([
+        DeleteRegistrationRequest::class => MockResponse::make([], $status),
+    ]))->revoke(new ServiceTokens('access'));
+})->with([403, 500, 503])->throws(ServiceUnavailable::class);
+
+it('counts a registration Garmin no longer has as ended', function (): void {
     $mock = new MockClient([
-        DeleteRegistrationRequest::class => MockResponse::make([], 500),
+        DeleteRegistrationRequest::class => MockResponse::make([], 404),
     ]);
 
     garminConnectAccess(api: $mock)->revoke(new ServiceTokens('access'));

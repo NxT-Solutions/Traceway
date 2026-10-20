@@ -136,12 +136,29 @@ it('takes every way in off an unconfirmed account when the owner of the address 
         ->and($user->two_factor_secret)->toBeNull()
         ->and($user->two_factor_confirmed_at)->toBeNull()
         ->and($user->remember_token)->not->toBe('remember-before')
-        ->and(Hash::check('owner-password', (string) $user->password))->toBeTrue();
-    expect(Mail::queued(AccountMessage::class)->map(fn (AccountMessage $accountMessage): string => $accountMessage->template)->all())->toBe(['password-changed']);
+        ->and(Hash::check('owner-password', (string) $user->password))->toBeTrue()
+        ->and($user->email_verified_at)->not->toBeNull();
+    expect(Mail::queued(AccountMessage::class)->map(fn (AccountMessage $accountMessage): string => $accountMessage->template)->all())->toBe(['password-changed', 'welcome']);
 
     takeoverStravaReturns();
 
     $this->assertGuest();
+});
+
+it('claims an account once: the reset confirms the email, so the next one keeps what the owner set up since', function (): void {
+    $user = User::factory()->unverified()->create(['email' => 'ann@example.com']);
+
+    takeoverResetPassword($user);
+    expect($user->refresh()->email_verified_at)->not->toBeNull();
+
+    // The owner pairs a watch and adds Google, then forgets the password again.
+    DeviceLink::factory()->create(['user_id' => $user->id, 'token_hash' => hash('sha256', 'watch-kept'), 'label' => 'Ann']);
+    $connectedAccount = ConnectedAccount::factory()->for($user)->signInOnly('google')->create(['provider_user_id' => '1001']);
+
+    takeoverResetPassword($user->refresh(), 'second-password');
+
+    $this->assertModelExists($connectedAccount);
+    expect(DB::table('device_links')->where('user_id', $user->id)->count())->toBe(1);
 });
 
 it('keeps the services of an account whose email is confirmed when its password is reset', function (): void {

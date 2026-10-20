@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Session\ArraySessionHandler;
 use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Exceptions;
 use Laravel\Socialite\Contracts\Factory;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\FacebookProvider;
@@ -355,6 +356,38 @@ it('asks Facebook only for the name and email', function (): void {
     expect($query['fields'] ?? null)->toBe('name,email')
         ->and($connectedIdentity->providerUserId)->toBe('10')
         ->and($connectedIdentity->email?->value)->toBe('road@facebook.test');
+});
+
+it('keeps the access token out of what it reports when the service turns the rider down', function (): void {
+    Exceptions::fake();
+    config(['services.facebook' => ['client_id' => 'facebook-id', 'client_secret' => 'facebook-secret', 'redirect' => 'https://traceway.test/auth/facebook/callback']]);
+    $scriptedSignIn = new ScriptedSignIn([
+        new GuzzleResponse(200, [], '{"access_token":"facebook-token","token_type":"bearer","expires_in":5183944}'),
+        new GuzzleResponse(400, [], '{"error":{"message":"Too many calls for facebook-token"}}'),
+    ]);
+    $scriptedSignIn->provider('facebook', FacebookProvider::class);
+
+    $caught = null;
+
+    try {
+        identityProvidersFor(['code' => 'the-code', 'state' => ScriptedSignIn::STATE])->identity(ConnectionProvider::Facebook);
+    } catch (ConnectionFailed $connectionFailed) {
+        $caught = $connectionFailed;
+    }
+
+    // Everything that could reach the log or Sentry: the reported exception and the chain under the failure.
+    $chain = [];
+
+    for ($throwable = $caught; $throwable instanceof Throwable; $throwable = $throwable->getPrevious()) {
+        $chain[] = $throwable->getMessage();
+    }
+
+    expect($caught?->problem)->toBe(ConnectionProblem::Refused)
+        ->and(implode(' ', $chain))->toContain('Facebook answered 400 to GET https://graph.facebook.com/')
+        ->not->toContain('facebook-token')
+        ->not->toContain('appsecret_proof');
+    Exceptions::assertReported(fn (RuntimeException $runtimeException): bool => str_starts_with($runtimeException->getMessage(), 'Facebook answered 400')
+        && ! str_contains($runtimeException->getMessage(), 'facebook-token'));
 });
 
 it('keeps what the rider allowed once each, as the service names it', function (): void {

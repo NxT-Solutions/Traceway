@@ -8,6 +8,8 @@ import type { ConnectionSlug } from '@/types';
 
 type Props = {
     service: { slug: ConnectionSlug; label: string };
+    /** How the service names the account that gets connected, when Traceway may keep that. */
+    account: string | null;
     name: string;
     email: string;
     /** From the link in the email. The button sends it back. */
@@ -23,6 +25,7 @@ type Props = {
  */
 export default function FinishSignUpConfirm({
     service,
+    account,
     name,
     email,
     token,
@@ -33,10 +36,24 @@ export default function FinishSignUpConfirm({
             <Head title="Create your account" />
 
             {connects ? (
-                <p className="via">
-                    <ConnectionMark slug={service.slug} size={20} />
-                    <span>Signing up with {service.label}</span>
-                </p>
+                <>
+                    <p className="via">
+                        <ConnectionMark slug={service.slug} size={20} />
+                        <span>
+                            Signing up with {service.label}
+                            {account !== null ? (
+                                <>
+                                    {' '}
+                                    as <strong>{account}</strong>
+                                </>
+                            ) : null}
+                        </span>
+                    </p>
+                    <p className="legal">
+                        If you did not start this, close this page and nothing
+                        happens.
+                    </p>
+                </>
             ) : (
                 <div className="notice">
                     <Info size={20} aria-hidden="true" />

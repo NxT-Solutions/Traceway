@@ -109,13 +109,18 @@ export default function Login({
                             <div className="lab">
                                 <label htmlFor="email">Email address</label>
                                 {connections.lastUsed === 'password' ? (
-                                    <LastUsed />
+                                    <LastUsed id="email-last-used" />
                                 ) : null}
                             </div>
                             <Input
                                 id="email"
                                 type="email"
                                 name="email"
+                                aria-describedby={
+                                    connections.lastUsed === 'password'
+                                        ? 'email-last-used'
+                                        : undefined
+                                }
                                 required
                                 autoFocus={notice === null}
                                 autoComplete="email"

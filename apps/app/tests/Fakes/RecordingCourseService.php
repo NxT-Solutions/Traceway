@@ -38,6 +38,9 @@ final class RecordingCourseService implements CourseService
     /** 'refused' or 'unavailable' makes the next publish, look at the account, or letting go of old keys fail that way. */
     public ?string $failure = null;
 
+    /** @var list<string> Access tokens whose account the service cannot look up, as when one rider's account fails. */
+    public array $unavailableFor = [];
+
     /** When false, the service is still reading the upload, as Ride with GPS can be. */
     public bool $ready = true;
 
@@ -70,6 +73,8 @@ final class RecordingCourseService implements CourseService
         $this->asked[] = $serviceTokens->accessToken;
 
         $this->fail();
+
+        throw_if(in_array($serviceTokens->accessToken, $this->unavailableFor, strict: true), ServiceUnavailable::class, 'The service could not find the account.');
 
         return $this->accounts[$serviceTokens->accessToken] ?? new ServiceAccount('60462', 'road@'.$this->slug.'.test');
     }

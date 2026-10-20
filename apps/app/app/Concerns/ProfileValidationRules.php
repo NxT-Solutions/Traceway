@@ -44,7 +44,8 @@ trait ProfileValidationRules
         return [
             'required',
             'string',
-            'email',
+            // filter as well, because the Email value rejects what PHP's filter does, such as jo@gmail.
+            'email:rfc,filter',
             'max:255',
             $userId === null
                 ? Rule::unique(User::class)

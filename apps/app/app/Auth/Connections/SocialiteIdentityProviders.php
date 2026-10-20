@@ -12,6 +12,8 @@ use App\Account\ConnectionTokens;
 use App\Contracts\Auth\IdentityProviders;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\ResponseException;
+use GuzzleHttp\Exception\TransferException;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Contracts\Factory;
@@ -22,6 +24,7 @@ use Laravel\Socialite\Two\FacebookProvider;
 use Laravel\Socialite\Two\GoogleProvider;
 use Laravel\Socialite\Two\InvalidStateException;
 use Laravel\Socialite\Two\User as OAuth2User;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -102,13 +105,15 @@ final readonly class SocialiteIdentityProviders implements IdentityProviders
             throw ConnectionFailed::because($connectionProvider, ConnectionProblem::Expired, $invalidStateException);
         } catch (ClientException $clientException) {
             // A code used twice or too late, or a key the service no longer accepts.
-            report($clientException);
+            $failure = $this->withoutKeys($connectionProvider, $clientException);
+            report($failure);
 
-            throw ConnectionFailed::because($connectionProvider, ConnectionProblem::Refused, $clientException);
+            throw ConnectionFailed::because($connectionProvider, ConnectionProblem::Refused, $failure);
         } catch (GuzzleException $guzzleException) {
-            report($guzzleException);
+            $failure = $this->withoutKeys($connectionProvider, $guzzleException);
+            report($failure);
 
-            throw ConnectionFailed::because($connectionProvider, ConnectionProblem::Unavailable, $guzzleException);
+            throw ConnectionFailed::because($connectionProvider, ConnectionProblem::Unavailable, $failure);
         } catch (Throwable $throwable) {
             // The service answered something that is not an account.
             report($throwable);
@@ -117,6 +122,28 @@ final readonly class SocialiteIdentityProviders implements IdentityProviders
         }
 
         return $this->connectedIdentity($connectionProvider, $user);
+    }
+
+    /**
+     * The failed request without its query or the service's answer. Facebook and Instagram take the rider's access
+     * token in the query, and Guzzle puts the whole address in its message, so the log and Sentry would keep it.
+     */
+    private function withoutKeys(ConnectionProvider $connectionProvider, Throwable $throwable): Throwable
+    {
+        if (! $throwable instanceof TransferException) {
+            return $throwable;
+        }
+
+        $request = $throwable->getRequest();
+        $status = $throwable instanceof ResponseException ? $throwable->getResponse()->getStatusCode() : null;
+
+        return new RuntimeException(sprintf(
+            '%s %s to %s %s.',
+            $connectionProvider->label(),
+            $status === null ? 'did not answer' : 'answered '.$status,
+            $request->getMethod(),
+            (string) $request->getUri()->withQuery('')->withFragment('')->withUserInfo(''),
+        ), $throwable->getCode());
     }
 
     private function connectedIdentity(ConnectionProvider $connectionProvider, User $user): ConnectedIdentity

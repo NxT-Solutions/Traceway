@@ -49,12 +49,17 @@ class SignUpLinkController extends Controller
             return to_route('login')->withErrors(['connection' => ConnectionProblem::EmailTaken->message($connectionProvider)]);
         }
 
+        $connects = PendingSignUps::sameBrowser($pending, $request);
+
         return Inertia::render('auth/finish-sign-up-confirm', [
             'service' => ['slug' => $connectionProvider->value, 'label' => $connectionProvider->label()],
+            // Which account at the service gets connected, so someone who did not start this on a shared computer
+            // sees it is not theirs.
+            'account' => $connects ? $pending['identity']->accountLabel : null,
             'name' => $pending['name']->value,
             'email' => $pending['email']->value,
             'token' => $token,
-            'connects' => PendingSignUps::sameBrowser($pending, $request),
+            'connects' => $connects,
         ]);
     }
 

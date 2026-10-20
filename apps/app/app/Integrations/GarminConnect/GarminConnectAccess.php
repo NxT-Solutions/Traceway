@@ -59,6 +59,9 @@ final readonly class GarminConnectAccess implements GrantedAccess
         }
 
         throw_if($response->status() === 401, ServiceRefused::class, 'Garmin no longer accepts Traceway.');
+        // A registration Garmin no longer has is ended already. Any other failure may have left it, so the caller
+        // reports it, and lets the rider go either way.
+        throw_if($response->failed() && $response->status() !== 404, ServiceUnavailable::class, 'Garmin did not end the registration ('.$response->status().').');
     }
 
     /**
