@@ -750,30 +750,6 @@ type SnapMiss = 'far' | 'far-paved' | 'busy' | 'signed-out';
 /** The sport and surface a pin snaps for, so it lands on a way its route may use. */
 type SnapFor = { sport: string; surface: string };
 
-/**
- * A road bike on Paved may only use smooth ground, as its route does, so its
- * pin may not land on a track or an unpaved way. Any other ride takes any
- * way drawn.
- */
-function needsSmoothGround(snapFor: SnapFor): boolean {
-    return snapFor.sport === 'road' && snapFor.surface === 'paved';
-}
-
-/**
- * Whether a drawn way is smooth enough for a road bike on Paved, as the
- * routing engine judges it: not unpaved, and not a track unless it is
- * paved, since the engine takes an untagged track for dirt.
- */
-function smoothWay(properties: Record<string, unknown> | null): boolean {
-    const surface = properties?.surface;
-
-    if (surface === 'unpaved') {
-        return false;
-    }
-
-    return properties?.class !== 'track' || surface === 'paved';
-}
-
 const snapMissNotes: Record<SnapMiss, string> = {
     far: farFromRoad,
     'far-paved':
@@ -795,7 +771,6 @@ let roadSnapCache: {
     minY: number;
     maxX: number;
     maxY: number;
-    smoothOnly: boolean;
     segments: SnapSegment[];
 } | null = null;
 
@@ -860,7 +835,6 @@ function snapToRoad(
     map: maplibregl.Map,
     longitude: number,
     latitude: number,
-    smoothOnly = false,
 ): RoadSnap | null {
     if (!map.isStyleLoaded()) {
         return null;
@@ -870,7 +844,6 @@ function snapToRoad(
     const cache = roadSnapCache;
     const covered =
         cache !== null &&
-        cache.smoothOnly === smoothOnly &&
         cursor.x > cache.minX + snapRadius &&
         cursor.x < cache.maxX - snapRadius &&
         cursor.y > cache.minY + snapRadius &&
@@ -923,10 +896,6 @@ function snapToRoad(
                 continue;
             }
 
-            if (smoothOnly && !smoothWay(feature.properties)) {
-                continue;
-            }
-
             for (const line of linesOf(feature.geometry)) {
                 for (let index = 1; index < line.length; index += 1) {
                     const start = line[index - 1];
@@ -948,7 +917,6 @@ function snapToRoad(
             minY: cursor.y - snapReach,
             maxX: cursor.x + snapReach,
             maxY: cursor.y + snapReach,
-            smoothOnly,
             segments,
         };
     }
@@ -1632,9 +1600,7 @@ export default function Dashboard() {
     );
     // A dragged pin sticks to the nearest road or path drawn on screen, so
     // it lands where the rider sees it, not with a jump on release.
-    const dragSnapRef = useRef<
-        (marker: maplibregl.Marker, snapFor?: SnapFor) => void
-    >(() => {});
+    const dragSnapRef = useRef<(marker: maplibregl.Marker) => void>(() => {});
     const snapPointRef = useRef<
         (
             longitude: number,
@@ -1724,8 +1690,8 @@ export default function Dashboard() {
     >(() => {});
     const moveViaRef = useRef<(point: Coordinate) => void>(() => {});
     const moveBuildPointRef = useRef<
-        (id: string, longitude: number, latitude: number) => Promise<boolean>
-    >(() => Promise.resolve(false));
+        (id: string, longitude: number, latitude: number) => boolean
+    >(() => false);
     // The last change to a pin or a point, so a slip can be taken back.
     const [undo, setUndo] = useState<{
         label: string;
@@ -2155,29 +2121,14 @@ export default function Dashboard() {
     // busy a road is, so Surface and Roads say what they do on foot.
     const sheetOnFoot =
         sports.find((item) => item.value === sheetSport)?.group === 'Foot';
-    // The shared start of a multisport plan snaps for the legs that leave
-    // from it. In a chain only the first leg does. In loops every leg does,
-    // so it snaps for the strictest: a road ride on Paved if there is one.
-    // Without legs, the planner's own sport and surface.
-    const startLeg = !multisport
-        ? undefined
-        : layout === 'chain'
-          ? legs[0]
-          : (legs.find((item) =>
-                needsSmoothGround({
-                    sport: item.sport,
-                    surface: item.surface,
-                }),
-            ) ?? legs[0]);
+    // The shared start of a multisport plan snaps for the first leg, the one
+    // that leaves from it in a chain. Without legs, the planner's own sport
+    // and surface.
+    const startLeg = multisport ? legs[0] : undefined;
     const startSnapFor: SnapFor | undefined =
         startLeg === undefined
             ? undefined
             : { sport: startLeg.sport, surface: startLeg.surface };
-    // A Build point snaps to a way drawn on screen that the ride may use.
-    const buildSmoothOnly = needsSmoothGround({ sport, surface });
-    const noBuildRoad = buildSmoothOnly
-        ? 'No paved road is close enough to put a point there.'
-        : 'No road or path is close enough to put a point there.';
     const sheetSurface = editing?.surface ?? surface;
     const sheetElevation = editing?.elevation ?? elevation;
     const sheetRoads = editing?.roads ?? roads;
@@ -2730,9 +2681,10 @@ export default function Dashboard() {
                 })
                     .setLngLat(leg.finish)
                     .addTo(map);
-                // The end snaps for its own leg, not the one being edited.
+                // The routing engine snaps the end for its own leg, not the
+                // one being edited.
                 const legFor = { sport: leg.sport, surface: leg.surface };
-                marker.on('drag', () => dragSnapRef.current(marker, legFor));
+                marker.on('drag', () => dragSnapRef.current(marker));
                 marker.on('dragend', () => {
                     const at = marker.getLngLat();
                     const from = leg.finish;
@@ -2960,13 +2912,9 @@ export default function Dashboard() {
                 const to = marker.getLngLat();
 
                 // Off every road, the point goes back where it was.
-                void moveBuildPointRef
-                    .current(point.id, to.lng, to.lat)
-                    .then((moved) => {
-                        if (!moved) {
-                            marker.setLngLat(pin.at);
-                        }
-                    });
+                if (!moveBuildPointRef.current(point.id, to.lng, to.lat)) {
+                    marker.setLngLat(pin.at);
+                }
             });
             pins.set(point.id, pin);
         });
@@ -4529,12 +4477,7 @@ export default function Dashboard() {
                 return;
             }
 
-            const point = snapToRoad(
-                map,
-                cursor.lng,
-                cursor.lat,
-                buildSmoothOnly,
-            );
+            const point = snapToRoad(map, cursor.lng, cursor.lat);
             hoverSnapRef.current = {
                 queryLng: cursor.lng,
                 queryLat: cursor.lat,
@@ -4572,36 +4515,12 @@ export default function Dashboard() {
         });
     }
 
-    /**
-     * A Build point lands on a way drawn on screen. The map's tiles only
-     * know paved from unpaved, so for a road ride on Paved, a spot with no
-     * paved way drawn near it asks the routing engine, which knows a
-     * compacted cycle path or a good track from a dirt one.
-     */
-    async function snapBuildPoint(
-        lng: number,
-        lat: number,
-    ): Promise<RoadSnap | null> {
+    function placeBuildPoint(lng: number, lat: number): void {
         const map = mapRef.current;
-        const point =
-            map === null ? null : snapToRoad(map, lng, lat, buildSmoothOnly);
-
-        if (point !== null || !buildSmoothOnly) {
-            return point;
-        }
-
-        const snapped = await snapFromServer(lng, lat, { sport, surface });
-
-        return typeof snapped === 'string'
-            ? null
-            : { longitude: snapped[0], latitude: snapped[1] };
-    }
-
-    async function placeBuildPoint(lng: number, lat: number): Promise<void> {
-        const point = await snapBuildPoint(lng, lat);
+        const point = map === null ? null : snapToRoad(map, lng, lat);
 
         if (point === null) {
-            setMessage(noBuildRoad);
+            setMessage('No road or path is close enough to put a point there.');
 
             return;
         }
@@ -4609,11 +4528,12 @@ export default function Dashboard() {
         addBuildPoint(point);
     }
 
-    moveBuildPointRef.current = async (id, lng, lat) => {
-        const point = await snapBuildPoint(lng, lat);
+    moveBuildPointRef.current = (id, lng, lat) => {
+        const map = mapRef.current;
+        const point = map === null ? null : snapToRoad(map, lng, lat);
 
         if (point === null) {
-            setMessage(noBuildRoad);
+            setMessage('No road or path is close enough to put a point there.');
 
             return false;
         }
@@ -4691,11 +4611,12 @@ export default function Dashboard() {
             });
         };
         // A spot on a road or path right away when one is drawn near it;
-        // otherwise Traceway looks for the nearest one for the sport. A card
-        // that can only move the transition snaps for the shared start.
+        // otherwise Traceway looks for the nearest one for the sport and
+        // surface. A card that can only move the transition looks for the
+        // shared start.
         const cardFor =
             multisport && layout !== 'chain' ? startSnapFor : undefined;
-        const near = snapOnScreen(lng, lat, cardFor);
+        const near = snapOnScreen(lng, lat);
 
         if (near !== null) {
             setTapCard(null);
@@ -4800,7 +4721,7 @@ export default function Dashboard() {
             const transition: TapAction = {
                 label: 'Move the transition here',
                 // The card snapped for the leg being edited. The transition
-                // snaps again for the legs that leave from it.
+                // snaps again for the first leg, which leaves from it.
                 onSelect: done(() => {
                     void placeStart(card.longitude, card.latitude, { name });
                 }),
@@ -4854,7 +4775,7 @@ export default function Dashboard() {
         }
 
         if (mode === 'build') {
-            void placeBuildPoint(lng, lat);
+            placeBuildPoint(lng, lat);
 
             return;
         }
@@ -4930,11 +4851,7 @@ export default function Dashboard() {
      * The nearest road or path to a spot among the ones drawn on screen, as
      * a Build point snaps, or null when none is drawn close enough.
      */
-    function snapOnScreen(
-        lng: number,
-        lat: number,
-        snapFor: SnapFor = { sport: sheetSport, surface: sheetSurface },
-    ): Coordinate | null {
+    function snapOnScreen(lng: number, lat: number): Coordinate | null {
         const map = mapRef.current;
 
         // Zoomed out, the map draws only the big roads, and a few pixels are
@@ -4947,7 +4864,7 @@ export default function Dashboard() {
             return null;
         }
 
-        const point = snapToRoad(map, lng, lat, needsSmoothGround(snapFor));
+        const point = snapToRoad(map, lng, lat);
         const snapped: Coordinate | null =
             point === null ? null : [point.longitude, point.latitude];
 
@@ -4982,7 +4899,12 @@ export default function Dashboard() {
                     surface: snapFor.surface,
                 }),
             });
-            const far = needsSmoothGround(snapFor) ? 'far-paved' : 'far';
+            // The routing engine keeps a road ride on Paved off rough ground,
+            // so a miss there says what the ride can change.
+            const far =
+                snapFor.sport === 'road' && snapFor.surface === 'paved'
+                    ? 'far-paved'
+                    : 'far';
 
             if (response.status === 422) {
                 return far;
@@ -5018,8 +4940,8 @@ export default function Dashboard() {
 
     /**
      * Every pin lands on a road or path, never in a field or a forest: on
-     * screen first, then from the routing engine. A pin snaps for the leg
-     * being edited, or for the planner's own sport and surface.
+     * screen first, then from the routing engine. The engine looks for a way
+     * the leg being edited, or the planner's own sport and surface, may use.
      */
     async function snapPoint(
         lng: number,
@@ -5027,21 +4949,15 @@ export default function Dashboard() {
         snapFor?: SnapFor,
     ): Promise<Coordinate | SnapMiss> {
         return (
-            snapOnScreen(lng, lat, snapFor) ??
-            (await snapFromServer(lng, lat, snapFor))
+            snapOnScreen(lng, lat) ?? (await snapFromServer(lng, lat, snapFor))
         );
     }
 
     snapPointRef.current = snapPoint;
 
-    dragSnapRef.current = (marker, snapFor) => {
+    dragSnapRef.current = (marker) => {
         const at = marker.getLngLat();
-        const snapped = snapOnScreen(
-            at.lng,
-            at.lat,
-            snapFor ??
-                (marker === markerRef.current ? startSnapFor : undefined),
-        );
+        const snapped = snapOnScreen(at.lng, at.lat);
 
         if (snapped !== null) {
             marker.setLngLat(snapped);

@@ -301,8 +301,9 @@ try {
     await pickSport('Road');
     await surfaceRow.filter({ hasText: 'Paved' }).waitFor({ timeout: 3000 });
 
-    // Zoomed out, a spot asks the routing engine for the nearest way for the
-    // sport and surface. A road ride on Paved with no paved road near is told why.
+    // Zoomed out, nothing is drawn near enough, so a spot asks the routing
+    // engine for the nearest way for the sport and surface. A road ride on
+    // Paved with no paved road near is told why.
     const zoomOut = async () => {
         await canvas.focus();
 
@@ -328,29 +329,6 @@ try {
         throw new Error(`A road ride on Paved snapped as ${JSON.stringify(snapAsked)}`);
     }
 
-    // In Build, with no paved way drawn near the tap, a road ride on Paved
-    // asks the routing engine, which knows a compacted cycle path or a good
-    // track from a dirt one, and the point lands where it says.
-    const buildAsked = [];
-    await desktop.route('**/routes/snap', async (route) => {
-        const body = route.request().postDataJSON();
-        buildAsked.push(body);
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ latitude: body.latitude, longitude: body.longitude }) });
-    });
-    await desktop.getByRole('tab', { name: 'Build' }).click();
-    const buildBox = await canvas.boundingBox();
-    await desktop.mouse.click(buildBox.x + buildBox.width * 0.7, buildBox.y + buildBox.height * 0.3);
-    await desktop.locator('.pts .pt[data-point]').first().waitFor({ timeout: 10000 });
-    await desktop.unroute('**/routes/snap');
-
-    if (buildAsked.length > 0 && (buildAsked[0].sport !== 'road' || buildAsked[0].surface !== 'paved')) {
-        throw new Error(`A Build point for a road ride on Paved snapped as ${JSON.stringify(buildAsked[0])}`);
-    }
-
-    console.log(`  build point placed (${buildAsked.length > 0 ? 'from the routing engine' : 'on a drawn way'})`);
-    await desktop.getByRole('button', { name: 'Undo' }).click();
-    await desktop.locator('.pts .pt[data-point]').first().waitFor({ state: 'detached', timeout: 3000 });
-    await desktop.getByRole('tab', { name: 'Generate' }).click();
 
     await desktop.getByRole('tab', { name: 'Multisport' }).click();
     await desktop.getByRole('button', { name: /^Type\s*\w/ }).click();
