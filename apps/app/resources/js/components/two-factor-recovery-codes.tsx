@@ -111,8 +111,17 @@ export default function TwoFactorRecoveryCodes({
                                 <div
                                     ref={codesSectionRef}
                                     className="grid gap-1 rounded-lg bg-muted p-4 font-mono text-sm"
-                                    role="list"
-                                    aria-label="Recovery codes"
+                                    // A list once the codes are in; until then the box only says it is loading.
+                                    role={
+                                        recoveryCodesList.length
+                                            ? 'list'
+                                            : undefined
+                                    }
+                                    aria-label={
+                                        recoveryCodesList.length
+                                            ? 'Recovery codes'
+                                            : undefined
+                                    }
                                 >
                                     {recoveryCodesList.length ? (
                                         recoveryCodesList.map((code, index) => (
@@ -127,8 +136,11 @@ export default function TwoFactorRecoveryCodes({
                                     ) : (
                                         <div
                                             className="space-y-2"
-                                            aria-label="Loading recovery codes"
+                                            role="status"
                                         >
+                                            <span className="sr-only">
+                                                Loading recovery codes
+                                            </span>
                                             {Array.from(
                                                 { length: 8 },
                                                 (_, index) => (

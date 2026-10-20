@@ -12,7 +12,9 @@ import { absolute } from '../seo/site';
 import * as structured from '../seo/structured';
 
 interface Props {
+    /** The page's title. " · Traceway" follows it, unless it is "Traceway". */
     title: string;
+    /** What search engines and link previews show under the title. */
     description: string;
     /** The page as Markdown, for AI tools, when there is one. */
     markdown?: string;

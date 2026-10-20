@@ -1,0 +1,11 @@
+---
+section: Fixes
+---
+- **Error messages are readable again on light screens.** When something goes wrong, such as a wrong password or a route that could not be sent, the message is a deep red you can read on paper, and a lighter red on dark screens.
+- **"Link sent" messages are easy to read.** After you ask for a new password or a new email link, the note that it is on its way is dark text with a green tick, not pale green.
+- **Show password works from the keyboard.** Press Tab from the password field to reach the eye button and show or hide what you typed.
+- **The open setting stands out on light maps.** When you open a setting in the planner, such as Distance, it is underlined in the Traceway green instead of turning pale green text.
+- **Light and dark switch cleanly.** Changing between light and dark no longer fades the buttons through hard-to-read colours for a moment.
+- **Your passkeys list looks right in dark mode.** The labels next to each passkey, such as iCloud Keychain, are readable again.
+- **The back arrow between loops goes back.** When the planner finds three loops, the ‹ arrow now shows the one before, as it should, instead of the next one.
+- **Screen readers name the 2-step code box.** The box for the six-digit code from your authenticator app is now read out as Authentication code, and the setup key and its copy button are named too.

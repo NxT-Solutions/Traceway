@@ -6,11 +6,16 @@ node_modules
 **/vendor
 persistent
 apps/web/dist
+apps/web/storybook-static
 apps/web/.astro
 apps/web/nginx-csp.conf
 apps/app/.env
 apps/app/public/hot
 apps/app/public/build
+apps/app/storybook-static
+apps/app/storybook-coverage
+apps/app/design-system
+apps/app/.storybook/msw
 apps/app/resources/views/mail/compiled
 apps/app/database/*.sqlite
 apps/app/storage/logs

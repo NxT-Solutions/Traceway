@@ -48,7 +48,12 @@ export default function Welcome() {
                 </header>
                 <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center gap-10 px-6 py-16">
                     <div className="max-w-xl space-y-4">
-                        <p className="text-sm font-medium text-primary">
+                        {/* Chartreuse is 1.8:1 on paper, so the marker is the dot and the words stay readable. */}
+                        <p className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <span
+                                aria-hidden="true"
+                                className="size-2 rounded-full bg-primary"
+                            />
                             Loops for every sport
                         </p>
                         <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">

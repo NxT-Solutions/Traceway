@@ -207,6 +207,8 @@
 .tw-planner .row .v{display:inline-flex;align-items:center;gap:8px;font-weight:500}
 .tw-planner .row .v svg{flex:0 0 auto}
 .tw-planner .row[aria-expanded="true"] .v{color:var(--chart)}
+/* Chartreuse is 1.8:1 on paper, so an open row keeps ink text there and wears the marker as an underline. */
+.tw-planner[data-theme="light"] .row[aria-expanded="true"] .v{color:var(--text);text-decoration:underline 2px var(--chart);text-underline-offset:5px}
 .tw-planner .dot{width:9px;height:9px;border-radius:50%;background:var(--chart);border:1.5px solid var(--text);display:inline-block}
 .tw-planner .fill{box-sizing:border-box;flex:0 0 auto;height:48px;min-height:48px;width:100%;border:0;border-radius:10px;background:var(--chart);color:var(--chart-ink);font-size:16px;font-weight:600;cursor:pointer}
 .tw-planner .fill:hover{background:var(--chart-dim)}

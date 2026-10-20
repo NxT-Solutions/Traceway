@@ -19,6 +19,17 @@ Traceway plans routes for any sport and exports them as course files for a watch
 - Do not use Strava orange, their wordmark, the chevron mark, or the words beacon, kudos, segment, or suffer.
 - Biome formats JavaScript. Pint formats PHP. Blade formatter formats Blade. PHPStan runs at level max with strict rules on. PHPArkitect checks `apps/app/phparkitect.php`. Rector checks `apps/app/rector.php`.
 
+## Storybook and the design system
+
+UI work starts in Storybook (`apps/app/.storybook`, stories in `apps/app/resources/js/stories`). It maps the planner's components and pages, the planner scene, and the Garmin screens, and composes the content site's own Storybook (`apps/web/.storybook`, stories in `apps/web/src/stories`, rendered by Astro). It is public at https://traceway.online/storybook, published with each release: an overview page from the content site, the planner's Storybook at `/storybook/app/` and the site's at `/storybook/web/`. It shares the planner's origin, so a story's requests must be mocked; Storybook blocks any it misses, and Laravel refuses a change sent from a Storybook page (`RefuseStorybookChanges`).
+
+- Every story is a test: it renders, its play function passes, and axe finds nothing, in Paper and in Ink (`bun run test:storybook` in `apps/app`, `npm run test-storybook` in `apps/web`). Pages that call the server mock it with Mock Service Worker, so a flow can be clicked through.
+- With `storybook dev` running, the Storybook MCP server (`.mcp.json`) lets an agent list components, read their docs, and preview and test stories.
+
+- A branch that changes a component, a page, a token, or a screen updates its story in the same branch. New UI gets its story first.
+- Tokens live in `apps/app/resources/design-system/tokens.json` and in the CSS. `bun run design-system` fails when they differ.
+- The Traceway design system in Claude is built from the stories. Never edit it by hand: rebuild and sync it as `.agents/skills/storybook/SKILL.md` says.
+
 ## Checks
 
 ```bash

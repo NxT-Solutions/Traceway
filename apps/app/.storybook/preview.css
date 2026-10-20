@@ -1,0 +1,16 @@
+/* A story on a docs page sits on the app's own ground, in Paper or Ink, as it
+   does on its own story page, so its text has the colour it was made for. */
+.sbdocs .docs-story {
+    background: var(--background);
+    color: var(--foreground);
+}
+
+/* Storybook's Controls table on a docs page writes its True/False toggle in a
+   grey that reaches only 3.2:1 on Paper. Use the muted text that passes. */
+.docblock-argstable label[aria-label] > span {
+    color: #3f5153;
+}
+
+[data-docs-theme="ink"] .docblock-argstable label[aria-label] > span {
+    color: #c9d3d3;
+}

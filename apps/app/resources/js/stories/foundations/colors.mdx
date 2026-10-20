@@ -1,0 +1,34 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+import { ColorTokens } from '../support/tokens';
+
+<Meta title="Foundations/Colors" />
+
+# Colours
+
+Each swatch shows Paper on the left and Ink on the right. The values come from `resources/design-system/tokens.json`; `bun run design-system` fails when one stops matching `app.css` or `planner.css`.
+
+## Brand
+
+The marker, `chart`, is the only accent. It fills the one forward action on a screen and never draws the route.
+
+<ColorTokens names={['paper', 'ink', 'chart', 'chart-dim', 'chart-ink', 'marker-dot']} />
+
+## Sign-in, settings and admin
+
+The shadcn layer in `app.css`.
+
+<ColorTokens names={['background', 'foreground', 'card', 'card-foreground', 'popover', 'popover-foreground', 'primary', 'primary-foreground', 'secondary', 'secondary-foreground', 'muted', 'muted-foreground', 'accent', 'accent-foreground', 'destructive', 'destructive-foreground', 'warning', 'down', 'border', 'input', 'ring']} />
+
+## Charts and sidebar
+
+<ColorTokens names={['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5', 'sidebar', 'sidebar-foreground', 'sidebar-primary', 'sidebar-primary-foreground', 'sidebar-accent', 'sidebar-accent-foreground', 'sidebar-border', 'sidebar-ring']} />
+
+## Planner scene
+
+The map planner and the route library, in `planner.css`. The planner's `--muted` is called `planner-muted` here.
+
+<ColorTokens names={['bg', 'text', 'planner-muted', 'hair', 'panel', 'panel-b', 'outline', 'field', 'field-b', 'seg-on', 'seg-on-fg', 'hover', 'icon-box', 'avatar-bg', 'avatar-fg']} />
+
+## Map
+
+<ColorTokens names={['m-base', 'm-f1', 'm-f2', 'm-wood', 'm-res', 'm-bld', 'm-water', 'm-minor', 'm-major', 'm-minor-case', 'm-major-case', 'm-label', 'm-explored', 'route', 'halo', 'loser', 'pin', 'pin-halo', 'marker-fg']} />

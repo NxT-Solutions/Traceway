@@ -1,0 +1,51 @@
+---
+import Base from '../layouts/Base.astro';
+
+/**
+ * The way into Traceway's two Storybooks. Each is built with a release and served beside this page: the planner's
+ * at /storybook/app/ and this site's at /storybook/web/ (.docker/production/images/configs/nginx/nginx.conf).
+ */
+const storybooks = [
+    {
+        href: '/storybook/app/',
+        label: 'Planner Storybook',
+        what: 'The planner: its buttons and panels, every page from sign-in to the map, and the Garmin screens. The pages run on example data, so you can plan a loop, save it and send it without an account.',
+    },
+    {
+        href: '/storybook/web/',
+        label: 'Website Storybook',
+        what: 'This website: each part and page as it is built, from the header to the cookie question.',
+    },
+];
+---
+
+<Base
+    title="Storybook"
+    description="Every part of Traceway, one by one, with example data: the planner, the website and the Garmin screens."
+>
+    <main class="wrap page">
+        <p class="kicker">Storybook</p>
+        <h1>Every part of Traceway, one by one.</h1>
+        <div class="prose">
+            <p>
+                Storybook shows each part of Traceway on its own, in light and
+                dark, at phone and desktop sizes. New parts start here before
+                they reach the planner. Nothing you do in it touches your
+                account.
+            </p>
+            {storybooks.map((storybook) => <p>{storybook.what}</p>)}
+        </div>
+        <div class="page-cta">
+            {
+                storybooks.map((storybook, index) => (
+                    <a
+                        class={index === 0 ? 'fill' : 'ghost'}
+                        href={storybook.href}
+                    >
+                        {storybook.label}
+                    </a>
+                ))
+            }
+        </div>
+    </main>
+</Base>

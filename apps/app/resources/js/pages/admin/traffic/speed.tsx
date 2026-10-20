@@ -46,7 +46,8 @@ function Speed({ speed }: { speed: AdminSpeed }) {
                 <div
                     className="tbl-wrap"
                     role="region"
-                    aria-labelledby="vitals-h"
+                    // Its own name: the section around it is already called after the heading.
+                    aria-label="Core Web Vitals table"
                     // biome-ignore lint/a11y/noNoninteractiveTabindex: a table wider than the phone scrolls with the keyboard.
                     tabIndex={0}
                 >
@@ -117,7 +118,8 @@ function Speed({ speed }: { speed: AdminSpeed }) {
                 <div
                     className="tbl-wrap"
                     role="region"
-                    aria-labelledby="timings-h"
+                    // Its own name: the section around it is already called after the heading.
+                    aria-label="Load times table"
                     // biome-ignore lint/a11y/noNoninteractiveTabindex: a table wider than the phone scrolls with the keyboard.
                     tabIndex={0}
                 >

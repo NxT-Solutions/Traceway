@@ -3210,12 +3210,12 @@ export default function Dashboard() {
 
     selectLoopRef.current = chooseLoop;
 
-    function showAnother(): void {
+    function showAnother(step: 1 | -1 = 1): void {
         if (routes.length < 2) {
             return;
         }
 
-        const next = (routeIndex + 1) % routes.length;
+        const next = (routeIndex + step + routes.length) % routes.length;
         const line = routes[next];
         chooseLoop(next);
 
@@ -6244,7 +6244,7 @@ export default function Dashboard() {
                                                 disabled={
                                                     busy || routes.length < 2
                                                 }
-                                                onClick={showAnother}
+                                                onClick={() => showAnother(-1)}
                                             >
                                                 ‹
                                             </button>
@@ -6272,7 +6272,7 @@ export default function Dashboard() {
                                                 disabled={
                                                     busy || routes.length < 2
                                                 }
-                                                onClick={showAnother}
+                                                onClick={() => showAnother(1)}
                                             >
                                                 ›
                                             </button>

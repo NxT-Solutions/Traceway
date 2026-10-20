@@ -29,7 +29,7 @@ type Notice = {
     resolved_at: string | null;
 };
 
-type StatusPage = {
+export type StatusPage = {
     state: State | 'unknown';
     headline: string;
     checked_at: string | null;

@@ -67,7 +67,7 @@ export default function PasskeyItem({
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className="text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
                         disabled={removeBlockedBy !== undefined}
                         aria-describedby={removeBlockedBy}
                     >

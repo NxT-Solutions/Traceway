@@ -47,9 +47,20 @@ const applyTheme = (appearance: Appearance): void => {
     }
 
     const isDark = isDarkMode(appearance);
+    const root = document.documentElement;
 
-    document.documentElement.classList.toggle('dark', isDark);
-    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+    // Switch at once. Buttons and links ease their colours on hover; without this they would also fade from the
+    // old appearance's colours, and for a moment Paper text would sit on Ink and the other way round.
+    root.classList.add('appearance-changing');
+    root.classList.toggle('dark', isDark);
+    root.style.colorScheme = isDark ? 'dark' : 'light';
+
+    // React draws the planner and settings scenes' data-theme a moment later, so wait two frames before easing again.
+    requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+            root.classList.remove('appearance-changing'),
+        ),
+    );
 };
 
 const subscribe = (callback: () => void) => {

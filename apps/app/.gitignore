@@ -11,6 +11,10 @@
 /resources/js/routes
 /resources/js/wayfinder
 /resources/views/mail/compiled
+/storybook-static
+/storybook-coverage
+/design-system
+/.storybook/msw
 /vendor
 .DS_Store
 .env

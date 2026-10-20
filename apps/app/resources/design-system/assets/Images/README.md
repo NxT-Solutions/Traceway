@@ -1,0 +1,1 @@
+`share-route.png` is the 1200×630 social card: the Ink map scene, the headline in `display-hero` with "worth taking" in `chart`, a readout list on the left and the file card and device on the right. Use it for link previews of the site.
