@@ -44,7 +44,7 @@ it('rejects an account without a number the service gave it', function (string $
 it('keeps the number as the service gave it, trimmed, up to 191 characters', function (): void {
     expect((new ConnectedIdentity(ConnectionProvider::Google, '  4711 '))->providerUserId)->toBe('4711')
         ->and((new ConnectedIdentity(ConnectionProvider::Google, str_repeat('9', 191)))->providerUserId)->toHaveLength(191)
-        ->and((new ConnectedIdentity(ConnectionProvider::Apple, '001234.abcdef-ü'))->providerUserId)->toBe('001234.abcdef-ü');
+        ->and((new ConnectedIdentity(ConnectionProvider::Discord, '001234.abcdef-ü'))->providerUserId)->toBe('001234.abcdef-ü');
 });
 
 it('trusts an email as confirmed only when there is one', function (): void {
@@ -86,14 +86,13 @@ it('keeps the keys only for a service that needs them', function (): void {
     $connectionTokens = new ConnectionTokens('access', 'refresh', 1_792_490_400);
 
     expect(connectedIdentityFrom(ConnectionProvider::Wahoo, connectionTokens: $connectionTokens)->tokens)->toBe($connectionTokens)
-        ->and(connectedIdentityFrom(ConnectionProvider::GarminConnect, connectionTokens: $connectionTokens)->tokens)->toBe($connectionTokens)
+        ->and(connectedIdentityFrom(ConnectionProvider::RideWithGps, connectionTokens: $connectionTokens)->tokens)->toBe($connectionTokens)
         ->and(connectedIdentityFrom(ConnectionProvider::Google, connectionTokens: $connectionTokens)->tokens)->toBeNull()
-        ->and(connectedIdentityFrom(ConnectionProvider::OpenStreetMap, connectionTokens: $connectionTokens)->tokens)->toBeNull();
+        ->and(connectedIdentityFrom(ConnectionProvider::Discord, connectionTokens: $connectionTokens)->tokens)->toBeNull();
 });
 
 it('keeps an account label only where the service allows it, cleaned and shortened', function (): void {
-    expect(connectedIdentityFrom(ConnectionProvider::GarminConnect, label: 'roadrider')->accountLabel)->toBeNull()
-        ->and(connectedIdentityFrom(ConnectionProvider::GitHub, label: "road\x00rider")->accountLabel)->toBe('road rider')
+    expect(connectedIdentityFrom(ConnectionProvider::GitHub, label: "road\x00rider")->accountLabel)->toBe('road rider')
         ->and(connectedIdentityFrom(ConnectionProvider::GitHub, label: " \n ")->accountLabel)->toBeNull()
         ->and(connectedIdentityFrom(ConnectionProvider::GitHub, label: null)->accountLabel)->toBeNull()
         ->and(connectedIdentityFrom(ConnectionProvider::GitHub, label: str_repeat('ü', 200))->accountLabel)->toBe(str_repeat('ü', 191));
@@ -125,8 +124,8 @@ it('writes its values with the keys and nothing it was not given', function (): 
         'expires_at' => 1_792_490_400,
         'scopes' => ['user_read', 'routes_write'],
     ])
-        ->and(new ConnectedIdentity(ConnectionProvider::OpenStreetMap, '4711')->toArray())->toBe([
-            'provider' => 'openstreetmap',
+        ->and(new ConnectedIdentity(ConnectionProvider::Discord, '4711')->toArray())->toBe([
+            'provider' => 'discord',
             'id' => '4711',
             'email' => null,
             'email_verified' => false,

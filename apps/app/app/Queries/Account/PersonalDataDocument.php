@@ -63,7 +63,7 @@ use OpenApi\Attributes\Schema;
             items: new Items(
                 required: ['service', 'account_number', 'account', 'allowed', 'connected_at', 'last_signed_in_at', 'last_sent_at', 'sent'],
                 properties: [
-                    new Property(property: 'service', type: 'string', enum: ['google', 'apple', 'facebook', 'instagram', 'x', 'github', 'discord', 'garmin_connect', 'wahoo', 'ride_with_gps', 'runsignup', 'openstreetmap']),
+                    new Property(property: 'service', type: 'string', enum: ['google', 'github', 'discord', 'wahoo', 'ride_with_gps', 'runsignup', 'openstreetmap']),
                     new Property(property: 'account_number', description: "The service's own number for the rider's account there.", type: 'string', nullable: true),
                     new Property(property: 'account', description: 'The email or username the service shared, where Traceway may keep it.', type: 'string', nullable: true),
                     new Property(property: 'allowed', description: 'What the rider allowed Traceway to do, as the service names it.', type: 'array', items: new Items(type: 'string')),

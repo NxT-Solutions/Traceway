@@ -3,13 +3,8 @@
  */
 export type ConnectionSlug =
     | 'google'
-    | 'apple'
-    | 'facebook'
-    | 'instagram'
-    | 'x'
     | 'github'
     | 'discord'
-    | 'garmin_connect'
     | 'wahoo'
     | 'ride_with_gps'
     | 'runsignup'
@@ -51,7 +46,6 @@ export type ConnectionCapability = {
     key:
         | 'sign_in'
         | 'send_routes'
-        | 'share_routes'
         | 'notifications'
         | 'import_routes'
         | 'sync_routes'

@@ -159,7 +159,7 @@
 .tw-login .providers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px;margin:0;padding:0;list-style:none}
 .tw-login .providers.single{grid-template-columns:minmax(0,1fr)}
 .tw-login .providers > li{display:flex;min-width:0}
-/* Google and Apple say "Continue with" on screen, so their buttons take the whole row. */
+/* Google says "Continue with" on screen, so its button takes the whole row. */
 .tw-login .providers > li.wide{grid-column:1 / -1}
 .tw-login .providers .outline{flex:1 1 auto;height:auto;min-height:48px;padding:8px 12px;gap:8px;transition:background-color 180ms var(--ease)}
 .tw-login .providers .outline > svg{flex:0 0 auto}

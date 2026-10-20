@@ -16,13 +16,13 @@ Traceway gets a saved route onto a device in three ways: a device app that pulls
 ## Two shapes a provider can take
 
 1. **A device app that pulls.** This is how Garmin works: the Connect IQ app in `apps/garmin`. A Karoo or Wear OS app would work the same way. Add a `DeviceProvider` case, and the new app sends it when it pairs. It picks `fit` or `gpx` in the course path. No backend change is needed beyond that case.
-2. **A connected account Traceway pushes to.** Wahoo and Ride with GPS work this way. They are connections, like Google or Facebook: the rider connects under Settings, then Connections, and the same connection logs them in.
+2. **A connected account Traceway pushes to.** Wahoo and Ride with GPS work this way. They are connections, like Google or GitHub: the rider connects under Settings, then Connections, and the same connection logs them in.
    - Socialite does the sign-in handshake, with Traceway's own providers in `app/Auth/Connections/Providers`. `App\Account\ConnectedIdentity` carries who the rider is there and the keys. The keys are kept only when `ConnectionProvider::keepsKeys()` says so.
    - `connected_accounts` keeps one row per rider and service, with the encrypted keys. `sent_routes` keeps the id each route got at each service, so a second send updates it there.
    - The port is `App\Domain\Courses\Services\CourseService`, which extends `App\Domain\Connections\GrantedAccess`: refresh, publish, revoke. `CourseUpload` carries both files, the full title, the device name, the sport, and an `externalId` (the route id, plus `-{leg}` for a leg).
    - Each service is a Saloon connector and a `CourseService` in `app/Integrations/<Provider>`. After the handshake, everything Traceway does with the keys goes through Saloon. `AppServiceProvider` puts it in the `CourseServices` registry only when its client id and secret are set, so a service without credentials stays hidden.
    - `App\Account\RouteService` has one case per service that takes routes, and `ConnectionProvider::routeService()` points to it. Send to device posts `/routes/saved/{id}/send/{service}`, with `leg` for a multisport plan.
-   - A service that refuses the keys marks the connection for reconnecting. Disconnecting, or deleting the account, asks `App\Domain\Connections\GrantedAccesses` to withdraw the keys first. Garmin Connect is there too, with no `CourseService`, because its program asks for it.
+   - A service that refuses the keys marks the connection for reconnecting. Disconnecting, or deleting the account, asks `App\Domain\Connections\GrantedAccesses` to withdraw the keys first.
    - The routing engine still owns the geometry. The files come from the same encoders as the downloads.
 3. **A file with steps.** Every brand in Send to device gets the FIT or GPX download it reads and short steps. This needs no account and is the fallback for every other shape.
 
@@ -50,15 +50,15 @@ A connection logs the rider in, and can do more later, such as take routes. A se
 2. A block in `config/services.php`, with its callback at `/auth/<slug>/callback`.
 3. The Socialite driver: a built-in one, a SocialiteProviders package, or a provider in `app/Auth/Connections/Providers`. Register the last two in `AppServiceProvider::configureConnections()`. Add the service to `SocialiteIdentityProviders::confirmsEmail()` only when it says it confirmed the email. Until then, a new rider gets the email link first.
 4. The secrets in `.github/workflows/production-deploy.yml`, in the env block and as an `upsert_env` line. GitHub keeps every secret name that starts with `GITHUB_`, so name such a secret differently and map it.
-5. The keys, the callback, and where to get them in `apps/app/.env.example`, and empty values in `phpunit.xml`. Write down any other step the service needs before it goes live, as Apple does below.
+5. The keys, the callback, and where to get them in `apps/app/.env.example`, and empty values in `phpunit.xml`. Write down any other step the service needs before it goes live.
 6. The service and its company in `apps/web/src/legal.ts`: what Traceway keeps, who handles your data, outside the EU, and the trademarks.
 7. Its mark in `resources/js/components/connection-mark.tsx`, in `currentColor` unless the brand asks for its own colours.
 8. To take routes too: a `RouteService` case, a `CourseService` in `app/Integrations/<Provider>`, its place in the `CourseServices` registry, and its `service` on the brand in `send-to-device.tsx`.
 
 ## How a connection opens an account
 
-- A service that confirms the email opens the account at once: Google, Apple, GitHub, X, and Discord when it says so.
-- Any other service, or one that shares no email, gets a one-time link by email from the finish page. It works for 60 minutes. Nothing is opened or linked until the rider clicks it and presses Create account. Until then, Traceway holds who they are at the service, and the keys from Wahoo, Ride with GPS, or Garmin Connect, for at most 60 minutes. Cancelling withdraws those keys.
+- A service that confirms the email opens the account at once: Google, GitHub, and Discord when it says so.
+- Any other service, or one that shares no email, gets a one-time link by email from the finish page. It works for 60 minutes. Nothing is opened or linked until the rider clicks it and presses Create account. Until then, Traceway holds who they are at the service, and the keys from Wahoo or Ride with GPS, for at most 60 minutes. Cancelling withdraws those keys.
 - The finish form has the same Turnstile check as sign-up, and sends at most 3 links an hour to one address.
 - The link connects the service only in the browser that asked for it. The `finish_sign_up` cookie (httpOnly, 60 minutes) holds a random code, and its hash waits with the sign-up. Opened in another browser, the link still opens the account, since the email is proven, but leaves the service out. The rider connects it later under Settings, then Connections. Name any new cookie in the cookie list in `apps/web/src/legal.ts`.
 - When the email already has an account, only a confirmed email waits, for 15 minutes, for the rider to log in to that account, and it connects only to that account. Otherwise the rider is told to log in and connect under Settings, then Connections.
@@ -66,7 +66,5 @@ A connection logs the rider in, and can do more later, such as take routes. A se
 
 ## Running connections
 
-- The scheduler runs `php artisan connections:keep-access` every week. It renews the Garmin Connect keys well inside the three months Garmin lets them be renewed, so Traceway can still deregister when a rider disconnects or deletes the account long after their last Garmin log in. Keys Garmin turns down mark the connection for reconnecting. A server error at Garmin is not a turn-down: those keys are tried again the next week.
 - `php artisan connections:identify` finds the account number of the Wahoo and Ride with GPS connections carried over from `route_service_accounts`, which cannot log anyone in without it. It asks each service with the keys Traceway already holds. The deploy runs it once the site is open again (`post-deploy.sh`), and the scheduler asks again each night for the ones a service could not answer. One rider's account failing to answer does not hold up the others, but three failures in a row mean the service is down, and the rest of its connections wait for the next run. Each connection that gets its number emails the rider that it now logs them in, as any new way in does. Keys a service turns down are forgotten, and the connection is marked for reconnecting. An account another rider connected already is reported once and marked for reconnecting. Connections marked for reconnecting are not asked again. Running it again is safe.
-- Both commands run in the background on the scheduler, and write their counts to the log (Sentry Logs in production), since the scheduler throws a command's output away.
-- Apple's private relay (Hide My Email) passes on mail only from senders registered with Apple. Before turning Apple on, register three email sources at developer.apple.com, under Certificates, Identifiers & Profiles, then Services, then Sign in with Apple for Email Communication: the domain `traceway.online`, Resend's return-path subdomain `send.traceway.online` (Apple checks SPF on the envelope sender, and that subdomain carries the SPF record), and the address `noreply@traceway.online`. Resend signs with DKIM for `traceway.online`. Otherwise a rider who hid their email gets no Traceway mail at all.
+- It runs in the background on the scheduler, and writes its counts to the log (Sentry Logs in production), since the scheduler throws a command's output away.

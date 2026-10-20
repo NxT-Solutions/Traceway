@@ -47,7 +47,7 @@ No feed, no followers, no leaderboard. Just the map and the route.
     </td>
     <td width="33%" valign="top">
       <h3>Export</h3>
-      Download a FIT course for Garmin or a GPX file for anything else. Save a route to your profile, or share it with a signed link. Log in with Google, Apple, Garmin Connect, or another account you already have.
+      Download a FIT course for Garmin or a GPX file for anything else. Save a route to your profile, or share it with a signed link. Log in with Google, GitHub, or another account you already have.
     </td>
   </tr>
 </table>

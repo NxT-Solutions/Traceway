@@ -19,10 +19,8 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Exceptions;
 use Laravel\Socialite\Contracts\Factory;
 use Laravel\Socialite\Facades\Socialite;
-use Laravel\Socialite\Two\FacebookProvider;
 use Laravel\Socialite\Two\InvalidStateException;
 use Laravel\Socialite\Two\User as SocialiteUser;
-use Tests\Fakes\ScriptedSignIn;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -89,10 +87,6 @@ it('turns a service on only when it has its keys', function (string $slug, ?arra
     'blank secret' => ['wahoo', ['client_id' => 'id', 'client_secret' => ''], false],
     'id that is not text' => ['github', ['client_id' => 12345, 'client_secret' => 'secret'], false],
     'no settings at all' => ['discord', null, false],
-    'Apple with its team, key, and private key' => ['apple', ['client_id' => 'online.traceway', 'client_secret' => null, 'team_id' => 'TEAM', 'key_id' => 'KEY', 'private_key' => 'PRIVATE'], true],
-    'Apple without a key id' => ['apple', ['client_id' => 'online.traceway', 'team_id' => 'TEAM', 'key_id' => null, 'private_key' => 'PRIVATE'], false],
-    'Apple with a blank private key' => ['apple', ['client_id' => 'online.traceway', 'team_id' => 'TEAM', 'key_id' => 'KEY', 'private_key' => ' '], false],
-    'Apple with only a client id and secret' => ['apple', ['client_id' => 'online.traceway', 'client_secret' => 'secret'], false],
 ]);
 
 it('lists the services that are on in the order the sign-in page offers them', function (): void {
@@ -100,15 +94,15 @@ it('lists the services that are on in the order the sign-in page offers them', f
 
     expect(identityProvidersFor()->enabled())->toBe([]);
 
-    foreach (['openstreetmap', 'wahoo', 'google', 'garmin_connect'] as $slug) {
+    foreach (['discord', 'wahoo', 'google', 'github'] as $slug) {
         config(['services.'.$slug.'.client_id' => $slug.'-id', 'services.'.$slug.'.client_secret' => $slug.'-secret']);
     }
 
     expect(identityProvidersFor()->enabled())->toBe([
         ConnectionProvider::Google,
-        ConnectionProvider::GarminConnect,
         ConnectionProvider::Wahoo,
-        ConnectionProvider::OpenStreetMap,
+        ConnectionProvider::GitHub,
+        ConnectionProvider::Discord,
     ]);
 });
 
@@ -126,8 +120,6 @@ it('sends the rider to the service, with PKCE where the service supports it', fu
     'Google' => ['google', true],
     'GitHub' => ['github', true],
     'Discord' => ['discord', true],
-    'OpenStreetMap' => ['openstreetmap', true],
-    'Facebook' => ['facebook', false],
     'Wahoo' => ['wahoo', false],
 ]);
 
@@ -217,19 +209,12 @@ it('reads a rider built without the service answer', function (): void {
         ->and($connectedIdentity->emailVerified)->toBeFalse();
 });
 
-it('reads an Apple rider, whose sign-in names no scopes', function (): void {
-    Socialite::fake('apple', (new SocialiteUser)
-        ->setRaw(['sub' => '001234.abcdef', 'email' => 'x7k2@privaterelay.appleid.com', 'email_verified' => 'true'])
-        ->map(['id' => '001234.abcdef', 'name' => null, 'email' => 'x7k2@privaterelay.appleid.com'])
-        ->setToken('apple-id-token'));
+it('keeps no scopes for a service whose answer names none', function (): void {
+    Socialite::fake('google', identityProvidersUser(raw: ['email_verified' => true]));
 
-    $connectedIdentity = identityProvidersFor()->identity(ConnectionProvider::Apple);
+    $connectedIdentity = identityProvidersFor()->identity(ConnectionProvider::Google);
 
-    expect($connectedIdentity->providerUserId)->toBe('001234.abcdef')
-        ->and($connectedIdentity->email?->value)->toBe('x7k2@privaterelay.appleid.com')
-        ->and($connectedIdentity->emailVerified)->toBeTrue()
-        ->and($connectedIdentity->accountLabel)->toBe('x7k2@privaterelay.appleid.com')
-        ->and($connectedIdentity->scopes)->toBe([])
+    expect($connectedIdentity->scopes)->toBe([])
         ->and($connectedIdentity->tokens)->toBeNull();
 });
 
@@ -252,16 +237,10 @@ it('trusts an email as confirmed only when the service says it confirmed it', fu
     'Google, not confirmed' => ['google', ['email_verified' => false], false],
     'Google, as the word' => ['google', ['email_verified' => 'true'], false],
     'Google, silent' => ['google', [], false],
-    'Apple, as the word' => ['apple', ['email_verified' => 'true'], true],
-    'Apple, confirmed' => ['apple', ['email_verified' => true], true],
-    'Apple, not confirmed' => ['apple', ['email_verified' => 'false'], false],
     'Discord, verified' => ['discord', ['verified' => true], true],
     'Discord, not verified' => ['discord', ['verified' => false], false],
     'GitHub' => ['github', [], true],
-    'X' => ['x', [], true],
-    'Facebook' => ['facebook', ['email_verified' => true], false],
     'Wahoo' => ['wahoo', ['email_verified' => true], false],
-    'OpenStreetMap, with a verified flag' => ['openstreetmap', ['verified' => true], false],
 ]);
 
 it('never trusts an email the service did not send', function (): void {
@@ -290,9 +269,7 @@ it('keeps the keys only for services that need them, with the time they run out'
 })->with([
     'Wahoo' => ['wahoo', true],
     'Ride with GPS' => ['ride_with_gps', true],
-    'Garmin Connect' => ['garmin_connect', true],
     'Google' => ['google', false],
-    'OpenStreetMap' => ['openstreetmap', false],
     'GitHub' => ['github', false],
 ]);
 
@@ -323,52 +300,26 @@ it('labels the account the way each service knows the rider', function (string $
 
     expect(identityProvidersFor()->identity(ConnectionProvider::from($slug))->accountLabel)->toBe($label);
 })->with([
-    'X by username' => ['x', 'roadrider', 'road@x.test', 'roadrider'],
     'GitHub by username' => ['github', 'roadrider', 'road@github.test', 'roadrider'],
     'Discord by username' => ['discord', 'roadrider', 'road@discord.test', 'roadrider'],
-    'OpenStreetMap by display name' => ['openstreetmap', 'Road Rider', null, 'Road Rider'],
     'GitHub by email without a username' => ['github', null, 'road@github.test', 'road@github.test'],
     'Google by email' => ['google', 'roadrider', 'road@gmail.test', 'road@gmail.test'],
     'Wahoo by email' => ['wahoo', null, 'road@wahoo.test', 'road@wahoo.test'],
-    'Facebook by name without an email' => ['facebook', 'Road Rider', null, 'Road Rider'],
-    'Garmin Connect not at all' => ['garmin_connect', 'roadrider', null, null],
 ]);
-
-it('labels an Instagram account by its username, which the provider hands over as the name', function (): void {
-    Socialite::fake('instagram', identityProvidersUser(['nickname' => null, 'name' => 'roadrider', 'email' => null]));
-
-    expect(identityProvidersFor()->identity(ConnectionProvider::Instagram)->accountLabel)->toBe('roadrider');
-});
-
-it('asks Facebook only for the name and email', function (): void {
-    config(['services.facebook' => ['client_id' => 'facebook-id', 'client_secret' => 'facebook-secret', 'redirect' => 'https://traceway.test/auth/facebook/callback']]);
-    $scriptedSignIn = new ScriptedSignIn([
-        new GuzzleResponse(200, [], '{"access_token":"facebook-token","token_type":"bearer","expires_in":5183944}'),
-        new GuzzleResponse(200, [], '{"id":"10","name":"Road Rider","email":"road@facebook.test"}'),
-    ]);
-    $scriptedSignIn->provider('facebook', FacebookProvider::class);
-
-    $connectedIdentity = identityProvidersFor(['code' => 'the-code', 'state' => ScriptedSignIn::STATE])->identity(ConnectionProvider::Facebook);
-    parse_str($scriptedSignIn->guzzle->request(1)->getUri()->getQuery(), $query);
-
-    expect($query['fields'] ?? null)->toBe('name,email')
-        ->and($connectedIdentity->providerUserId)->toBe('10')
-        ->and($connectedIdentity->email?->value)->toBe('road@facebook.test');
-});
 
 it('keeps the access token out of what it reports when the service turns the rider down', function (): void {
     Exceptions::fake();
-    config(['services.facebook' => ['client_id' => 'facebook-id', 'client_secret' => 'facebook-secret', 'redirect' => 'https://traceway.test/auth/facebook/callback']]);
-    $scriptedSignIn = new ScriptedSignIn([
-        new GuzzleResponse(200, [], '{"access_token":"facebook-token","token_type":"bearer","expires_in":5183944}'),
-        new GuzzleResponse(400, [], '{"error":{"message":"Too many calls for facebook-token"}}'),
-    ]);
-    $scriptedSignIn->provider('facebook', FacebookProvider::class);
+    // Guzzle's message carries the whole address, and some services take the access token in the query.
+    Socialite::fake('github', fn (): never => throw new ClientException(
+        'Client error: `GET https://api.github.com/user?access_token=leaked-token` resulted in a `400 Bad Request` response',
+        new GuzzleRequest('GET', 'https://api.github.com/user?access_token=leaked-token'),
+        new GuzzleResponse(400, [], '{"message":"Bad credentials for leaked-token"}'),
+    ));
 
     $caught = null;
 
     try {
-        identityProvidersFor(['code' => 'the-code', 'state' => ScriptedSignIn::STATE])->identity(ConnectionProvider::Facebook);
+        identityProvidersFor()->identity(ConnectionProvider::GitHub);
     } catch (ConnectionFailed $connectionFailed) {
         $caught = $connectionFailed;
     }
@@ -381,11 +332,9 @@ it('keeps the access token out of what it reports when the service turns the rid
     }
 
     expect($caught?->problem)->toBe(ConnectionProblem::Refused)
-        ->and(implode(' ', $chain))->toContain('Facebook answered 400 to GET https://graph.facebook.com/')
-        ->not->toContain('facebook-token')
-        ->not->toContain('appsecret_proof');
-    Exceptions::assertReported(fn (RuntimeException $runtimeException): bool => str_starts_with($runtimeException->getMessage(), 'Facebook answered 400')
-        && ! str_contains($runtimeException->getMessage(), 'facebook-token'));
+        ->and(implode(' ', $chain))->toContain('GitHub answered 400 to GET https://api.github.com/user.')
+        ->not->toContain('leaked-token');
+    Exceptions::assertReported(fn (RuntimeException $runtimeException): bool => $runtimeException->getMessage() === 'GitHub answered 400 to GET https://api.github.com/user.');
 });
 
 it('keeps what the rider allowed once each, as the service names it', function (): void {

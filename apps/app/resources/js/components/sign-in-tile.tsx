@@ -13,11 +13,10 @@ type Props = {
 };
 
 /**
- * Google and Apple ask that their button says "Continue with Google" or "Continue with Apple" on screen, never
- * the name alone.
+ * Google asks that its button says "Continue with Google" on screen, never the name alone.
  */
 export function namesItsAction(slug: ConnectionSlug): boolean {
-    return slug === 'google' || slug === 'apple';
+    return slug === 'google';
 }
 
 /**

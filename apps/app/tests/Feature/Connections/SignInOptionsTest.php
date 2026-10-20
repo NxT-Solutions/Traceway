@@ -43,49 +43,49 @@ function signInOptionsFeatured(TestResponse $testResponse): array
 }
 
 it('offers the four services riders use most on the log in page, and counts them once an hour', function (): void {
-    signInOptionsWith('google', 'garmin_connect', 'github', 'discord', 'x');
+    signInOptionsWith('google', 'wahoo', 'github', 'discord', 'runsignup');
     signInOptionsConnectRiders('github', 2);
     signInOptionsConnectRiders('discord', 1);
 
     $first = $this->get(route('login'))->assertOk();
 
-    expect(signInOptionsFeatured($first))->toBe(['github', 'discord', 'google', 'garmin_connect'])
+    expect(signInOptionsFeatured($first))->toBe(['github', 'discord', 'google', 'wahoo'])
         ->and($first->inertiaProps('connections.more'))->toBe(1)
         ->and($first->inertiaProps('connections.lastUsed'))->toBeNull()
         ->and($first->inertiaProps('connections.featured.0'))->toBe(['slug' => 'github', 'label' => 'GitHub', 'note' => null]);
 
-    signInOptionsConnectRiders('x', 3);
+    signInOptionsConnectRiders('runsignup', 3);
 
-    expect(signInOptionsFeatured($this->get(route('login'))))->toBe(['github', 'discord', 'google', 'garmin_connect']);
+    expect(signInOptionsFeatured($this->get(route('login'))))->toBe(['github', 'discord', 'google', 'wahoo']);
 
     $this->travel(61)->minutes();
 
-    expect(signInOptionsFeatured($this->get(route('login'))))->toBe(['x', 'github', 'discord', 'google']);
+    expect(signInOptionsFeatured($this->get(route('login'))))->toBe(['runsignup', 'github', 'discord', 'google']);
 });
 
 it('does not count connections from before that cannot log anyone in yet', function (): void {
-    signInOptionsWith('google', 'garmin_connect', 'facebook', 'wahoo', 'ride_with_gps');
+    signInOptionsWith('google', 'github', 'discord', 'wahoo', 'ride_with_gps');
     ConnectedAccount::factory()->count(3)->withoutIdentity()->create();
 
-    expect(signInOptionsFeatured($this->get(route('login'))))->toBe(['google', 'garmin_connect', 'facebook', 'wahoo']);
+    expect(signInOptionsFeatured($this->get(route('login'))))->toBe(['google', 'wahoo', 'ride_with_gps', 'github']);
 });
 
 it('puts the service this browser last logged in with first', function (): void {
-    signInOptionsWith('google', 'garmin_connect', 'github', 'discord', 'x');
+    signInOptionsWith('google', 'wahoo', 'github', 'discord', 'runsignup');
 
     $testResponse = $this->withCookie(LastSignIn::COOKIE, 'discord')->get(route('login'));
 
-    expect(signInOptionsFeatured($testResponse))->toBe(['discord', 'google', 'garmin_connect', 'x'])
+    expect(signInOptionsFeatured($testResponse))->toBe(['discord', 'google', 'wahoo', 'github'])
         ->and($testResponse->inertiaProps('connections.more'))->toBe(1)
         ->and($testResponse->inertiaProps('connections.lastUsed'))->toBe('discord');
 });
 
 it('keeps the usual order for a last used way that is not a service', function (string $cookie, ?string $lastUsed): void {
-    signInOptionsWith('google', 'garmin_connect', 'github', 'discord', 'x');
+    signInOptionsWith('google', 'wahoo', 'github', 'discord', 'runsignup');
 
     $testResponse = $this->withCookie(LastSignIn::COOKIE, $cookie)->get(route('login'));
 
-    expect(signInOptionsFeatured($testResponse))->toBe(['google', 'garmin_connect', 'x', 'github'])
+    expect(signInOptionsFeatured($testResponse))->toBe(['google', 'wahoo', 'github', 'discord'])
         ->and($testResponse->inertiaProps('connections.lastUsed'))->toBe($lastUsed);
 })->with([
     'a password' => ['password', 'password'],
@@ -111,7 +111,7 @@ it('offers the same services on the sign up page', function (): void {
 });
 
 it('lists every service set up here in its group behind More ways to log in', function (): void {
-    signInOptionsWith('google', 'garmin_connect', 'wahoo', 'openstreetmap');
+    signInOptionsWith('google', 'runsignup', 'wahoo');
 
     $this->withCookie(LastSignIn::COOKIE, 'wahoo')
         ->get(route('login.options'))
@@ -121,14 +121,11 @@ it('lists every service set up here in its group behind More ways to log in', fu
             ->where('lastUsed', 'wahoo')
             ->where('groups', [
                 ['key' => 'sport', 'label' => 'Sport apps', 'providers' => [
-                    ['slug' => 'garmin_connect', 'label' => 'Garmin Connect', 'note' => null],
                     ['slug' => 'wahoo', 'label' => 'Wahoo', 'note' => null],
+                    ['slug' => 'runsignup', 'label' => 'RunSignup', 'note' => 'The account you sign up for races with.'],
                 ]],
                 ['key' => 'accounts', 'label' => 'Everyday accounts', 'providers' => [
                     ['slug' => 'google', 'label' => 'Google', 'note' => null],
-                ]],
-                ['key' => 'maps', 'label' => 'Maps', 'providers' => [
-                    ['slug' => 'openstreetmap', 'label' => 'OpenStreetMap', 'note' => null],
                 ]],
             ]));
 });

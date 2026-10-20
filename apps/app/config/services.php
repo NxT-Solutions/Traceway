@@ -80,41 +80,6 @@ return [
         'guzzle' => $signIn,
     ],
 
-    // Sign in with Apple signs its own client secret with the private key for every request, so there is none
-    // to set. The client id is the Services ID, not an app's bundle id. The key is the .p8 file's text.
-    'apple' => [
-        'client_id' => env('APPLE_CLIENT_ID'),
-        'client_secret' => null,
-        'team_id' => env('APPLE_TEAM_ID'),
-        'key_id' => env('APPLE_KEY_ID'),
-        'private_key' => env('APPLE_PRIVATE_KEY'),
-        'redirect' => env('APPLE_REDIRECT_URI', '/auth/apple/callback'),
-        'guzzle' => $signIn,
-    ],
-
-    'facebook' => [
-        'client_id' => env('FACEBOOK_CLIENT_ID'),
-        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
-        'redirect' => env('FACEBOOK_REDIRECT_URI', '/auth/facebook/callback'),
-        'guzzle' => $signIn,
-    ],
-
-    // Instagram's own login, for business and creator accounts. Its app id and secret are not Facebook's.
-    'instagram' => [
-        'client_id' => env('INSTAGRAM_CLIENT_ID'),
-        'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
-        'redirect' => env('INSTAGRAM_REDIRECT_URI', '/auth/instagram/callback'),
-        'guzzle' => $signIn,
-    ],
-
-    // The OAuth 2.0 client id and secret, not the API key.
-    'x' => [
-        'client_id' => env('X_CLIENT_ID'),
-        'client_secret' => env('X_CLIENT_SECRET'),
-        'redirect' => env('X_REDIRECT_URI', '/auth/x/callback'),
-        'guzzle' => $signIn,
-    ],
-
     'github' => [
         'client_id' => env('GITHUB_CLIENT_ID'),
         'client_secret' => env('GITHUB_CLIENT_SECRET'),
@@ -126,14 +91,6 @@ return [
         'client_id' => env('DISCORD_CLIENT_ID'),
         'client_secret' => env('DISCORD_CLIENT_SECRET'),
         'redirect' => env('DISCORD_REDIRECT_URI', '/auth/discord/callback'),
-        'guzzle' => $signIn,
-    ],
-
-    // Garmin's developer program, with OAuth 2.0 and PKCE. The client id is the consumer key.
-    'garmin_connect' => [
-        'client_id' => env('GARMIN_CONNECT_CLIENT_ID'),
-        'client_secret' => env('GARMIN_CONNECT_CLIENT_SECRET'),
-        'redirect' => env('GARMIN_CONNECT_REDIRECT_URI', '/auth/garmin_connect/callback'),
         'guzzle' => $signIn,
     ],
 

@@ -7,7 +7,6 @@ namespace App\Domain\Connections;
 use App\Domain\Courses\Services\ServiceRefused;
 use App\Domain\Courses\Services\ServiceTokens;
 use App\Domain\Courses\Services\ServiceUnavailable;
-use InvalidArgumentException;
 
 /**
  * The services whose keys Traceway can hand back, by slug. A service without credentials is left out, and so is
@@ -23,20 +22,6 @@ final readonly class GrantedAccesses
     public function has(string $slug): bool
     {
         return isset($this->accesses[$slug]);
-    }
-
-    /**
-     * New keys for the rider's access at the service, so keys that go unused do not run out.
-     *
-     * @throws InvalidArgumentException when the service is not set up
-     * @throws ServiceRefused when the rider has to connect again
-     * @throws ServiceUnavailable when the service cannot be reached
-     */
-    public function refresh(string $slug, ServiceTokens $serviceTokens): ServiceTokens
-    {
-        $grantedAccess = $this->accesses[$slug] ?? throw new InvalidArgumentException('No access is kept for '.$slug.'.');
-
-        return $grantedAccess->refresh($serviceTokens);
     }
 
     /**

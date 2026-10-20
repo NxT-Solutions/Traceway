@@ -57,16 +57,6 @@ jobs:
           RIDEWITHGPS_API_KEY: ${{ secrets.RIDEWITHGPS_API_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          APPLE_CLIENT_ID: ${{ secrets.APPLE_CLIENT_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
-          APPLE_PRIVATE_KEY: ${{ secrets.APPLE_PRIVATE_KEY }}
-          FACEBOOK_CLIENT_ID: ${{ secrets.FACEBOOK_CLIENT_ID }}
-          FACEBOOK_CLIENT_SECRET: ${{ secrets.FACEBOOK_CLIENT_SECRET }}
-          INSTAGRAM_CLIENT_ID: ${{ secrets.INSTAGRAM_CLIENT_ID }}
-          INSTAGRAM_CLIENT_SECRET: ${{ secrets.INSTAGRAM_CLIENT_SECRET }}
-          X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
-          X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
           # GitHub keeps every name that starts with GITHUB_ for itself, so the
           # GitHub sign-in keys are stored as GH_OAUTH_* and written to the
           # runtime file as GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.
@@ -74,8 +64,6 @@ jobs:
           GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
           DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
-          GARMIN_CONNECT_CLIENT_ID: ${{ secrets.GARMIN_CONNECT_CLIENT_ID }}
-          GARMIN_CONNECT_CLIENT_SECRET: ${{ secrets.GARMIN_CONNECT_CLIENT_SECRET }}
           RUNSIGNUP_CLIENT_ID: ${{ secrets.RUNSIGNUP_CLIENT_ID }}
           RUNSIGNUP_CLIENT_SECRET: ${{ secrets.RUNSIGNUP_CLIENT_SECRET }}
           OPENSTREETMAP_CLIENT_ID: ${{ secrets.OPENSTREETMAP_CLIENT_ID }}
@@ -125,21 +113,10 @@ jobs:
           # each can go live on its own.
           upsert_env "GOOGLE_CLIENT_ID" "${GOOGLE_CLIENT_ID:-}" "$runtime_env"
           upsert_env "GOOGLE_CLIENT_SECRET" "${GOOGLE_CLIENT_SECRET:-}" "$runtime_env"
-          upsert_env "APPLE_CLIENT_ID" "${APPLE_CLIENT_ID:-}" "$runtime_env"
-          upsert_env "APPLE_TEAM_ID" "${APPLE_TEAM_ID:-}" "$runtime_env"
-          upsert_env "APPLE_KEY_ID" "${APPLE_KEY_ID:-}" "$runtime_env"
-          upsert_env "FACEBOOK_CLIENT_ID" "${FACEBOOK_CLIENT_ID:-}" "$runtime_env"
-          upsert_env "FACEBOOK_CLIENT_SECRET" "${FACEBOOK_CLIENT_SECRET:-}" "$runtime_env"
-          upsert_env "INSTAGRAM_CLIENT_ID" "${INSTAGRAM_CLIENT_ID:-}" "$runtime_env"
-          upsert_env "INSTAGRAM_CLIENT_SECRET" "${INSTAGRAM_CLIENT_SECRET:-}" "$runtime_env"
-          upsert_env "X_CLIENT_ID" "${X_CLIENT_ID:-}" "$runtime_env"
-          upsert_env "X_CLIENT_SECRET" "${X_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "GITHUB_CLIENT_ID" "${GH_OAUTH_CLIENT_ID:-}" "$runtime_env"
           upsert_env "GITHUB_CLIENT_SECRET" "${GH_OAUTH_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "DISCORD_CLIENT_ID" "${DISCORD_CLIENT_ID:-}" "$runtime_env"
           upsert_env "DISCORD_CLIENT_SECRET" "${DISCORD_CLIENT_SECRET:-}" "$runtime_env"
-          upsert_env "GARMIN_CONNECT_CLIENT_ID" "${GARMIN_CONNECT_CLIENT_ID:-}" "$runtime_env"
-          upsert_env "GARMIN_CONNECT_CLIENT_SECRET" "${GARMIN_CONNECT_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "WAHOO_CLIENT_ID" "${WAHOO_CLIENT_ID:-}" "$runtime_env"
           upsert_env "WAHOO_CLIENT_SECRET" "${WAHOO_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "WAHOO_REQUEST_EMAIL" "${WAHOO_REQUEST_EMAIL:-false}" "$runtime_env"
@@ -150,11 +127,6 @@ jobs:
           upsert_env "RUNSIGNUP_CLIENT_SECRET" "${RUNSIGNUP_CLIENT_SECRET:-}" "$runtime_env"
           upsert_env "OPENSTREETMAP_CLIENT_ID" "${OPENSTREETMAP_CLIENT_ID:-}" "$runtime_env"
           upsert_env "OPENSTREETMAP_CLIENT_SECRET" "${OPENSTREETMAP_CLIENT_SECRET:-}" "$runtime_env"
-          # Sign in with Apple signs each request with the .p8 key. Like the
-          # Passport keys below, the PEM goes on one line in quotes.
-          if [ -n "${APPLE_PRIVATE_KEY:-}" ]; then
-            printf 'APPLE_PRIVATE_KEY="%s"\n' "$(printf '%s' "$APPLE_PRIVATE_KEY" | awk 'BEGIN { ORS = "\\n" } { print }')" >> "$runtime_env"
-          fi
 
           # The check under the sign-up form. Without both keys it stays off
           # and the forms keep only their rate limits.

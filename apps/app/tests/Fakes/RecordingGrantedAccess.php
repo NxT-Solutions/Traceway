@@ -10,7 +10,7 @@ use App\Domain\Courses\Services\ServiceTokens;
 use App\Domain\Courses\Services\ServiceUnavailable;
 
 /**
- * Access a service gave, such as Garmin Connect's, that remembers what Traceway asked of it.
+ * Access a service gave, such as Wahoo's, that remembers what Traceway asked of it.
  */
 final class RecordingGrantedAccess implements GrantedAccess
 {

@@ -38,8 +38,8 @@ function words(intent: Props['intent'] | undefined) {
 }
 
 /**
- * Google and Apple come first in their group. Their buttons span both columns, so the words they ask for fit,
- * and the grid has no gap before them.
+ * Google comes first in its group. Its button spans both columns, so the words Google asks for fit, and the grid
+ * has no gap before it.
  */
 function wideFirst(providers: SignInOption[]): SignInOption[] {
     return [

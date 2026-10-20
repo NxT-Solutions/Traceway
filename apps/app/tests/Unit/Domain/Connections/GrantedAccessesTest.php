@@ -13,17 +13,17 @@ uses()->group('mutation');
 const GRANTED_ACCESSES_NOW = 1_792_490_400;
 
 it('knows which services it can hand access back to', function (): void {
-    $grantedAccesses = new GrantedAccesses(['garmin_connect' => new RecordingGrantedAccess]);
+    $grantedAccesses = new GrantedAccesses(['wahoo' => new RecordingGrantedAccess]);
 
-    expect($grantedAccesses->has('garmin_connect'))->toBeTrue()
+    expect($grantedAccesses->has('wahoo'))->toBeTrue()
         ->and($grantedAccesses->has('google'))->toBeFalse();
 });
 
 it('withdraws access with the keys it has while they still work', function (): void {
     $recordingGrantedAccess = new RecordingGrantedAccess;
 
-    new GrantedAccesses(['garmin_connect' => $recordingGrantedAccess])
-        ->withdraw('garmin_connect', new ServiceTokens('access', 'refresh', GRANTED_ACCESSES_NOW + 3600), GRANTED_ACCESSES_NOW);
+    new GrantedAccesses(['wahoo' => $recordingGrantedAccess])
+        ->withdraw('wahoo', new ServiceTokens('access', 'refresh', GRANTED_ACCESSES_NOW + 3600), GRANTED_ACCESSES_NOW);
 
     expect($recordingGrantedAccess->refreshed)->toBe([])
         ->and($recordingGrantedAccess->revoked)->toBe(['access']);
@@ -42,8 +42,8 @@ it('withdraws access with keys that do not run out', function (): void {
 it('refreshes keys that ran out or are about to, so the service does not keep its access', function (int $expiresAt): void {
     $recordingGrantedAccess = new RecordingGrantedAccess;
 
-    new GrantedAccesses(['garmin_connect' => $recordingGrantedAccess])
-        ->withdraw('garmin_connect', new ServiceTokens('stale', 'refresh', $expiresAt), GRANTED_ACCESSES_NOW);
+    new GrantedAccesses(['wahoo' => $recordingGrantedAccess])
+        ->withdraw('wahoo', new ServiceTokens('stale', 'refresh', $expiresAt), GRANTED_ACCESSES_NOW);
 
     expect($recordingGrantedAccess->refreshed)->toBe(['stale'])
         ->and($recordingGrantedAccess->revoked)->toBe(['access-refreshed']);
@@ -56,28 +56,12 @@ it('refreshes keys that ran out or are about to, so the service does not keep it
 it('has nothing to ask a service that is not set up', function (): void {
     $recordingGrantedAccess = new RecordingGrantedAccess;
 
-    new GrantedAccesses(['garmin_connect' => $recordingGrantedAccess])
+    new GrantedAccesses(['ride_with_gps' => $recordingGrantedAccess])
         ->withdraw('wahoo', new ServiceTokens('access', 'refresh', GRANTED_ACCESSES_NOW - 3600), GRANTED_ACCESSES_NOW);
 
     expect($recordingGrantedAccess->refreshed)->toBe([])
         ->and($recordingGrantedAccess->revoked)->toBe([]);
 });
-
-it('refreshes the keys of access a service gave', function (): void {
-    $recordingGrantedAccess = new RecordingGrantedAccess;
-
-    $serviceTokens = new GrantedAccesses(['garmin_connect' => $recordingGrantedAccess])
-        ->refresh('garmin_connect', new ServiceTokens('access', 'refresh', GRANTED_ACCESSES_NOW + 3600));
-
-    expect($serviceTokens->accessToken)->toBe('access-refreshed')
-        ->and($recordingGrantedAccess->refreshed)->toBe(['access'])
-        ->and($recordingGrantedAccess->revoked)->toBe([]);
-});
-
-it('cannot refresh access at a service that is not set up', function (): void {
-    new GrantedAccesses(['garmin_connect' => new RecordingGrantedAccess])
-        ->refresh('wahoo', new ServiceTokens('access', 'refresh'));
-})->throws(InvalidArgumentException::class, 'No access is kept for wahoo.');
 
 it('lets go of the keys a new log in replaced', function (): void {
     $recordingGrantedAccess = new RecordingGrantedAccess;

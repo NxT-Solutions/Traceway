@@ -38,19 +38,10 @@
         <!-- Sign-in services stay off unless a test turns one on, whatever the local .env holds. -->
         <env name="GOOGLE_CLIENT_ID" value=""/>
         <env name="GOOGLE_CLIENT_SECRET" value=""/>
-        <env name="APPLE_CLIENT_ID" value=""/>
-        <env name="FACEBOOK_CLIENT_ID" value=""/>
-        <env name="FACEBOOK_CLIENT_SECRET" value=""/>
-        <env name="INSTAGRAM_CLIENT_ID" value=""/>
-        <env name="INSTAGRAM_CLIENT_SECRET" value=""/>
-        <env name="X_CLIENT_ID" value=""/>
-        <env name="X_CLIENT_SECRET" value=""/>
         <env name="GITHUB_CLIENT_ID" value=""/>
         <env name="GITHUB_CLIENT_SECRET" value=""/>
         <env name="DISCORD_CLIENT_ID" value=""/>
         <env name="DISCORD_CLIENT_SECRET" value=""/>
-        <env name="GARMIN_CONNECT_CLIENT_ID" value=""/>
-        <env name="GARMIN_CONNECT_CLIENT_SECRET" value=""/>
         <env name="WAHOO_CLIENT_ID" value=""/>
         <env name="WAHOO_CLIENT_SECRET" value=""/>
         <env name="RIDEWITHGPS_CLIENT_ID" value=""/>
@@ -59,9 +50,6 @@
         <env name="RUNSIGNUP_CLIENT_SECRET" value=""/>
         <env name="OPENSTREETMAP_CLIENT_ID" value=""/>
         <env name="OPENSTREETMAP_CLIENT_SECRET" value=""/>
-        <env name="APPLE_TEAM_ID" value=""/>
-        <env name="APPLE_KEY_ID" value=""/>
-        <env name="APPLE_PRIVATE_KEY" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

@@ -56,7 +56,6 @@ it('knows a POST to a page people only read comes from a scanner', function (): 
         ->and(PeoplePages::is('/_astro/app.js', 'PUT'))->toBeFalse()
         ->and(PeoplePages::is('/', 'HEAD'))->toBeTrue()
         ->and(PeoplePages::is('/login', 'POST'))->toBeTrue()
-        ->and(PeoplePages::is('/auth/apple/callback', 'POST'))->toBeTrue()
         ->and(PeoplePages::is('/login/finish', 'POST'))->toBeTrue()
         ->and(PeoplePages::is('/settings/profile', 'PATCH'))->toBeTrue();
 });

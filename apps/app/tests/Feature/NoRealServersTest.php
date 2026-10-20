@@ -29,8 +29,4 @@ it('stops a sign-in service request that has no fake', function (ConnectionProvi
     ]);
 
     Socialite::driver($connectionProvider->value)->userFromToken('a-token');
-})->with(array_filter(
-    ConnectionProvider::cases(),
-    // Apple reads the rider from its signed token, after fetching its keys with a client of its own.
-    static fn (ConnectionProvider $connectionProvider): bool => $connectionProvider !== ConnectionProvider::Apple,
-))->throws(RuntimeException::class, 'A test reached the ');
+})->with(ConnectionProvider::cases())->throws(RuntimeException::class, 'A test reached the ');

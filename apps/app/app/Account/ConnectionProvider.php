@@ -12,13 +12,8 @@ namespace App\Account;
 enum ConnectionProvider: string
 {
     case Google = 'google';
-    case Apple = 'apple';
-    case Facebook = 'facebook';
-    case Instagram = 'instagram';
-    case X = 'x';
     case GitHub = 'github';
     case Discord = 'discord';
-    case GarminConnect = 'garmin_connect';
     case Wahoo = 'wahoo';
     case RideWithGps = 'ride_with_gps';
     case RunSignup = 'runsignup';
@@ -36,13 +31,8 @@ enum ConnectionProvider: string
     {
         return match ($this) {
             self::Google => 'Google',
-            self::Apple => 'Apple',
-            self::Facebook => 'Facebook',
-            self::Instagram => 'Instagram',
-            self::X => 'X',
             self::GitHub => 'GitHub',
             self::Discord => 'Discord',
-            self::GarminConnect => 'Garmin Connect',
             self::Wahoo => 'Wahoo',
             self::RideWithGps => 'Ride with GPS',
             self::RunSignup => 'RunSignup',
@@ -53,7 +43,7 @@ enum ConnectionProvider: string
     public function group(): ConnectionGroup
     {
         return match ($this) {
-            self::GarminConnect, self::Wahoo, self::RideWithGps, self::RunSignup => ConnectionGroup::Sport,
+            self::Wahoo, self::RideWithGps, self::RunSignup => ConnectionGroup::Sport,
             self::OpenStreetMap => ConnectionGroup::Maps,
             default => ConnectionGroup::Accounts,
         };
@@ -65,8 +55,6 @@ enum ConnectionProvider: string
     public function purpose(): string
     {
         return match ($this) {
-            self::Apple => 'Log in with your Apple Account. Apple can keep your email private.',
-            self::Instagram => 'Log in with an Instagram business or creator account.',
             self::Wahoo => 'Log in with Wahoo, and send routes to your ELEMNT or ACE.',
             self::RideWithGps => 'Log in with Ride with GPS, and send routes to your library there.',
             self::OpenStreetMap => 'Log in with the account you map with.',
@@ -95,13 +83,11 @@ enum ConnectionProvider: string
     public function later(): array
     {
         return match ($this) {
-            self::Facebook, self::Instagram, self::X => [ConnectionCapability::ShareRoutes],
             self::Discord, self::RunSignup => [ConnectionCapability::Notifications],
             self::RideWithGps => [ConnectionCapability::ImportRoutes],
-            self::GarminConnect => [ConnectionCapability::SendRoutes],
             self::Wahoo => [ConnectionCapability::SyncRoutes],
             self::OpenStreetMap => [ConnectionCapability::MapNotes],
-            self::Google, self::Apple, self::GitHub => [],
+            self::Google, self::GitHub => [],
         };
     }
 
@@ -114,13 +100,8 @@ enum ConnectionProvider: string
     {
         return match ($this) {
             self::Google => ['Your Google account number and email address.', 'No password, and no access to your Google account.'],
-            self::Apple => ['Your Apple account number and the email Apple shares, which can be a private relay address.', 'No password, and no access to your Apple Account.'],
-            self::Facebook => ['Your Facebook account number for Traceway, and your email address if Facebook shares it.', 'No password, and no access to your posts or friends.'],
-            self::Instagram => ['Your Instagram account number for Traceway and your username.', 'No password, and no access to your posts.'],
-            self::X => ['Your X account number and username.', 'No password, and no access to your posts.'],
             self::GitHub => ['Your GitHub account number and username.', 'No password, and no access to your code.'],
             self::Discord => ['Your Discord account number and username.', 'No password, and no access to your messages.'],
-            self::GarminConnect => ['Your Garmin Connect user number.', 'The keys Garmin gave Traceway, kept encrypted, so Traceway can remove its access when you disconnect.', 'No activities or health data.'],
             self::Wahoo => ['Your Wahoo account number and email address.', 'The keys Wahoo gave Traceway, kept encrypted, to send routes.', 'Which routes you sent there.'],
             self::RideWithGps => ['Your Ride with GPS account number and email address.', 'The key Ride with GPS gave Traceway, kept encrypted, to send routes.', 'Which routes you sent there.'],
             self::RunSignup => ['Your RunSignup account number and email address.', 'No races, and no access to your RunSignup account.'],
@@ -134,7 +115,7 @@ enum ConnectionProvider: string
     public function note(): ?string
     {
         return match ($this) {
-            self::Instagram => 'Business and creator accounts only.',
+            self::RunSignup => 'The account you sign up for races with.',
             default => null,
         };
     }
@@ -147,36 +128,33 @@ enum ConnectionProvider: string
     {
         return match ($this) {
             self::Google => 'https://myaccount.google.com/connections',
-            self::Apple => 'https://account.apple.com/account/manage',
-            self::Facebook => 'https://www.facebook.com/settings/?tab=applications',
-            self::Instagram => 'https://www.instagram.com/accounts/manage_access/',
-            self::X => 'https://x.com/settings/connected_apps',
             self::GitHub => 'https://github.com/settings/applications',
             self::RunSignup => 'https://runsignup.com/Profile/OAuth2',
             self::OpenStreetMap => 'https://www.openstreetmap.org/oauth2/authorized_applications',
-            self::Discord, self::GarminConnect, self::Wahoo, self::RideWithGps => null,
+            self::Discord, self::Wahoo, self::RideWithGps => null,
         };
     }
 
     /**
-     * True when Traceway keeps the keys the service gave it: to send routes, or to remove its own access when the
-     * rider disconnects. Every other connection keeps only who the rider is there.
+     * True when Traceway keeps the keys the service gave it, to send routes. Every other connection keeps only who
+     * the rider is there.
      */
     public function keepsKeys(): bool
     {
         return match ($this) {
-            self::Wahoo, self::RideWithGps, self::GarminConnect => true,
+            self::Wahoo, self::RideWithGps => true,
             default => false,
         };
     }
 
     /**
-     * False for services whose account Traceway knows only by its number: Garmin Connect shares no name. Its name
-     * is not kept, nor offered as the rider's account name, and the connection shows only when it was made.
+     * Whether Traceway keeps the name the service shows for the account. Every service here allows it. One that
+     * shares only a number, or limits how long its data is kept, returns false: its name is not kept, nor offered
+     * as the rider's account name, and the connection shows only when it was made.
      */
     public function keepsAccountLabel(): bool
     {
-        return $this !== self::GarminConnect;
+        return true;
     }
 
     /**
@@ -194,17 +172,12 @@ enum ConnectionProvider: string
     {
         return match ($this) {
             self::Google => 1,
-            self::Apple => 2,
-            self::GarminConnect => 3,
-            self::Facebook => 4,
-            self::Wahoo => 5,
-            self::RideWithGps => 6,
-            self::X => 7,
-            self::GitHub => 8,
-            self::Discord => 9,
-            self::Instagram => 10,
-            self::OpenStreetMap => 11,
-            self::RunSignup => 12,
+            self::Wahoo => 2,
+            self::RideWithGps => 3,
+            self::GitHub => 4,
+            self::Discord => 5,
+            self::OpenStreetMap => 6,
+            self::RunSignup => 7,
         };
     }
 }

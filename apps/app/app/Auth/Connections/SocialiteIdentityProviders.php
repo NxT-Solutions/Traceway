@@ -20,7 +20,6 @@ use Laravel\Socialite\Contracts\Factory;
 use Laravel\Socialite\Contracts\Provider;
 use Laravel\Socialite\Contracts\User;
 use Laravel\Socialite\Two\AbstractProvider;
-use Laravel\Socialite\Two\FacebookProvider;
 use Laravel\Socialite\Two\GoogleProvider;
 use Laravel\Socialite\Two\InvalidStateException;
 use Laravel\Socialite\Two\User as OAuth2User;
@@ -29,8 +28,8 @@ use Throwable;
 
 /**
  * Each service's own sign-in, through Socialite and the SocialiteProviders packages. This is the one place the
- * handshake leaves Saloon: Socialite keeps the state and the PKCE verifier in the session, checks Apple's signed
- * token, and speaks each service's quirks. What Traceway does with a connection afterwards, such as sending a
+ * handshake leaves Saloon: Socialite keeps the state and the PKCE verifier in the session, and speaks each
+ * service's quirks. What Traceway does with a connection afterwards, such as sending a
  * route or withdrawing its access, goes through the Saloon connectors in App\Integrations.
  */
 final readonly class SocialiteIdentityProviders implements IdentityProviders
@@ -66,12 +65,7 @@ final readonly class SocialiteIdentityProviders implements IdentityProviders
             return false;
         }
 
-        // Apple signs a fresh client secret with the team's private key for every request.
-        $required = $connectionProvider === ConnectionProvider::Apple
-            ? ['client_id', 'team_id', 'key_id', 'private_key']
-            : ['client_id', 'client_secret'];
-
-        return array_all($required, fn ($key): bool => is_string($config[$key] ?? null) && trim($config[$key]) !== '');
+        return array_all(['client_id', 'client_secret'], fn (string $key): bool => is_string($config[$key] ?? null) && trim($config[$key]) !== '');
     }
 
     public function redirectUrl(ConnectionProvider $connectionProvider): string
@@ -125,8 +119,8 @@ final readonly class SocialiteIdentityProviders implements IdentityProviders
     }
 
     /**
-     * The failed request without its query or the service's answer. Facebook and Instagram take the rider's access
-     * token in the query, and Guzzle puts the whole address in its message, so the log and Sentry would keep it.
+     * The failed request without its query or the service's answer. A service may take the rider's access token in
+     * the query, and Guzzle puts the whole address in its message, so the log and Sentry would keep it.
      */
     private function withoutKeys(ConnectionProvider $connectionProvider, Throwable $throwable): Throwable
     {
@@ -170,7 +164,7 @@ final readonly class SocialiteIdentityProviders implements IdentityProviders
                 $email,
                 $this->confirmsEmail($connectionProvider, $email, $raw),
                 $name,
-                $this->accountLabel($connectionProvider, $email, $nickname, $name),
+                $this->accountLabel($connectionProvider, $email, $nickname),
                 $connectionProvider->keepsKeys() ? $this->tokens($user) : null,
                 $this->scopes($user),
             );
@@ -193,11 +187,9 @@ final readonly class SocialiteIdentityProviders implements IdentityProviders
 
         return match ($connectionProvider) {
             ConnectionProvider::Google => ($raw['email_verified'] ?? false) === true,
-            // Apple sends the flag as a boolean or as the word.
-            ConnectionProvider::Apple => in_array($raw['email_verified'] ?? false, [true, 'true'], strict: true),
             ConnectionProvider::Discord => ($raw['verified'] ?? false) === true,
-            // Socialite returns only GitHub's primary address when it is verified, and X's confirmed address.
-            ConnectionProvider::GitHub, ConnectionProvider::X => true,
+            // Socialite returns only GitHub's primary address when it is verified.
+            ConnectionProvider::GitHub => true,
             default => false,
         };
     }
@@ -205,12 +197,10 @@ final readonly class SocialiteIdentityProviders implements IdentityProviders
     /**
      * What the connections page shows to say which account at the service is connected.
      */
-    private function accountLabel(ConnectionProvider $connectionProvider, ?string $email, ?string $nickname, ?string $name): ?string
+    private function accountLabel(ConnectionProvider $connectionProvider, ?string $email, ?string $nickname): ?string
     {
         return match ($connectionProvider) {
-            // Instagram's provider hands the username over as the name, and sends no nickname or email.
-            ConnectionProvider::Instagram => $nickname ?? $name,
-            ConnectionProvider::X, ConnectionProvider::GitHub, ConnectionProvider::Discord, ConnectionProvider::OpenStreetMap => $nickname ?? $email,
+            ConnectionProvider::GitHub, ConnectionProvider::Discord, ConnectionProvider::OpenStreetMap => $nickname ?? $email,
             default => $email ?? $nickname,
         };
     }
@@ -258,7 +248,7 @@ final readonly class SocialiteIdentityProviders implements IdentityProviders
     }
 
     /**
-     * Each name once, from a list a service may also leave out. Apple's provider never sets the scopes.
+     * Each name once, from a list a service may also leave out.
      *
      * @return list<string>
      */
@@ -288,10 +278,6 @@ final readonly class SocialiteIdentityProviders implements IdentityProviders
         if ($provider instanceof GoogleProvider) {
             // A shared computer may be signed in to someone else's Google account.
             $provider->with(['prompt' => 'select_account']);
-        }
-
-        if ($provider instanceof FacebookProvider) {
-            $provider->fields(['name', 'email']);
         }
 
         return match ($connectionProvider) {

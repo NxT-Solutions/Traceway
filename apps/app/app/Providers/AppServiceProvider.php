@@ -8,7 +8,6 @@ use App\Account\ConnectionProvider;
 use App\Account\Role;
 use App\Account\RouteService;
 use App\Auth\Connections\ConnectionFlow;
-use App\Auth\Connections\Providers\GarminConnectProvider;
 use App\Auth\Connections\Providers\RideWithGpsProvider;
 use App\Auth\Connections\Providers\RunSignupProvider;
 use App\Auth\Connections\Providers\WahooProvider;
@@ -34,7 +33,6 @@ use App\Commands\DisconnectAppCommand;
 use App\Commands\DisconnectConnectionCommand;
 use App\Commands\ExportPersonalDataCommand;
 use App\Commands\IdentifyConnectionsCommand;
-use App\Commands\KeepConnectionAccessCommand;
 use App\Commands\LinkConnectionCommand;
 use App\Commands\LinkDeviceCommand;
 use App\Commands\MarkAllReleasesReadCommand;
@@ -117,7 +115,6 @@ use App\Handlers\DisconnectAppHandler;
 use App\Handlers\DisconnectConnectionHandler;
 use App\Handlers\ExportPersonalDataHandler;
 use App\Handlers\IdentifyConnectionsHandler;
-use App\Handlers\KeepConnectionAccessHandler;
 use App\Handlers\LinkConnectionHandler;
 use App\Handlers\LinkDeviceHandler;
 use App\Handlers\MarkAllReleasesReadHandler;
@@ -151,9 +148,6 @@ use App\Integrations\Cloudflare\CloudflareInsights;
 use App\Integrations\Cloudflare\CloudflareTrafficSource;
 use App\Integrations\Cloudflare\TurnstileConnector;
 use App\Integrations\Cloudflare\TurnstileHumanCheck;
-use App\Integrations\GarminConnect\GarminConnectAccess;
-use App\Integrations\GarminConnect\GarminConnectConnector;
-use App\Integrations\GarminConnect\GarminConnectTokenConnector;
 use App\Integrations\GraphHopper\GraphHopperConnector;
 use App\Integrations\GraphHopper\GraphHopperRoutingEngine;
 use App\Integrations\Nominatim\NominatimConnector;
@@ -215,9 +209,7 @@ use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Passport\Passport;
-use SocialiteProviders\Apple\Provider as AppleProvider;
 use SocialiteProviders\Discord\Provider as DiscordProvider;
-use SocialiteProviders\Instagram\Provider as InstagramProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use SocialiteProviders\OpenStreetMap\Provider as OpenStreetMapProvider;
 
@@ -256,7 +248,6 @@ class AppServiceProvider extends ServiceProvider
             WithdrawConnectionAccessCommand::class => WithdrawConnectionAccessHandler::class,
             ClaimUnconfirmedAccountCommand::class => ClaimUnconfirmedAccountHandler::class,
             IdentifyConnectionsCommand::class => IdentifyConnectionsHandler::class,
-            KeepConnectionAccessCommand::class => KeepConnectionAccessHandler::class,
             SendRouteToServiceCommand::class => SendRouteToServiceHandler::class,
             SyncReleasesCommand::class => SyncReleasesHandler::class,
             MarkReleaseReadCommand::class => MarkReleaseReadHandler::class,
@@ -511,17 +502,14 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * The services a rider logs in with or connects. Google, Facebook, GitHub, and X come with Socialite. The
-     * SocialiteProviders packages add the rest, and Traceway's own providers cover Wahoo, Ride with GPS, Garmin
-     * Connect, and the fixes RunSignup needs.
+     * The services a rider logs in with or connects. Google and GitHub come with Socialite. The
+     * SocialiteProviders packages add the rest, and Traceway's own providers cover Wahoo, Ride with GPS, and the
+     * fixes RunSignup needs.
      */
     protected function configureConnections(): void
     {
         Event::listen(static function (SocialiteWasCalled $socialiteWasCalled): void {
-            $socialiteWasCalled->extendSocialite(ConnectionProvider::Apple->value, AppleProvider::class);
-            $socialiteWasCalled->extendSocialite(ConnectionProvider::Instagram->value, InstagramProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::Discord->value, DiscordProvider::class);
-            $socialiteWasCalled->extendSocialite(ConnectionProvider::GarminConnect->value, GarminConnectProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::Wahoo->value, WahooProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::RideWithGps->value, RideWithGpsProvider::class);
             $socialiteWasCalled->extendSocialite(ConnectionProvider::RunSignup->value, RunSignupProvider::class);
@@ -716,7 +704,7 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * The services that gave Traceway keys it must hand back when a rider disconnects or deletes their account:
-     * the ones Send to device uses, and Garmin Connect, whose program asks for it.
+     * the ones Send to device uses.
      */
     private function grantedAccesses(): GrantedAccesses
     {
@@ -725,15 +713,6 @@ class AppServiceProvider extends ServiceProvider
 
         foreach ($courseServices->available() as $slug) {
             $accesses[$slug] = $courseServices->for($slug);
-        }
-
-        $garmin = $this->credentials(ConnectionProvider::GarminConnect->value);
-
-        if ($garmin !== null) {
-            $accesses[ConnectionProvider::GarminConnect->value] = new GarminConnectAccess(
-                new GarminConnectTokenConnector($garmin['client_id'], $garmin['client_secret']),
-                new GarminConnectConnector,
-            );
         }
 
         return new GrantedAccesses($accesses);

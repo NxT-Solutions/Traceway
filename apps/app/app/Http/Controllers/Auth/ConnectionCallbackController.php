@@ -15,7 +15,6 @@ use App\Account\Rider;
 use App\Account\RiderId;
 use App\Account\RiderName;
 use App\Account\RouteService;
-use App\Auth\Connections\AppleCallbackTicket;
 use App\Auth\Connections\ConnectionFlow;
 use App\Auth\Connections\ConnectionIntent;
 use App\Auth\Connections\ConnectionSignIn;
@@ -47,24 +46,17 @@ class ConnectionCallbackController extends Controller
         private readonly ConnectionSignIn $connectionSignIn,
     ) {}
 
-    public function __invoke(Request $request, string $provider, AppleCallbackTicket $appleCallbackTicket): RedirectResponse
+    public function __invoke(Request $request, string $provider): RedirectResponse
     {
         $connectionProvider = ConnectionProvider::tryFrom($provider);
 
         abort_unless($connectionProvider instanceof ConnectionProvider && $this->identityProviders->isEnabled($connectionProvider), 404);
-
-        // Apple's answer waits under a ticket. One that was used already, or ran out, came too late.
-        $answered = $connectionProvider !== ConnectionProvider::Apple || $this->takeAppleAnswer($request, $appleCallbackTicket);
 
         $connectionFlow = new ConnectionFlow($request->session());
         $flow = $connectionFlow->finish($connectionProvider);
 
         if ($flow === null) {
             return $this->failed($request, $connectionProvider, ConnectionProblem::Expired, connectionIntent: null, return: null);
-        }
-
-        if (! $answered) {
-            return $this->failed($request, $connectionProvider, ConnectionProblem::Expired, $flow['intent'], $flow['return']);
         }
 
         $connectedIdentity = null;
@@ -221,24 +213,5 @@ class ConnectionCallbackController extends Controller
         }
 
         return to_route('login')->withErrors(['connection' => $message]);
-    }
-
-    /**
-     * Puts Apple's held answer back on the request, where Socialite reads it. False when there is none.
-     */
-    private function takeAppleAnswer(Request $request, AppleCallbackTicket $appleCallbackTicket): bool
-    {
-        $ticket = $request->query('ticket');
-        $answer = is_string($ticket) ? $appleCallbackTicket->redeem($ticket) : null;
-
-        $request->query->remove('ticket');
-
-        if ($answer === null) {
-            return false;
-        }
-
-        $request->merge($answer);
-
-        return true;
     }
 }

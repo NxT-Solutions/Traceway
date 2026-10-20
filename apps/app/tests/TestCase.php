@@ -40,8 +40,7 @@ abstract class TestCase extends BaseTestCase
     /**
      * Socialite speaks Guzzle, not Saloon or Laravel's HTTP client, so neither guard above stops it. Each
      * service's client gets a handler that throws instead. A test fakes the service with Socialite::fake(), or
-     * gives its provider a client of its own with setHttpClient(). Apple fetches its signing keys with a client
-     * of its own, which this does not reach.
+     * gives its provider a client of its own with setHttpClient().
      */
     private function preventSignInRequests(): void
     {

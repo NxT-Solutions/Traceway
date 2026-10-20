@@ -80,7 +80,7 @@ class ConnectionsController extends Controller
         description: 'The service.',
         in: 'path',
         required: true,
-        schema: new Schema(type: 'string', enum: ['google', 'apple', 'facebook', 'instagram', 'x', 'github', 'discord', 'garmin_connect', 'wahoo', 'ride_with_gps', 'runsignup', 'openstreetmap']),
+        schema: new Schema(type: 'string', enum: ['google', 'github', 'discord', 'wahoo', 'ride_with_gps', 'runsignup', 'openstreetmap']),
     )]
     #[OpenApiResponse(
         response: HttpResponse::HTTP_FOUND,

@@ -6,7 +6,6 @@ use App\Account\ConnectionProvider;
 use App\Account\RouteService;
 use App\Domain\Routing\Sport;
 use App\Domain\Usage\UsageMetric;
-use App\Http\Controllers\Auth\AppleCallbackController;
 use App\Http\Controllers\Auth\ConnectionCallbackController;
 use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\Auth\FinishSignUpController;
@@ -77,13 +76,6 @@ Route::get('settings/services/{provider}/callback', ConnectionCallbackController
     ->whereIn('provider', array_map(static fn (RouteService $routeService): string => $routeService->value, RouteService::cases()))
     ->middleware('throttle:connections')
     ->name('services.callback');
-
-// Apple posts its answer from its own site. Outside the web middleware: no session to replace the rider's own,
-// and no CSRF token to ask Apple for. The answer goes on to the callback above, where the session is checked.
-Route::post('auth/apple/callback', AppleCallbackController::class)
-    ->withoutMiddleware('web')
-    ->middleware('throttle:connections')
-    ->name('connections.apple');
 
 Route::get('/', fn () => Inertia::render('welcome'))->name('home');
 

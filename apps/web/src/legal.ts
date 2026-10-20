@@ -51,7 +51,7 @@ export const privacy: LegalPage = {
                 '**Your saved routes.** The name, the sport, what you asked the planner for, the line itself, its start and finish, every leg of a multisport plan, and the climb, surfaces, turns, and stops along it. Each saved route also gets a picture of the route on the map, for shared links.',
                 '**Your watches.** The name you give a watch, a pairing code that works for 10 minutes, the key the watch uses to fetch your routes (stored only as a hash), and when it last did.',
                 '**AI assistants you connect.** Which app you connected, the sign-in keys it uses, and when they run out.',
-                '**Accounts you connect.** If you log in with, or connect, an account you have at another service, such as Google or Garmin Connect: which service, your account number there, when you connected and when you last logged in with it, and what you allowed. With the number, it keeps the email address Google, Apple, Facebook, Wahoo, Ride with GPS, or RunSignup shares, your username at X, GitHub, Discord, or Instagram, and your display name at OpenStreetMap. For Garmin Connect, it keeps only the number. Only Wahoo, Ride with GPS, and Garmin Connect give Traceway keys that it keeps, encrypted: Wahoo and Ride with GPS to send your routes, and Garmin Connect so Traceway can remove its access when you disconnect. Traceway renews the Garmin Connect keys once a week, so they still work when you do. For Wahoo and Ride with GPS, it also keeps which routes you sent there.',
+                '**Accounts you connect.** If you log in with, or connect, an account you have at another service, such as Google or GitHub: which service, your account number there, when you connected and when you last logged in with it, and what you allowed. With the number, it keeps the email address Google, Wahoo, Ride with GPS, or RunSignup shares, your username at GitHub or Discord, and your display name at OpenStreetMap. Only Wahoo and Ride with GPS give Traceway keys that it keeps, encrypted, to send your routes. For them, it also keeps which routes you sent there.',
                 '**When you last used Traceway.** The time you last used the planner, the watch app, or a connected AI assistant, to the quarter of an hour, and your role, which is User unless you help run Traceway. It shows how many riders come back, and helps when you ask for help with your account. It is in your copy of your data.',
                 '**Totals of what is used.** Each day, the server adds up how often each part of Traceway is used, such as routes drawn, files exported, sign-ins, and watch syncs. A total says how many times, never who.',
                 '**Signing in.** While you are signed in, the server keeps a session with your IP address and the name of your browser. It keeps you signed in and helps stop someone else from using your account.',
@@ -123,9 +123,9 @@ export const privacy: LegalPage = {
             paragraphs: [
                 'You can log in with an account you already have at another service, or connect one under Settings, then Connections. When you do, you go to that company’s own page, log in there, and choose what to allow. The company then tells Traceway who you are. It handles your data there under its own privacy policy, not on behalf of NxT-Solutions.',
                 'Traceway opens a new account straight away only when the service confirms your email address. If it does not, or shares none, Traceway emails you a link that works for 60 minutes. Your account is opened only when you use that link. Open it in the same browser you started in, and the service is connected too. Opened anywhere else, the link still opens your account, but the service is not connected: you can connect it later under Settings, then Connections.',
-                'Google, Apple, Discord, Wahoo, Ride with GPS, and RunSignup are run by companies of the same name. Facebook and Instagram are run by Meta, GitHub by Microsoft, X by X Corp., Garmin Connect by Garmin, and OpenStreetMap by the OpenStreetMap Foundation.',
-                'Traceway sends these services nothing about you, except the routes you send to Wahoo or Ride with GPS: each route’s name, sport, line, distance, and climb. From there, the service handles the route under its own privacy policy. Traceway uses the keys Wahoo, Ride with GPS, and Garmin Connect gave it only to send those routes, to look up which account the keys belong to, to renew them, and to withdraw them.',
-                'Disconnect an account, or delete yours, and Traceway forgets the connection. It also asks Wahoo, Ride with GPS, and Garmin Connect to withdraw the keys they gave it, and does the same when you cancel opening an account with one of them. For the others, you can remove Traceway in your account at the service.',
+                'Google, Discord, Wahoo, Ride with GPS, and RunSignup are run by companies of the same name. GitHub is run by Microsoft, and OpenStreetMap by the OpenStreetMap Foundation.',
+                'Traceway sends these services nothing about you, except the routes you send to Wahoo or Ride with GPS: each route’s name, sport, line, distance, and climb. From there, the service handles the route under its own privacy policy. Traceway uses the keys Wahoo and Ride with GPS gave it only to send those routes, to look up which account the keys belong to, to renew them, and to withdraw them.',
+                'Disconnect an account, or delete yours, and Traceway forgets the connection. It also asks Wahoo and Ride with GPS to withdraw the keys they gave it, and does the same when you cancel opening an account with one of them. For the others, you can remove Traceway in your account at the service.',
             ],
         },
         {
@@ -140,7 +140,7 @@ export const privacy: LegalPage = {
             heading: 'Outside the EU',
             paragraphs: [
                 'Cloudflare, Resend, and Sentry are American companies. When your data leaves the European Economic Area, it is protected by the EU-U.S. Data Privacy Framework or by the EU’s standard contractual clauses.',
-                'Most of the services you can log in with are American companies too. The OpenStreetMap Foundation is in the United Kingdom, and Garmin is in the United States and Switzerland. The EU recognises the United Kingdom and Switzerland as protecting data well. What they learn about you, they learn because you chose to log in with them, connect them, or send them a route.',
+                'Most of the services you can log in with are American companies too. The OpenStreetMap Foundation is in the United Kingdom, which the EU recognises as protecting data well. What they learn about you, they learn because you chose to log in with them, connect them, or send them a route.',
             ],
         },
         {
@@ -184,7 +184,7 @@ export const privacy: LegalPage = {
                 '**Correct it:** Settings, then Profile.',
                 '**Delete it:** delete a route in your library, or your whole account under Settings, then Profile. It is deleted straight away.',
                 '**Disconnect a watch or an AI assistant:** Settings, then Devices or AI assistants.',
-                '**Disconnect a connected account:** Settings, then Connections. For Wahoo, Ride with GPS, and Garmin Connect, this also asks the service to withdraw Traceway’s access. For the others, remove Traceway in your account at the service too.',
+                '**Disconnect a connected account:** Settings, then Connections. For Wahoo and Ride with GPS, this also asks the service to withdraw Traceway’s access. For the others, remove Traceway in your account at the service too.',
             ],
             after: [
                 `You also have the right to ask what is kept about you, to object to how it is used, to limit its use, and to take it with you. Email ${email}, and you will get an answer within a month.`,
@@ -262,7 +262,7 @@ export const terms: LegalPage = {
         {
             heading: 'Other services',
             paragraphs: [
-                'Traceway works with services it does not run: the map services, AI assistants such as Claude and ChatGPT, the accounts you log in with, such as Google, Apple, and GitHub, and watches and apps from Garmin, Wahoo, Ride with GPS, and others. Their own terms apply to them. Traceway is not linked to, or endorsed by, any of them.',
+                'Traceway works with services it does not run: the map services, AI assistants such as Claude and ChatGPT, the accounts you log in with, such as Google and GitHub, and watches and apps from Garmin, Wahoo, Ride with GPS, and others. Their own terms apply to them. Traceway is not linked to, or endorsed by, any of them.',
             ],
         },
         {
@@ -343,7 +343,7 @@ export const cookies: LegalPage = {
         {
             heading: 'Logging in with another service',
             paragraphs: [
-                'When you log in with an account at another service, such as Google or Garmin Connect, you go to that service’s own page. It may set its own cookies there, under its own policy. Traceway sets none for it, apart from last_sign_in and finish_sign_up above.',
+                'When you log in with an account at another service, such as Google or GitHub, you go to that service’s own page. It may set its own cookies there, under its own policy. Traceway sets none for it, apart from last_sign_in and finish_sign_up above.',
             ],
         },
         {
@@ -398,7 +398,7 @@ export const notice: LegalPage = {
         {
             heading: 'Other names',
             paragraphs: [
-                'Garmin, Garmin Connect, Connect IQ, ClimbPro, COROS, Suunto, Wahoo, Hammerhead, Bryton, Ride with GPS, RunSignup, OpenStreetMap, Google, Apple, Facebook, Instagram, X, GitHub, Discord, Claude, ChatGPT, Codex, Cursor, and Visual Studio Code are trademarks of their owners. Traceway is not linked to, or endorsed by, any of them.',
+                'Garmin, Garmin Connect, Connect IQ, ClimbPro, COROS, Suunto, Wahoo, Hammerhead, Bryton, Ride with GPS, RunSignup, OpenStreetMap, Google, GitHub, Discord, Claude, ChatGPT, Codex, Cursor, and Visual Studio Code are trademarks of their owners. Traceway is not linked to, or endorsed by, any of them.',
             ],
         },
         {

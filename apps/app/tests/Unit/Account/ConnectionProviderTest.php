@@ -74,12 +74,12 @@ it('sends routes through exactly the services Send to device knows', function ()
     expect($sending)->toBe([ConnectionProvider::Wahoo, ConnectionProvider::RideWithGps])
         ->and(ConnectionProvider::Wahoo->routeService())->toBe(RouteService::Wahoo)
         ->and(ConnectionProvider::RideWithGps->routeService())->toBe(RouteService::RideWithGps)
-        ->and(ConnectionProvider::GarminConnect->routeService())->toBeNull()
+        ->and(ConnectionProvider::GitHub->routeService())->toBeNull()
         ->and(ConnectionProvider::Google->routeService())->toBeNull();
 });
 
 it('keeps keys only where Traceway needs them, and then removes its own access', function (ConnectionProvider $connectionProvider): void {
-    $keepsKeys = in_array($connectionProvider, [ConnectionProvider::Wahoo, ConnectionProvider::RideWithGps, ConnectionProvider::GarminConnect], strict: true);
+    $keepsKeys = in_array($connectionProvider, [ConnectionProvider::Wahoo, ConnectionProvider::RideWithGps], strict: true);
 
     expect($connectionProvider->keepsKeys())->toBe($keepsKeys);
 
@@ -88,16 +88,15 @@ it('keeps keys only where Traceway needs them, and then removes its own access',
     }
 })->with(ConnectionProvider::cases());
 
-it('keeps no account name where the service does not allow it', function (ConnectionProvider $connectionProvider): void {
-    expect($connectionProvider->keepsAccountLabel())
-        ->toBe($connectionProvider !== ConnectionProvider::GarminConnect);
+it('keeps the account name every service here allows', function (ConnectionProvider $connectionProvider): void {
+    expect($connectionProvider->keepsAccountLabel())->toBeTrue();
 })->with(ConnectionProvider::cases());
 
 it('links to a secure page at the service, or to none', function (ConnectionProvider $connectionProvider): void {
     $url = $connectionProvider->manageUrl();
 
     if ($url === null) {
-        expect(in_array($connectionProvider, [ConnectionProvider::Discord, ConnectionProvider::GarminConnect, ConnectionProvider::Wahoo, ConnectionProvider::RideWithGps], strict: true))->toBeTrue();
+        expect(in_array($connectionProvider, [ConnectionProvider::Discord, ConnectionProvider::Wahoo, ConnectionProvider::RideWithGps], strict: true))->toBeTrue();
 
         return;
     }
@@ -115,8 +114,8 @@ it('groups the services so a rider finds theirs', function (): void {
     }
 
     expect($groups)->toBe([
-        'accounts' => ['google', 'apple', 'facebook', 'instagram', 'x', 'github', 'discord'],
-        'sport' => ['garmin_connect', 'wahoo', 'ride_with_gps', 'runsignup'],
+        'accounts' => ['google', 'github', 'discord'],
+        'sport' => ['wahoo', 'ride_with_gps', 'runsignup'],
         'maps' => ['openstreetmap'],
     ])
         ->and(ConnectionGroup::Accounts->label())->toBe('Everyday accounts')
@@ -130,7 +129,7 @@ it('ranks every service in its own place', function (): void {
 
     expect($ranks)->toBe(range(1, count(ConnectionProvider::cases())))
         ->and(ConnectionProvider::Google->rank())->toBe(1)
-        ->and(ConnectionProvider::RunSignup->rank())->toBe(12);
+        ->and(ConnectionProvider::RunSignup->rank())->toBe(7);
 });
 
 it('never uses words that belong to another brand', function (): void {
@@ -173,10 +172,9 @@ it('keeps every service off in tests until a test turns it on', function (): voi
     expect(resolve(IdentityProviders::class)->enabled())->toBe([]);
 });
 
-it('says X, GitHub, and Discord keep the account number and username, which is all their connection stores', function (ConnectionProvider $connectionProvider): void {
+it('says GitHub and Discord keep the account number and username, which is all their connection stores', function (ConnectionProvider $connectionProvider): void {
     expect($connectionProvider->keeps()[0])->toBe('Your '.$connectionProvider->label().' account number and username.');
 })->with([
-    'X' => ConnectionProvider::X,
     'GitHub' => ConnectionProvider::GitHub,
     'Discord' => ConnectionProvider::Discord,
 ]);

@@ -18,27 +18,22 @@ function connectionsGuideText(string $path): string
 }
 
 /**
- * The services a sentence of the privacy policy names, such as "Only Wahoo, Ride with GPS, and Garmin Connect give".
+ * The services a sentence of the privacy policy names, such as "Only Wahoo and Ride with GPS give".
  *
  * @return list<string>
  */
 function connectionsGuideNames(string $sentence): array
 {
     return array_values(array_filter(array_map(
-        fn (string $name): string => trim((string) preg_replace('/^and /', '', trim($name))),
-        explode(',', $sentence),
+        trim(...),
+        preg_split('/,\s*(?:and\s+)?|\s+and\s+/', $sentence) ?: [],
     )));
 }
-
-it('tells the operator to register the sender with Apple before turning Apple on', function (): void {
-    expect(connectionsGuideText('apps/app/.env.example'))->toContain('Sign in with Apple for Email Communication')
-        ->and(connectionsGuideText('docs/device-providers.md'))->toContain('Sign in with Apple for Email Communication');
-});
 
 it('documents connection commands that exist', function (): void {
     preg_match_all('/php artisan (connections:[a-z-]+)/', connectionsGuideText('docs/device-providers.md'), $matches);
 
-    expect($matches[1])->toContain('connections:identify', 'connections:keep-access')
+    expect($matches[1])->toContain('connections:identify')
         ->and(array_diff($matches[1], array_keys(Artisan::all())))->toBe([]);
 });
 
