@@ -185,7 +185,7 @@ final class PlanMultisportTool extends Tool
                 ->max(4)
                 ->description('Land legs in order, when there is no event. Up to four.'),
             'quiet_roads' => $schema->boolean()
-                ->description('On foot, put walkways and pavements first. On a bike, put cycle paths and quiet lanes first, and busy roads lose. Defaults to true.'),
+                ->description('On foot, put walkways first. On a bike, put cycle paths and quiet lanes first, and busy roads lose. Defaults to true.'),
             'name' => $schema->string()
                 ->max(80)
                 ->description('A name for the saved plan. Optional.'),
