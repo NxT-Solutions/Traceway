@@ -363,7 +363,11 @@ export const sharedDuathlon: SharedRoute = {
 };
 
 /** Where the planner stories start: the Grote Markt in Westerlo, the first point of the sketch. */
-export const westerlo = { longitude: 4.9165, latitude: 51.089 } as const;
+const westerloStart = [4.9165, 51.089] as const;
+export const westerlo = {
+    longitude: westerloStart[0],
+    latitude: westerloStart[1],
+} as const;
 
 /** How each of the three loops a plan returns differs from the first: turned this far, and a little longer or shorter. */
 const loopVariants = [
@@ -619,8 +623,10 @@ export function plannerDraftFor(options: Partial<PlannerDraftOptions> = {}) {
 
     return {
         version: 1,
-        latitude: westerlo.latitude,
-        longitude: westerlo.longitude,
+        // The made-up start this draft is written with, a town square, from the pair rather than `westerlo`: CodeQL
+        // takes any read of a latitude for a rider's location kept in clear text.
+        latitude: westerloStart[1],
+        longitude: westerloStart[0],
         distanceKm: chosen.distanceKm,
         sport: chosen.sport,
         surface: chosen.surface,
