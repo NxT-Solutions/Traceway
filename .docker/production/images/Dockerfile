@@ -17,7 +17,7 @@ RUN apk add --no-cache \
     su-exec \
     unzip
 
-RUN curl -fsSL https://bun.sh/install | bash -s bun-v1.3.6 \
+RUN curl -fsSL https://bun.sh/install | bash -s bun-v1.4.3 \
     && ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
 
 ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/download/2.12.0/install-php-extensions /usr/local/bin/
