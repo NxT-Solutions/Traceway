@@ -1,6 +1,6 @@
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import SiteHeader from '../../components/SiteHeader.astro';
-import { shows } from '../support/play';
+import { onDocsPage, shows } from '../support/play';
 import type { Meta, StoryObj } from '../support/types';
 
 const sections = [
@@ -82,6 +82,10 @@ export const PhoneMenu: Story = {
     name: 'Phone, menu',
     globals: { viewport: { value: 'phone', isRotated: false } },
     play: async ({ canvasElement }) => {
+        if (onDocsPage()) {
+            return;
+        }
+
         const page = within(canvasElement);
         const button = page.getByRole('button', { name: 'Open the menu' });
         const menu = canvasElement.querySelector<HTMLElement>('#menu');
@@ -115,6 +119,10 @@ export const PhoneMenuKeyboard: Story = {
     name: 'Phone, menu from the keyboard',
     globals: { viewport: { value: 'phone', isRotated: false } },
     play: async ({ canvasElement }) => {
+        if (onDocsPage()) {
+            return;
+        }
+
         const page = within(canvasElement);
         const button = page.getByRole('button', { name: 'Open the menu' });
 

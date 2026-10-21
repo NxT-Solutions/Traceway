@@ -149,6 +149,13 @@ jobs:
           check /storybook/app/mockServiceWorker.js 200
           check /storybook/web/ 200
           check /storybook/web/index.json 200
+          # The site's stories are rendered once, at build time. Each must come wrapped in Canvas.astro, which brings
+          # the site's stylesheets: when the preview fails to load there, every story is built bare, unstyled.
+          stories=$(curl --silent --fail http://127.0.0.1:8090/storybook/web/astro-prerendered-stories.json) \
+            || { echo "::error::The site's prerendered stories are missing"; exit 1; }
+          jq -e 'length > 0' <<< "$stories" > /dev/null || { echo "::error::No site story was prerendered"; exit 1; }
+          bare=$(jq -r 'to_entries[] | select(.value | contains("class=\"sb-site") | not) | .key' <<< "$stories")
+          [ -z "$bare" ] || { echo "::error::Built without the site's stylesheets: $(echo $bare)"; exit 1; }
           headers=$(curl --silent --head http://127.0.0.1:8090/storybook/app/)
           grep -qi "frame-ancestors 'self'" <<< "$headers" || { echo "::error::Storybook lost its frame policy"; exit 1; }
           grep -qi 'x-robots-tag: noindex' <<< "$headers" || { echo "::error::Storybook is not kept out of search"; exit 1; }

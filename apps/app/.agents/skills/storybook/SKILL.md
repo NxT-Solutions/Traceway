@@ -52,6 +52,8 @@ The site's Storybook works on its own too, in `apps/web` (npm, its own lockfile:
 
 - `npm run storybook` serves it on port 6007 with live Controls: Astro renders the story again on each change. The planner's `storybook dev` shows it under Site (Astro) from there (or from `STORYBOOK_SITE_URL`).
 - `npm run build-storybook` writes `apps/web/storybook-static` (gitignored). Astro renders each story once, so in the build its Controls are fixed. Served beside the planner's at `/storybook/web/`, the planner's build finds it at `../web` for Site (Astro).
+  - That render runs on the server and loads `.storybook/preview.ts` there, with no `window`. If loading it fails, the build only warns and leaves out `Canvas.astro`, so every story ships without the site's stylesheets. Keep browser-only code in the preview behind `typeof window !== 'undefined'`. CI checks that each story in `astro-prerendered-stories.json` holds `class="sb-site`.
+  - A docs page shows each story in its own frame, all at once, as wide as the docs column. A play that needs the phone width or the keyboard returns early when `onDocsPage()` (`src/stories/support/play.ts`), and runs in full on the story's own page and in the tests.
 - `npm run test-storybook` runs every story in Chromium: it must render, its play function must pass, and axe must find nothing (`a11y.test: 'error'`). In DDEV, where other agents run tests too, add `--no-file-parallelism --browser.api.port=<free port>`.
 - `.storybook/astro-scripts.ts` runs the components' `<script>`s in stories. `@storybook-astro/framework` 1.13.0 does this itself; remove the plugin when moving to it.
 
