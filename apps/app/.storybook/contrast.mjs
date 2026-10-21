@@ -1,9 +1,11 @@
-// Checks that every page of the built Storybook can be read: each docs page
-// and each story, in Paper and in Ink, through axe's colour-contrast rule.
+// Checks that every docs page of the built Storybook can be read, in Paper and
+// in Ink, through axe's colour-contrast rule.
 //
 // The Vitest run (`bun run test:storybook`) checks every story with all of
-// axe's rules, but not the docs pages, where MDX text and the token tables
-// sit on Storybook's own ground. This covers both.
+// axe's rules, colour contrast among them, in Paper and in Ink. It does not
+// open the docs pages, where MDX text and the token tables sit on Storybook's
+// own ground. This covers those, and only those: checking each story again
+// took CI a quarter of an hour.
 //
 // Run after `bun run build-storybook`: `node .storybook/contrast.mjs`. It
 // writes storybook-static/contrast.json and fails when anything is unreadable.
@@ -58,9 +60,9 @@ await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 
 const { entries } = JSON.parse(readFileSync(index, 'utf8'));
-// Only this Storybook's own pages: a composed one (the Astro site) is not in
-// index.json and checks itself.
-const pages = Object.values(entries);
+// Only this Storybook's own docs pages: a composed one (the Astro site) is not
+// in index.json and checks itself.
+const pages = Object.values(entries).filter((entry) => entry.type === 'docs');
 const browser = await chromium.launch({ args: ['--disable-dev-shm-usage'] });
 const failures = [];
 let checked = 0;
@@ -93,8 +95,8 @@ async function check(entry, appearance) {
     // Reduced motion, so popovers and dialogs are read open, not mid-fade.
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
     const page = await context.newPage();
-    const mode = entry.type === 'docs' ? 'docs' : 'story';
-    const target = mode === 'docs' ? '#storybook-docs' : '#storybook-root';
+    const mode = 'docs';
+    const target = '#storybook-docs';
 
     try {
         await page.goto(`${base}/iframe.html?id=${entry.id}&viewMode=${mode}&globals=appearance:${appearance}`, {
