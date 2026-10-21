@@ -2,7 +2,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import Consent from '../../components/Consent.astro';
 import SiteFooter from '../../components/SiteFooter.astro';
 import Stack from '../support/Stack.astro';
-import { shows } from '../support/play';
+import { onDocsPage, shows } from '../support/play';
 import type { Meta, StoryObj } from '../support/types';
 
 const key = 'traceway.consent';
@@ -41,6 +41,10 @@ type Story = StoryObj;
 export const AcceptCounting: Story = {
     name: 'First visit, yes',
     play: async ({ canvasElement }) => {
+        if (onDocsPage()) {
+            return;
+        }
+
         const banner = await question(canvasElement);
 
         await userEvent.click(
@@ -60,6 +64,10 @@ export const AcceptCounting: Story = {
 export const DeclineCounting: Story = {
     name: 'First visit, no',
     play: async ({ canvasElement }) => {
+        if (onDocsPage()) {
+            return;
+        }
+
         const banner = await question(canvasElement);
 
         await userEvent.click(
@@ -75,6 +83,10 @@ export const DeclineCounting: Story = {
 export const DismissWithEscape: Story = {
     name: 'First visit, Escape',
     play: async ({ canvasElement }) => {
+        if (onDocsPage()) {
+            return;
+        }
+
         const banner = await question(canvasElement);
 
         within(banner).getByRole('button', { name: 'No, thanks' }).focus();
@@ -99,6 +111,10 @@ export const AskAgain: Story = {
         }),
     ],
     play: async ({ canvasElement }) => {
+        if (onDocsPage()) {
+            return;
+        }
+
         const banner = canvasElement.querySelector<HTMLElement>('[data-consent]');
         const page = within(canvasElement);
 

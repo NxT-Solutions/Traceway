@@ -25,7 +25,13 @@ it('keeps the two Storybooks on the same storage rules', function (): void {
     $code = fn (string $source): string => preg_replace('/^\/\/.*\n/m', '', $source) ?? '';
 
     expect($app)->toContain("pathname.startsWith('/storybook/')")
-        ->toContain("prefix = 'storybook:'")
+        // The static build loads the site's preview on the server, where there is no window. Without the check the
+        // preview fails there, and every site story is built without its stylesheets.
+        ->toContain("typeof window !== 'undefined'")
+        // A frame of its own per story, so the stories side by side on a docs page never share an answer, and the
+        // keys go with the frame.
+        ->toContain('prefix = `storybook:${frame}:`')
+        ->toContain("addEventListener('pagehide'")
         ->toContain('path=/storybook/')
         // So a request that slips past Storybook fails Laravel's CSRF check.
         ->toContain("!pair.startsWith('XSRF-TOKEN=')")
