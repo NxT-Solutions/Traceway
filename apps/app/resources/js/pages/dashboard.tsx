@@ -2058,7 +2058,7 @@ export default function Dashboard() {
 
         node.dataset.summary = peekLabel;
 
-        const fit = () => {
+        const fitPeek = () => {
             if (!window.matchMedia('(max-width: 1023px)').matches) {
                 node.style.removeProperty('--peek');
 
@@ -2079,10 +2079,10 @@ export default function Dashboard() {
             node.style.setProperty('--peek', `${Math.max(96, peek)}px`);
         };
 
-        fit();
-        window.addEventListener('resize', fit);
+        fitPeek();
+        window.addEventListener('resize', fitPeek);
 
-        return () => window.removeEventListener('resize', fit);
+        return () => window.removeEventListener('resize', fitPeek);
     }, [peekLabel]);
     routesRef.current = routes;
     routeIndexRef.current = routeIndex;

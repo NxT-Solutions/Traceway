@@ -2008,9 +2008,15 @@
                                             "oneOf": [
                                                 {
                                                     "$ref": "#/components/schemas/RouteDetails"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "nullable": true,
+                                                    "enum": [
+                                                        null
+                                                    ]
                                                 }
-                                            ],
-                                            "nullable": true
+                                            ]
                                         }
                                     },
                                     "type": "object"
@@ -2997,9 +3003,15 @@
                         "oneOf": [
                             {
                                 "$ref": "#/components/schemas/RouteDetails"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
                             }
                         ],
-                        "nullable": true,
                         "description": "The climb, surfaces, turns, and stops. Null for a multisport plan or a route saved before they were read."
                     },
                     "legs": {
@@ -3050,9 +3062,15 @@
                                     "oneOf": [
                                         {
                                             "$ref": "#/components/schemas/RouteDetails"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "nullable": true,
+                                            "enum": [
+                                                null
+                                            ]
                                         }
                                     ],
-                                    "nullable": true,
                                     "description": "The climb, surfaces, turns, and stops of a land leg. Null for the swim or a plan saved before they were read."
                                 }
                             },
