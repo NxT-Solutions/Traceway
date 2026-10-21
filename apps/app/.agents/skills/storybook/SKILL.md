@@ -60,7 +60,7 @@ The site's Storybook works on its own too, in `apps/web` (npm, its own lockfile:
 Tests in `apps/app` (also in Storybook's Testing panel while `storybook dev` runs):
 
 - `bun run test:storybook` runs every story in Chromium twice, Paper then Ink: it must render, its play function must pass, and axe must find nothing. In DDEV add `--no-file-parallelism` (parallel runs crash Chromium there) and `--browser.api.port=<free port>` when another run may be going. Add `--coverage` for the report in `storybook-coverage/`.
-- `bun run test:storybook:contrast`, after a build, opens every story and docs page of `storybook-static` in Paper and Ink and fails on any text axe can't read.
+- `bun run test:storybook:contrast`, after a build, opens every docs page of `storybook-static` in Paper and Ink and fails on any text axe can't read. The stories themselves get the same rule from `bun run test:storybook`.
 - With `bun run storybook` running, the Storybook MCP server (http://localhost:6006/mcp, in `.mcp.json`) lets an agent list components, read their docs, preview stories and run their tests. Use it to find an existing component before writing a new one.
 
 `bun run design-system` builds Storybook into `storybook-static/`, checks `tokens.json` against `app.css` and `planner.css`, and writes `design-system/` (gitignored). Look at it with `python3 -m http.server --directory storybook-static`. CI uploads the same `design-system` folder as an artifact on every run.

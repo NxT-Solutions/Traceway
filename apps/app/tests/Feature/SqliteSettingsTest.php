@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 /**
  * The web, queue, and scheduler containers share one SQLite file, so the
@@ -26,7 +27,7 @@ afterEach(function (): void {
 
     foreach (is_string($path) ? [$path, $path.'-wal', $path.'-shm'] : [] as $file) {
         if (is_file($file)) {
-            unlink($file);
+            File::delete($file);
         }
     }
 });

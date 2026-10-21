@@ -49,12 +49,12 @@ jobs:
       - name: Set Up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.3.6
+          bun-version: 1.4.3
 
       - name: Set Up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
@@ -114,14 +114,6 @@ jobs:
         working-directory: apps/app
         run: bun run design-system
 
-      # Every planner story is a test in Chromium, once in Paper and once in
-      # Ink: it must render, its play function must pass, and axe must find no
-      # accessibility violation. The coverage report shows which components and
-      # pages the stories reach.
-      - name: Test Planner Stories
-        working-directory: apps/app
-        run: bun run test:storybook:coverage
-
       # Both Storybooks and the overview page as production serves them: the
       # production nginx config, Storybook's own headers, and the redirect for
       # a folder without its slash.
@@ -162,20 +154,18 @@ jobs:
           grep -qi 'referrer-policy: same-origin' <<< "$headers" || { echo "::error::Storybook no longer sends its address to Laravel"; exit 1; }
           docker rm -f storybook > /dev/null
 
-      # The docs pages too: every page of the built Storybook, in Paper and in
-      # Ink, through axe's colour-contrast rule.
-      - name: Check Every Page Is Readable
+      # The docs pages, which the story tests do not open: each one, in Paper
+      # and in Ink, through axe's colour-contrast rule.
+      - name: Check Every Docs Page Is Readable
         working-directory: apps/app
         run: bun run test:storybook:contrast
 
-      - name: Upload Test Reports
+      - name: Upload Contrast Report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: storybook-reports
-          path: |
-            apps/app/storybook-coverage
-            apps/app/storybook-static/contrast.json
+          name: storybook-contrast
+          path: apps/app/storybook-static/contrast.json
           retention-days: 14
           if-no-files-found: ignore
 
@@ -185,3 +175,89 @@ jobs:
           name: design-system
           path: apps/app/design-system
           retention-days: 14
+
+  # Every planner story is a test in Chromium, once in Paper and once in Ink,
+  # each in its own job beside the build: it must render, its play function
+  # must pass, and axe must find no accessibility violation. The coverage
+  # report shows which components and pages the stories reach.
+  stories:
+    name: Test Planner Stories (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Paper
+            project: storybook
+            report: paper
+          - name: Ink
+            project: storybook-ink
+            report: ink
+
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set Up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.5"
+          extensions: bcmath, exif, intl, pcntl, pdo_sqlite, sqlite3, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Set Up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
+
+      - name: Set Up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+
+      - name: Cache Composer Packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/app/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/app/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Cache Bun Packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-${{ runner.os }}-${{ hashFiles('apps/app/bun.lock') }}
+          restore-keys: bun-install-${{ runner.os }}-
+
+      # The page stories import Wayfinder's routes, which artisan generates.
+      - name: Generate Routes
+        working-directory: apps/app
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+          php artisan wayfinder:generate --with-form
+
+      - name: Install Planner Dependencies
+        working-directory: apps/app
+        run: |
+          bun install --frozen-lockfile
+          bunx playwright install --with-deps --only-shell chromium
+
+      - name: Test Planner Stories
+        working-directory: apps/app
+        run: |
+          bunx msw init .storybook/msw --no-save
+          bunx vitest run --project ${{ matrix.project }} --coverage --coverage.reportsDirectory=storybook-coverage/${{ matrix.report }}
+
+      - name: Upload Coverage Report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: storybook-coverage-${{ matrix.report }}
+          path: apps/app/storybook-coverage
+          retention-days: 14
+          if-no-files-found: ignore
