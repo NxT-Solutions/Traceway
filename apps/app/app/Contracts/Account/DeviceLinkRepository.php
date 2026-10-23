@@ -39,6 +39,11 @@ interface DeviceLinkRepository
     public function revokeAll(RiderId $riderId): void;
 
     /**
+     * Unlinks the device behind a token, as the device asks. False when no device has it.
+     */
+    public function revokeToken(string $tokenHash): bool;
+
+    /**
      * The rider behind a device token. Marks the link as used.
      */
     public function riderForToken(string $tokenHash): ?RiderId;

@@ -40,7 +40,7 @@ class RouteDetail {
     function onLine(responseCode, data) {
         if (responseCode == 401) {
             Api.forget();
-            WatchUi.switchToView(new PairView(), new WatchUi.BehaviorDelegate(), WatchUi.SLIDE_IMMEDIATE);
+            Pairing.open(WatchUi.SLIDE_IMMEDIATE);
             return;
         }
 
@@ -118,7 +118,7 @@ class RouteDetail {
 
         if (responseCode == 401) {
             Api.forget();
-            WatchUi.switchToView(new PairView(), new WatchUi.BehaviorDelegate(), WatchUi.SLIDE_IMMEDIATE);
+            Pairing.open(WatchUi.SLIDE_IMMEDIATE);
             return;
         }
 

@@ -295,6 +295,36 @@
                 ]
             }
         },
+        "/api/device/link": {
+            "delete": {
+                "tags": [
+                    "Device"
+                ],
+                "summary": "Unlink the device that sends the token",
+                "description": "The rider chose Unlink device on the device. It leaves Settings, then Devices, and its token stops working at once.",
+                "operationId": "unlinkDevice",
+                "responses": {
+                    "204": {
+                        "description": "The device is unlinked."
+                    },
+                    "401": {
+                        "description": "The token is unknown, or the device was already removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
         "/api/device/pairings": {
             "post": {
                 "tags": [

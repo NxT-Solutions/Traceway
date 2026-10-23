@@ -5,6 +5,14 @@ import Toybox.System;
 import Toybox.WatchUi;
 
 // Fetches the route list, then hands over to a menu. A multisport plan shows one entry per land leg.
+module Routes {
+    // The route list, loaded afresh.
+    function open(transition) {
+        var view = new RoutesView();
+        WatchUi.switchToView(view, new RoutesDelegate(view), transition);
+    }
+}
+
 class RoutesView extends WatchUi.View {
     var _title = "Loading routes";
     var _detail = null;
@@ -24,7 +32,7 @@ class RoutesView extends WatchUi.View {
     function onRoutes(code, data) {
         if (code == 401) {
             Api.forget();
-            WatchUi.switchToView(new PairView(), new WatchUi.BehaviorDelegate(), WatchUi.SLIDE_IMMEDIATE);
+            Pairing.open(WatchUi.SLIDE_IMMEDIATE);
             return;
         }
 
@@ -46,9 +54,9 @@ class RoutesView extends WatchUi.View {
             if (legs.size() == 0) {
                 var numbers = summary(route);
 
-                var entry = { :name => route["name"], :title => route["title"], :sport => route["sport"], :summary => numbers, :path => base + "/fit", :line => base + "/line", :bounds => route["bounds"] };
+                var entry = { :name => route["name"], :title => route["title"], :sport => route["sport"], :summary => numbers, :detail => numbers, :brief => distance(route), :path => base + "/fit", :line => base + "/line", :bounds => route["bounds"] };
 
-                menu.addItem(item(entry, entries.size(), known, fit(route["title"], Graphics.FONT_MEDIUM), fit(numbers, Graphics.FONT_SMALL)));
+                menu.addItem(item(entry, entries.size(), known, Rows.fit(route["title"], Graphics.FONT_MEDIUM)));
                 entries.add(entry);
             }
 
@@ -56,49 +64,48 @@ class RoutesView extends WatchUi.View {
                 var part = legs[leg];
                 var which = "Leg " + part["n"] + " of " + route["title"];
 
-                var entry = { :name => part["name"], :title => part["name"], :sport => part["sport"], :summary => "Leg " + part["n"] + ", " + summary(part), :path => base + "/fit/" + part["n"], :line => base + "/line/" + part["n"], :bounds => part["bounds"] };
+                var entry = { :name => part["name"], :title => part["name"], :sport => part["sport"], :summary => "Leg " + part["n"] + ", " + summary(part), :detail => which, :brief => "Leg " + part["n"], :path => base + "/fit/" + part["n"], :line => base + "/line/" + part["n"], :bounds => part["bounds"] };
 
-                menu.addItem(item(entry, entries.size(), known, fit(part["name"], Graphics.FONT_MEDIUM), fit(which, Graphics.FONT_SMALL)));
+                menu.addItem(item(entry, entries.size(), known, Rows.fit(part["name"], Graphics.FONT_MEDIUM)));
                 entries.add(entry);
             }
         }
 
         if (entries.size() == 0) {
-            show("No saved routes yet", "Save a route in the Traceway planner, then open this again.");
+            show("No saved routes yet", "Save a route in the Traceway planner, then select to look again.");
             return;
         }
 
-        menu.addItem(Rows.plain(-1, "Unlink device"));
+        Rows.options(menu);
         WatchUi.switchToView(menu, new RoutesMenuDelegate(entries), WatchUi.SLIDE_IMMEDIATE);
     }
 
-    // One route's menu item. Its tile is green when the route is in the device's Courses.
-    function item(entry, id, known, label, detail) {
-        var row = Rows.route(id, label, detail, entry[:sport], Courses.find(known, entry) != null);
+    // One route's menu item. A route in the device's Courses has a green tile with a check, and says Saved.
+    function item(entry, id, known, label) {
+        var saved = Courses.find(known, entry) != null;
+        var row = Rows.route(id, label, Rows.detail(entry, saved), entry[:sport], saved);
 
         entry[:item] = row;
 
         return row;
     }
 
-    // A menu does not shorten a label before its icon, so long names are cut here, with an ellipsis.
-    function fit(text, font) {
-        var width = (System.getDeviceSettings().screenWidth * 0.7).toNumber();
-
-        return Graphics.fitTextToArea(text, font, width, Graphics.getFontHeight(font), true);
-    }
-
-    // A round watch draws the highlighted route larger and cuts what does not fit, so from 10 km it drops the decimal.
     function summary(route) {
-        var km = route["distance_metres"] / 1000.0;
-        var round = System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_ROUND;
-        var text = (round && km >= 9.95 ? Math.round(km).toNumber().toString() : km.format("%.1f")) + " km";
+        var text = distance(route);
 
         if (route["ascent_metres"] > 0) {
             text += ", +" + route["ascent_metres"] + " m";
         }
 
         return text;
+    }
+
+    // A round watch draws the highlighted route larger and cuts what does not fit, so from 10 km it drops the decimal.
+    function distance(route) {
+        var km = route["distance_metres"] / 1000.0;
+        var round = System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_ROUND;
+
+        return (round && km >= 9.95 ? Math.round(km).toNumber().toString() : km.format("%.1f")) + " km";
     }
 
     function show(title, detail) {
@@ -109,6 +116,86 @@ class RoutesView extends WatchUi.View {
 
     function onUpdate(dc) {
         Brand.message(dc, _title, _detail);
+
+        if (_detail != null && ownDots()) {
+            Brand.optionsButton(dc, Brand.optionsBox(dc.getWidth(), Brand.optionsBand(dc.getWidth())), Brand.PAPER);
+        }
+    }
+
+    // From API 6 a bike computer puts Garmin's own three dots in its title bar for a screen with options, so only an
+    // older Edge needs them drawn. A round watch opens options with its menu button.
+    function ownDots() {
+        return Brand.hasCorners() && System.getDeviceSettings().monkeyVersion[0] < 6;
+    }
+
+    // While the list loads, its answer replaces whatever is on top, so nothing else may open over this screen until then.
+    function loading() {
+        return _detail == null;
+    }
+
+    // Asks again after a message, for a route saved in the planner or a phone back in reach.
+    function retry() {
+        if (loading()) {
+            return;
+        }
+
+        show("Loading routes", null);
+        Api.get("/api/device/routes", method(:onRoutes));
+    }
+}
+
+// On a message screen: select looks again, and the menu button, or the three dots on a touch screen, opens the options.
+// While the list loads, both wait.
+class RoutesDelegate extends WatchUi.BehaviorDelegate {
+    var _view;
+
+    function initialize(view) {
+        BehaviorDelegate.initialize();
+        _view = view;
+    }
+
+    function onMenu() {
+        if (!_view.loading()) {
+            Options.show();
+        }
+
+        return true;
+    }
+
+    function onKey(keyEvent) {
+        var key = keyEvent.getKey();
+
+        if (key == WatchUi.KEY_ENTER || key == WatchUi.KEY_START) {
+            _view.retry();
+            return true;
+        }
+
+        return false;
+    }
+
+    // A touch screen sends a tap as select first. Declining it hands the tap, with its point, to onTap.
+    function onSelect() {
+        return false;
+    }
+
+    // A tap near the three dots opens the options. Anywhere else looks again.
+    function onTap(clickEvent) {
+        if (_view.loading()) {
+            return true;
+        }
+
+        var point = clickEvent.getCoordinates();
+        var width = System.getDeviceSettings().screenWidth;
+        var band = Brand.optionsBand(width);
+        var box = Brand.optionsBox(width, band);
+
+        if (_view.ownDots() && point[0] >= box[0] - box[2] && point[1] <= band) {
+            Options.show();
+        } else {
+            _view.retry();
+        }
+
+        return true;
     }
 }
 
@@ -124,20 +211,29 @@ class RoutesMenuDelegate extends WatchUi.Menu2InputDelegate {
         var id = item.getId();
 
         if (id == -1) {
-            Api.forget();
-            WatchUi.switchToView(new PairView(), new WatchUi.BehaviorDelegate(), WatchUi.SLIDE_RIGHT);
+            Options.show();
             return;
         }
 
         Detail.show(_entries[id]);
     }
+
+    // A tap on the title, where the three dots are.
+    function onTitle() {
+        Options.show();
+    }
+
+    function onMenu() {
+        Options.show();
+        return true;
+    }
 }
 
-// Repaints a route's tile after it is saved or removed, so the list is right on the way back.
+// Repaints a route's row after it is saved or removed, so the list is right on the way back.
 function markSaved(entry, saved) {
     var item = entry[:item];
 
     if (item != null) {
-        Rows.mark(item, entry[:sport], saved);
+        Rows.mark(item, entry[:sport], saved, Rows.detail(entry, saved));
     }
 }

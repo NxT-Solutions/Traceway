@@ -4,8 +4,8 @@ A device app for Garmin bike computers and watches. It lists the rider's saved T
 
 ## How it works
 
-1. The app asks `POST /api/device/pairings` for a code and shows it. The rider types it on the site, under Settings, then Devices, and the app collects its token.
-2. The route list shows every saved route with its sport, distance, and climb. A multisport plan shows one entry per land leg. A route that is in the device's Courses has its sport tile in green.
+1. The app asks `POST /api/device/pairings` for a code and shows it. The rider types it on the site, under Settings, then Devices, and the app collects its token. The menu button opens Options with **New code**, for a code that is hard to read or was typed wrong. After No connection, Enter or a tap asks again.
+2. The route list shows every saved route with its sport, distance, and climb. A multisport plan shows one entry per land leg. A route that is in the device's Courses has its sport tile in green with a check, and its second line starts with Saved, so it does not rest on colour alone. A round watch draws the highlighted row larger, with no room for the word and the climb, so there a saved route gives Saved and its distance, and its own screen gives the climb.
 3. Choosing a route opens its detail:
    - The route is drawn on the device's own map, framed by the `bounds` from the list. A device without maps (Forerunner 255 and 265) gets the shape drawn on ink.
    - Under it come the name and numbers, and two buttons:
@@ -13,7 +13,19 @@ A device app for Garmin bike computers and watches. It lists the rider's saved T
      - **Save**, which only puts the course in Courses.
    - A route already in Courses says so, starts straight away, and swaps Save for **Remove**. Remove asks first, then calls `Course.remove()`. The device only lets the app remove a course it saved itself, so a course that came from Garmin Connect or a cable gets a note to remove it under Courses instead.
    - The app remembers which course it saved for which route (`Application.Storage` key `courses`: download path to course id), so two routes with the same name stay apart, and a course deleted on the device shows as not saved. A course saved before the app kept that link is found by name.
-4. Removing the device in Settings stops its token. The app then asks for a new code.
+4. The list has Options, as Garmin's own pages do:
+   - **Refresh routes** fetches the list again, so a route saved in the planner since the app opened shows up without a restart. The empty and No connection screens look again on Enter or a tap.
+   - **Unlink device** asks first, then calls `DELETE /api/device/link`, forgets the token, and shows a new code. The device leaves Settings, then Devices, at once. Without a phone in reach the token is still forgotten, and the rider can remove the device in Settings.
+5. Removing the device in Settings stops its token. The app then asks for a new code.
+
+### Options
+
+A system menu (`Menu2`) never hears the menu button, so the list cannot open its options the way a plain screen does. Where they sit was measured in the simulator:
+- A touch Edge whose menus pass a tap on the title to the app (API 5.1 and up, and the drawn rows of the Edge 830) gets Garmin's three dots in the top right of the title. A tap on the title opens Options.
+- Every device that has buttons to move through the list, and every touch Edge without the dots (the 1030 family and the first Explore), gets an **Options** row at the end of the list, so the buttons alone reach it.
+- On the plain screens (no routes, no connection) the menu button opens Options. From API 6 an Edge draws its own three dots in its title bar there. An older Edge gets them drawn by the app, and a tap on them opens Options.
+- From API 6 an Edge draws its three dots on every app screen, the pairing code too, and an app cannot hide them. So the pairing screen has Options as well, with New code.
+- While the list loads, the menu button and the dots wait: the list's answer replaces whatever is on top.
 
 ### Buttons and touch
 
@@ -37,7 +49,7 @@ The app follows the planner: an ink ground (`#071f20`), paper type (`#f7f5ec`), 
 The drawables in `resources/drawables` are SVG sources, and the compiler renders them at each device's size. `resources-mip` holds the lime versions for 64-colour screens, and `resources-mip-icons` the lime saved tiles for those watches and the Edge MTB, which draws bitmaps in 64 colours.
 - the wordmark, Outfit 600 drawn as outlines, so no font is needed at build time;
 - the launcher icon, which is the favicon;
-- the sport tiles, the library's lucide glyphs on ink, and in ink on green for a route in Courses;
+- the sport tiles, the library's lucide glyphs on ink, and in ink on green, with a check in the corner, for a route in Courses;
 - the green check.
 
 ### Route list

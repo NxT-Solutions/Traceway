@@ -2,4 +2,7 @@
   <!-- A route saved in Courses, on a screen that draws bitmaps in 64 colours: lime, since the brand green snaps to olive. -->
   <rect width="40" height="40" rx="11" fill="#aaff55"/>
   <g transform="translate(8 8)" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></g>
+  <!-- The check badge: saved on this device, said with a mark as well as the colour. -->
+  <circle cx="33" cy="7" r="6.5" fill="#000000" stroke="#ffffff" stroke-width="1.5"/>
+  <path d="M30 7.2l2 2 4-4.2" fill="none" stroke="#aaff55" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

@@ -11,6 +11,56 @@ import Toybox.WatchUi;
 // device in the manifest: the box it hands an icon spans the row's height, or is a small square in the middle of the row,
 // so a tile drawn in the middle of that box is in the middle of the row.
 module Rows {
+    // A menu does not shorten a label before its icon, so long names are cut here, with an ellipsis.
+    function fit(text, font) {
+        var width = (System.getDeviceSettings().screenWidth * 0.7).toNumber();
+
+        return Graphics.fitTextToArea(text, font, width, Graphics.getFontHeight(font), true);
+    }
+
+    // A route's second line. A route in the device's Courses says so in words, not only with its green tile. A round watch
+    // draws the highlighted row larger and has no room for the word and the climb, so there a saved route gives its
+    // distance alone, and its own screen gives the climb.
+    function detail(entry, saved) {
+        if (!saved) {
+            return fit(entry[:detail], Graphics.FONT_SMALL);
+        }
+
+        var round = System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_ROUND;
+
+        return fit("Saved, " + (round ? entry[:brief] : entry[:detail]), Graphics.FONT_SMALL);
+    }
+
+    // A menu does not hear the menu button, so the list's options are behind the three dots in its title, which only a
+    // tap can reach. Every screen works with the buttons alone, so a device with buttons to move through the list also
+    // gets an Options row at its end, and so does a touch Edge without the dots.
+    function options(menu) {
+        var buttons = System.getDeviceSettings().inputButtons & System.BUTTON_INPUT_DOWN;
+
+        if (buttons != 0 || !hasDots()) {
+            menu.addItem(plain(-1, "Options", "Refresh or unlink"));
+        }
+    }
+
+    // Whether the list's title shows the three dots: a bike computer's touch screen whose menu passes a tap on the
+    // title on to the app.
+    function hasDots() {
+        var settings = System.getDeviceSettings();
+
+        return Brand.hasCorners() && settings.isTouchScreen && titleTaps(settings.monkeyVersion);
+    }
+
+    (:menurows)
+    function titleTaps(version) {
+        return version[0] > 5 || (version[0] == 5 && version[1] >= 1);
+    }
+
+    // A drawn list passes a tap on its title on at any version.
+    (:customrows)
+    function titleTaps(version) {
+        return true;
+    }
+
     (:menurows)
     function menu() {
         return new WatchUi.Menu2({ :title => new WordmarkTitle() });
@@ -22,13 +72,14 @@ module Rows {
     }
 
     (:menurows)
-    function plain(id, label) {
-        return new WatchUi.MenuItem(label, null, id, null);
+    function plain(id, label, detail) {
+        return new WatchUi.MenuItem(label, detail, id, null);
     }
 
     (:menurows)
-    function mark(item, sport, saved) {
+    function mark(item, sport, saved, detail) {
         item.setIcon(new TileIcon(sport, saved));
+        item.setSubLabel(detail);
     }
 
     // As tall as the system menu's rows on these Edges, which hold a name and a line of numbers.
@@ -52,8 +103,8 @@ module Rows {
     }
 
     (:customrows)
-    function plain(id, label) {
-        var row = new RouteRow(id, label, null, null, false);
+    function plain(id, label, detail) {
+        var row = new RouteRow(id, label, detail, null, false);
         drawn.add(row);
 
         return row;
@@ -81,8 +132,8 @@ module Rows {
     }
 
     (:customrows)
-    function mark(item, sport, saved) {
-        item.setSaved(saved);
+    function mark(item, sport, saved, detail) {
+        item.setSaved(saved, detail);
         WatchUi.requestUpdate();
     }
 }
@@ -118,12 +169,12 @@ class RouteRow extends WatchUi.CustomMenuItem {
     function initialize(id, label, detail, sport, saved) {
         CustomMenuItem.initialize(id, {});
         _label = label;
-        _detail = detail;
         _sport = sport;
-        setSaved(saved);
+        setSaved(saved, detail);
     }
 
-    function setSaved(saved) {
+    function setSaved(saved, detail) {
+        _detail = detail;
         _tile = _sport == null ? null : WatchUi.loadResource(Brand.sportIcon(_sport, saved));
     }
 

@@ -81,6 +81,49 @@ module Brand {
         }
     }
 
+    // Where the options button sits in the top right corner of a bike computer's screen: left, top, width, and height.
+    // Garmin's own pages put their three dots there.
+    // It sits in the middle of a band of the given height at the top, and fits in it.
+    function optionsBox(width, band) {
+        var tall = (width * 0.09).toNumber();
+        var gap = (width * 0.03).toNumber();
+
+        if (tall > band * 0.6) {
+            tall = (band * 0.6).toNumber();
+        }
+
+        var wide = (tall * 0.62).toNumber();
+
+        return [width - gap - wide, (band - tall) / 2, wide, tall];
+    }
+
+    // The band at the top of a plain screen that holds the options button.
+    function optionsBand(width) {
+        return (width * 0.15).toNumber();
+    }
+
+    // Garmin's options button: three dots stacked in a framed box.
+    function optionsButton(dc, box, color) {
+        var x = box[0];
+        var y = box[1];
+        var wide = box[2];
+        var tall = box[3];
+        var dot = (wide * 0.12).toNumber() + 1;
+        var step = tall / 4.0;
+
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.drawRoundedRectangle(x, y, wide, tall, 2);
+
+        for (var index = 1; index <= 3; index++) {
+            dc.fillCircle(x + wide / 2, y + (step * index).toNumber(), dot);
+        }
+    }
+
+    // Whether the screen has corners for the options button.
+    function hasCorners() {
+        return System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_RECTANGLE;
+    }
+
     // The primary action, in the words of the sport.
     function verb(sport) {
         if (sport.equals("run") || sport.equals("trail_run")) {
@@ -112,14 +155,17 @@ module Brand {
     }
 }
 
-// The wordmark at the top of a menu. A bike computer draws menus on white, so there it sits on an ink band.
+// The wordmark at the top of a menu. A bike computer draws menus on white, so there it sits on an ink band, with the
+// options button in its right corner where a tap can reach it.
 class WordmarkTitle extends WatchUi.Drawable {
     var _logo;
     var _band;
+    var _dots;
 
     function initialize() {
         Drawable.initialize({});
-        _band = System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_RECTANGLE;
+        _band = Brand.hasCorners();
+        _dots = Rows.hasDots();
         _logo = WatchUi.loadResource(_band ? Rez.Drawables.Wordmark : Rez.Drawables.WordmarkSmall);
     }
 
@@ -130,5 +176,9 @@ class WordmarkTitle extends WatchUi.Drawable {
         }
 
         dc.drawBitmap((dc.getWidth() - _logo.getWidth()) / 2, (dc.getHeight() - _logo.getHeight()) / 2, _logo);
+
+        if (_dots) {
+            Brand.optionsButton(dc, Brand.optionsBox(dc.getWidth(), dc.getHeight()), Brand.PAPER);
+        }
     }
 }
