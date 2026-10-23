@@ -610,6 +610,13 @@ export function plannerServer(options: Options = {}): PlannerServer {
             },
         ),
 
+        // FinishTourController: the planner will not show the tour on its own again.
+        http.post('/dashboard/tour', async ({ request }) => {
+            await note(request);
+
+            return new HttpResponse(null, { status: 204 });
+        }),
+
         // StoreRouteImageController: the picture for the share link is kept.
         http.post('/routes/saved/:route/image', async ({ request, params }) => {
             await note(request);

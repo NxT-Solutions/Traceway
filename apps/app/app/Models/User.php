@@ -30,6 +30,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $pending_email
  * @property Carbon|null $email_verified_at
  * @property Carbon|null $welcomed_at
+ * @property Carbon|null $toured_at
  * @property Carbon|null $last_seen_at
  * @property string|null $password
  * @property string|null $two_factor_secret
@@ -82,6 +83,7 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable,
         return [
             'email_verified_at' => 'datetime',
             'welcomed_at' => 'datetime',
+            'toured_at' => 'datetime',
             'last_seen_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',

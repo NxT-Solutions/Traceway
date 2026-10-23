@@ -66,6 +66,13 @@ interface UserRepository
      */
     public function markWelcomed(RiderId $riderId): ?Rider;
 
+    /**
+     * False until the planner has shown the rider around once.
+     */
+    public function toured(RiderId $riderId): bool;
+
+    public function markToured(RiderId $riderId): void;
+
     public function changePassword(RiderId $riderId, #[SensitiveParameter] string $password): Rider;
 
     public function delete(RiderId $riderId): Rider;
