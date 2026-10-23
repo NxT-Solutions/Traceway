@@ -16,6 +16,9 @@ const storybook = (name: string, appearance: 'light' | 'dark') => ({
     },
     test: {
         name,
+        // The planner's map stories draw a route through the mocked routing engine. On main, Plan a loop already
+        // takes about 10 s on a CI runner, so the 15 s default left little room on a slow one.
+        testTimeout: 30_000,
         browser: {
             enabled: true,
             headless: true,
