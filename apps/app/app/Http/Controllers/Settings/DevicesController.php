@@ -40,19 +40,21 @@ class DevicesController extends Controller
         $user = $this->user($request);
         $riderId = $user->id;
 
+        // While a device waits for its token the page asks for `devices` every few seconds, so the rest is
+        // only worked out on a full visit.
         return Inertia::render('settings/devices', [
             'devices' => $deviceLinksQuery->forRider($riderId),
-            'services' => $routeServicesQuery->forRider($riderId),
+            'services' => fn (): array => $routeServicesQuery->forRider($riderId),
             // Why Disconnect is turned off for a service, the same as on the connections page, or null.
-            'disconnectBlocked' => $connectionsQuery->disconnectBlocked(
+            'disconnectBlocked' => fn (): array => $connectionsQuery->disconnectBlocked(
                 $riderId,
                 array_map(static fn (RouteService $routeService): ConnectionProvider => $routeService->connection(), RouteService::cases()),
             ),
             // Connecting or disconnecting a service waits until the email is confirmed, the same as on the
             // connections page.
-            'emailVerified' => $user->hasVerifiedEmail(),
-            'verificationSent' => $request->session()->get('status') === Fortify::VERIFICATION_LINK_SENT,
-            'garminApp' => $this->garminApp(),
+            'emailVerified' => $user->hasVerifiedEmail(...),
+            'verificationSent' => fn (): bool => $request->session()->get('status') === Fortify::VERIFICATION_LINK_SENT,
+            'garminApp' => $this->garminApp(...),
         ]);
     }
 

@@ -251,7 +251,58 @@ it('shows linked devices on the settings page', function (): void {
             ->component('settings/devices')
             ->has('devices', 1)
             ->where('devices.0.label', 'Fenix 8')
-            ->where('devices.0.provider', 'Garmin'));
+            ->where('devices.0.provider', 'Garmin')
+            ->where('devices.0.waiting', expected: false));
+});
+
+it('lists a device as waiting until it collects its token, and drops it when its code runs out', function (): void {
+    $user = User::factory()->create();
+
+    $pairing = $this->postJson(route('device.pairings.start'))->assertCreated()->json();
+
+    $this->actingAs($user)
+        ->post(route('devices.store'), ['code' => $pairing['code'], 'label' => 'Edge 840'])
+        ->assertRedirect(route('devices.edit'));
+
+    $this->get(route('devices.edit'))->assertInertia(fn (Assert $assert): Assert => $assert
+        ->has('devices', 1)
+        ->where('devices.0.label', 'Edge 840')
+        ->where('devices.0.waiting', expected: true)
+        // The page asks for the devices again while one waits; the rest of the page is left out of that answer.
+        ->reloadOnly('devices', fn (Assert $assert): Assert => $assert->missing('services')->missing('disconnectBlocked')));
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('devices.edit'))
+        ->assertInertia(fn (Assert $assert): Assert => $assert->has('devices', 0));
+
+    $this->actingAs($user);
+    $this->travel((int) $pairing['expires_in'] + 1)->seconds();
+
+    $this->get(route('devices.edit'))->assertInertia(fn (Assert $assert): Assert => $assert->has('devices', 0));
+});
+
+it('removes a waiting device, so it never gets its token', function (): void {
+    $user = User::factory()->create();
+
+    $pairing = $this->postJson(route('device.pairings.start'))->assertCreated()->json();
+
+    $this->actingAs($user)->post(route('devices.store'), ['code' => $pairing['code'], 'label' => 'Edge 840']);
+
+    $id = (string) DB::table('device_links')->value('id');
+
+    $this->actingAs(User::factory()->create())
+        ->delete(route('devices.destroy', ['deviceLink' => $id]))
+        ->assertNotFound();
+
+    $this->actingAs($user)
+        ->delete(route('devices.destroy', ['deviceLink' => $id]))
+        ->assertRedirect(route('devices.edit'));
+
+    $this->get(route('devices.edit'))->assertInertia(fn (Assert $assert): Assert => $assert->has('devices', 0));
+
+    auth()->logout();
+
+    $this->postJson(route('device.pairings.claim'), ['secret' => $pairing['secret']])->assertGone();
 });
 
 it('links the settings page to the Traceway app in the Connect IQ store', function (): void {
