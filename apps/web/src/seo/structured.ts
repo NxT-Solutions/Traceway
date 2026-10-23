@@ -72,7 +72,20 @@ export const home = (site: Site, description: string): string =>
             softwareHelp: { '@type': 'WebPage', url: about.absolute(site, '/#faq') },
             publisher: { '@id': ref(site, 'org') },
             isPartOf: { '@id': ref(site, 'website') },
-            sameAs: [about.repository, about.garminApp],
+            sameAs: [about.repository],
+        },
+        {
+            // The watch app is its own app, in Garmin's store, not the planner.
+            '@type': 'SoftwareApplication',
+            '@id': ref(site, 'garmin-app'),
+            name: `${about.name} for Garmin`,
+            applicationCategory: 'SportsApplication',
+            operatingSystem: 'Garmin Connect IQ',
+            url: about.garminApp,
+            installUrl: about.garminApp,
+            isAccessibleForFree: true,
+            offers: { '@type': 'Offer', price: 0, priceCurrency: 'EUR' },
+            publisher: { '@id': ref(site, 'org') },
         },
         {
             '@type': 'HowTo',

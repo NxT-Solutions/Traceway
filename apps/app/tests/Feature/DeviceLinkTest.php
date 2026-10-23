@@ -255,6 +255,7 @@ it('shows linked devices on the settings page', function (): void {
 });
 
 it('links the settings page to the Traceway app in the Connect IQ store', function (): void {
+    config(['services.connect_iq.url' => 'https://apps.garmin.com', 'services.connect_iq.store_id' => 'a0c32e89-323f-4522-9ee8-c6af6cce14c3']);
     $user = User::factory()->create();
 
     $this->actingAs($user)->get(route('devices.edit'))->assertInertia(fn (Assert $assert): Assert => $assert

@@ -96,7 +96,7 @@ export const NoDevices: Story = {
     render: page(),
     play: async ({ canvasElement }) => {
         const store = within(canvasElement).getByRole('link', {
-            name: /Get Traceway in the Connect IQ store/,
+            name: /Get Traceway in Garmin's Connect IQ store/,
         });
 
         await expect(store).toHaveAttribute('href', props.garminApp);

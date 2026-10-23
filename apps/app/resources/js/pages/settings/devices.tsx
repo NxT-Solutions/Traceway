@@ -90,7 +90,7 @@ export default function Devices({
                 <Heading
                     variant="small"
                     title="Link a device"
-                    description="Open the Traceway app on your device. On a Garmin, that is Traceway in Connect IQ. It shows a six-character code. Type it here, and the device lists your saved routes and loads one as a course."
+                    description="First add the Traceway app to your Garmin from Garmin's Connect IQ store. Then open it on the device. It shows a six-character code. Type it here, and the device lists your saved routes and loads one as a course."
                 />
 
                 {garminApp !== null && (
@@ -102,7 +102,7 @@ export default function Devices({
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            Get Traceway in the Connect IQ store
+                            Get Traceway in Garmin's Connect IQ store
                             <ExternalLink size={14} aria-hidden="true" />
                             <span className="sr-only">
                                 {' '}
