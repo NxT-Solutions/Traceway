@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Courses\CourseFormat;
 use App\Domain\Usage\UsageMetric;
 use App\Http\Controllers\Device\DeviceCourseController;
+use App\Http\Controllers\Device\DeviceLinkController;
 use App\Http\Controllers\Device\DevicePairingController;
 use App\Http\Controllers\Device\DeviceRouteLineController;
 use App\Http\Controllers\Device\DeviceRoutesController;
@@ -22,6 +23,7 @@ Route::prefix('device')->group(function (): void {
         ->name('device.pairings.claim');
 
     Route::middleware(['throttle:device', AuthenticateDevice::class, NoteLastSeen::class])->group(function (): void {
+        Route::delete('link', [DeviceLinkController::class, 'destroy'])->name('device.link.destroy');
         Route::get('routes', DeviceRoutesController::class)->middleware(CountUsage::as(UsageMetric::DeviceSyncs))->name('device.routes');
         Route::get('routes/{savedRoute}/line', [DeviceRouteLineController::class, 'route'])
             ->whereUuid('savedRoute')

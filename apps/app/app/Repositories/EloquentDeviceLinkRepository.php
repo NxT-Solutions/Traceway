@@ -103,6 +103,11 @@ final readonly class EloquentDeviceLinkRepository implements DeviceLinkRepositor
         DB::table('device_links')->where('user_id', $riderId->value)->delete();
     }
 
+    public function revokeToken(string $tokenHash): bool
+    {
+        return DB::table('device_links')->where('token_hash', $tokenHash)->delete() === 1;
+    }
+
     public function riderForToken(string $tokenHash): ?RiderId
     {
         $row = DB::table('device_links')

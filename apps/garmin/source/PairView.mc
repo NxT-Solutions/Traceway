@@ -58,7 +58,7 @@ class PairView extends WatchUi.View {
         if (code == 200 && data instanceof Dictionary) {
             stop();
             Api.remember(data["token"]);
-            WatchUi.switchToView(new RoutesView(), new WatchUi.BehaviorDelegate(), WatchUi.SLIDE_LEFT);
+            Routes.open(WatchUi.SLIDE_LEFT);
         } else if (code == 410) {
             open();
         }

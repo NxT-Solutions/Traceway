@@ -51,7 +51,7 @@ export const EdgeRoutes: Story = {
     args: {
         shape: 'edge',
         src: 'garmin/screens/1-edge-routes.png',
-        label: 'Edge 1040: your saved routes, with distance and climb.',
+        label: 'Edge 1040: your saved routes, with distance and climb. A route on the device says Saved, and the three dots open Options to refresh or unlink.',
     },
 };
 
@@ -75,7 +75,7 @@ export const ForerunnerRoutes: Story = {
     args: {
         shape: 'round',
         src: 'garmin/screens/4-forerunner-routes.png',
-        label: 'Forerunner 965: the route list on a round watch.',
+        label: 'Forerunner 965: the route list on a round watch, with a saved route on top. Options is the last row.',
     },
 };
 

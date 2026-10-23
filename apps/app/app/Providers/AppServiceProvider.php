@@ -59,6 +59,7 @@ use App\Commands\StartImpersonationCommand;
 use App\Commands\StopImpersonationCommand;
 use App\Commands\StoreRouteImageCommand;
 use App\Commands\SyncReleasesCommand;
+use App\Commands\UnlinkDeviceCommand;
 use App\Commands\UpdateProfileCommand;
 use App\Commands\WelcomeRiderCommand;
 use App\Commands\WithdrawConnectionAccessCommand;
@@ -143,6 +144,7 @@ use App\Handlers\StartImpersonationHandler;
 use App\Handlers\StopImpersonationHandler;
 use App\Handlers\StoreRouteImageHandler;
 use App\Handlers\SyncReleasesHandler;
+use App\Handlers\UnlinkDeviceHandler;
 use App\Handlers\UpdateProfileHandler;
 use App\Handlers\WelcomeRiderHandler;
 use App\Handlers\WithdrawConnectionAccessHandler;
@@ -246,6 +248,7 @@ class AppServiceProvider extends ServiceProvider
             ClaimDevicePairingCommand::class => ClaimDevicePairingHandler::class,
             LinkDeviceCommand::class => LinkDeviceHandler::class,
             RevokeDeviceCommand::class => RevokeDeviceHandler::class,
+            UnlinkDeviceCommand::class => UnlinkDeviceHandler::class,
             LinkConnectionCommand::class => LinkConnectionHandler::class,
             RecordConnectionSignInCommand::class => RecordConnectionSignInHandler::class,
             DisconnectConnectionCommand::class => DisconnectConnectionHandler::class,

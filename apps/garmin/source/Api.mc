@@ -1,6 +1,7 @@
 import Toybox.Application;
 import Toybox.Communications;
 import Toybox.Lang;
+import Toybox.PersistedContent;
 
 // Requests go out through the phone. The token comes from pairing and stays in app storage.
 module Api {
@@ -53,6 +54,23 @@ module Api {
             },
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
         }, callback);
+    }
+
+    // Tells Traceway this device is unlinked, so it leaves Settings, then Devices. The answer does not matter: the token
+    // is forgotten here either way, and a device that could not reach the phone can still be removed in Settings.
+    function unlink() {
+        Communications.makeWebRequest(base() + "/api/device/link", null, {
+            :method => Communications.HTTP_REQUEST_METHOD_DELETE,
+            :headers => {
+                "Authorization" => "Bearer " + token(),
+                "Accept" => "application/json"
+            },
+            :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
+        }, new Lang.Method(Api, :ignore));
+        forget();
+    }
+
+    function ignore(code as Number, data as Dictionary or String or PersistedContent.Iterator or Null) as Void {
     }
 
     // The device parses the FIT file and stores it as a course on its own.

@@ -13,6 +13,8 @@ class TracewayApp extends Application.AppBase {
             return [pairView, new WatchUi.BehaviorDelegate()];
         }
 
-        return [new RoutesView(), new WatchUi.BehaviorDelegate()];
+        var view = new RoutesView();
+
+        return [view, new RoutesDelegate(view)];
     }
 }
