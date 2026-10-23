@@ -18,9 +18,17 @@ module Rows {
         return Graphics.fitTextToArea(text, font, width, Graphics.getFontHeight(font), true);
     }
 
-    // A route's second line. A route in the device's Courses says so in words, not only with its green tile.
-    function detail(text, saved) {
-        return fit(saved ? "Saved, " + text : text, Graphics.FONT_SMALL);
+    // A route's second line. A route in the device's Courses says so in words, not only with its green tile. A round watch
+    // draws the highlighted row larger and has no room for the word and the climb, so there a saved route gives its
+    // distance alone, and its own screen gives the climb.
+    function detail(entry, saved) {
+        if (!saved) {
+            return fit(entry[:detail], Graphics.FONT_SMALL);
+        }
+
+        var round = System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_ROUND;
+
+        return fit("Saved, " + (round ? entry[:brief] : entry[:detail]), Graphics.FONT_SMALL);
     }
 
     // A menu does not hear the menu button, so the list's options are behind the three dots in its title, which only a

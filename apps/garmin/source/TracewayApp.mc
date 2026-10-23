@@ -10,7 +10,7 @@ class TracewayApp extends Application.AppBase {
     function getInitialView() {
         if (Api.token() == null) {
             var pairView = new PairView();
-            return [pairView, new WatchUi.BehaviorDelegate()];
+            return [pairView, new PairDelegate(pairView)];
         }
 
         var view = new RoutesView();

@@ -29,7 +29,7 @@ module Options {
 
     function pair() as Void {
         _timer = null;
-        WatchUi.switchToView(new PairView(), new WatchUi.BehaviorDelegate(), WatchUi.SLIDE_RIGHT);
+        Pairing.open(WatchUi.SLIDE_RIGHT);
     }
 }
 

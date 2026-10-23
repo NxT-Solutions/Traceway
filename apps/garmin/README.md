@@ -4,8 +4,8 @@ A device app for Garmin bike computers and watches. It lists the rider's saved T
 
 ## How it works
 
-1. The app asks `POST /api/device/pairings` for a code and shows it. The rider types it on the site, under Settings, then Devices, and the app collects its token.
-2. The route list shows every saved route with its sport, distance, and climb. A multisport plan shows one entry per land leg. A route that is in the device's Courses has its sport tile in green with a check, and its second line starts with Saved, so it does not rest on colour alone.
+1. The app asks `POST /api/device/pairings` for a code and shows it. The rider types it on the site, under Settings, then Devices, and the app collects its token. The menu button opens Options with **New code**, for a code that is hard to read or was typed wrong. After No connection, Enter or a tap asks again.
+2. The route list shows every saved route with its sport, distance, and climb. A multisport plan shows one entry per land leg. A route that is in the device's Courses has its sport tile in green with a check, and its second line starts with Saved, so it does not rest on colour alone. A round watch draws the highlighted row larger, with no room for the word and the climb, so there a saved route gives Saved and its distance, and its own screen gives the climb.
 3. Choosing a route opens its detail:
    - The route is drawn on the device's own map, framed by the `bounds` from the list. A device without maps (Forerunner 255 and 265) gets the shape drawn on ink.
    - Under it come the name and numbers, and two buttons:
@@ -24,6 +24,8 @@ A system menu (`Menu2`) never hears the menu button, so the list cannot open its
 - A touch Edge whose menus pass a tap on the title to the app (API 5.1 and up, and the drawn rows of the Edge 830) gets Garmin's three dots in the top right of the title. A tap on the title opens Options.
 - Every device that has buttons to move through the list, and every touch Edge without the dots (the 1030 family and the first Explore), gets an **Options** row at the end of the list, so the buttons alone reach it.
 - On the plain screens (no routes, no connection) the menu button opens Options. From API 6 an Edge draws its own three dots in its title bar there. An older Edge gets them drawn by the app, and a tap on them opens Options.
+- From API 6 an Edge draws its three dots on every app screen, the pairing code too, and an app cannot hide them. So the pairing screen has Options as well, with New code.
+- While the list loads, the menu button and the dots wait: the list's answer replaces whatever is on top.
 
 ### Buttons and touch
 

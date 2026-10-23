@@ -32,7 +32,7 @@ class RoutesView extends WatchUi.View {
     function onRoutes(code, data) {
         if (code == 401) {
             Api.forget();
-            WatchUi.switchToView(new PairView(), new WatchUi.BehaviorDelegate(), WatchUi.SLIDE_IMMEDIATE);
+            Pairing.open(WatchUi.SLIDE_IMMEDIATE);
             return;
         }
 
@@ -54,7 +54,7 @@ class RoutesView extends WatchUi.View {
             if (legs.size() == 0) {
                 var numbers = summary(route);
 
-                var entry = { :name => route["name"], :title => route["title"], :sport => route["sport"], :summary => numbers, :detail => numbers, :path => base + "/fit", :line => base + "/line", :bounds => route["bounds"] };
+                var entry = { :name => route["name"], :title => route["title"], :sport => route["sport"], :summary => numbers, :detail => numbers, :brief => distance(route), :path => base + "/fit", :line => base + "/line", :bounds => route["bounds"] };
 
                 menu.addItem(item(entry, entries.size(), known, Rows.fit(route["title"], Graphics.FONT_MEDIUM)));
                 entries.add(entry);
@@ -64,7 +64,7 @@ class RoutesView extends WatchUi.View {
                 var part = legs[leg];
                 var which = "Leg " + part["n"] + " of " + route["title"];
 
-                var entry = { :name => part["name"], :title => part["name"], :sport => part["sport"], :summary => "Leg " + part["n"] + ", " + summary(part), :detail => which, :path => base + "/fit/" + part["n"], :line => base + "/line/" + part["n"], :bounds => part["bounds"] };
+                var entry = { :name => part["name"], :title => part["name"], :sport => part["sport"], :summary => "Leg " + part["n"] + ", " + summary(part), :detail => which, :brief => "Leg " + part["n"], :path => base + "/fit/" + part["n"], :line => base + "/line/" + part["n"], :bounds => part["bounds"] };
 
                 menu.addItem(item(entry, entries.size(), known, Rows.fit(part["name"], Graphics.FONT_MEDIUM)));
                 entries.add(entry);
@@ -83,24 +83,29 @@ class RoutesView extends WatchUi.View {
     // One route's menu item. A route in the device's Courses has a green tile with a check, and says Saved.
     function item(entry, id, known, label) {
         var saved = Courses.find(known, entry) != null;
-        var row = Rows.route(id, label, Rows.detail(entry[:detail], saved), entry[:sport], saved);
+        var row = Rows.route(id, label, Rows.detail(entry, saved), entry[:sport], saved);
 
         entry[:item] = row;
 
         return row;
     }
 
-    // A round watch draws the highlighted route larger and cuts what does not fit, so from 10 km it drops the decimal.
     function summary(route) {
-        var km = route["distance_metres"] / 1000.0;
-        var round = System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_ROUND;
-        var text = (round && km >= 9.95 ? Math.round(km).toNumber().toString() : km.format("%.1f")) + " km";
+        var text = distance(route);
 
         if (route["ascent_metres"] > 0) {
             text += ", +" + route["ascent_metres"] + " m";
         }
 
         return text;
+    }
+
+    // A round watch draws the highlighted route larger and cuts what does not fit, so from 10 km it drops the decimal.
+    function distance(route) {
+        var km = route["distance_metres"] / 1000.0;
+        var round = System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_ROUND;
+
+        return (round && km >= 9.95 ? Math.round(km).toNumber().toString() : km.format("%.1f")) + " km";
     }
 
     function show(title, detail) {
@@ -229,6 +234,6 @@ function markSaved(entry, saved) {
     var item = entry[:item];
 
     if (item != null) {
-        Rows.mark(item, entry[:sport], saved, Rows.detail(entry[:detail], saved));
+        Rows.mark(item, entry[:sport], saved, Rows.detail(entry, saved));
     }
 }

@@ -75,7 +75,7 @@ export const ForerunnerRoutes: Story = {
     args: {
         shape: 'round',
         src: 'garmin/screens/4-forerunner-routes.png',
-        label: 'Forerunner 965: the route list on a round watch, with a saved route on top. Options is the last row.',
+        label: 'Forerunner 965: the route list on a round watch. A saved route says Saved and its distance; Options is the last row.',
     },
 };
 

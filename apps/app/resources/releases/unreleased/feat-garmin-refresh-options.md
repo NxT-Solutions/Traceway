@@ -5,3 +5,4 @@ section: Devices
 - **Options in one place.** Tap the three dots at the top of the list, or choose Options at the end of it, to refresh your routes or unlink the device.
 - **Unlinking signs out properly.** When you unlink on the device, it also leaves Settings, then Devices, in Traceway.
 - **Easy to see what is saved.** A route already on your device says Saved and has a check on its green tile.
+- **A new code when you need one.** On the linking screen, the menu button or the three dots give you a new code. If the phone was out of reach, press the button or tap the screen to try again.
