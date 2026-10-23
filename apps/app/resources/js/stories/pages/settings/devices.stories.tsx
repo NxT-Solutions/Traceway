@@ -315,6 +315,15 @@ export const WrongCode: Story = {
                     }),
                 serverTime,
             );
+            // The mocked server answers this one too, and empties the boxes again. Waiting for that keeps its
+            // answer from landing in the next story.
+            await waitFor(
+                () =>
+                    expect(
+                        canvas.getByLabelText('Code on the device'),
+                    ).toHaveValue(''),
+                serverTime,
+            );
         });
     },
 };
@@ -370,10 +379,15 @@ export const LinksDevice: Story = {
             await expect(
                 canvas.queryByText('No devices linked yet.'),
             ).toBeNull();
-            await expect(
-                canvas.getByLabelText('Code on the device'),
-            ).toHaveValue('');
-            await expect(canvas.getByLabelText('Name')).toHaveValue('Garmin');
+            // The toast shows with the new page; the form clears just after, once the link is done.
+            await waitFor(async () => {
+                await expect(
+                    canvas.getByLabelText('Code on the device'),
+                ).toHaveValue('');
+                await expect(canvas.getByLabelText('Name')).toHaveValue(
+                    'Garmin',
+                );
+            }, serverTime);
         });
 
         await step(
