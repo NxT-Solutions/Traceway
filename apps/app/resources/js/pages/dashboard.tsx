@@ -1,4 +1,4 @@
-import { Head, Link, usePage, usePoll } from '@inertiajs/react';
+import { Head, Link, router, usePage, usePoll } from '@inertiajs/react';
 import '../../css/planner.css';
 import {
     Bike,
@@ -1773,6 +1773,7 @@ export default function Dashboard() {
     const panelRef = useRef<HTMLElement>(null);
     const tourRef = useRef<PlannerTour | null>(null);
     const toured = useRef(showTour !== true);
+    const mounted = useRef(true);
 
     /**
      * Shows the rider around. The tour loads only when it opens, so the
@@ -1785,7 +1786,8 @@ export default function Dashboard() {
 
         setSheet(null);
         void import('@/lib/planner-tour').then(({ startPlannerTour }) => {
-            if (tourRef.current?.isActive()) {
+            // On a slow connection the rider may have left the planner already.
+            if (!mounted.current || tourRef.current?.isActive()) {
                 return;
             }
 
@@ -1800,6 +1802,12 @@ export default function Dashboard() {
                     }
 
                     toured.current = true;
+
+                    // Back to the planner from the browser's history keeps the tour shown, too.
+                    if (mounted.current) {
+                        router.replaceProp('showTour', false);
+                    }
+
                     void fetch(FinishTourController.url(), {
                         method: 'POST',
                         headers: {
@@ -1826,7 +1834,14 @@ export default function Dashboard() {
         return () => window.clearTimeout(waiting);
     }, []);
 
-    useEffect(() => () => tourRef.current?.stop(), []);
+    useEffect(() => {
+        mounted.current = true;
+
+        return () => {
+            mounted.current = false;
+            tourRef.current?.stop();
+        };
+    }, []);
     const drawerDrag = useRef<{
         y: number;
         height: number;

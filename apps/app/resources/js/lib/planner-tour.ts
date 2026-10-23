@@ -120,6 +120,8 @@ export function startPlannerTour({
             document.querySelector(stop.element) !== null,
     );
     const animate = !reducedMotion();
+    // Where the rider was, such as the question mark, to go back to at the end.
+    const returnTo = document.activeElement;
     let waiting = 0;
     let ended = false;
 
@@ -139,12 +141,32 @@ export function startPlannerTour({
         }
 
         ended = true;
+
+        // driver.js gives focus back to the last card's button, which is gone by then.
+        if (returnTo instanceof HTMLElement && returnTo.isConnected) {
+            returnTo.focus();
+        }
+
         onEnd();
     }
 
-    const short = window.matchMedia('(max-height: 560px)').matches;
     const steps: DriveStep[] = stops.map((stop, index) => ({
-        element: (short ? stop.short : undefined) ?? stop.element,
+        element:
+            stop.element === undefined
+                ? undefined
+                : () => {
+                      // Read on each stop, so turning the phone mid-tour picks the right part.
+                      const short = window.matchMedia(
+                          '(max-height: 560px)',
+                      ).matches;
+                      const selector =
+                          (short ? stop.short : undefined) ?? stop.element;
+
+                      return (
+                          document.querySelector(selector ?? '') ??
+                          document.body
+                      );
+                  },
         popover: {
             title: stop.title,
             description: stop.description,
@@ -181,6 +203,8 @@ export function startPlannerTour({
                 .querySelector('.tw-planner')
                 ?.getAttribute('data-theme');
             popover.wrapper.setAttribute('data-theme', theme ?? 'light');
+            // The page behind does not take clicks during the tour, so a screen reader stays in the card too.
+            popover.wrapper.setAttribute('aria-modal', 'true');
             // driver.js focuses the close button first. Enter should go on, not end the tour.
             queueMicrotask(() => popover.nextButton.focus());
         },

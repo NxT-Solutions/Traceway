@@ -27,6 +27,7 @@ use OpenApi\Attributes\Schema;
                 new Property(property: 'updated_at', type: 'string', nullable: true),
                 new Property(property: 'last_seen_at', description: 'The last time the rider was signed in and using Traceway, to the quarter hour.', type: 'string', nullable: true),
                 new Property(property: 'pending_email', description: 'A new email the rider asked for, waiting for them to open the link sent to it.', type: 'string', format: 'email', nullable: true),
+                new Property(property: 'toured_at', description: 'When the planner first showed the rider around. For an account opened before the tour existed, the day the account was opened.', type: 'string', nullable: true),
                 new Property(property: 'role', type: 'string', enum: ['super-admin', 'admin', 'user']),
             ],
         ),
@@ -119,6 +120,7 @@ final readonly class PersonalDataDocument
         public string $role = 'user',
         public array $adminActions = [],
         public ?string $pendingEmail = null,
+        public ?string $touredAt = null,
     ) {}
 
     /**
@@ -137,6 +139,7 @@ final readonly class PersonalDataDocument
                 'updated_at' => $this->updatedAt,
                 'last_seen_at' => $this->lastSeenAt,
                 'pending_email' => $this->pendingEmail,
+                'toured_at' => $this->touredAt,
                 'role' => $this->role,
             ],
             'saved_routes' => array_map(

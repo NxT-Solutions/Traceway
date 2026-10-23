@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Account\RiderId;
+use App\Auth\Impersonation;
 use App\Commands\FinishTourCommand;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Models\User;
@@ -19,7 +20,7 @@ class FinishTourController extends Controller
     #[Post(
         path: '/dashboard/tour',
         operationId: 'finishTour',
-        description: 'Finishing the tour and closing it early both count. Sent again, it changes nothing.',
+        description: 'Finishing the tour and closing it early both count. Sent again, or by an admin acting as the person, it changes nothing.',
         summary: 'Note that the planner showed the signed-in person around',
         security: [['session' => []]],
         tags: ['Account'],
@@ -35,6 +36,11 @@ class FinishTourController extends Controller
         $user = $request->user();
 
         abort_unless($user instanceof User, 403);
+
+        // An admin acting as the rider does not use up the rider's tour.
+        if (Impersonation::active($request)) {
+            return response()->noContent();
+        }
 
         $dispatchesCommands->dispatch(new FinishTourCommand(new RiderId($user->id)));
 

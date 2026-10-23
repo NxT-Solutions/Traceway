@@ -952,7 +952,7 @@
                     "Account"
                 ],
                 "summary": "Note that the planner showed the signed-in person around",
-                "description": "Finishing the tour and closing it early both count. Sent again, it changes nothing.",
+                "description": "Finishing the tour and closing it early both count. Sent again, or by an admin acting as the person, it changes nothing.",
                 "operationId": "finishTour",
                 "responses": {
                     "204": {
@@ -2793,6 +2793,11 @@
                                 "description": "A new email the rider asked for, waiting for them to open the link sent to it.",
                                 "type": "string",
                                 "format": "email",
+                                "nullable": true
+                            },
+                            "toured_at": {
+                                "description": "When the planner first showed the rider around. For an account opened before the tour existed, the day the account was opened.",
+                                "type": "string",
                                 "nullable": true
                             },
                             "role": {

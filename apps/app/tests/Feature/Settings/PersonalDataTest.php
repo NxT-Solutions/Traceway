@@ -37,6 +37,7 @@ test('a rider can download their data and receives a copy by email', function ()
     $user = User::factory()->create([
         'name' => 'Road rider',
         'password' => 'password',
+        'toured_at' => '2026-10-18 08:00:00',
     ]);
     // The export itself is a visit, noted to the quarter hour.
     CarbonImmutable::setTestNow('2026-10-19 09:52:30');
@@ -56,7 +57,8 @@ test('a rider can download their data and receives a copy by email', function ()
         ->toContain('Morning loop')
         ->not->toContain($user->password)
         ->and($document['account']['role'] ?? null)->toBe('admin')
-        ->and($document['account']['last_seen_at'] ?? null)->toStartWith('2026-10-19T09:45:00');
+        ->and($document['account']['last_seen_at'] ?? null)->toStartWith('2026-10-19T09:45:00')
+        ->and($document['account']['toured_at'] ?? null)->toStartWith('2026-10-18T08:00:00');
 
     CarbonImmutable::setTestNow();
 

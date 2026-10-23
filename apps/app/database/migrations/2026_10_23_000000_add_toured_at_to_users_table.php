@@ -19,7 +19,7 @@ return new class extends Migration
             $blueprint->timestamp('toured_at')->nullable()->after('welcomed_at');
         });
 
-        DB::table('users')->update(['toured_at' => DB::raw('created_at')]);
+        DB::table('users')->update(['toured_at' => DB::raw('COALESCE(created_at, CURRENT_TIMESTAMP)')]);
     }
 
     public function down(): void

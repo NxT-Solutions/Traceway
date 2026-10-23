@@ -45,6 +45,19 @@ it('does not use up the tour of a rider an admin acts as', function (): void {
         ->assertInertia(fn (Assert $assert): Assert => $assert->where('showTour', expected: false));
 });
 
+it('keeps the tour for a rider when an admin acting as them closes it', function (): void {
+    $admin = User::factory()->create();
+    $rider = User::factory()->untoured()->create();
+
+    $this->actingAs($rider)
+        ->withSession([Impersonation::SESSION_KEY => $admin->id])
+        ->post(route('tour.finish'))
+        ->assertNoContent();
+
+    expect($rider->refresh()->toured_at)->toBeNull();
+});
+
 it('asks a guest to sign in before the tour can be finished', function (): void {
     $this->post(route('tour.finish'))->assertRedirect(route('login'));
+    $this->postJson(route('tour.finish'))->assertUnauthorized();
 });
