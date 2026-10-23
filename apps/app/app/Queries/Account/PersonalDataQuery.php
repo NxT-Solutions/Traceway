@@ -50,6 +50,7 @@ final class PersonalDataQuery
             new RiderRoles()->of($riderId)->value,
             $this->adminActions($riderId),
             $account->optionalString('pending_email'),
+            $account->iso('toured_at'),
         );
     }
 
@@ -157,6 +158,7 @@ final class PersonalDataQuery
             'updated_at',
             'last_seen_at',
             'pending_email',
+            'toured_at',
         ]);
 
         abort_if($row === null, 404);

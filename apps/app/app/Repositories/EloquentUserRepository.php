@@ -248,6 +248,19 @@ final readonly class EloquentUserRepository implements UserRepository
         return $marked === 1 ? $this->rider($user) : null;
     }
 
+    public function toured(RiderId $riderId): bool
+    {
+        return DB::table('users')->where('id', $riderId->value)->whereNotNull('toured_at')->exists();
+    }
+
+    public function markToured(RiderId $riderId): void
+    {
+        DB::table('users')
+            ->where('id', $riderId->value)
+            ->whereNull('toured_at')
+            ->update(['toured_at' => now()]);
+    }
+
     public function changePassword(RiderId $riderId, #[SensitiveParameter] string $password): Rider
     {
         $user = $this->model($riderId);

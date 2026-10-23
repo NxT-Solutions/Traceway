@@ -31,6 +31,8 @@ class DemoRiderSeeder extends Seeder
                     'name' => $rider['name'],
                     'password' => Hash::make(is_string($password) ? $password : 'password'),
                     'email_verified_at' => now(),
+                    // The browser suites drive the planner straight away. The tour opens from its button.
+                    'toured_at' => now(),
                 ],
             );
 

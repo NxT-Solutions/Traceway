@@ -23,6 +23,7 @@ import {
 type DashboardProps = {
     serviceNotice: ServiceNoticeProps | null;
     sportSurfaces: Record<string, string>;
+    showTour: boolean;
 };
 
 type PlannerArgs = PlannerDraftOptions & {
@@ -30,6 +31,8 @@ type PlannerArgs = PlannerDraftOptions & {
     draft: boolean;
     /** The line above the map when route drawing is down. */
     serviceNotice: boolean;
+    /** On: a rider's first visit, when the planner shows them around. */
+    showTour: boolean;
 };
 
 const draftKey = plannerDraftKey(rider.id);
@@ -71,18 +74,19 @@ const notice: ServiceNoticeProps = {
  * The planner, opened on the draft the Controls describe. A new draft remounts the page, since the planner reads
  * its draft once, on load.
  */
-function Planner({ serviceNotice, ...args }: PlannerArgs) {
-    keepDraft({ serviceNotice, ...args });
+function Planner({ serviceNotice, showTour, ...args }: PlannerArgs) {
+    keepDraft({ serviceNotice, showTour, ...args });
 
     return (
         <InertiaPage<DashboardProps>
-            key={JSON.stringify(args)}
+            key={JSON.stringify({ ...args, showTour })}
             name="dashboard"
             component={Dashboard}
             url="/dashboard"
             props={{
                 serviceNotice: serviceNotice ? notice : null,
                 sportSurfaces,
+                showTour,
             }}
             shared={{ ...sharedProps(), routeServices }}
         />
@@ -110,6 +114,7 @@ const meta = {
         ...plannerDraftDefaults,
         draft: true,
         serviceNotice: false,
+        showTour: false,
     },
     argTypes: {
         sport: { control: 'select', options: sports },
@@ -167,6 +172,141 @@ async function panelOf(canvasElement: HTMLElement): Promise<HTMLElement> {
 /** A rider with no draft: the pin on the default start, nothing drawn yet. */
 export const Empty: Story = {
     args: { draft: false },
+};
+
+/** The tour's card, which driver.js puts on the page body, outside the canvas. */
+function tourCard(): Promise<HTMLElement> {
+    return screen.findByRole('dialog', {}, { timeout: 10_000 });
+}
+
+/**
+ * A new rider's first visit: the planner shows them around, one stop at a time, with the part it talks about lit
+ * up. On a phone or a tablet the plan panel opens for the stops inside it and closes for the map and the header.
+ * Finishing, or closing it early, tells the server, so the tour does not come back on its own. The question mark in
+ * the header opens it again.
+ */
+export const FirstVisit: Story = {
+    args: { draft: false, showTour: true },
+    play: async ({ step }) => {
+        await step('The tour opens on its own, focus on Show me', async () => {
+            const card = await tourCard();
+            await expect(card).toHaveAccessibleName('Welcome to Traceway');
+            // The card fades in.
+            await waitFor(() =>
+                expect(within(card).getByText('1 of 10')).toBeVisible(),
+            );
+            await waitFor(() =>
+                expect(
+                    within(card).getByRole('button', { name: 'Show me' }),
+                ).toHaveFocus(),
+            );
+        });
+
+        await step('Next and Back step through the planner', async () => {
+            await userEvent.click(
+                within(await tourCard()).getByRole('button', {
+                    name: 'Show me',
+                }),
+            );
+            await waitFor(() =>
+                expect(screen.getByRole('dialog')).toHaveTextContent(
+                    'Find a place',
+                ),
+            );
+            await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+            await waitFor(() =>
+                expect(screen.getByRole('dialog')).toHaveTextContent(
+                    'Or tap the map',
+                ),
+            );
+            await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+            await waitFor(() =>
+                expect(screen.getByRole('dialog')).toHaveTextContent(
+                    'Find a place',
+                ),
+            );
+        });
+
+        await step('Every stop, to the end', async () => {
+            for (const title of [
+                'Or tap the map',
+                'Three ways to plan',
+                'Say what you want',
+                'Draw your route',
+                'Take it with you',
+                'Your saved routes',
+                'Your account',
+                'Need it again?',
+            ]) {
+                await userEvent.click(
+                    await screen.findByRole('button', { name: 'Next' }),
+                );
+                await waitFor(
+                    () =>
+                        expect(screen.getByRole('dialog')).toHaveTextContent(
+                            title,
+                        ),
+                    answer,
+                );
+            }
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Start planning' }),
+            );
+            await waitFor(() =>
+                expect(screen.queryByRole('dialog')).toBeNull(),
+            );
+            await waitFor(() =>
+                expect(server.sent('POST', '/dashboard/tour')).toHaveLength(1),
+            );
+        });
+
+        await step('The question mark opens it again', async () => {
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Show me around' }),
+            );
+            await expect(await tourCard()).toHaveAccessibleName(
+                'Welcome to Traceway',
+            );
+            await userEvent.keyboard('{Escape}');
+            await waitFor(() =>
+                expect(screen.queryByRole('dialog')).toBeNull(),
+            );
+            // It was already noted once.
+            await expect(server.sent('POST', '/dashboard/tour')).toHaveLength(
+                1,
+            );
+        });
+    },
+};
+
+/** The tour on a phone, where the plan panel is a drawer under the map. */
+export const FirstVisitOnAPhone: Story = {
+    args: { draft: false, showTour: true },
+    globals: { viewport: { value: 'phone', isRotated: false } },
+    play: async ({ canvasElement, step }) => {
+        await step('The panel opens for the stops inside it', async () => {
+            await userEvent.click(
+                within(await tourCard()).getByRole('button', {
+                    name: 'Show me',
+                }),
+            );
+            for (const title of ['Or tap the map', 'Three ways to plan']) {
+                await userEvent.click(
+                    await screen.findByRole('button', { name: 'Next' }),
+                );
+                await waitFor(
+                    () =>
+                        expect(screen.getByRole('dialog')).toHaveTextContent(
+                            title,
+                        ),
+                    answer,
+                );
+            }
+            await expect(
+                canvasElement.querySelector('[aria-label="Route plan"]'),
+            ).toHaveClass('open');
+        });
+    },
 };
 
 /**

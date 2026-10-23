@@ -48,6 +48,7 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "concurrently": "^10.0.6",
+        "driver.js": "^1.10.2",
         "input-otp": "^1.5.0",
         "laravel-vite-plugin": "^3.2.0",
         "lucide-react": "^1.61.0",

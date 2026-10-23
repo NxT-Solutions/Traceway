@@ -121,6 +121,10 @@
 .tw-planner .saved-nav{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:10px;color:var(--muted);font-size:14px;font-weight:500}
 .tw-planner .saved-nav svg{display:block;flex:0 0 auto}
 .tw-planner .saved-nav:hover,.tw-planner .saved-nav[aria-current]{background:var(--hover);color:var(--text)}
+.tw-planner .help-nav{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex:0 0 auto;padding:0;border:0;border-radius:10px;background:transparent;color:var(--muted);cursor:pointer;transition:background-color 180ms var(--ease),color 180ms var(--ease),opacity 80ms var(--ease)}
+.tw-planner .help-nav:hover{background:var(--hover);color:var(--text)}
+.tw-planner .help-nav:active{transition-duration:80ms;opacity:.72}
+.tw-planner .help-nav svg{display:block}
 .tw-planner .acct{display:flex;align-items:center;gap:10px;height:44px;padding:0 6px 0 12px;border:0;border-radius:10px;background:transparent;cursor:pointer}
 .tw-planner .acct:hover{background:var(--hover)}
 .tw-planner .acct:hover span.name{color:var(--text)}
@@ -440,6 +444,11 @@
 .tw-planner .toast{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);max-width:calc(100% - 32px);padding:10px 16px;border-radius:10px;background:var(--text);color:var(--bg);font-size:14px;font-weight:500;box-shadow:var(--shadow);z-index:7;text-align:center}
 .tw-planner .handle{display:none}
 
+/* A phone keeps the mark and drops the word, so every header button fits. The link keeps its name. */
+@media (max-width: 479px){
+  .tw-planner .brand span{display:none}
+  .tw-planner .hdr-end{gap:2px}
+}
 @media (max-width: 1023px){
   .tw-planner .hdr{gap:12px;padding-inline:16px}
   .tw-planner .nav{display:flex;gap:14px}

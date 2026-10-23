@@ -1,7 +1,8 @@
-import { Head, Link, usePage, usePoll } from '@inertiajs/react';
+import { Head, Link, router, usePage, usePoll } from '@inertiajs/react';
 import '../../css/planner.css';
 import {
     Bike,
+    CircleQuestionMark,
     FileUp,
     Footprints,
     LocateFixed,
@@ -20,6 +21,8 @@ import {
     useState,
     useSyncExternalStore,
 } from 'react';
+import { flushSync } from 'react-dom';
+import FinishTourController from '@/actions/App/Http/Controllers/FinishTourController';
 import { MapSearch, type SearchAction } from '@/components/map-search';
 import { MapTapCard, type TapAction } from '@/components/map-tap-card';
 import { MultisportIcon } from '@/components/multisport-icon';
@@ -81,6 +84,7 @@ import {
     plannerDraftKey,
     recentPlacesKey,
 } from '@/lib/planner-draft';
+import type { PlannerTour } from '@/lib/planner-tour';
 import {
     arrowIconSize,
     directionArrows,
@@ -1534,11 +1538,13 @@ export default function Dashboard() {
     const hideSnapRef = useRef<() => void>(() => {});
     const routesRef = useRef<Preview[]>([]);
     const routeIndexRef = useRef(0);
-    const { auth, serviceNotice, sportSurfaces } = usePage<{
+    const { auth, serviceNotice, sportSurfaces, showTour } = usePage<{
         auth: { user: { id: number; name: string } };
         serviceNotice?: ServiceNoticeProps | null;
         /** The surface each sport starts on, shared with the AI connector. */
         sportSurfaces: Record<string, string>;
+        /** True on a rider's first visit, until the tour ends once. */
+        showTour?: boolean;
     }>().props;
     // A notice, or a map server going down or coming back, reaches a rider
     // who keeps the planner open.
@@ -1765,6 +1771,77 @@ export default function Dashboard() {
     const [sheet, setSheet] = useState<SheetName>(null);
     const [panelOpen, setPanelOpen] = useState(false);
     const panelRef = useRef<HTMLElement>(null);
+    const tourRef = useRef<PlannerTour | null>(null);
+    const toured = useRef(showTour !== true);
+    const mounted = useRef(true);
+
+    /**
+     * Shows the rider around. The tour loads only when it opens, so the
+     * planner does not carry it on every visit.
+     */
+    function openTour(): void {
+        if (tourRef.current?.isActive()) {
+            return;
+        }
+
+        setSheet(null);
+        void import('@/lib/planner-tour').then(({ startPlannerTour }) => {
+            // On a slow connection the rider may have left the planner already.
+            if (!mounted.current || tourRef.current?.isActive()) {
+                return;
+            }
+
+            tourRef.current = startPlannerTour({
+                showPanel: (open) => flushSync(() => setPanelOpen(open)),
+                onEnd: () => {
+                    tourRef.current = null;
+                    setPanelOpen(false);
+
+                    if (toured.current) {
+                        return;
+                    }
+
+                    toured.current = true;
+
+                    // Back to the planner from the browser's history keeps the tour shown, too.
+                    if (mounted.current) {
+                        router.replaceProp('showTour', false);
+                    }
+
+                    void fetch(FinishTourController.url(), {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-XSRF-TOKEN': csrfToken(),
+                        },
+                    }).catch(() => {
+                        // Offline: the tour comes back on the next visit.
+                    });
+                },
+            });
+        });
+    }
+
+    // A new rider is shown around on their first visit, once the planner is on screen.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: once, on the first visit
+    useEffect(() => {
+        if (toured.current) {
+            return;
+        }
+
+        const waiting = window.setTimeout(openTour, 600);
+
+        return () => window.clearTimeout(waiting);
+    }, []);
+
+    useEffect(() => {
+        mounted.current = true;
+
+        return () => {
+            mounted.current = false;
+            tourRef.current?.stop();
+        };
+    }, []);
     const drawerDrag = useRef<{
         y: number;
         height: number;
@@ -5141,6 +5218,7 @@ export default function Dashboard() {
                             className="saved-nav"
                             href="/saved"
                             aria-label="Saved routes"
+                            data-tour="saved"
                         >
                             <svg
                                 width="16"
@@ -5159,7 +5237,21 @@ export default function Dashboard() {
                             <span>Saved routes</span>
                         </Link>
                         <ReleaseBell />
-                        <Link className="acct" href="/settings/profile">
+                        <button
+                            type="button"
+                            className="help-nav"
+                            aria-label="Show me around"
+                            title="Show me around"
+                            data-tour="help"
+                            onClick={openTour}
+                        >
+                            <CircleQuestionMark size={20} aria-hidden="true" />
+                        </button>
+                        <Link
+                            className="acct"
+                            href="/settings/profile"
+                            data-tour="account"
+                        >
                             <span className="name">{rider}</span>
                             <span className="avatar" aria-hidden="true">
                                 {riderInitials}
@@ -5176,6 +5268,7 @@ export default function Dashboard() {
                         className={
                             mode === 'build' ? 'mapwrap build' : 'mapwrap'
                         }
+                        data-tour="map"
                     >
                         <div ref={mapNode} className="h-full w-full" />
                         <div className="vig" />
@@ -5493,6 +5586,7 @@ export default function Dashboard() {
                                 className="seg"
                                 role="tablist"
                                 aria-label="Planning mode"
+                                data-tour="modes"
                             >
                                 <button
                                     type="button"
@@ -5592,7 +5686,7 @@ export default function Dashboard() {
                                     }
                                 />
                             ) : mode === 'generate' ? (
-                                <section aria-label="Ask">
+                                <section aria-label="Ask" data-tour="ask">
                                     <p className="sec-label">Ask</p>
                                     <button
                                         type="button"
@@ -6184,6 +6278,7 @@ export default function Dashboard() {
                             <button
                                 type="button"
                                 className="fill"
+                                data-tour="draw"
                                 disabled={busy}
                                 onClick={() =>
                                     void (multisport
@@ -6449,7 +6544,7 @@ export default function Dashboard() {
                                 <p className="note" role="status">
                                     {settledStatus.current}
                                 </p>
-                                <div className="btns">
+                                <div className="btns" data-tour="send">
                                     <button
                                         type="button"
                                         className="outline"

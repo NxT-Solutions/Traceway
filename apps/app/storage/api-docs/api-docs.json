@@ -946,6 +946,36 @@
                 "security": []
             }
         },
+        "/dashboard/tour": {
+            "post": {
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Note that the planner showed the signed-in person around",
+                "description": "Finishing the tour and closing it early both count. Sent again, or by an admin acting as the person, it changes nothing.",
+                "operationId": "finishTour",
+                "responses": {
+                    "204": {
+                        "description": "The planner will not show the tour on its own again."
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
         "/routes/import": {
             "post": {
                 "tags": [
@@ -2765,6 +2795,11 @@
                                 "format": "email",
                                 "nullable": true
                             },
+                            "toured_at": {
+                                "description": "When the planner first showed the rider around. For an account opened before the tour existed, the day the account was opened.",
+                                "type": "string",
+                                "nullable": true
+                            },
                             "role": {
                                 "type": "string",
                                 "enum": [
@@ -4037,12 +4072,12 @@
             "description": "Share"
         },
         {
-            "name": "Passkeys",
-            "description": "Passkeys"
-        },
-        {
             "name": "Account",
             "description": "Account"
+        },
+        {
+            "name": "Passkeys",
+            "description": "Passkeys"
         },
         {
             "name": "Status",

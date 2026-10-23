@@ -33,6 +33,7 @@ use App\Commands\DeleteRouteCommand;
 use App\Commands\DisconnectAppCommand;
 use App\Commands\DisconnectConnectionCommand;
 use App\Commands\ExportPersonalDataCommand;
+use App\Commands\FinishTourCommand;
 use App\Commands\IdentifyConnectionsCommand;
 use App\Commands\LinkConnectionCommand;
 use App\Commands\LinkDeviceCommand;
@@ -116,6 +117,7 @@ use App\Handlers\DeleteRouteHandler;
 use App\Handlers\DisconnectAppHandler;
 use App\Handlers\DisconnectConnectionHandler;
 use App\Handlers\ExportPersonalDataHandler;
+use App\Handlers\FinishTourHandler;
 use App\Handlers\IdentifyConnectionsHandler;
 use App\Handlers\LinkConnectionHandler;
 use App\Handlers\LinkDeviceHandler;
@@ -227,6 +229,7 @@ class AppServiceProvider extends ServiceProvider
             OpenAccountWithConnectionCommand::class => OpenAccountWithConnectionHandler::class,
             OpenAccountWithoutConnectionCommand::class => OpenAccountWithoutConnectionHandler::class,
             WelcomeRiderCommand::class => WelcomeRiderHandler::class,
+            FinishTourCommand::class => FinishTourHandler::class,
             UpdateProfileCommand::class => UpdateProfileHandler::class,
             ConfirmEmailChangeCommand::class => ConfirmEmailChangeHandler::class,
             CancelEmailChangeCommand::class => CancelEmailChangeHandler::class,

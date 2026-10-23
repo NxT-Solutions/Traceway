@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Account\ConnectionProvider;
 use App\Account\RouteService;
-use App\Domain\Routing\Sport;
 use App\Domain\Usage\UsageMetric;
 use App\Http\Controllers\Auth\ConnectionCallbackController;
 use App\Http\Controllers\Auth\DemoLoginController;
@@ -17,6 +16,7 @@ use App\Http\Controllers\BuildRouteController;
 use App\Http\Controllers\DestroySavedRouteController;
 use App\Http\Controllers\ExportFitCourseController;
 use App\Http\Controllers\ExportSharedCourseController;
+use App\Http\Controllers\FinishTourController;
 use App\Http\Controllers\ImportRouteController;
 use App\Http\Controllers\NamePlaceController;
 use App\Http\Controllers\PreviewMultisportController;
@@ -27,6 +27,7 @@ use App\Http\Controllers\RouteStopsController;
 use App\Http\Controllers\SavedRouteLibraryController;
 use App\Http\Controllers\SearchPlacesController;
 use App\Http\Controllers\SendRouteToServiceController;
+use App\Http\Controllers\ShowPlannerController;
 use App\Http\Controllers\ShowSavedRouteDetailsController;
 use App\Http\Controllers\ShowSharedRouteController;
 use App\Http\Controllers\ShowSharedRouteEmbedController;
@@ -37,7 +38,6 @@ use App\Http\Controllers\StoreRouteImageController;
 use App\Http\Controllers\StoreSavedRouteController;
 use App\Http\Middleware\CountUsage;
 use App\Http\Middleware\KeepOutOfSearch;
-use App\Queries\Status\ServiceStatusQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -116,10 +116,8 @@ Route::get('docs/public', fn (): RedirectResponse => redirect()->to('/docs'));
 Route::get('docs/account', fn (): RedirectResponse => redirect()->to('/docs'));
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
-    Route::get('dashboard', fn (ServiceStatusQuery $serviceStatusQuery) => Inertia::render('dashboard', [
-        'serviceNotice' => $serviceStatusQuery->banner(),
-        'sportSurfaces' => Sport::defaultSurfaces(),
-    ]))->name('dashboard');
+    Route::get('dashboard', ShowPlannerController::class)->name('dashboard');
+    Route::post('dashboard/tour', FinishTourController::class)->middleware('throttle:saving')->name('tour.finish');
     Route::get('saved', SavedRouteLibraryController::class)->name('routes.library');
     Route::post('routes/preview', PreviewRouteController::class)->middleware(['throttle:routing', CountUsage::as(UsageMetric::RoutePreviews)])->name('routes.preview');
     Route::post('routes/build', BuildRouteController::class)->middleware(['throttle:routing', CountUsage::as(UsageMetric::RouteBuilds)])->name('routes.build');
