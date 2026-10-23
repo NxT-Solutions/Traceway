@@ -76,6 +76,20 @@
   background:var(--field);color:var(--text);font-size:16px;box-shadow:none;
 }
 .tw-settings .card input:focus{border-color:var(--text);outline:none;box-shadow:0 0 0 1px var(--text)}
+/* Where a rider finds the Traceway app on an Edge or a watch. */
+.tw-settings .card .find-app{margin-top:14px;padding:14px 16px;border:1px solid var(--field-b);border-radius:10px;background:var(--field)}
+.tw-settings .card .find-app h3{margin:0 0 6px;font-size:15px;font-weight:600;color:var(--text)}
+.tw-settings .card .find-app ul{display:flex;flex-direction:column;gap:6px;margin:0;padding-left:20px;list-style:disc;color:var(--muted);font-size:14px}
+.tw-settings .card .find-app strong{color:var(--text);font-weight:600}
+/* The code on the device: two groups of three boxes, as the Garmin draws it. */
+.tw-settings .card .code-slots{gap:14px}
+.tw-settings .card .code-slots > div{gap:6px}
+.tw-settings .card .code-slot{
+  width:44px;height:52px;border:1px solid var(--field-b);border-radius:10px;
+  background:var(--field);color:var(--text);font-size:22px;font-weight:600;box-shadow:none;
+}
+.tw-settings .card .code-slot[data-active="true"]{border-color:var(--text);box-shadow:0 0 0 1px var(--text)}
+.tw-settings .card .code-slots:has([aria-invalid="true"]) .code-slot{border-color:var(--danger)}
 .tw-settings .card button[type="submit"],
 .tw-settings .card button[data-test="update-profile-button"],
 .tw-settings .card button[data-test="update-password-button"]{

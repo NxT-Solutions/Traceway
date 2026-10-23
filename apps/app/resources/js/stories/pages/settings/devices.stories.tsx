@@ -24,8 +24,9 @@ type Props = ComponentProps<typeof Devices>;
  *
  * The flow stories run against a mocked server (Mock Service Worker) that answers as DevicesController,
  * LinkDeviceRequest and LinkDeviceHandler do: a code the device is not showing is a 302 back with the error on
- * `code`; a good one is a 302 back with the device in the list and the "Device linked" toast; Remove is a DELETE
- * that is a 303 back without it and the "Device removed." toast.
+ * `code`; a good one is a 302 back with the device in the list, waiting, and the "Device linked" toast. While a
+ * device waits the page asks for `devices` again every 3 seconds, and the device reads as linked once it has
+ * collected its token. Remove is a DELETE that is a 303 back without it and the "Device removed." toast.
  */
 const meta = {
     title: 'Pages/Settings/Devices',
@@ -70,6 +71,7 @@ const edge540: Props['devices'][number] = {
     provider: 'Garmin',
     linked_at: '2026-09-14T07:12:00Z',
     last_used_at: '2026-10-19T06:45:00Z',
+    waiting: false,
 };
 
 const forerunner965: Props['devices'][number] = {
@@ -78,6 +80,7 @@ const forerunner965: Props['devices'][number] = {
     provider: 'Garmin',
     linked_at: '2026-10-02T18:30:00Z',
     last_used_at: null,
+    waiting: false,
 };
 
 function page(overrides: Partial<Props> = {}) {
@@ -101,6 +104,12 @@ export const NoDevices: Story = {
 
         await expect(store).toHaveAttribute('href', props.garminApp);
         await expect(store).toHaveAttribute('target', '_blank');
+        await expect(
+            within(canvasElement).getByRole('heading', {
+                level: 3,
+                name: 'Where Traceway is on the device',
+            }),
+        ).toBeVisible();
     },
 };
 
@@ -138,6 +147,38 @@ export const NeedsReconnect: Story = {
             ride_with_gps: null,
         },
     }),
+};
+
+/**
+ * Answers the page's poll for its devices. Inertia reloads the address the page is on: /settings/devices in the app,
+ * the story's own address here.
+ */
+function devicesPoll(devices: Props['devices']) {
+    return http.get('*', ({ request }) =>
+        request.headers.get('X-Inertia-Partial-Component') ===
+        'settings/devices'
+            ? inertiaPage(
+                  'settings/devices',
+                  { ...props, devices },
+                  { url: edit.url(), request },
+              )
+            : undefined,
+    );
+}
+
+/** The Edge 540 the moment its code was typed, before it collected its token. */
+const waitingEdge: Props['devices'][number] = {
+    ...edge540,
+    last_used_at: null,
+    waiting: true,
+};
+
+/** The code was typed, and the Edge 540 has not collected its token yet. The page asks every 3 seconds. */
+export const WaitingForDevice: Story = {
+    render: page({ devices: [waitingEdge] }),
+    beforeEach({ msw }) {
+        msw.use(devicesPoll([waitingEdge]));
+    },
 };
 
 /** Connect and Disconnect wait until the rider confirms their email. */
@@ -211,26 +252,21 @@ export const WrongCode: Story = {
     },
 };
 
-/** The right code: the Edge 540 joins the list, a toast says so, and the code field clears for the next one. */
+/**
+ * The right code: the Edge 540 joins the list as waiting, a toast says so, and the form clears for the next one.
+ * The page asks again until the device has collected its token, and then it reads as linked.
+ */
 export const LinksDevice: Story = {
     render: page(),
     beforeEach({ msw }) {
         linkRequest.mockClear();
         msw.use(
             linkRoute,
+            // The redirect after the link finds the device waiting; the poll finds it linked.
             http.get(edit.url(), () =>
                 inertiaPage(
                     'settings/devices',
-                    {
-                        ...props,
-                        devices: [
-                            {
-                                ...edge540,
-                                linked_at: new Date().toISOString(),
-                                last_used_at: null,
-                            },
-                        ],
-                    },
+                    { ...props, devices: [waitingEdge] },
                     {
                         url: edit.url(),
                         flash: {
@@ -243,6 +279,7 @@ export const LinksDevice: Story = {
                     },
                 ),
             ),
+            devicesPoll([{ ...waitingEdge, waiting: false }]),
         );
     },
     play: async (context) => {
@@ -252,7 +289,7 @@ export const LinksDevice: Story = {
             await linkEdge(context, '7KQ4MZ');
         });
 
-        await step('The Edge 540 is in the list', async () => {
+        await step('The Edge 540 waits in the list', async () => {
             await expectToast(
                 canvas,
                 'Device linked. It will show your routes in a moment.',
@@ -260,11 +297,59 @@ export const LinksDevice: Story = {
 
             await expect(canvas.getByText('Edge 540')).toBeVisible();
             await expect(
+                canvas.getByText(/Waiting for the device/),
+            ).toBeVisible();
+            await expect(
                 canvas.queryByText('No devices linked yet.'),
             ).toBeNull();
             await expect(
                 canvas.getByLabelText('Code on the device'),
             ).toHaveValue('');
+            await expect(canvas.getByLabelText('Name')).toHaveValue('Garmin');
+        });
+
+        await step(
+            'The device collects its token and reads as linked',
+            async () => {
+                await waitFor(
+                    () =>
+                        expect(
+                            canvas.queryByText(/Waiting for the device/),
+                        ).toBeNull(),
+                    { timeout: 6000 },
+                );
+                await expect(
+                    canvas.getByText(/Linked .* Last used Not yet\./),
+                ).toBeVisible();
+            },
+        );
+    },
+};
+
+/** The code goes in six boxes, in capitals as the device shows it, and a pasted code with a dash fits. */
+export const CodeBoxes: Story = {
+    render: page(),
+    play: async ({ canvas, userEvent, step }) => {
+        const code = canvas.getByLabelText('Code on the device');
+
+        await step('Lower case comes out in capitals', async () => {
+            await userEvent.type(code, 'xk7');
+            await expect(code).toHaveValue('XK7');
+        });
+
+        await step(
+            'A 0, O, 1, I, or L is never on the device, so it is left out',
+            async () => {
+                await userEvent.type(code, '0o1il');
+                await expect(code).toHaveValue('XK7');
+            },
+        );
+
+        await step('A pasted code drops its dash', async () => {
+            await userEvent.clear(code);
+            await userEvent.click(code);
+            await userEvent.paste('xk7-p2m');
+            await expect(code).toHaveValue('XK7P2M');
         });
     },
 };
