@@ -28,6 +28,11 @@ export const Desktop: Story = {
             canvasElement.querySelector('.hero-btn'),
         ).toHaveAttribute('href', '/dashboard');
 
+        // The devices section sends a Garmin rider to the app in the Connect IQ store.
+        await expect(
+            page.getByRole('link', { name: 'Get the Traceway app for Garmin' }),
+        ).toHaveAttribute('href', 'https://apps.garmin.com/apps/a0c32e89-323f-4522-9ee8-c6af6cce14c3');
+
         // Every section link in the header lands on a section of this page.
         const sections = within(
             page.getAllByRole('navigation', { name: 'Sections' })[0],

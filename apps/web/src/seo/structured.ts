@@ -72,7 +72,7 @@ export const home = (site: Site, description: string): string =>
             softwareHelp: { '@type': 'WebPage', url: about.absolute(site, '/#faq') },
             publisher: { '@id': ref(site, 'org') },
             isPartOf: { '@id': ref(site, 'website') },
-            sameAs: [about.repository],
+            sameAs: [about.repository, about.garminApp],
         },
         {
             '@type': 'HowTo',

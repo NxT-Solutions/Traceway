@@ -23,6 +23,9 @@ export const devices = ['Garmin', 'COROS', 'Suunto', 'Wahoo', 'Hammerhead'];
 
 export const repository = 'https://github.com/NxT-Solutions/Traceway';
 
+// The Traceway app in Garmin's Connect IQ store. The home page links the same address.
+export const garminApp = 'https://apps.garmin.com/apps/a0c32e89-323f-4522-9ee8-c6af6cce14c3';
+
 // The IndexNow key, served at /indexnow.txt. It is public by design: it only
 // proves that a list of changed pages comes from this site
 // (.github/workflows/production-deploy.yml sends the list after a release).

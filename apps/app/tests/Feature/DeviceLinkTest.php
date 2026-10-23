@@ -254,6 +254,18 @@ it('shows linked devices on the settings page', function (): void {
             ->where('devices.0.provider', 'Garmin'));
 });
 
+it('links the settings page to the Traceway app in the Connect IQ store', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get(route('devices.edit'))->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('garminApp', 'https://apps.garmin.com/apps/a0c32e89-323f-4522-9ee8-c6af6cce14c3'));
+
+    config(['services.connect_iq.store_id' => '']);
+
+    $this->actingAs($user)->get(route('devices.edit'))->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('garminApp', expected: null));
+});
+
 /**
  * Turns on Wahoo and Ride with GPS, so Send routes to lists them.
  */

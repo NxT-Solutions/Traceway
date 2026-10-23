@@ -189,6 +189,8 @@ html.js .step:not(.in) .ic-draw.right>.ic{transform:translateX(100%)}
 .asks li{padding:12px 16px;border:1px solid var(--hair);border-radius:12px;background:var(--card);font-size:16px;line-height:1.35}
 .ask-acts{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:8px}
 .ask-acts small{color:var(--muted);font-size:14px;line-height:1.45;max-width:46ch}
+.store-acts{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:28px}
+.store-acts small{color:var(--muted-on-ink);font-size:14px;line-height:1.45;max-width:46ch}
 .chat-waiting :is(#chat-ask,#chat-typing,#chat-tool,#chat-card,#chat-reply){visibility:hidden}
 .chat{background:var(--ink-deep);color:var(--paper);border-radius:18px;overflow:hidden;box-shadow:0 40px 80px -40px oklch(0 0 0 / 0.55)}
 .chat-bar{display:flex;align-items:center;gap:6px;padding:12px 16px;border-bottom:1px solid var(--hair-on-ink);font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-on-ink)}
