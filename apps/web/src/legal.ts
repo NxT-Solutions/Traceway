@@ -20,7 +20,7 @@ export interface LegalPage {
     sections: readonly LegalSection[];
 }
 
-export const legalUpdated = '21 October 2026';
+export const legalUpdated = '23 October 2026';
 
 const operator = 'NxT-Solutions, Westerlo, Belgium';
 const email = '[privacy@nxt-solutions.com](mailto:privacy@nxt-solutions.com)';
@@ -52,7 +52,7 @@ export const privacy: LegalPage = {
                 '**Your watches.** The name you give a watch, a pairing code that works for 10 minutes, the key the watch uses to fetch your routes (stored only as a hash), and when it last did.',
                 '**AI assistants you connect.** Which app you connected, the sign-in keys it uses, and when they run out.',
                 '**Accounts you connect.** If you log in with, or connect, an account you have at another service, such as Google or GitHub: which service, your account number there, when you connected and when you last logged in with it, and what you allowed. With the number, it keeps the email address Google, Wahoo, Ride with GPS, or RunSignup shares, your username at GitHub or Discord, and your display name at OpenStreetMap. Only Wahoo and Ride with GPS give Traceway keys that it keeps, encrypted, to send your routes. For them, it also keeps which routes you sent there.',
-                '**When you last used Traceway.** The time you last used the planner, the watch app, or a connected AI assistant, to the quarter of an hour, and your role, which is User unless you help run Traceway. It shows how many riders come back, and helps when you ask for help with your account. It is in your copy of your data.',
+                '**When you last used Traceway.** The time you last used the planner, the watch app, or a connected AI assistant, to the quarter of an hour, and your role, which is User unless you help run Traceway. It shows how many riders come back, and helps when you ask for help with your account. It also keeps when the planner first showed you around, so the short tour does not open again. All of this is in your copy of your data.',
                 '**Totals of what is used.** Each day, the server adds up how often each part of Traceway is used, such as routes drawn, files exported, sign-ins, and watch syncs. A total says how many times, never who.',
                 '**Signing in.** While you are signed in, the server keeps a session with your IP address and the name of your browser. It keeps you signed in and helps stop someone else from using your account.',
                 '**Error logs.** When something breaks, the server writes down what happened so it can be fixed. A log line can include your account number. It never includes your password.',
