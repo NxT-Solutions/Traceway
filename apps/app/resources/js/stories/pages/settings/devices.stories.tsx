@@ -149,22 +149,34 @@ export const NeedsReconnect: Story = {
     }),
 };
 
+/** The polls the mocked server answered. */
+const pollRequest = fn();
+
 /**
  * Answers the page's poll for its devices. Inertia reloads the address the page is on: /settings/devices in the app,
  * the story's own address here.
  */
 function devicesPoll(devices: Props['devices']) {
-    return http.get('*', ({ request }) =>
-        request.headers.get('X-Inertia-Partial-Component') ===
-        'settings/devices'
-            ? inertiaPage(
-                  'settings/devices',
-                  { ...props, devices },
-                  { url: edit.url(), request },
-              )
-            : undefined,
-    );
+    return http.get('*', ({ request }) => {
+        if (
+            request.headers.get('X-Inertia-Partial-Component') !==
+            'settings/devices'
+        ) {
+            return undefined;
+        }
+
+        pollRequest(request.headers.get('X-Inertia-Partial-Data'));
+
+        return inertiaPage(
+            'settings/devices',
+            { ...props, devices },
+            { url: edit.url(), request },
+        );
+    });
 }
+
+/** Long enough for the page's 3 second poll to have asked again. */
+const pollTime = { timeout: 6000 };
 
 /** The Edge 540 the moment its code was typed, before it collected its token. */
 const waitingEdge: Props['devices'][number] = {
@@ -177,7 +189,36 @@ const waitingEdge: Props['devices'][number] = {
 export const WaitingForDevice: Story = {
     render: page({ devices: [waitingEdge] }),
     beforeEach({ msw }) {
+        pollRequest.mockClear();
         msw.use(devicesPoll([waitingEdge]));
+    },
+    play: async ({ canvas }) => {
+        const status = canvas.getByText(/Waiting for the device/);
+
+        // When the device answers, the line changes, and a screen reader says so.
+        await expect(status).toHaveAttribute('aria-live', 'polite');
+        await waitFor(
+            () => expect(pollRequest).toHaveBeenCalledWith('devices'),
+            pollTime,
+        );
+    },
+};
+
+/** The device never answered, so its code ran out: it leaves the list, and the page says what to do. */
+export const CodeRanOut: Story = {
+    render: page({ devices: [waitingEdge] }),
+    beforeEach({ msw }) {
+        msw.use(devicesPoll([]));
+    },
+    play: async ({ canvas }) => {
+        await waitFor(
+            () =>
+                expect(canvas.getByRole('status')).toHaveTextContent(
+                    'Edge 540 did not finish linking: its code ran out before the device answered. Open Traceway on the device and type the new code.',
+                ),
+            pollTime,
+        );
+        await expect(canvas.getByText('No devices linked yet.')).toBeVisible();
     },
 };
 
@@ -208,7 +249,10 @@ async function linkEdge({ canvas, userEvent }: Play, code: string) {
     await userEvent.click(canvas.getByRole('button', { name: 'Link device' }));
 }
 
-/** The code is not one a device is showing now, so the error says to open the app for a new one. */
+/**
+ * The code is not one a device is showing now, so the error says to open the app for a new one. The boxes empty,
+ * so the new code goes into empty boxes, not over the old one.
+ */
 export const WrongCode: Story = {
     render: page(),
     beforeEach({ msw }) {
@@ -249,6 +293,29 @@ export const WrongCode: Story = {
                 canvas.getByText('No devices linked yet.'),
             ).toBeVisible();
         });
+
+        await step('The boxes empty, ready for the new code', async () => {
+            const code = canvas.getByLabelText('Code on the device');
+
+            await expect(code).toHaveValue('');
+            await expect(code).toHaveAttribute('aria-invalid', 'true');
+            await expect(code).toHaveFocus();
+        });
+
+        await step('The new code goes in whole', async () => {
+            await context.userEvent.keyboard('7kq4mz');
+            await context.userEvent.click(
+                canvas.getByRole('button', { name: 'Link device' }),
+            );
+            await waitFor(
+                () =>
+                    expect(linkRequest).toHaveBeenLastCalledWith({
+                        code: '7KQ4MZ',
+                        label: 'Edge 540',
+                    }),
+                serverTime,
+            );
+        });
     },
 };
 
@@ -260,6 +327,7 @@ export const LinksDevice: Story = {
     render: page(),
     beforeEach({ msw }) {
         linkRequest.mockClear();
+        pollRequest.mockClear();
         msw.use(
             linkRoute,
             // The redirect after the link finds the device waiting; the poll finds it linked.
@@ -323,25 +391,40 @@ export const LinksDevice: Story = {
                 ).toBeVisible();
             },
         );
+
+        await step('Nothing waits now, so the page stops asking', async () => {
+            const asked = pollRequest.mock.calls.length;
+
+            await new Promise((resolve) => setTimeout(resolve, 4000));
+            await expect(pollRequest).toHaveBeenCalledTimes(asked);
+        });
     },
 };
 
-/** The code goes in six boxes, in capitals as the device shows it, and a pasted code with a dash fits. */
+/**
+ * The code goes in six boxes, in capitals as the device shows it, and a pasted code with a dash fits. What was typed
+ * is kept as typed, so fixing one box leaves the caret there; the boxes show it in capitals, and it is sent so.
+ */
 export const CodeBoxes: Story = {
     render: page(),
-    play: async ({ canvas, userEvent, step }) => {
+    play: async ({ canvas, canvasElement, userEvent, step }) => {
         const code = canvas.getByLabelText('Code on the device');
 
-        await step('Lower case comes out in capitals', async () => {
+        await step('Lower case shows in capitals', async () => {
             await userEvent.type(code, 'xk7');
-            await expect(code).toHaveValue('XK7');
+            await expect(code).toHaveValue('xk7');
+
+            const box = canvasElement.querySelector('.code-slot');
+
+            await expect(box).toHaveTextContent('x');
+            await expect(box).toHaveStyle({ textTransform: 'uppercase' });
         });
 
         await step(
             'A 0, O, 1, I, or L is never on the device, so it is left out',
             async () => {
                 await userEvent.type(code, '0o1il');
-                await expect(code).toHaveValue('XK7');
+                await expect(code).toHaveValue('xk7');
             },
         );
 
@@ -356,6 +439,45 @@ export const CodeBoxes: Story = {
 
 /** Which device the mocked server removed. */
 const removeRequest = fn();
+
+/** Sam removes the Edge 540 while it still waits. It goes, and the page does not say its code ran out. */
+export const RemovesWaitingDevice: Story = {
+    render: WaitingForDevice.render,
+    beforeEach({ msw }) {
+        removeRequest.mockClear();
+        msw.use(
+            http.delete(pathOf(destroy), async ({ params }) => {
+                removeRequest(params.deviceLink);
+                await network();
+
+                return redirect(edit.url(), 303);
+            }),
+            devicesPoll([waitingEdge]),
+            http.get(edit.url(), () =>
+                inertiaPage(
+                    'settings/devices',
+                    { ...props, devices: [] },
+                    {
+                        url: edit.url(),
+                        flash: {
+                            toast: {
+                                type: 'success',
+                                message: 'Device removed.',
+                            },
+                        },
+                    },
+                ),
+            ),
+        );
+    },
+    play: async ({ canvas, userEvent }) => {
+        await userEvent.click(canvas.getByRole('button', { name: 'Remove' }));
+        await expectToast(canvas, 'Device removed.');
+        await expect(canvas.getByText('No devices linked yet.')).toBeVisible();
+        await expect(removeRequest).toHaveBeenCalledWith(waitingEdge.id);
+        await expect(canvas.getByRole('status')).toHaveTextContent('');
+    },
+};
 
 /** Sam removes the Edge 540; the Forerunner 965 stays, and its access is untouched. */
 export const RemovesDevice: Story = {

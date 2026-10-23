@@ -1,6 +1,6 @@
 import { Head, Link, router, useForm, usePoll } from '@inertiajs/react';
 import { ExternalLink } from 'lucide-react';
-import { type FormEvent, useEffect } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import ConfirmEmailFirst from '@/components/connections/confirm-email-first';
 import ConnectLink from '@/components/connections/connect-link';
 import DisconnectBlocked from '@/components/connections/disconnect-blocked';
@@ -49,7 +49,7 @@ const serviceNote: Record<string, string> = {
         'Routes go to your Ride with GPS library. From there, Send to Device puts one on a Karoo, Bryton, or Wahoo.',
 };
 
-/** The letters and digits a device shows: no 0, O, 1, I, or L. Lower case is let in and written in capitals. */
+/** The letters and digits a device shows: no 0, O, 1, I, or L. Lower case is let in, shown and sent in capitals. */
 const codePattern = '^[A-HJKMNP-Za-hjkmnp-z2-9]*$';
 
 /** A pasted code may come with a space or a dash between its two halves. */
@@ -86,28 +86,80 @@ export default function Devices({
     garminApp?: string | null;
 }) {
     const form = useForm({ code: '', label: 'Garmin' });
+    const codeInput = useRef<HTMLInputElement>(null);
     const locked = !emailVerified;
     const waiting = devices.some((device) => device.waiting);
+    const [removing, setRemoving] = useState(false);
+    /** The name of a device whose code ran out before it collected its token. */
+    const [ranOut, setRanOut] = useState<string | null>(null);
+    /** The devices that waited at the last answer, and the ones the rider removed. */
+    const waited = useRef(new Map<string, string>());
+    const removed = useRef(new Set<string>());
     const poll = usePoll(
         waitingPoll,
         { only: ['devices'] },
         { autoStart: false },
     );
 
-    // A linked device shows up once it collects its token, so the list asks again until it has.
+    // A linked device shows up once it collects its token, so the list asks again until it has. It holds off
+    // while a link or a removal is on its way, so a late answer cannot undo it.
     useEffect(() => {
-        if (waiting) {
+        if (waiting && !form.processing && !removing) {
             poll.start();
         } else {
             poll.stop();
         }
-    }, [waiting, poll.start, poll.stop]);
+    }, [waiting, form.processing, removing, poll.start, poll.stop]);
+
+    // A waiting device that leaves the list without the rider removing it ran out of time.
+    useEffect(() => {
+        const listed = new Set(devices.map((device) => device.id));
+
+        for (const [id, label] of waited.current) {
+            if (!listed.has(id) && !removed.current.has(id)) {
+                setRanOut(label);
+            }
+        }
+
+        waited.current = new Map(
+            devices
+                .filter((device) => device.waiting)
+                .map((device) => [device.id, device.label]),
+        );
+    }, [devices]);
+
+    /** Drops a poll that is on its way, so its answer cannot land after a link or a removal. */
+    function stopAsking(): void {
+        router.cancelAll({ sync: false, prefetch: false });
+    }
 
     function link(event: FormEvent<HTMLFormElement>): void {
         event.preventDefault();
+        stopAsking();
+        form.transform((data) => ({ ...data, code: data.code.toUpperCase() }));
         form.post('/settings/devices', {
             preserveScroll: true,
-            onSuccess: () => form.reset(),
+            onSuccess: () => {
+                form.reset();
+                setRanOut(null);
+            },
+            // The rider types the new code the device shows into empty boxes, not over the old one.
+            onError: (errors) => {
+                if (errors.code !== undefined) {
+                    form.setData('code', '');
+                    codeInput.current?.focus();
+                }
+            },
+        });
+    }
+
+    function remove(device: Device): void {
+        removed.current.add(device.id);
+        stopAsking();
+        setRemoving(true);
+        router.delete(`/settings/devices/${device.id}`, {
+            preserveScroll: true,
+            onFinish: () => setRemoving(false),
         });
     }
 
@@ -173,9 +225,9 @@ export default function Devices({
                             name="code"
                             maxLength={6}
                             value={form.data.code}
-                            onChange={(value) =>
-                                form.setData('code', value.toUpperCase())
-                            }
+                            ref={codeInput}
+                            // Kept as typed, so fixing one box leaves the caret there. The boxes show capitals.
+                            onChange={(value) => form.setData('code', value)}
                             pattern={codePattern}
                             pasteTransformer={pastedCode}
                             autoComplete="one-time-code"
@@ -234,6 +286,16 @@ export default function Devices({
                     description="A device reads your saved routes and nothing else. Remove it and its access stops at once."
                 />
 
+                {/* Always on the page, so a screen reader hears it when a code runs out. */}
+                <p
+                    role="status"
+                    className={ranOut === null ? 'sr-only' : 'desc'}
+                >
+                    {ranOut === null
+                        ? null
+                        : `${ranOut} did not finish linking: its code ran out before the device answered. Open Traceway on the device and type the new code.`}
+                </p>
+
                 {devices.length === 0 ? (
                     <p className="desc">No devices linked yet.</p>
                 ) : (
@@ -259,12 +321,7 @@ export default function Devices({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    onClick={() =>
-                                        router.delete(
-                                            `/settings/devices/${device.id}`,
-                                            { preserveScroll: true },
-                                        )
-                                    }
+                                    onClick={() => remove(device)}
                                 >
                                     Remove
                                 </Button>

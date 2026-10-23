@@ -85,11 +85,15 @@
 .tw-settings .card .code-slots{gap:14px}
 .tw-settings .card .code-slots > div{gap:6px}
 .tw-settings .card .code-slot{
-  width:44px;height:52px;border:1px solid var(--field-b);border-radius:10px;
-  background:var(--field);color:var(--text);font-size:22px;font-weight:600;box-shadow:none;
+  width:clamp(36px,11vw,44px);height:52px;border:1px solid var(--field-b);border-radius:10px;
+  background:var(--field);color:var(--text);font-size:22px;font-weight:600;text-transform:uppercase;box-shadow:none;
 }
-.tw-settings .card .code-slot[data-active="true"]{border-color:var(--text);box-shadow:0 0 0 1px var(--text)}
 .tw-settings .card .code-slots:has([aria-invalid="true"]) .code-slot{border-color:var(--danger)}
+/* The box being typed in, after the error colour so it still shows where the caret is. */
+.tw-settings .card .code-slots .code-slot[data-active="true"]{border-color:var(--text);box-shadow:0 0 0 1px var(--text)}
+@media (forced-colors: active){
+  .tw-settings .card .code-slots .code-slot[data-active="true"]{outline:2px solid Highlight;outline-offset:1px}
+}
 .tw-settings .card button[type="submit"],
 .tw-settings .card button[data-test="update-profile-button"],
 .tw-settings .card button[data-test="update-password-button"]{
