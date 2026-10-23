@@ -72,8 +72,11 @@ async function analyze(page, target, attempt = 1) {
     try {
         // A story a docs page shows in its own frame is checked on its own
         // story page; inside the docs page its play may be mid-way.
+        // `iframes: false` alone still reads into them, so the frames are left
+        // out by name too.
         return await new AxeBuilder({ page })
             .include(target)
+            .exclude(`${target} iframe`)
             .options({
                 iframes: false,
                 runOnly: { type: 'rule', values: ['color-contrast'] },
