@@ -123,9 +123,14 @@ class RoutesView extends WatchUi.View {
         return Brand.hasCorners() && System.getDeviceSettings().monkeyVersion[0] < 6;
     }
 
+    // While the list loads, its answer replaces whatever is on top, so nothing else may open over this screen until then.
+    function loading() {
+        return _detail == null;
+    }
+
     // Asks again after a message, for a route saved in the planner or a phone back in reach.
     function retry() {
-        if (_detail == null) {
+        if (loading()) {
             return;
         }
 
@@ -135,6 +140,7 @@ class RoutesView extends WatchUi.View {
 }
 
 // On a message screen: select looks again, and the menu button, or the three dots on a touch screen, opens the options.
+// While the list loads, both wait.
 class RoutesDelegate extends WatchUi.BehaviorDelegate {
     var _view;
 
@@ -144,7 +150,10 @@ class RoutesDelegate extends WatchUi.BehaviorDelegate {
     }
 
     function onMenu() {
-        Options.show();
+        if (!_view.loading()) {
+            Options.show();
+        }
+
         return true;
     }
 
@@ -166,6 +175,10 @@ class RoutesDelegate extends WatchUi.BehaviorDelegate {
 
     // A tap near the three dots opens the options. Anywhere else looks again.
     function onTap(clickEvent) {
+        if (_view.loading()) {
+            return true;
+        }
+
         var point = clickEvent.getCoordinates();
         var width = System.getDeviceSettings().screenWidth;
         var band = Brand.optionsBand(width);
