@@ -60,6 +60,8 @@ const props: Props = {
     disconnectBlocked: { wahoo: null, ride_with_gps: null },
     emailVerified: true,
     verificationSent: false,
+    garminApp:
+        'https://apps.garmin.com/apps/a0c32e89-323f-4522-9ee8-c6af6cce14c3',
 };
 
 const edge540: Props['devices'][number] = {
@@ -90,7 +92,17 @@ function page(overrides: Partial<Props> = {}) {
     );
 }
 
-export const NoDevices: Story = { render: page() };
+export const NoDevices: Story = {
+    render: page(),
+    play: async ({ canvasElement }) => {
+        const store = within(canvasElement).getByRole('link', {
+            name: /Get Traceway in Garmin's Connect IQ store/,
+        });
+
+        await expect(store).toHaveAttribute('href', props.garminApp);
+        await expect(store).toHaveAttribute('target', '_blank');
+    },
+};
 
 /** Two Garmins linked, and Wahoo connected with a route sent. */
 export const LinkedDevices: Story = {

@@ -11,8 +11,14 @@ import type { Preview } from '@storybook/react-vite';
 import { HttpResponse, http } from 'msw';
 import { setupWorker } from 'msw/browser';
 import { mswLoader } from 'msw-storybook-addon/csf3';
+import { configure } from 'storybook/test';
 import { Appearance } from '../resources/js/stories/support/appearance';
 import { ThemedDocsContainer } from './docs-container';
+
+// A page story often waits for Inertia's next page or a mocked answer. On a busy CI runner that can take a few
+// seconds, and Testing Library's one-second default for findBy and waitFor then fails a story that passes on a
+// laptop (Pages/Admin/Traffic, Switches Tabs). A passing check still returns as soon as it passes.
+configure({ asyncUtilTimeout: 5000 });
 
 // Read once, as the preview loads: a page story's Inertia writes the page's own address into the frame later.
 /** The folder Storybook is served from: /storybook/app/ when published, / in dev and the tests. */

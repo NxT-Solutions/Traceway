@@ -52,7 +52,23 @@ class DevicesController extends Controller
             // connections page.
             'emailVerified' => $user->hasVerifiedEmail(),
             'verificationSent' => $request->session()->get('status') === Fortify::VERIFICATION_LINK_SENT,
+            'garminApp' => $this->garminApp(),
         ]);
+    }
+
+    /**
+     * The Traceway app's page in the Connect IQ store, where a rider adds it to a Garmin. Null when no store id is set.
+     */
+    private function garminApp(): ?string
+    {
+        $url = config('services.connect_iq.url');
+        $storeId = config('services.connect_iq.store_id');
+
+        if (! is_string($storeId) || $storeId === '') {
+            return null;
+        }
+
+        return rtrim(is_string($url) && $url !== '' ? $url : 'https://apps.garmin.com', '/').'/apps/'.rawurlencode($storeId);
     }
 
     #[Post(

@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { ExternalLink } from 'lucide-react';
 import type { FormEvent } from 'react';
 import ConfirmEmailFirst from '@/components/connections/confirm-email-first';
 import ConnectLink from '@/components/connections/connect-link';
@@ -53,6 +54,7 @@ export default function Devices({
     disconnectBlocked = {},
     emailVerified,
     verificationSent,
+    garminApp = null,
 }: {
     devices: Device[];
     services?: RouteServiceStatus[];
@@ -62,6 +64,8 @@ export default function Devices({
     emailVerified: boolean;
     /** True right after the rider asked for the confirmation email again. */
     verificationSent: boolean;
+    /** The Traceway app in the Connect IQ store, or null when no store listing is set. */
+    garminApp?: string | null;
 }) {
     const form = useForm({ code: '', label: 'Garmin' });
     const locked = !emailVerified;
@@ -86,8 +90,27 @@ export default function Devices({
                 <Heading
                     variant="small"
                     title="Link a device"
-                    description="Open the Traceway app on your device. On a Garmin, that is Traceway in Connect IQ. It shows a six-character code. Type it here, and the device lists your saved routes and loads one as a course."
+                    description="First add the Traceway app to your Garmin from Garmin's Connect IQ store. Then open it on the device. It shows a six-character code. Type it here, and the device lists your saved routes and loads one as a course."
                 />
+
+                {garminApp !== null && (
+                    <p className="desc">
+                        No app on your Garmin yet?{' '}
+                        <a
+                            className="cx-link inline-flex items-center gap-1"
+                            href={garminApp}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Get Traceway in Garmin's Connect IQ store
+                            <ExternalLink size={14} aria-hidden="true" />
+                            <span className="sr-only">
+                                {' '}
+                                (opens in a new tab)
+                            </span>
+                        </a>
+                    </p>
+                )}
 
                 <form onSubmit={link} className="grid gap-4">
                     <div className="grid gap-2">

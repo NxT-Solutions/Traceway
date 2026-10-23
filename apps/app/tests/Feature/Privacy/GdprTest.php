@@ -264,7 +264,7 @@ it('has the browser talk only to Traceway, apart from the map itself', function 
     // Turnstile runs in the browser on the sign-up and password reset forms
     // only. The privacy policy names Cloudflare for it.
     $personCheck = ['challenges.cloudflare.com'];
-    $links = ['github.com', 'www.paypal.com', 'paypal.me', 'claude.ai', 'chatgpt.com', 'laravel.com', 'usehooks-ts.com', 'www.w3.org', 'localhost', 'www.cloudflarestatus.com', 'connect.garmin.com', 'dash.cloudflare.com'];
+    $links = ['github.com', 'www.paypal.com', 'paypal.me', 'claude.ai', 'chatgpt.com', 'laravel.com', 'usehooks-ts.com', 'www.w3.org', 'localhost', 'www.cloudflarestatus.com', 'connect.garmin.com', 'apps.garmin.com', 'dash.cloudflare.com'];
     // The stories' example data (resources/js/stories): links a connected service's page shows, a sent route's
     // address, and the assistant address on this site. Storybook shows them; it never fetches them.
     $storyLinks = ['discord.com', 'myaccount.google.com', 'ridewithgps.com', 'example.com', 'traceway.online', 'traceway.ddev.site'];
