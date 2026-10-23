@@ -238,7 +238,7 @@ it('turns a device away without a token, with a wrong one, or after it was remov
     $this->withToken($token)->getJson(route('device.routes'))->assertUnauthorized();
 });
 
-it('lets a device unlink itself, leaving the rider\'s other devices linked', function (): void {
+it("lets a device unlink itself, leaving the rider's other devices linked", function (): void {
     $user = User::factory()->create();
     $edge = linkDevice($user, 'Edge 840');
     $watch = linkDevice($user, 'Fenix 8');
