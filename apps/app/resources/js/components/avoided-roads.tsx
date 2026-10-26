@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { AvoidedRoad } from '@/lib/avoided-roads';
 import { avoidedPaint, roadName } from '@/lib/avoided-roads';
 
@@ -27,8 +28,33 @@ export function AvoidedRoads({
     onShow: (road: AvoidedRoad) => void;
     onRemove: (road: AvoidedRoad) => void;
 }) {
+    const sectionRef = useRef<HTMLElement>(null);
+    const pickRef = useRef<HTMLButtonElement>(null);
+    const count = useRef(roads.length);
+
+    // A removed road takes its buttons with it. The focus goes on to Avoid a
+    // road instead of falling back to the top of the page.
+    useEffect(() => {
+        const fewer = roads.length < count.current;
+        count.current = roads.length;
+        const active = document.activeElement;
+
+        if (
+            fewer &&
+            (active === null ||
+                active === document.body ||
+                sectionRef.current?.contains(active) === true)
+        ) {
+            pickRef.current?.focus();
+        }
+    }, [roads.length]);
+
     return (
-        <section className="avoided" aria-label="Roads you avoid">
+        <section
+            ref={sectionRef}
+            className="avoided"
+            aria-label="Roads you avoid"
+        >
             <p className="sec-label">Roads you avoid</p>
             {roads.length === 0 ? (
                 <p className="small">
@@ -79,18 +105,22 @@ export function AvoidedRoads({
                 </ul>
             )}
             <button
+                ref={pickRef}
                 type="button"
                 className="import-file"
                 aria-pressed={picking}
                 disabled={busy && !picking}
                 onClick={() => onPick(!picking)}
             >
-                {picking
-                    ? 'Tap the road on the map, or tap here to stop'
-                    : busy
-                      ? 'Finding the road…'
-                      : 'Avoid a road'}
+                Avoid a road
             </button>
+            <p className="small avoided-status" role="status">
+                {picking
+                    ? 'Tap the road on the map. Escape, or Avoid a road again, stops.'
+                    : busy
+                      ? 'One moment…'
+                      : ''}
+            </p>
         </section>
     );
 }

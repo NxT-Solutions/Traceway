@@ -167,3 +167,51 @@ it('sends nothing to skip for a rider who avoids nothing', function (): void {
 
     expect(avoidedNames($this->engine->asked))->toBe([[]]);
 });
+
+it('sends a path avoided on foot with a run, not with a ride', function (): void {
+    AvoidedStretchModel::factory()->for($this->rider)->create([
+        'name' => 'Footpath',
+        'sport' => 'hike',
+        'surface' => 'dirt',
+        'latitude' => 51.052,
+        'shape' => [[3.72, 51.052], [3.724, 51.052]],
+    ]);
+
+    foreach (['gravel' => 'mixed', 'run' => 'paved'] as $sport => $surface) {
+        $this->actingAs($this->rider)
+            ->postJson(route('routes.preview'), [
+                'sport' => $sport,
+                'surface' => $surface,
+                'elevation' => 'neutral',
+                'distance_metres' => 10_000,
+                'latitude' => 51.05,
+                'longitude' => 3.72,
+            ])
+            ->assertOk();
+    }
+
+    expect(avoidedNames($this->engine->asked))->toBe([['Bosweg'], ['Bosweg', 'Footpath']]);
+});
+
+it('gives each multisport leg the roads for its own sport', function (): void {
+    AvoidedStretchModel::factory()->for($this->rider)->create([
+        'name' => 'Footpath',
+        'sport' => 'run',
+        'latitude' => 51.052,
+        'shape' => [[3.72, 51.052], [3.724, 51.052]],
+    ]);
+
+    $this->actingAs($this->rider)
+        ->postJson(route('routes.multisport'), [
+            'layout' => 'loops',
+            'latitude' => 51.05,
+            'longitude' => 3.72,
+            'legs' => [
+                ['sport' => 'road', 'surface' => 'paved', 'elevation' => 'neutral', 'distance_metres' => 20_000],
+                ['sport' => 'run', 'surface' => 'mixed', 'elevation' => 'neutral', 'distance_metres' => 5_000],
+            ],
+        ])
+        ->assertOk();
+
+    expect(avoidedNames($this->engine->asked))->toBe([['Bosweg'], ['Bosweg', 'Footpath']]);
+});

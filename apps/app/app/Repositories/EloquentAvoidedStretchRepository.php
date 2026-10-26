@@ -7,11 +7,14 @@ namespace App\Repositories;
 use App\Account\RiderId;
 use App\Contracts\Routes\AvoidedStretchRepository;
 use App\Domain\Routing\Distance;
+use App\Domain\Routing\LineDistance;
+use App\Domain\Routing\Sport;
 use App\Models\AvoidedStretch as AvoidedStretchModel;
 use App\Routes\AvoidedStretchId;
 use App\Routes\ForeignAvoidedStretch;
 use App\Routes\MissingAvoidedStretch;
 use App\Routes\StretchToAvoid;
+use App\Routes\TooManyAvoidedStretches;
 use Illuminate\Support\Facades\DB;
 
 final readonly class EloquentAvoidedStretchRepository implements AvoidedStretchRepository
@@ -19,14 +22,32 @@ final readonly class EloquentAvoidedStretchRepository implements AvoidedStretchR
     /** A tap this close to a stretch already kept is the same stretch. */
     private const float SAME_METRES = 3.0;
 
-    public function add(RiderId $riderId, StretchToAvoid $stretchToAvoid): AvoidedStretchId
+    /** A point this close to a kept stretch of the same way is on it. */
+    private const float ON_THE_WAY_METRES = 5.0;
+
+    /** Degrees of latitude around the point to look for the same way: a kept stretch runs up to 2 km. */
+    private const float LOOK_DEGREES = 0.02;
+
+    public function add(RiderId $riderId, StretchToAvoid $stretchToAvoid, int $most): AvoidedStretchId
     {
-        return DB::transaction(function () use ($riderId, $stretchToAvoid): AvoidedStretchId {
+        return DB::transaction(function () use ($riderId, $stretchToAvoid, $most): AvoidedStretchId {
             $same = $this->sameAs($riderId, $stretchToAvoid);
 
             if ($same instanceof AvoidedStretchModel) {
+                // Kept on foot, now on a bike: a bike plan skips it from now on too.
+                if (Sport::tryFrom($same->sport)?->onFoot() === true && Sport::tryFrom($stretchToAvoid->sport)?->onFoot() === false) {
+                    $same->sport = $stretchToAvoid->sport;
+                    $same->surface = $stretchToAvoid->surface;
+                    $same->save();
+                }
+
                 return new AvoidedStretchId($same->id);
             }
+
+            throw_if(
+                DB::table('avoided_stretches')->where('user_id', $riderId->value)->lockForUpdate()->count() >= $most,
+                TooManyAvoidedStretches::limit(),
+            );
 
             $avoidedStretch = new AvoidedStretchModel;
             $avoidedStretch->id = $avoidedStretch->newUniqueId();
@@ -35,16 +56,13 @@ final readonly class EloquentAvoidedStretchRepository implements AvoidedStretchR
             $avoidedStretch->longitude = $stretchToAvoid->longitude;
             $avoidedStretch->way_id = $stretchToAvoid->wayId;
             $avoidedStretch->name = $stretchToAvoid->name;
+            $avoidedStretch->sport = $stretchToAvoid->sport;
+            $avoidedStretch->surface = $stretchToAvoid->surface;
             $avoidedStretch->shape = $stretchToAvoid->shape;
             $avoidedStretch->save();
 
             return new AvoidedStretchId($avoidedStretch->id);
         });
-    }
-
-    public function countFor(RiderId $riderId): int
-    {
-        return DB::table('avoided_stretches')->where('user_id', $riderId->value)->count();
     }
 
     public function deleteOwned(AvoidedStretchId $avoidedStretchId, RiderId $riderId): void
@@ -67,33 +85,31 @@ final readonly class EloquentAvoidedStretchRepository implements AvoidedStretchR
     }
 
     /**
-     * A stretch of the same way with the same ends, or one whose point is
-     * where this tap landed.
+     * A kept stretch whose point is where this one's is, or one of the same
+     * way that either point lies on. A way longer than 2 km is kept as the
+     * part around each tap, so two taps on it overlap rather than match.
      */
     private function sameAs(RiderId $riderId, StretchToAvoid $stretchToAvoid): ?AvoidedStretchModel
     {
-        $first = $stretchToAvoid->shape[0] ?? null;
-        $last = $stretchToAvoid->shape[count($stretchToAvoid->shape) - 1] ?? null;
+        $point = [$stretchToAvoid->longitude, $stretchToAvoid->latitude];
+        $lookLongitude = self::LOOK_DEGREES / max(0.05, cos(deg2rad($stretchToAvoid->latitude)));
         $near = AvoidedStretchModel::query()
             ->where('user_id', $riderId->value)
-            ->where('latitude', '>=', $stretchToAvoid->latitude - 0.02)
-            ->where('latitude', '<=', $stretchToAvoid->latitude + 0.02)
-            ->where('longitude', '>=', $stretchToAvoid->longitude - 0.03)
-            ->where('longitude', '<=', $stretchToAvoid->longitude + 0.03)
+            ->where('latitude', '>=', $stretchToAvoid->latitude - self::LOOK_DEGREES)
+            ->where('latitude', '<=', $stretchToAvoid->latitude + self::LOOK_DEGREES)
+            ->where('longitude', '>=', $stretchToAvoid->longitude - $lookLongitude)
+            ->where('longitude', '<=', $stretchToAvoid->longitude + $lookLongitude)
             ->get();
 
         foreach ($near as $avoidedStretch) {
-            if (Distance::metres([$avoidedStretch->longitude, $avoidedStretch->latitude], [$stretchToAvoid->longitude, $stretchToAvoid->latitude]) <= self::SAME_METRES) {
+            $kept = [$avoidedStretch->longitude, $avoidedStretch->latitude];
+
+            if (Distance::metres($kept, $point) <= self::SAME_METRES) {
                 return $avoidedStretch;
             }
 
-            $shape = $avoidedStretch->shape;
-            $ends = [$shape[0] ?? null, $shape[count($shape) - 1] ?? null];
-
             if ($stretchToAvoid->wayId !== null && $avoidedStretch->way_id === $stretchToAvoid->wayId
-                && $first !== null && $last !== null && $ends[0] !== null && $ends[1] !== null
-                && ($this->samePoint($ends[0], $first) && $this->samePoint($ends[1], $last)
-                    || $this->samePoint($ends[0], $last) && $this->samePoint($ends[1], $first))) {
+                && ($this->onLine($point, $avoidedStretch->shape) || $this->onLine($kept, $stretchToAvoid->shape))) {
                 return $avoidedStretch;
             }
         }
@@ -102,11 +118,11 @@ final readonly class EloquentAvoidedStretchRepository implements AvoidedStretchR
     }
 
     /**
-     * @param  array{0: float, 1: float}  $left
-     * @param  array{0: float, 1: float}  $right
+     * @param  array{0: float, 1: float}  $point
+     * @param  list<array{0: float, 1: float}>  $line
      */
-    private function samePoint(array $left, array $right): bool
+    private function onLine(array $point, array $line): bool
     {
-        return Distance::metres($left, $right) <= 1.0;
+        return count($line) >= 2 && LineDistance::of($line)->project($point)['gap'] <= self::ON_THE_WAY_METRES;
     }
 }

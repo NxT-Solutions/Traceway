@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { expect, fn } from 'storybook/test';
 import { AvoidedRoads } from '@/components/avoided-roads';
 import { avoidedRoads } from '../support/planner-pages';
@@ -119,15 +120,16 @@ export const Unnamed: Story = {
     },
 };
 
-/** Waiting for the tap: the button stays pressed and says how to stop. */
+/** Waiting for the tap: the button stays pressed, and a line says how to stop. */
 export const Picking: Story = {
     args: { picking: true },
     play: async ({ canvas, args, userEvent }) => {
-        const button = canvas.getByRole('button', {
-            name: 'Tap the road on the map, or tap here to stop',
-        });
+        const button = canvas.getByRole('button', { name: 'Avoid a road' });
 
         await expect(button).toHaveAttribute('aria-pressed', 'true');
+        await expect(canvas.getByRole('status')).toHaveTextContent(
+            'Tap the road on the map. Escape, or Avoid a road again, stops.',
+        );
         await userEvent.click(button);
         await expect(args.onPick).toHaveBeenCalledWith(false);
     },
@@ -143,15 +145,46 @@ export const StillOnTheRoute: Story = {
     },
 };
 
-/** While a road is found: Remove waits, and the button says what is happening. */
+/** While a road is found or let back in: the buttons wait, and a line says so. */
 export const Finding: Story = {
     args: { busy: true },
     play: async ({ canvas }) => {
         await expect(
-            canvas.getByRole('button', { name: 'Finding the road…' }),
+            canvas.getByRole('button', { name: 'Avoid a road' }),
         ).toBeDisabled();
+        await expect(canvas.getByRole('status')).toHaveTextContent(
+            'One moment…',
+        );
         await expect(
             canvas.getByRole('button', { name: 'Remove Zandstraat' }),
         ).toBeDisabled();
+    },
+};
+
+/** Remove takes the road's buttons away; the focus goes on to Avoid a road. */
+export const FocusAfterRemove: Story = {
+    render: function Render(args) {
+        const [roads, setRoads] = useState(args.roads);
+
+        return (
+            <AvoidedRoads
+                {...args}
+                roads={roads}
+                onRemove={(road) => {
+                    args.onRemove(road);
+                    setRoads((current) =>
+                        current.filter((item) => item.id !== road.id),
+                    );
+                }}
+            />
+        );
+    },
+    play: async ({ canvas, userEvent }) => {
+        await userEvent.click(
+            canvas.getByRole('button', { name: 'Remove Zandstraat' }),
+        );
+        await expect(
+            canvas.getByRole('button', { name: 'Avoid a road' }),
+        ).toHaveFocus();
     },
 };

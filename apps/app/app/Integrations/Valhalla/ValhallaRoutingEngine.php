@@ -131,6 +131,7 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             startLatitude: $routeQuery->startLatitude,
             startLongitude: $routeQuery->startLongitude,
             preferQuiet: $routeQuery->preferQuiet,
+            avoid: $routeQuery->avoid,
         ), $waypoints, mustVisit: true);
     }
 
@@ -351,6 +352,7 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             startLatitude: $routeQuery->startLatitude,
             startLongitude: $routeQuery->startLongitude,
             preferQuiet: $routeQuery->preferQuiet,
+            avoid: $routeQuery->avoid,
         );
     }
 

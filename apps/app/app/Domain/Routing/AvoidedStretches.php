@@ -20,6 +20,31 @@ final class AvoidedStretches
     public const float LONGEST_METRES = 2_000.0;
 
     /**
+     * The stretches a plan for the sport can be sent.
+     *
+     * @param  list<AvoidedStretch>  $avoid
+     * @return list<AvoidedStretch>
+     */
+    public static function forSport(array $avoid, Sport $sport): array
+    {
+        return array_values(array_filter($avoid, fn (AvoidedStretch $avoidedStretch): bool => $avoidedStretch->concerns($sport)));
+    }
+
+    /**
+     * A point half way along a line: inside the way, away from the junction
+     * at either end, where Valhalla would close every way that meets.
+     *
+     * @param  list<array{0: float, 1: float}>  $shape
+     * @return array{0: float, 1: float}
+     */
+    public static function middle(array $shape): array
+    {
+        $lineDistance = LineDistance::of($shape);
+
+        return $lineDistance->pointAt($lineDistance->totalMetres() / 2);
+    }
+
+    /**
      * The stretches within reach of a point, nearest first.
      *
      * @param  list<AvoidedStretch>  $avoid

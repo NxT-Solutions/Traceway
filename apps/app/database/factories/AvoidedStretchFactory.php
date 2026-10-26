@@ -30,6 +30,8 @@ class AvoidedStretchFactory extends Factory
             'longitude' => 3.722,
             'way_id' => 4_242,
             'name' => 'Bosweg',
+            'sport' => 'gravel',
+            'surface' => 'mixed',
             'shape' => [
                 [3.72, 51.05],
                 [3.724, 51.05],

@@ -14,8 +14,12 @@ namespace App\Domain\Routing;
  */
 final class AvoidCheck
 {
-    /** How far from the stretch a point of the line may be and still be on it. */
-    private const float ON_IT_METRES = 10.0;
+    /**
+     * How far from the stretch a point of the line may be and still be on it.
+     * Routes and stretches come from the same OpenStreetMap ways, so a line
+     * on the stretch lies on it; a cycle track mapped beside a road does not.
+     */
+    private const float ON_IT_METRES = 4.0;
 
     /** The most a line may turn from the stretch and still follow it. */
     private const float SAME_WAY_DEGREES = 35.0;
@@ -113,7 +117,8 @@ final class AvoidCheck
                 $sample = [$a[0] + ($b[0] - $a[0]) * $share, $a[1] + ($b[1] - $a[1]) * $share];
                 $nearest = self::nearest($sample, $flat);
 
-                if ($nearest !== null && $nearest['metres'] <= self::ON_IT_METRES && self::sameWay($heading, $nearest['heading'])) {
+                // Past either end is the road the stretch meets, not the stretch.
+                if ($nearest !== null && ! $nearest['beyond'] && $nearest['metres'] <= self::ON_IT_METRES && self::sameWay($heading, $nearest['heading'])) {
                     $ridden += $span / $samples;
 
                     if ($ridden >= $needed) {
@@ -141,11 +146,12 @@ final class AvoidCheck
     /**
      * @param  array{0: float, 1: float}  $point
      * @param  list<array{0: float, 1: float}>  $flat
-     * @return array{metres: float, heading: float}|null
+     * @return array{metres: float, heading: float, beyond: bool}|null
      */
     private static function nearest(array $point, array $flat): ?array
     {
         $best = null;
+        $last = count($flat) - 1;
 
         for ($index = 1, $count = count($flat); $index < $count; $index++) {
             $a = $flat[$index - 1];
@@ -158,11 +164,16 @@ final class AvoidCheck
                 continue;
             }
 
-            $progress = max(0.0, min(1.0, (($point[0] - $a[0]) * $dx + ($point[1] - $a[1]) * $dy) / $lengthSquared));
+            $along = (($point[0] - $a[0]) * $dx + ($point[1] - $a[1]) * $dy) / $lengthSquared;
+            $progress = max(0.0, min(1.0, $along));
             $metres = hypot($point[0] - ($a[0] + $progress * $dx), $point[1] - ($a[1] + $progress * $dy));
 
             if ($best === null || $metres < $best['metres']) {
-                $best = ['metres' => $metres, 'heading' => atan2($dy, $dx)];
+                $best = [
+                    'metres' => $metres,
+                    'heading' => atan2($dy, $dx),
+                    'beyond' => ($index === 1 && $along < 0.0) || ($index === $last && $along > 1.0),
+                ];
             }
         }
 

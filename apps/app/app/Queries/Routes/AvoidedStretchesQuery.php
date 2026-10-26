@@ -6,6 +6,8 @@ namespace App\Queries\Routes;
 
 use App\Domain\Routing\AvoidedStretch;
 use App\Domain\Routing\AvoidedStretches;
+use App\Domain\Routing\Sport;
+use App\Domain\Routing\Surface;
 use App\Queries\JsonColumn;
 use App\Queries\RowReader;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +21,7 @@ final class AvoidedStretchesQuery
     private const float METRES_PER_DEGREE = 111_320.0;
 
     /**
-     * @return list<array{id: string, name: string|null, latitude: float, longitude: float, shape: list<array{0: float, 1: float}>}>
+     * @return list<array{id: string, name: string|null, latitude: float, longitude: float, shape: list<array{0: float, 1: float}>, sport: string, surface: string}>
      */
     public function forRider(int $riderId): array
     {
@@ -30,6 +32,8 @@ final class AvoidedStretchesQuery
                 'latitude' => $avoidedStretch->latitude,
                 'longitude' => $avoidedStretch->longitude,
                 'shape' => $avoidedStretch->shape,
+                'sport' => $avoidedStretch->sport->value,
+                'surface' => $avoidedStretch->surface->value,
             ],
             $this->stretches($riderId),
         );
@@ -37,22 +41,24 @@ final class AvoidedStretchesQuery
 
     /**
      * The stretches within reach of a point, nearest first, as many as a
-     * plan sends.
+     * plan sends. With a sport, only the ones a plan for it can be sent.
      *
      * @return list<AvoidedStretch>
      */
-    public function near(int $riderId, float $latitude, float $longitude, float $withinMetres): array
+    public function near(int $riderId, float $latitude, float $longitude, float $withinMetres, ?Sport $sport = null): array
     {
         $latitudeSpan = $withinMetres / self::METRES_PER_DEGREE;
         $longitudeSpan = $withinMetres / (self::METRES_PER_DEGREE * max(0.01, cos(deg2rad($latitude))));
 
+        $stretches = $this->stretches($riderId, [
+            $latitude - $latitudeSpan,
+            $latitude + $latitudeSpan,
+            $longitude - $longitudeSpan,
+            $longitude + $longitudeSpan,
+        ]);
+
         return AvoidedStretches::nearest(
-            $this->stretches($riderId, [
-                $latitude - $latitudeSpan,
-                $latitude + $latitudeSpan,
-                $longitude - $longitudeSpan,
-                $longitude + $longitudeSpan,
-            ]),
+            $sport instanceof Sport ? AvoidedStretches::forSport($stretches, $sport) : $stretches,
             [$longitude, $latitude],
             $withinMetres,
         );
@@ -72,7 +78,7 @@ final class AvoidedStretchesQuery
 
         $stretches = [];
 
-        foreach ($builder->oldest()->get(['id', 'name', 'latitude', 'longitude', 'shape']) as $row) {
+        foreach ($builder->oldest()->get(['id', 'name', 'latitude', 'longitude', 'shape', 'sport', 'surface']) as $row) {
             $reader = new RowReader($row);
             $stretches[] = new AvoidedStretch(
                 id: $reader->string('id'),
@@ -80,6 +86,8 @@ final class AvoidedStretchesQuery
                 longitude: $reader->float('longitude'),
                 shape: JsonColumn::line($reader->mixed('shape')),
                 name: $reader->optionalString('name'),
+                sport: Sport::tryFrom($reader->string('sport')) ?? Sport::Road,
+                surface: Surface::tryFrom($reader->string('surface')) ?? Surface::Paved,
             );
         }
 

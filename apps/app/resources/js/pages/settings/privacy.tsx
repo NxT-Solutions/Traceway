@@ -120,7 +120,8 @@ export default function Privacy({
                     <h2 className="text-base font-semibold">Roads you avoid</h2>
                     {avoided.length === 0 ? (
                         <p className="desc">
-                            None. Tap a road on the planner map to avoid it.
+                            None yet. Use Avoid a road in the planner to add
+                            one.
                         </p>
                     ) : (
                         <ul className="mt-2 space-y-2">

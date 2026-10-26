@@ -139,6 +139,8 @@ export function plannerServer(options: Options = {}): PlannerServer {
     const services = options.services ?? routeServices;
     let library = [...(options.library ?? libraryRoutes)];
     let avoided = [...(options.avoided ?? [])];
+    // Every road the server kept, removed or not.
+    let known = [...avoided];
     let avoidedCount = 0;
     // The loops a plan drew last, so an avoided road can be cut from the one a tap landed on.
     let drawn: Coordinate[][] = [];
@@ -267,6 +269,21 @@ export function plannerServer(options: Options = {}): PlannerServer {
                 return HttpResponse.json(same, { status: 201 });
             }
 
+            // A road let back in and avoided again, as Undo does: the same way, kept anew.
+            const before = known.find(
+                (road) => metres([point, [road.longitude, road.latitude]]) < 3,
+            );
+            avoidedCount += 1;
+            const id = `0199f2a4-6c1b-7d3e-9a8f-${String(avoidedCount).padStart(12, '0')}`;
+
+            if (before !== undefined) {
+                const again = { ...before, id };
+                avoided = [...avoided, again];
+                known = [...known, again];
+
+                return HttpResponse.json(again, { status: 201 });
+            }
+
             // The stretch of a drawn loop around the tap, or a short way across it.
             const line = drawn.find((loop) => metresToLine(point, loop) < 30);
             const nearest = line
@@ -286,15 +303,17 @@ export function plannerServer(options: Options = {}): PlannerServer {
                           point,
                           [point[0] + 0.0015, point[1]],
                       ];
-            avoidedCount += 1;
             const road: AvoidedRoad = {
-                id: `0199f2a4-6c1b-7d3e-9a8f-${String(avoidedCount).padStart(12, '0')}`,
+                id,
                 name: 'Netepad',
                 latitude: point[1],
                 longitude: point[0],
                 shape,
+                sport: text(body.sport, 'road'),
+                surface: text(body.surface, 'paved'),
             };
             avoided = [...avoided, road];
+            known = [...known, road];
 
             return HttpResponse.json(road, { status: 201 });
         }),

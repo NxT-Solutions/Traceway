@@ -1764,7 +1764,14 @@ export default function Dashboard() {
     });
     // The next tap on the map avoids the road under it.
     const [pickingAvoid, setPickingAvoid] = useState(false);
+    const pickingAvoidRef = useRef(false);
+    pickingAvoidRef.current = pickingAvoid;
     const [avoidBusy, setAvoidBusy] = useState(false);
+    const avoidBusyRef = useRef(false);
+    // What follows an answer about a road, with the planner as it is when the
+    // answer lands, not as it was at the tap.
+    const avoidedRoadRef = useRef<(road: AvoidedRoad) => void>(() => {});
+    const roadBackRef = useRef<(road: AvoidedRoad) => void>(() => {});
     const startAskRef = useRef(0);
     const viaAskRef = useRef(0);
     // Each drawing takes a number; Undo moves it on, so a route still on
@@ -2504,6 +2511,13 @@ export default function Dashboard() {
                 return;
             }
 
+            // Waiting to avoid a road: the tap is for the road, even on another loop.
+            if (pickingAvoidRef.current) {
+                onMapClickRef.current(event.lngLat.lng, event.lngLat.lat);
+
+                return;
+            }
+
             if (
                 modeRef.current === 'generate' &&
                 map.getLayer('route-faint-hit') !== undefined &&
@@ -2530,6 +2544,12 @@ export default function Dashboard() {
                 map.getCanvas().style.cursor = 'crosshair';
                 map.getCanvasContainer().style.cursor = 'crosshair';
                 moveSnapRef.current(event.lngLat.lng, event.lngLat.lat);
+
+                return;
+            }
+
+            if (pickingAvoidRef.current) {
+                map.getCanvas().style.cursor = 'crosshair';
 
                 return;
             }
@@ -2691,7 +2711,8 @@ export default function Dashboard() {
         const cursor =
             mode === 'build' ||
             (mode === 'multisport' && placing !== null) ||
-            placingVia
+            placingVia ||
+            pickingAvoid
                 ? 'crosshair'
                 : '';
         map.getCanvas().style.cursor = cursor;
@@ -2700,7 +2721,7 @@ export default function Dashboard() {
         if (mode !== 'build') {
             hideSnapRef.current();
         }
-    }, [mode, placing, placingVia]);
+    }, [mode, placing, placingVia, pickingAvoid]);
 
     // A card or a pick waiting for a tap belongs to the mode it was opened in.
     useEffect(() => {
@@ -2710,7 +2731,26 @@ export default function Dashboard() {
         pendingFinishRef.current.clear();
         setTapCard(null);
         setSearchPurpose(null);
+        setPickingAvoid(false);
     }, [mode]);
+
+    // Escape stops waiting for the road to avoid, wherever the focus is.
+    useEffect(() => {
+        if (!pickingAvoid) {
+            return;
+        }
+
+        const stop = (event: globalThis.KeyboardEvent): void => {
+            if (event.key === 'Escape') {
+                setPickingAvoid(false);
+                setMessage('');
+            }
+        };
+
+        window.addEventListener('keydown', stop);
+
+        return () => window.removeEventListener('keydown', stop);
+    }, [pickingAvoid]);
 
     // Undo stays a while, and as long as the rider points at it or tabs to it.
     useEffect(() => {
@@ -4347,8 +4387,17 @@ export default function Dashboard() {
         setAvoided(before);
 
         for (const road of now) {
-            if (!kept.has(road.id)) {
-                void forgetRoad(road.id);
+            if (kept.has(road.id)) {
+                continue;
+            }
+
+            // A road the server still skips stays in the list, so the list
+            // never says less than the plans do.
+            if (!(await forgetRoad(road.id))) {
+                setAvoided((current) => [...current, road]);
+                setMessage(
+                    `${roadName(road)} is still avoided: the map was busy. Remove it again in a moment.`,
+                );
             }
         }
 
@@ -4359,13 +4408,20 @@ export default function Dashboard() {
 
             const again = await avoidRoad(
                 [road.longitude, road.latitude],
-                sheetSport,
-                sheetSurface,
+                road.sport ?? sheetSport,
+                road.surface ?? sheetSurface,
             );
 
             if ('id' in again) {
                 setAvoided((current) =>
                     current.map((item) => (item.id === road.id ? again : item)),
+                );
+            } else {
+                setAvoided((current) =>
+                    current.filter((item) => item.id !== road.id),
+                );
+                setMessage(
+                    `${roadName(road)} could not be avoided again: ${again.message}`,
                 );
             }
         }
@@ -4389,21 +4445,28 @@ export default function Dashboard() {
             return;
         }
 
-        if (routes.length > 0) {
+        // A loop still on its way was asked for before the change: ask again.
+        if (routes.length > 0 || busy) {
             void generate();
         }
     }
 
     /**
      * Skips the road under a point from now on: the way between its two
-     * junctions, for the sport and surface being planned.
+     * junctions, for the sport and surface being planned. One road at a time.
      */
     async function avoidAt(point: Coordinate): Promise<void> {
+        if (avoidBusyRef.current) {
+            return;
+        }
+
+        avoidBusyRef.current = true;
         setTapCard(null);
         setPickingAvoid(false);
         setAvoidBusy(true);
         setMessage('Finding the road…');
         const found = await avoidRoad(point, sheetSport, sheetSurface);
+        avoidBusyRef.current = false;
         setAvoidBusy(false);
 
         if (!('id' in found)) {
@@ -4412,7 +4475,11 @@ export default function Dashboard() {
             return;
         }
 
-        if (avoidedRef.current.roads.some((road) => road.id === found.id)) {
+        avoidedRoadRef.current(found);
+    }
+
+    avoidedRoadRef.current = (found) => {
+        if (avoided.some((road) => road.id === found.id)) {
             setMessage(`You already avoid ${roadName(found)}.`);
 
             return;
@@ -4426,13 +4493,19 @@ export default function Dashboard() {
                 : `Avoiding ${roadName(found)}. Planning around it.`,
         );
         planAroundAvoided();
-    }
+    };
 
     /** Lets an avoided road back into every plan. */
     async function stopAvoiding(road: AvoidedRoad): Promise<void> {
+        if (avoidBusyRef.current) {
+            return;
+        }
+
+        avoidBusyRef.current = true;
         setTapCard(null);
         setAvoidBusy(true);
         const gone = await forgetRoad(road.id);
+        avoidBusyRef.current = false;
         setAvoidBusy(false);
 
         if (!gone) {
@@ -4441,11 +4514,15 @@ export default function Dashboard() {
             return;
         }
 
+        roadBackRef.current(road);
+    }
+
+    roadBackRef.current = (road) => {
         remember(`${roadName(road)} back in your plans`);
         setAvoided((current) => current.filter((item) => item.id !== road.id));
         setMessage(`${roadName(road)} is back in your plans.`);
         planAroundAvoided();
-    }
+    };
 
     function showAvoided(road: AvoidedRoad): void {
         const map = mapRef.current;
@@ -5660,8 +5737,10 @@ export default function Dashboard() {
                         </div>
                         {mapKeyboard ? (
                             <p className="maphint" role="status">
-                                <b>+</b> Arrows move the map · Enter places a
-                                point
+                                <b>+</b> Arrows move the map ·{' '}
+                                {pickingAvoid
+                                    ? 'Enter avoids the road at the cross'
+                                    : 'Enter places a point'}
                             </p>
                         ) : null}
                         {pickingAvoid && !mapKeyboard ? (
@@ -6617,23 +6696,6 @@ export default function Dashboard() {
                                     />
                                 </>
                             )}
-                            <AvoidedRoads
-                                roads={avoided}
-                                picking={pickingAvoid}
-                                crossing={crossing}
-                                busy={avoidBusy}
-                                onPick={(next) => {
-                                    setPickingAvoid(next);
-                                    setTapCard(null);
-                                    setMessage(
-                                        next
-                                            ? 'Tap the road to avoid on the map.'
-                                            : '',
-                                    );
-                                }}
-                                onShow={showAvoided}
-                                onRemove={(road) => void stopAvoiding(road)}
-                            />
                             <section className="result" aria-label="Result">
                                 <div className="top">
                                     <p
@@ -6961,6 +7023,23 @@ export default function Dashboard() {
                                     </p>
                                 ) : null}
                             </section>
+                            <AvoidedRoads
+                                roads={avoided}
+                                picking={pickingAvoid}
+                                crossing={crossing}
+                                busy={avoidBusy}
+                                onPick={(next) => {
+                                    setPickingAvoid(next);
+                                    setTapCard(null);
+                                    setMessage(
+                                        next
+                                            ? 'Tap the road to avoid on the map.'
+                                            : '',
+                                    );
+                                }}
+                                onShow={showAvoided}
+                                onRemove={(road) => void stopAvoiding(road)}
+                            />
                         </div>
                     </aside>
                 </main>

@@ -57,10 +57,16 @@ final readonly class MultisportQuery
         return new self($this->layout, $this->transitionLatitude, $this->transitionLongitude, $this->legs, $this->swim, $avoid);
     }
 
-    /** The farthest any leg could take a rider from the transition. */
+    /**
+     * The farthest the plan could take a rider from the transition: the
+     * longest loop, or the whole chain, since each chained leg starts where
+     * the last one ended.
+     */
     public function reachMetres(): int
     {
-        return max(array_map(fn (LandLeg $landLeg): int => $landLeg->distanceMetres, $this->legs));
+        $lengths = array_map(fn (LandLeg $landLeg): int => $landLeg->distanceMetres, $this->legs);
+
+        return $this->layout === Layout::Chain ? array_sum($lengths) : max($lengths);
     }
 
     /**

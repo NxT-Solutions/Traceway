@@ -14,9 +14,10 @@ use App\Integrations\Valhalla\Requests\LocateRequest;
 use RuntimeException;
 
 /**
- * Valhalla's verbose locate answers with the way under a point: where on it
- * the point lands, its OSM way, its name, and its shape between the two
- * junctions at either end.
+ * Valhalla's verbose locate answers with the way under a point: its OSM way,
+ * its name, and its shape between the two junctions at either end. The point
+ * kept is the middle of that shape, not where the tap landed: a tap next to a
+ * junction lands on it, and an excluded junction closes every way through it.
  */
 final readonly class ValhallaEdgeFinder implements EdgeFinder
 {
@@ -60,10 +61,13 @@ final readonly class ValhallaEdgeFinder implements EdgeFinder
         $names = is_array($info['names'] ?? null) ? $info['names'] : [];
         $name = $names[0] ?? null;
 
+        $clipped = AvoidedStretches::clipped($shape, $point);
+        $middle = AvoidedStretches::middle($clipped);
+
         return new RoadEdge(
-            latitude: $point[1],
-            longitude: $point[0],
-            shape: AvoidedStretches::clipped($shape, $point),
+            latitude: $middle[1],
+            longitude: $middle[0],
+            shape: $clipped,
             wayId: is_int($wayId) ? $wayId : null,
             name: is_string($name) && trim($name) !== '' ? mb_substr(trim($name), 0, 120) : null,
         );

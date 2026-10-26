@@ -51,22 +51,26 @@ function edgeUnder(array $shape, ?string $name = 'Bosweg', int $wayId = 4242): M
     ]]);
 }
 
-it('keeps the way under the tap for the rider', function (): void {
+it('keeps the way under the tap for the rider, by the middle of the way', function (): void {
     $user = User::factory()->create();
     $mockClient = edgeConnector(edgeUnder([[3.72, 51.05], [3.724, 51.05]]));
 
-    $this->actingAs($user)
-        ->postJson(route('routes.avoided.store'), ['latitude' => 51.0501, 'longitude' => 3.7221, 'sport' => 'gravel'])
+    $response = $this->actingAs($user)
+        ->postJson(route('routes.avoided.store'), ['latitude' => 51.0501, 'longitude' => 3.7201, 'sport' => 'gravel'])
         ->assertCreated()
         ->assertJsonPath('name', 'Bosweg')
-        ->assertJsonPath('latitude', 51.05)
-        ->assertJsonPath('longitude', 3.722)
+        ->assertJsonPath('sport', 'gravel')
+        ->assertJsonPath('surface', 'mixed')
         ->assertJsonPath('shape', [[3.72, 51.05], [3.724, 51.05]]);
 
     $avoidedStretch = AvoidedStretch::query()->sole();
 
-    expect($avoidedStretch->user_id)->toBe($user->id)
+    // The tap landed near the west junction; the point kept is half way along.
+    expect($response->json('latitude'))->toEqualWithDelta(51.05, 0.000001)
+        ->and($response->json('longitude'))->toEqualWithDelta(3.722, 0.000001)
+        ->and($avoidedStretch->user_id)->toBe($user->id)
         ->and($avoidedStretch->way_id)->toBe(4242)
+        ->and($avoidedStretch->sport)->toBe('gravel')
         ->and($mockClient->getLastPendingRequest()?->body()?->all())->toMatchArray([
             'verbose' => true,
             'costing' => 'bicycle',
@@ -132,15 +136,65 @@ it('says the map is busy when the router does not answer', function (): void {
 
 it('stops at the most roads a rider can avoid', function (): void {
     $user = User::factory()->create();
-    AvoidedStretch::factory()->count(TooManyAvoidedStretches::MOST)->for($user)->create();
-    $mockClient = edgeConnector(edgeUnder([[3.72, 51.05], [3.724, 51.05]]));
+    AvoidedStretch::factory()->count(TooManyAvoidedStretches::MOST)->for($user)->create([
+        'latitude' => 50.5,
+        'longitude' => 4.5,
+        'shape' => [[4.499, 50.5], [4.501, 50.5]],
+        'way_id' => 1,
+    ]);
+    edgeConnector(edgeUnder([[3.72, 51.05], [3.724, 51.05]]));
 
     $this->actingAs($user)
         ->postJson(route('routes.avoided.store'), ['latitude' => 51.05, 'longitude' => 3.722, 'sport' => 'road'])
         ->assertUnprocessable()
         ->assertJsonPath('message', 'You already avoid 200 roads. Remove one you no longer need first.');
 
-    $mockClient->assertNothingSent();
+    expect(AvoidedStretch::query()->count())->toBe(TooManyAvoidedStretches::MOST);
+});
+
+it('still answers with a road the rider already avoids at the most', function (): void {
+    $user = User::factory()->create();
+    $kept = AvoidedStretch::factory()->for($user)->create();
+    AvoidedStretch::factory()->count(TooManyAvoidedStretches::MOST - 1)->for($user)->create([
+        'latitude' => 50.5,
+        'longitude' => 4.5,
+        'shape' => [[4.499, 50.5], [4.501, 50.5]],
+        'way_id' => 1,
+    ]);
+    edgeConnector(edgeUnder([[3.72, 51.05], [3.724, 51.05]]));
+
+    $this->actingAs($user)
+        ->postJson(route('routes.avoided.store'), ['latitude' => 51.05, 'longitude' => 3.722, 'sport' => 'gravel'])
+        ->assertCreated()
+        ->assertJsonPath('id', $kept->id);
+});
+
+it('keeps a long way once when it is tapped in two places', function (): void {
+    $user = User::factory()->create();
+    $long = [[3.6, 51.05], [3.722, 51.05], [3.85, 51.05]];
+    edgeConnector(edgeUnder($long), edgeUnder($long));
+
+    $first = $this->actingAs($user)
+        ->postJson(route('routes.avoided.store'), ['latitude' => 51.05, 'longitude' => 3.722, 'sport' => 'road'])
+        ->json('id');
+
+    // 500 m east: the same way, cut around another tap.
+    $this->postJson(route('routes.avoided.store'), ['latitude' => 51.05, 'longitude' => 3.7291, 'sport' => 'road'])
+        ->assertJsonPath('id', $first);
+
+    expect(AvoidedStretch::query()->count())->toBe(1);
+});
+
+it('lets a bike plan skip a road first avoided on foot, once it is avoided on a bike', function (): void {
+    $user = User::factory()->create();
+    edgeConnector(edgeUnder([[3.72, 51.05], [3.724, 51.05]]), edgeUnder([[3.72, 51.05], [3.724, 51.05]]));
+
+    $this->actingAs($user)
+        ->postJson(route('routes.avoided.store'), ['latitude' => 51.05, 'longitude' => 3.722, 'sport' => 'hike'])
+        ->assertJsonPath('sport', 'hike');
+    $this->postJson(route('routes.avoided.store'), ['latitude' => 51.05, 'longitude' => 3.722, 'sport' => 'gravel']);
+
+    expect(AvoidedStretch::query()->sole()->sport)->toBe('gravel');
 });
 
 it('asks for a point and a sport', function (): void {

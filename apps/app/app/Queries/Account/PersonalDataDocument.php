@@ -50,10 +50,11 @@ use OpenApi\Attributes\Schema;
             description: 'The roads the rider asked the planner to skip, each one way between two junctions.',
             type: 'array',
             items: new Items(
-                required: ['name', 'way_id', 'latitude', 'longitude', 'shape', 'created_at'],
+                required: ['name', 'way_id', 'sport', 'latitude', 'longitude', 'shape', 'created_at'],
                 properties: [
                     new Property(property: 'name', type: 'string', nullable: true),
                     new Property(property: 'way_id', description: 'The OpenStreetMap way.', type: 'integer', nullable: true),
+                    new Property(property: 'sport', description: 'The sport the road was avoided for.', type: 'string'),
                     new Property(property: 'latitude', type: 'number'),
                     new Property(property: 'longitude', type: 'number'),
                     new Property(property: 'shape', ref: '#/components/schemas/CoordinateLine'),
@@ -121,7 +122,7 @@ final readonly class PersonalDataDocument
      * @param  list<array{tag: string, read_at: string|null}>  $releaseNotesRead
      * @param  list<array{service: string, account_number: string|null, account: string|null, allowed: list<string>, connected_at: string|null, last_signed_in_at: string|null, last_sent_at: string|null, sent: list<array{saved_route_id: string, leg: int, url: string|null, sent_at: string|null}>}>  $connections
      * @param  list<array{action: string, at: string|null}>  $adminActions
-     * @param  list<array{name: string|null, way_id: int|null, latitude: float, longitude: float, shape: list<array{0: float, 1: float}>, created_at: string|null}>  $avoidedStretches
+     * @param  list<array{name: string|null, way_id: int|null, sport: string, latitude: float, longitude: float, shape: list<array{0: float, 1: float}>, created_at: string|null}>  $avoidedStretches
      */
     public function __construct(
         public string $exportedAt,

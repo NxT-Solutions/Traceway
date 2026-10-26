@@ -19,6 +19,8 @@ use Illuminate\Support\Carbon;
  * @property float $longitude
  * @property int|null $way_id
  * @property string|null $name
+ * @property string $sport
+ * @property string $surface
  * @property list<array{0: float, 1: float}> $shape
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -28,6 +30,8 @@ use Illuminate\Support\Carbon;
     'longitude',
     'way_id',
     'name',
+    'sport',
+    'surface',
     'shape',
 ])]
 class AvoidedStretch extends Model

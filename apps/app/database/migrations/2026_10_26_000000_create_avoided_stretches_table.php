@@ -17,6 +17,8 @@ return new class extends Migration
             $blueprint->double('longitude');
             $blueprint->unsignedBigInteger('way_id')->nullable();
             $blueprint->string('name', 120)->nullable();
+            $blueprint->string('sport');
+            $blueprint->string('surface');
             $blueprint->json('shape');
             $blueprint->timestamps();
 

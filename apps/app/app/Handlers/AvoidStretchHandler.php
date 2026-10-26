@@ -33,11 +33,6 @@ final readonly class AvoidStretchHandler
     {
         $this->currentRider->assertSame($avoidStretchCommand->riderId);
 
-        throw_if(
-            $this->avoidedStretchRepository->countFor($avoidStretchCommand->riderId) >= TooManyAvoidedStretches::MOST,
-            TooManyAvoidedStretches::limit(),
-        );
-
         $roadEdge = $this->edgeFinder->near(
             $avoidStretchCommand->latitude,
             $avoidStretchCommand->longitude,
@@ -53,10 +48,20 @@ final readonly class AvoidStretchHandler
             latitude: $roadEdge->latitude,
             longitude: $roadEdge->longitude,
             shape: $roadEdge->shape,
+            sport: $avoidStretchCommand->sport->value,
+            surface: $avoidStretchCommand->surface->value,
             wayId: $roadEdge->wayId,
             name: $roadEdge->name,
-        ));
+        ), TooManyAvoidedStretches::MOST);
 
-        return new AvoidedStretch($avoidedStretchId->value, $roadEdge->latitude, $roadEdge->longitude, $roadEdge->shape, $roadEdge->name);
+        return new AvoidedStretch(
+            $avoidedStretchId->value,
+            $roadEdge->latitude,
+            $roadEdge->longitude,
+            $roadEdge->shape,
+            $roadEdge->name,
+            $avoidStretchCommand->sport,
+            $avoidStretchCommand->surface,
+        );
     }
 }

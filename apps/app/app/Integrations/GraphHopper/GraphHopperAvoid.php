@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Integrations\GraphHopper;
 
 use App\Domain\Routing\AvoidedStretch;
+use App\Domain\Routing\LineDistance;
 
 /**
  * The part of a GraphHopper request that keeps a route off the rider's
@@ -18,7 +19,13 @@ use App\Domain\Routing\AvoidedStretch;
 final class GraphHopperAvoid
 {
     /** Half the width of the band around a stretch. */
-    public const float HALF_WIDTH_METRES = 12.0;
+    public const float HALF_WIDTH_METRES = 6.0;
+
+    /**
+     * The band stops this far short of each junction, so the roads that meet
+     * the stretch there stay open.
+     */
+    public const float JUNCTION_METRES = 15.0;
 
     private const float METRES_PER_DEGREE = 111_320.0;
 
@@ -41,7 +48,7 @@ final class GraphHopperAvoid
                 'type' => 'Feature',
                 'id' => $area,
                 'properties' => (object) [],
-                'geometry' => ['type' => 'Polygon', 'coordinates' => [self::band($avoidedStretch->shape)]],
+                'geometry' => ['type' => 'Polygon', 'coordinates' => [self::band(self::shortOfJunctions($avoidedStretch->shape))]],
             ];
             $priority[] = ['if' => 'in_'.$area, 'multiply_by' => '0'];
         }
@@ -53,6 +60,33 @@ final class GraphHopperAvoid
                 'areas' => ['type' => 'FeatureCollection', 'features' => $features],
             ],
         ];
+    }
+
+    /**
+     * The middle of the line, short of the junction at each end. A stretch
+     * too short to trim keeps its middle third.
+     *
+     * @param  list<array{0: float, 1: float}>  $shape
+     * @return list<array{0: float, 1: float}>
+     */
+    public static function shortOfJunctions(array $shape): array
+    {
+        $lineDistance = LineDistance::of($shape);
+        $total = $lineDistance->totalMetres();
+        $trim = $total > self::JUNCTION_METRES * 3 ? self::JUNCTION_METRES : $total / 3;
+        $middle = [$lineDistance->pointAt($trim)];
+
+        foreach ($shape as $index => $point) {
+            $along = $lineDistance->cumulative[$index] ?? 0.0;
+
+            if ($along > $trim && $along < $total - $trim) {
+                $middle[] = $point;
+            }
+        }
+
+        $middle[] = $lineDistance->pointAt($total - $trim);
+
+        return $middle;
     }
 
     /**

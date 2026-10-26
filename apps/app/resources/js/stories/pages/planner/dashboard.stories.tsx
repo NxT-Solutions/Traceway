@@ -887,11 +887,7 @@ export const AvoidARoad: Story = {
         await step('Avoid a road waits for a tap on the map', async () => {
             const pick = panel.getByRole('button', { name: 'Avoid a road' });
             await userEvent.click(pick);
-            await expect(
-                panel.getByRole('button', {
-                    name: 'Tap the road on the map, or tap here to stop',
-                }),
-            ).toHaveAttribute('aria-pressed', 'true');
+            await expect(pick).toHaveAttribute('aria-pressed', 'true');
         });
 
         await step('A tap on the road avoids it and plans again', async () => {
@@ -952,7 +948,10 @@ export const AvoidARoad: Story = {
     },
 };
 
-/** A rider who avoids Zandstraat lets it back in from the panel, and the loops are drawn again. */
+/**
+ * A rider who avoids Zandstraat lets it back in from the panel, and the loops are drawn again. Undo avoids it once
+ * more, for the gravel ride it was first found on, whatever the planner is set to now.
+ */
 export const StopAvoiding: Story = {
     args: { avoided: true },
     play: async ({ canvasElement, step }) => {
@@ -988,6 +987,37 @@ export const StopAvoiding: Story = {
                 ),
             ).toBeVisible();
         });
+
+        await step(
+            'Undo avoids it again, for the sport it was found for',
+            async () => {
+                await userEvent.click(
+                    await within(canvasElement).findByRole(
+                        'button',
+                        { name: 'Undo' },
+                        answer,
+                    ),
+                );
+                await expect(
+                    await panel.findByRole(
+                        'button',
+                        { name: 'Remove Zandstraat' },
+                        answer,
+                    ),
+                ).toBeVisible();
+                await waitFor(
+                    () =>
+                        expect(
+                            server.sent('POST', '/routes/avoided').at(-1)?.body,
+                        ).toMatchObject({ sport: 'gravel', surface: 'mixed' }),
+                    answer,
+                );
+                await waitFor(
+                    () => expect(server.avoided()).toHaveLength(1),
+                    answer,
+                );
+            },
+        );
     },
 };
 

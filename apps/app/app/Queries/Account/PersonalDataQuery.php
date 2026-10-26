@@ -60,14 +60,14 @@ final class PersonalDataQuery
     }
 
     /**
-     * @return list<array{name: string|null, way_id: int|null, latitude: float, longitude: float, shape: list<array{0: float, 1: float}>, created_at: string|null}>
+     * @return list<array{name: string|null, way_id: int|null, sport: string, latitude: float, longitude: float, shape: list<array{0: float, 1: float}>, created_at: string|null}>
      */
     private function avoidedStretches(int $riderId): array
     {
         $rows = DB::table('avoided_stretches')
             ->where('user_id', $riderId)->oldest()
             ->orderBy('id')
-            ->get(['name', 'way_id', 'latitude', 'longitude', 'shape', 'created_at']);
+            ->get(['name', 'way_id', 'sport', 'latitude', 'longitude', 'shape', 'created_at']);
 
         $avoided = [];
 
@@ -77,6 +77,7 @@ final class PersonalDataQuery
             $avoided[] = [
                 'name' => $reader->optionalString('name'),
                 'way_id' => is_numeric($wayId) ? (int) $wayId : null,
+                'sport' => $reader->string('sport'),
                 'latitude' => $reader->float('latitude'),
                 'longitude' => $reader->float('longitude'),
                 'shape' => $reader->line('shape'),

@@ -124,7 +124,8 @@ final readonly class OsrmRoutingEngine implements RoutingEngine
      */
     private function fetch(RouteQuery $routeQuery, string $profile, array $waypoints): GeneratedRoute
     {
-        $lines = $this->lines($routeQuery, $profile, $waypoints, $routeQuery->avoid !== []);
+        // OSRM offers alternatives only between two points.
+        $lines = $this->lines($routeQuery, $profile, $waypoints, alternatives: $routeQuery->avoid !== [] && count($waypoints) === 2);
 
         if ($routeQuery->avoid === []) {
             return $lines[0];

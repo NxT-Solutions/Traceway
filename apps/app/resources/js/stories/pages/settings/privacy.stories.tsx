@@ -114,7 +114,7 @@ export const Empty: Story = {
     play: async ({ canvas }) => {
         await expect(
             canvas.getByText(
-                'None. Tap a road on the planner map to avoid it.',
+                'None yet. Use Avoid a road in the planner to add one.',
             ),
         ).toBeVisible();
     },

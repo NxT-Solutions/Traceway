@@ -9,6 +9,7 @@ use App\Domain\Routing\Distance;
 use App\Domain\Routing\MultisportQuery;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
+use App\Domain\Routing\Sport;
 use App\Queries\Routes\AvoidedStretchesQuery;
 
 /**
@@ -41,7 +42,7 @@ final readonly class RiderAvoids
             };
         }
 
-        $avoid = $this->around($riderId, $centre, $reach);
+        $avoid = $this->around($riderId, $centre, $reach, $routeQuery->sport);
 
         return $avoid === [] ? $routeQuery : $routeQuery->withAvoid($avoid);
     }
@@ -54,11 +55,14 @@ final readonly class RiderAvoids
     }
 
     /**
+     * Every leg's stretches together: the planner gives each leg the ones
+     * for its own sport.
+     *
      * @param  array{0: float, 1: float}  $centre
      * @return list<AvoidedStretch>
      */
-    private function around(int $riderId, array $centre, float $reach): array
+    private function around(int $riderId, array $centre, float $reach, ?Sport $sport = null): array
     {
-        return $this->avoidedStretchesQuery->near($riderId, $centre[1], $centre[0], $reach + self::SLACK_METRES);
+        return $this->avoidedStretchesQuery->near($riderId, $centre[1], $centre[0], $reach + self::SLACK_METRES, $sport);
     }
 }

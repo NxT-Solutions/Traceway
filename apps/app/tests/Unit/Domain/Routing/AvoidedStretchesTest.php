@@ -6,6 +6,9 @@ use App\Domain\Routing\AvoidedStretch;
 use App\Domain\Routing\AvoidedStretches;
 use App\Domain\Routing\Distance;
 use App\Domain\Routing\ElevationBias;
+use App\Domain\Routing\LandLeg;
+use App\Domain\Routing\Layout;
+use App\Domain\Routing\MultisportQuery;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
@@ -62,4 +65,26 @@ it('copies a plan with the stretches to skip', function (): void {
         ->and($avoiding->viaLatitude)->toBe(51.1)
         ->and($avoiding->preferQuiet)->toBeTrue()
         ->and($routeQuery->avoid)->toBe([]);
+});
+
+it('sends a stretch found on foot only with plans on foot', function (): void {
+    $onFoot = new AvoidedStretch('path', 51.05, 3.722, [[3.72, 51.05], [3.724, 51.05]], sport: Sport::Hike, surface: Surface::Dirt);
+    $onABike = new AvoidedStretch('track', 51.06, 3.722, [[3.72, 51.06], [3.724, 51.06]], sport: Sport::Gravel, surface: Surface::Mixed);
+
+    expect(AvoidedStretches::forSport([$onFoot, $onABike], Sport::Road))->toBe([$onABike])
+        ->and(AvoidedStretches::forSport([$onFoot, $onABike], Sport::Run))->toBe([$onFoot, $onABike]);
+});
+
+it('finds the middle of a way, away from its junctions', function (): void {
+    expect(AvoidedStretches::middle([[3.72, 51.05], [3.721, 51.05], [3.724, 51.05]]))->toEqualWithDelta([3.722, 51.05], 0.000001);
+});
+
+it('reaches as far as a whole chain of legs', function (): void {
+    $legs = [
+        new LandLeg(Sport::Road, 20_000, Surface::Paved, ElevationBias::Neutral, finish: [3.8, 51.1]),
+        new LandLeg(Sport::Run, 10_000, Surface::Mixed, ElevationBias::Neutral, finish: [3.85, 51.12]),
+    ];
+
+    expect(new MultisportQuery(Layout::Chain, 51.05, 3.72, $legs)->reachMetres())->toBe(30_000)
+        ->and(new MultisportQuery(Layout::Loops, 51.05, 3.72, $legs)->reachMetres())->toBe(20_000);
 });

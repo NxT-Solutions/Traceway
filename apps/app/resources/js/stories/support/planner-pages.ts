@@ -669,6 +669,8 @@ export const avoidedRoads: AvoidedRoad[] = [
         name: 'Zandstraat',
         latitude: 51.0952,
         longitude: 4.9241,
+        sport: 'gravel',
+        surface: 'mixed',
         shape: [
             [4.9223, 51.0949],
             [4.9241, 51.0952],

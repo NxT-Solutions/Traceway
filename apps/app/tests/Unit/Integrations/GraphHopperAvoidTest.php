@@ -20,12 +20,19 @@ it('prices each avoided stretch at zero in its own area', function (): void {
         ->and(array_column($model['custom_model']['areas']['features'], 'id'))->toBe(['avoid_0', 'avoid_1']);
 });
 
-it('draws a closed band about 24 m wide around the stretch', function (): void {
+it('draws a closed band about 12 m wide around the stretch', function (): void {
     $ring = GraphHopperAvoid::band([[3.72, 51.05], [3.724, 51.05]]);
 
     expect($ring[0])->toBe($ring[count($ring) - 1])
         ->and($ring)->toHaveCount(5)
-        ->and(Distance::metres($ring[0], $ring[3]))->toEqualWithDelta(24.0, 0.5);
+        ->and(Distance::metres($ring[0], $ring[3]))->toEqualWithDelta(12.0, 0.5);
+});
+
+it('stops the band short of the junctions, so the roads that meet stay open', function (): void {
+    $middle = GraphHopperAvoid::shortOfJunctions([[3.72, 51.05], [3.724, 51.05]]);
+
+    expect(Distance::metres([3.72, 51.05], $middle[0]))->toEqualWithDelta(15.0, 0.5)
+        ->and(Distance::metres([3.724, 51.05], $middle[count($middle) - 1]))->toEqualWithDelta(15.0, 0.5);
 });
 
 it('adds nothing when the rider avoids nothing', function (): void {

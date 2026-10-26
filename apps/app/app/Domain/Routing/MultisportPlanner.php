@@ -168,7 +168,7 @@ final readonly class MultisportPlanner
             startLatitude: $start[1],
             startLongitude: $start[0],
             preferQuiet: $landLeg->preferQuiet,
-            avoid: $avoid,
+            avoid: AvoidedStretches::forSport($avoid, $landLeg->sport),
         );
     }
 }

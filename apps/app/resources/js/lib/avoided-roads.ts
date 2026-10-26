@@ -12,6 +12,9 @@ export type AvoidedRoad = {
     latitude: number;
     longitude: number;
     shape: Coordinate[];
+    /** The sport and surface the road was found for, so Undo finds the same way again. */
+    sport?: string;
+    surface?: string;
 };
 
 export type AvoidMiss =

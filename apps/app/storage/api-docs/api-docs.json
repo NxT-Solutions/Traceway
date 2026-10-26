@@ -2552,7 +2552,9 @@
                     "name",
                     "latitude",
                     "longitude",
-                    "shape"
+                    "shape",
+                    "sport",
+                    "surface"
                 ],
                 "properties": {
                     "id": {
@@ -2574,6 +2576,27 @@
                     },
                     "shape": {
                         "$ref": "#/components/schemas/CoordinateLine"
+                    },
+                    "sport": {
+                        "description": "The sport the stretch was found for. One found on foot is not sent with a bike plan.",
+                        "type": "string",
+                        "enum": [
+                            "road",
+                            "gravel",
+                            "mtb",
+                            "run",
+                            "trail_run",
+                            "walk",
+                            "hike"
+                        ]
+                    },
+                    "surface": {
+                        "type": "string",
+                        "enum": [
+                            "paved",
+                            "mixed",
+                            "dirt"
+                        ]
                     }
                 },
                 "type": "object"
@@ -3039,6 +3062,7 @@
                             "required": [
                                 "name",
                                 "way_id",
+                                "sport",
                                 "latitude",
                                 "longitude",
                                 "shape",
@@ -3053,6 +3077,10 @@
                                     "description": "The OpenStreetMap way.",
                                     "type": "integer",
                                     "nullable": true
+                                },
+                                "sport": {
+                                    "description": "The sport the road was avoided for.",
+                                    "type": "string"
                                 },
                                 "latitude": {
                                     "type": "number"
