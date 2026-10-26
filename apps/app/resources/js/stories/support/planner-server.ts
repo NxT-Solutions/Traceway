@@ -328,6 +328,7 @@ export function plannerServer(options: Options = {}): PlannerServer {
                     waypoints,
                     changed_legs: changed,
                     reverse_share: 0,
+                    doubled_metres: 0,
                     crosses_avoided: [],
                 });
             }

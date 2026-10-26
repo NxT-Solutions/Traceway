@@ -140,3 +140,46 @@ it('prefers the return closest to the requested length when one is too long', fu
 
     expect($chosen?->coordinates[1])->toBe([4.1, 51.08]);
 });
+
+it('keeps the clean way home when the ride out already doubles back', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::PointToPoint,
+        distanceMetres: 30_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    // 4 km north, a 1.3 km dead end the rider asked to reach and back, 4 km more north, then 7 km east.
+    $ridden = [
+        [4.0, 51.0],
+        [4.0, 51.018],
+        [4.0, 51.036],
+        [4.0186, 51.036],
+        [4.0, 51.036],
+        [4.0, 51.054],
+        [4.0, 51.072],
+        [4.05, 51.072],
+        [4.1, 51.072],
+    ];
+    $back = new GeneratedRoute($query, [
+        [4.1, 51.072],
+        [4.05, 51.072],
+        [4.0, 51.072],
+        [4.0, 51.054],
+        [4.0, 51.036],
+        [4.0, 51.018],
+        [4.0, 51.0],
+    ], 15_000, 0);
+    $around = new GeneratedRoute($query, [
+        [4.1, 51.072],
+        [4.1, 51.036],
+        [4.1, 51.0],
+        [4.05, 51.0],
+        [4.0, 51.0],
+    ], 15_000, 0);
+
+    expect(RouteCleanliness::doubledMetres($ridden))->toBeGreaterThan(RouteCleanliness::DOUBLED_METRES)
+        ->and(LoopClosure::cleanest($ridden, [$back, $around])?->coordinates[1] ?? null)->toBe($around->coordinates[1]);
+});

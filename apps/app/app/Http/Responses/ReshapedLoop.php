@@ -16,7 +16,7 @@ use OpenApi\Attributes\Schema;
 
 #[Schema(
     schema: 'ReshapedLoop',
-    required: ['distance_metres', 'ascent_metres', 'coordinates', 'waypoints', 'changed_legs', 'reverse_share', 'crosses_avoided'],
+    required: ['distance_metres', 'ascent_metres', 'coordinates', 'waypoints', 'changed_legs', 'reverse_share', 'doubled_metres', 'crosses_avoided'],
     properties: [
         new Property(property: 'distance_metres', type: 'integer'),
         new Property(property: 'ascent_metres', description: 'Unknown until the details are read: 0.', type: 'integer'),
@@ -24,6 +24,7 @@ use OpenApi\Attributes\Schema;
         new Property(property: 'waypoints', ref: '#/components/schemas/CoordinateLine'),
         new Property(property: 'changed_legs', description: 'The legs planned again, by number, from 0.', type: 'array', items: new Items(type: 'integer')),
         new Property(property: 'reverse_share', description: 'The share of the loop that rides back over a road it already used, from 0 to 1.', type: 'number'),
+        new Property(property: 'doubled_metres', description: 'How many metres ride back over a road already used, not counting the start street and the ride home along it.', type: 'integer'),
         new Property(property: 'crosses_avoided', type: 'array', items: new Items(type: 'string', format: 'uuid')),
     ],
 )]
@@ -40,7 +41,7 @@ final readonly class ReshapedLoop
     }
 
     /**
-     * @return array{distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, waypoints: list<array{0: float, 1: float}>, changed_legs: list<int>, reverse_share: float, crosses_avoided: list<string>}
+     * @return array{distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, waypoints: list<array{0: float, 1: float}>, changed_legs: list<int>, reverse_share: float, doubled_metres: int, crosses_avoided: list<string>}
      */
     public function toArray(): array
     {
@@ -51,13 +52,16 @@ final readonly class ReshapedLoop
             $this->reshaped->waypoints,
         );
 
+        $doubling = RouteCleanliness::doubling($line);
+
         return [
             'distance_metres' => $line === $this->reshaped->coordinates ? $this->reshaped->distanceMetres : (int) round(Distance::along($line)),
             'ascent_metres' => 0,
             'coordinates' => LineSimplifier::simplify($line, LineSimplifier::ROUTE_METRES),
             'waypoints' => $this->reshaped->waypoints,
             'changed_legs' => $this->reshaped->changed,
-            'reverse_share' => round(RouteCleanliness::reverseShare($line), 3),
+            'reverse_share' => round($doubling['share'], 3),
+            'doubled_metres' => (int) round($doubling['metres']),
             'crosses_avoided' => AvoidCheck::crossing($line, $this->routeQuery->avoid),
         ];
     }

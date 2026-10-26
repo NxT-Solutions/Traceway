@@ -823,7 +823,12 @@ const farthestSnapMetres = 500;
 const mostUndoSteps = 30;
 /** A nudged loop this far off the length asked for says so. */
 const nudgeOffShare = 0.25;
-/** A nudged loop that rides back over this share of itself says so. */
+/**
+ * A nudged loop that rides back down a road past the start street, for this
+ * many metres or this share of a short loop, says so. The server ranks loops
+ * by the same limit (`RouteCleanliness::doubledLimit`).
+ */
+const nudgeBackMetres = 1000;
 const nudgeBackShare = 0.12;
 const farFromRoad =
     'No road or path is close enough there. Pick a spot nearer one.';
@@ -4985,16 +4990,20 @@ export default function Dashboard() {
 
             const asked = distanceKm * 1000;
             const off = Math.abs(route.distance_metres - asked) / asked;
-            const back = route.reverse_share ?? 0;
+            const ridesBack =
+                (route.doubled_metres ?? 0) >
+                Math.min(
+                    nudgeBackMetres,
+                    route.distance_metres * nudgeBackShare,
+                );
 
-            if (off > nudgeOffShare || back > nudgeBackShare) {
+            if (off > nudgeOffShare || ridesBack) {
                 const km = (route.distance_metres / 1000).toFixed(1);
                 setNudgeNotice({
                     via: point,
-                    text:
-                        back > nudgeBackShare
-                            ? `This loop now rides back on itself for part of the way. New loops through here may not.`
-                            : `This loop is now ${km} km. New loops through here keep closer to ${distanceKm} km.`,
+                    text: ridesBack
+                        ? `This loop now rides back on itself for part of the way. New loops through here may not.`
+                        : `This loop is now ${km} km. New loops through here keep closer to ${distanceKm} km.`,
                 });
             }
         });

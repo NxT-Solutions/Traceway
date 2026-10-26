@@ -36,6 +36,7 @@ export type Reshaped = {
     legs_metres?: number[];
     changed_legs?: number[];
     reverse_share?: number;
+    doubled_metres?: number;
     crosses_avoided?: string[];
 };
 
