@@ -18,8 +18,8 @@ use App\Domain\Routing\ValhallaCosting;
 use App\Integrations\Valhalla\Requests\HeightRequest;
 use App\Integrations\Valhalla\Requests\TraceAttributesRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
-use Illuminate\Support\Sleep;
 use RuntimeException;
+use Saloon\Config;
 use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Request;
 use Saloon\Http\Response;
@@ -94,7 +94,7 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
         $again = array_intersect_key($requests, array_filter($failures, $this->passing(...)));
 
         if ($again !== []) {
-            Sleep::usleep($this->retryPauseMilliseconds * 1_000);
+            Config::sleep($this->retryPauseMilliseconds * 1_000);
             [$retried, $stillFailing] = $this->send($again, concurrency: 2);
             $responses = $retried + $responses;
             $failures = array_diff_key($failures, $retried) + $stillFailing;
