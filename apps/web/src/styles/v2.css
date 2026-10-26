@@ -36,6 +36,14 @@
 .hero-cta{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .cue{display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--muted-on-ink)}
 .cue svg{display:block}
+.hero-note{margin:0;font-size:14px;font-weight:500;color:var(--muted-on-ink)}
+.hero-town{display:flex;flex-direction:column;gap:8px;max-width:480px}
+.hero-town label{font-size:15px;font-weight:500;color:var(--paper-on-ink)}
+.hero-town .hero-cta{align-items:stretch;gap:10px;flex-wrap:nowrap}
+.hero-town input{flex:1 1 auto;min-width:0;min-height:44px;padding:0 14px;border:1.5px solid var(--muted-on-ink);border-radius:10px;background:var(--ink-deep);color:var(--paper);font:inherit;font-size:16px}
+.hero-town input::placeholder{color:var(--muted-on-ink);opacity:1}
+.hero-town input:focus-visible{outline:2px solid var(--chart);outline-offset:2px}
+.hero-town button{border:0;font-family:inherit;cursor:pointer}
 .narr{display:grid}
 .narr p{grid-area:1/1;align-self:center;font-size:clamp(26px,2.4vw,36px);line-height:1.12;letter-spacing:-0.025em;font-weight:500;opacity:0;max-width:12.5em}
 .narr p em{font-style:normal;color:var(--chart)}
