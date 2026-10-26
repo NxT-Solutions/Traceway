@@ -1489,7 +1489,7 @@ export const NudgeTooFar: Story = {
  * the loop, yet more than the start street may ride twice, so the planner says so.
  */
 export const NudgeRidesBack: Story = {
-    beforeEach: ({ msw }) => {
+    beforeEach: ({ msw, args }) => {
         msw.use(
             http.post('/routes/reshape', async ({ request }) => {
                 const body = (await request.json()) as {
@@ -1498,12 +1498,12 @@ export const NudgeRidesBack: Story = {
                 };
 
                 return HttpResponse.json({
-                    distance_metres: 21_000,
+                    distance_metres: args.distanceKm * 1000 + 500,
                     ascent_metres: 0,
                     coordinates: body.line,
                     waypoints: body.waypoints,
                     changed_legs: [1, 2],
-                    reverse_share: 0.057,
+                    reverse_share: 0.05,
                     doubled_metres: 1_200,
                     crosses_avoided: [],
                 });

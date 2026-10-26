@@ -410,14 +410,49 @@ it('drops a long loop that rides 2 km back down one road, however small a share 
         ->and(RouteCleanliness::diverse([$turnBack, $loop], 44_000))->toHaveCount(1);
 });
 
+it('measures the ride home the same however densely the road is drawn', function (): void {
+    // 1.6 km up the opening road, a 20 km square, and the same 1.6 km home:
+    // just past the 1.5 km a ride home may take.
+    $corners = [
+        [4.0, 51.0],
+        [4.0, 51.0144],
+        [4.0714, 51.0144],
+        [4.0714, 51.0594],
+        [4.0, 51.0594],
+        [4.0, 51.0144],
+        [4.0, 51.0],
+    ];
+    $sparse = RouteCleanliness::doubledMetres(lineThrough($corners, 1));
+    $dense = RouteCleanliness::doubledMetres(lineThrough($corners, 10));
+
+    expect($sparse)->toBeGreaterThan(0.0)->toBeLessThan(200.0)
+        ->and($dense)->toBeGreaterThan(0.0)->toBeLessThan(200.0);
+});
+
+it('counts a road drawn with points a few metres apart', function (): void {
+    // The 2 km road out of the square's north side and back, with a point every 5 metres.
+    $line = lineThrough([
+        [4.0, 51.0],
+        [4.143, 51.0],
+        [4.143, 51.09],
+        [4.07, 51.09],
+        [4.07, 51.108],
+        [4.07, 51.09],
+        [4.0, 51.09],
+        [4.0, 51.0],
+    ], 400);
+
+    expect(RouteCleanliness::doubledMetres($line))->toBeGreaterThan(1_500.0);
+});
+
 /**
- * A line through the corners, with a point every tenth of each side, the way
- * a router draws a road.
+ * A line through the corners, with points evenly along each side, the way a
+ * router draws a road.
  *
  * @param  list<array{0: float, 1: float}>  $corners
  * @return list<array{0: float, 1: float}>
  */
-function lineThrough(array $corners): array
+function lineThrough(array $corners, int $pieces = 10): array
 {
     $line = [$corners[0]];
 
@@ -425,8 +460,8 @@ function lineThrough(array $corners): array
         [$fromLon, $fromLat] = $corners[$index - 1];
         [$toLon, $toLat] = $corners[$index];
 
-        for ($step = 1; $step <= 10; $step++) {
-            $line[] = [$fromLon + (($toLon - $fromLon) * $step / 10), $fromLat + (($toLat - $fromLat) * $step / 10)];
+        for ($step = 1; $step <= $pieces; $step++) {
+            $line[] = [$fromLon + (($toLon - $fromLon) * $step / $pieces), $fromLat + (($toLat - $fromLat) * $step / $pieces)];
         }
     }
 

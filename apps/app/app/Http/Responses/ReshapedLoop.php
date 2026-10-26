@@ -52,14 +52,16 @@ final readonly class ReshapedLoop
             $this->reshaped->waypoints,
         );
 
+        $doubling = RouteCleanliness::doubling($line);
+
         return [
             'distance_metres' => $line === $this->reshaped->coordinates ? $this->reshaped->distanceMetres : (int) round(Distance::along($line)),
             'ascent_metres' => 0,
             'coordinates' => LineSimplifier::simplify($line, LineSimplifier::ROUTE_METRES),
             'waypoints' => $this->reshaped->waypoints,
             'changed_legs' => $this->reshaped->changed,
-            'reverse_share' => round(RouteCleanliness::reverseShare($line), 3),
-            'doubled_metres' => (int) round(RouteCleanliness::doubledMetres($line)),
+            'reverse_share' => round($doubling['share'], 3),
+            'doubled_metres' => (int) round($doubling['metres']),
             'crosses_avoided' => AvoidCheck::crossing($line, $this->routeQuery->avoid),
         ];
     }

@@ -6,8 +6,9 @@ namespace App\Domain\Routing;
 
 /**
  * Picks the leg that does not turn around on a road already used, by this
- * leg or by the legs before it, the way the loop search and the loop
- * closing do. Among clean legs, the one nearest the length wins.
+ * leg or by the legs before it. Among clean legs, the one nearest the length
+ * wins. A leg is judged by its share of doubled road, not by the metres a
+ * loop is held to: a leg ends at a handover, so it has no ride home.
  */
 final class CleanLeg
 {

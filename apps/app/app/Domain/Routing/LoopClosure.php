@@ -85,8 +85,9 @@ final class LoopClosure
             $target = $targetMetres > 0 ? $targetMetres : $riddenLength + $closingLength;
             $error = abs(($riddenLength + $closingLength) - $target);
             // A way home back down a road already ridden, past the start
-            // street, loses to any other. Below that, each metre counts.
-            $doubled = $doubledMetres > RouteCleanliness::doubledLimit($riddenLength + $closingLength) ? 1_000_000 : (int) round($doubledMetres * 2);
+            // street, loses to any other. Each metre counts on top, so when
+            // the ridden part already doubles, the closing that adds least wins.
+            $doubled = ($doubledMetres > RouteCleanliness::doubledLimit($riddenLength + $closingLength) ? 1_000_000 : 0) + (int) round($doubledMetres * 2);
             $score = $doubled + $error;
 
             if ($score >= $bestScore) {
