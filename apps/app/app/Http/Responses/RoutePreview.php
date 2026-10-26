@@ -53,7 +53,7 @@ final readonly class RoutePreview
      *     distance_metres: int,
      *     ascent_metres: int,
      *     coordinates: list<array{0: float, 1: float}>,
-     *     routes: list<array{distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, crosses_avoided: list<string>}>
+     *     routes: list<array{distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, crosses_avoided: list<string>, waypoints: list<array{0: float, 1: float}>}>
      * }
      */
     public function toArray(): array
@@ -75,6 +75,7 @@ final readonly class RoutePreview
                     'ascent_metres' => $generatedRoute->ascentMetres,
                     'coordinates' => $line,
                     'crosses_avoided' => AvoidCheck::crossing($generatedRoute->coordinates, $generatedRoute->query->avoid),
+                    'waypoints' => $generatedRoute->waypoints,
                 ],
                 $this->routes,
                 $lines,

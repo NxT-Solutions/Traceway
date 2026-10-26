@@ -1016,12 +1016,16 @@ export const StopAvoiding: Story = {
                 ),
             ).toHaveTextContent('Zandstraat back in your plans');
             await expect(server.avoided()).toHaveLength(0);
-            await waitFor(
-                () =>
-                    expect(server.sent('POST', '/routes/preview')).toHaveLength(
-                        before + 1,
-                    ),
-                answer,
+            // The loop drawn keeps off it still: only the next plan may use it.
+            await expect(
+                await panel.findByText(
+                    'Zandstraat is back in your plans. Draw again to let this route use it.',
+                    {},
+                    answer,
+                ),
+            ).toBeVisible();
+            await expect(server.sent('POST', '/routes/preview')).toHaveLength(
+                before,
             );
             await expect(
                 panel.getByText(
@@ -1060,6 +1064,426 @@ export const StopAvoiding: Story = {
                 );
             },
         );
+    },
+};
+
+/**
+ * Draws the loops again, so they come from the mock server with the stops they were planned through. A loop kept
+ * from before Traceway kept its stops is drawn again whole instead of bent.
+ */
+async function drawFreshLoops(canvasElement: HTMLElement): Promise<void> {
+    const panel = within(await panelOf(canvasElement));
+    const before = server.sent('POST', '/routes/preview').length;
+
+    await userEvent.click(
+        await panel.findByRole(
+            'button',
+            { name: /^Draw (route|again)$/ },
+            answer,
+        ),
+    );
+    await waitFor(
+        () =>
+            expect(server.sent('POST', '/routes/preview')).toHaveLength(
+                before + 1,
+            ),
+        answer,
+    );
+    await expect(
+        await panel.findByText('Loop 1 of 3', {}, answer),
+    ).toBeVisible();
+    await waitFor(
+        () =>
+            expect(
+                panel.getByRole('button', { name: 'Draw again' }),
+            ).toBeEnabled(),
+        answer,
+    );
+}
+
+/** Picks a place to pass from the search: the tap card that asks what to do with it. */
+async function placeToPass(
+    canvasElement: HTMLElement,
+    place: string,
+    option: RegExp = new RegExp(`^${place} `),
+): Promise<ReturnType<typeof within>> {
+    const canvas = within(canvasElement);
+    const panel = within(await panelOf(canvasElement));
+
+    await userEvent.click(panel.getByRole('button', { name: /^Via/ }));
+    const search = await canvas.findByRole('combobox', {
+        name: 'Search for a place to pass',
+    });
+    await userEvent.type(search, `${place}{Enter}`);
+    await userEvent.click(
+        await canvas.findByRole('option', { name: option }, answer),
+    );
+
+    return within(await canvas.findByRole('dialog', { name: place }, answer));
+}
+
+/**
+ * Go via here bends the loop that is drawn: the stop nearest Tongerlo moves there, and only the roads on either
+ * side of it are planned again. The rest of the loop stays, and no new loops are asked for. New loops through here,
+ * on the same card, is there for a rider who wants fresh ones.
+ */
+export const NudgeTheLoop: Story = {
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await drawFreshLoops(canvasElement);
+        const before = server.sent('POST', '/routes/preview').length;
+
+        await step('Go via Tongerlo', async () => {
+            const card = await placeToPass(
+                canvasElement,
+                'Tongerlo',
+                /^Tongerlo Westerlo/,
+            );
+            await expect(
+                await card.findByRole(
+                    'button',
+                    { name: 'New loops through here' },
+                    answer,
+                ),
+            ).toBeVisible();
+            await userEvent.click(
+                card.getByRole('button', { name: 'Go via here' }),
+            );
+        });
+
+        await step('Only the stop and its two legs change', async () => {
+            await waitFor(
+                () =>
+                    expect(server.sent('POST', '/routes/reshape')).toHaveLength(
+                        1,
+                    ),
+                answer,
+            );
+            const asked = server.sent('POST', '/routes/reshape')[0]?.body;
+            await expect(asked).toMatchObject({
+                mode: 'loop',
+                change: { kind: 'move' },
+            });
+            await expect(
+                await panel.findByText(
+                    'Only the roads around it changed. The rest of the loop stays.',
+                    {},
+                    answer,
+                ),
+            ).toBeVisible();
+            await expect(server.sent('POST', '/routes/preview')).toHaveLength(
+                before,
+            );
+        });
+    },
+};
+
+/**
+ * Bending the loop to a place out of its way makes it much longer than asked: the planner says so, and New loops through here
+ * asks for fresh loops that pass it.
+ */
+export const NudgeTooFar: Story = {
+    beforeEach: ({ msw }) => {
+        msw.use(
+            http.post('/routes/reshape', async ({ request }) => {
+                const body = (await request.json()) as {
+                    line: [number, number][];
+                    waypoints: [number, number][];
+                };
+
+                return HttpResponse.json({
+                    distance_metres: 41_000,
+                    ascent_metres: 0,
+                    coordinates: body.line,
+                    waypoints: body.waypoints,
+                    changed_legs: [1, 2],
+                    reverse_share: 0,
+                    crosses_avoided: [],
+                });
+            }),
+        );
+    },
+    play: async ({ canvasElement, args, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await drawFreshLoops(canvasElement);
+
+        await step('Go via Herselt, to the south', async () => {
+            const card = await placeToPass(canvasElement, 'Herselt');
+            await userEvent.click(
+                await card.findByRole(
+                    'button',
+                    { name: 'Go via here' },
+                    answer,
+                ),
+            );
+        });
+
+        await step('The planner says the loop grew', async () => {
+            await expect(
+                await panel.findByText(
+                    `This loop is now 41.0 km. New loops through here keep closer to ${args.distanceKm} km.`,
+                    {},
+                    answer,
+                ),
+            ).toBeVisible();
+        });
+
+        await step('New loops through here asks for fresh loops', async () => {
+            const before = server.sent('POST', '/routes/preview').length;
+            await userEvent.click(
+                panel.getByRole('button', { name: 'New loops through here' }),
+            );
+            await waitFor(
+                () =>
+                    expect(server.sent('POST', '/routes/preview')).toHaveLength(
+                        before + 1,
+                    ),
+                answer,
+            );
+            await expect(
+                server.sent('POST', '/routes/preview').at(-1)?.body,
+            ).toHaveProperty('via_latitude');
+        });
+    },
+};
+
+/**
+ * Avoiding a road the chosen loop rides plans again only the leg that uses it. The road here is a short stretch
+ * half way along the loop's second leg.
+ */
+export const AvoidKeepsTheLoop: Story = {
+    beforeEach: ({ msw }) => {
+        msw.use(
+            http.post('/routes/avoided', () => {
+                const loop = server.drawn()[0] ?? [];
+                const last = loop.length - 1;
+                const at = Math.round(last * 0.375);
+                const from = loop[at] ?? [0, 0];
+                const to = loop[at + 1] ?? from;
+                const middle: [number, number] = [
+                    (from[0] + to[0]) / 2,
+                    (from[1] + to[1]) / 2,
+                ];
+
+                return HttpResponse.json(
+                    {
+                        id: '0199f2a4-6c1b-7d3e-9a8f-4b4c6d8e0f31',
+                        name: 'Kempenweg',
+                        latitude: middle[1],
+                        longitude: middle[0],
+                        shape: [from, middle],
+                        sport: 'road',
+                        surface: 'paved',
+                    },
+                    { status: 201 },
+                );
+            }),
+        );
+    },
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await drawFreshLoops(canvasElement);
+        const before = server.sent('POST', '/routes/preview').length;
+
+        await step('Avoid the road', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Avoid a road' }),
+            );
+            await tapMapCentre(canvasElement);
+            await expect(
+                await panel.findByRole(
+                    'button',
+                    { name: 'Remove Kempenweg' },
+                    answer,
+                ),
+            ).toBeVisible();
+        });
+
+        await step('Only the leg that uses it is planned again', async () => {
+            await waitFor(
+                () =>
+                    expect(server.sent('POST', '/routes/reshape')).toHaveLength(
+                        1,
+                    ),
+                answer,
+            );
+            await expect(
+                server.sent('POST', '/routes/reshape')[0]?.body,
+            ).toMatchObject({
+                mode: 'loop',
+                change: { kind: 'reroute', legs: [1] },
+            });
+            await expect(server.sent('POST', '/routes/preview')).toHaveLength(
+                before,
+            );
+        });
+    },
+};
+
+/**
+ * Adds a Build point from the search. The card opens once the map has eased to the place; a move that ends after it
+ * opened can leave it waiting on the road (a known race in the planner, not what this story is about), so the story
+ * picks the place once more when the card is still looking after a few seconds.
+ */
+async function addPoint(
+    canvasElement: HTMLElement,
+    place: string,
+    option: RegExp = new RegExp(`^${place} `),
+): Promise<void> {
+    const canvas = within(canvasElement);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        const search = await canvas.findByRole('combobox', {
+            name: 'Search for a point to add',
+        });
+        await userEvent.clear(search);
+        await userEvent.type(search, `${place}{Enter}`);
+        await userEvent.click(
+            await canvas.findByRole('option', { name: option }, answer),
+        );
+        const card = within(
+            await canvas.findByRole('dialog', { name: place }, answer),
+        );
+        const add = await card
+            .findByRole(
+                'button',
+                { name: 'Add a point here' },
+                { timeout: 3000 },
+            )
+            .catch(() => null);
+
+        if (add !== null) {
+            await userEvent.click(add);
+
+            return;
+        }
+
+        await userEvent.click(card.getByRole('button', { name: 'Close' }));
+    }
+
+    throw new Error(`No road near ${place} to add a point on.`);
+}
+
+/**
+ * Build keeps the roads it drew. Once a route is drawn, a new point plans only the way to it and home from it, and
+ * a removed point joins only its two neighbours. Undo goes back one change at a time, Redo puts a change back, and
+ * Ctrl+Z works from the keyboard. No change asks for the whole route again.
+ */
+export const BuildKeepsTheRoute: Story = {
+    play: async ({ canvasElement, step }) => {
+        const canvas = within(canvasElement);
+        const panel = within(await panelOf(canvasElement));
+        const lastChange = () =>
+            canvas.findByRole('group', { name: 'Last change' }, answer);
+
+        await step('Two points, then Draw', async () => {
+            await userEvent.click(panel.getByRole('tab', { name: 'Build' }));
+            await addPoint(canvasElement, 'Tongerlo', /^Tongerlo Westerlo/);
+            await addPoint(canvasElement, 'Herselt');
+            await userEvent.click(
+                panel.getByRole('button', { name: /^Draw (route|again)$/ }),
+            );
+            await waitFor(
+                () =>
+                    expect(server.sent('POST', '/routes/build')).toHaveLength(
+                        1,
+                    ),
+                answer,
+            );
+            await waitFor(
+                () =>
+                    expect(
+                        panel.getByRole('button', { name: 'Draw again' }),
+                    ).toBeEnabled(),
+                answer,
+            );
+        });
+
+        await step('A third point plans only its own legs', async () => {
+            await addPoint(canvasElement, 'Westerlo');
+            await waitFor(
+                () =>
+                    expect(server.sent('POST', '/routes/reshape')).toHaveLength(
+                        1,
+                    ),
+                answer,
+            );
+            await expect(
+                server.sent('POST', '/routes/reshape')[0]?.body,
+            ).toMatchObject({
+                mode: 'build',
+                change: { kind: 'insert', index: 3 },
+            });
+            await expect(
+                await panel.findByText(
+                    'Only the roads around that point changed.',
+                    {},
+                    answer,
+                ),
+            ).toBeVisible();
+        });
+
+        await step(
+            'Removing the first point joins its neighbours',
+            async () => {
+                await userEvent.click(
+                    panel.getByRole('button', { name: 'Remove point 1' }),
+                );
+                await waitFor(
+                    () =>
+                        expect(
+                            server.sent('POST', '/routes/reshape'),
+                        ).toHaveLength(2),
+                    answer,
+                );
+                await expect(
+                    server.sent('POST', '/routes/reshape')[1]?.body,
+                ).toMatchObject({ change: { kind: 'remove', index: 1 } });
+                await expect(await lastChange()).toHaveTextContent(
+                    'Point removed',
+                );
+            },
+        );
+
+        await step('Undo twice, then Redo once', async () => {
+            await userEvent.click(canvas.getByRole('button', { name: 'Undo' }));
+            await expect(
+                await panel.findByRole('button', { name: 'Remove point 3' }),
+            ).toBeVisible();
+            await userEvent.click(canvas.getByRole('button', { name: 'Undo' }));
+            await waitFor(() =>
+                expect(
+                    panel.queryByRole('button', { name: 'Remove point 3' }),
+                ).not.toBeInTheDocument(),
+            );
+            await userEvent.click(canvas.getByRole('button', { name: 'Redo' }));
+            await expect(
+                await panel.findByRole('button', { name: 'Remove point 3' }),
+            ).toBeVisible();
+            await expect(server.sent('POST', '/routes/reshape')).toHaveLength(
+                2,
+            );
+        });
+
+        await step('Ctrl+Z from the keyboard', async () => {
+            (
+                canvasElement.ownerDocument.activeElement as HTMLElement | null
+            )?.blur();
+            await userEvent.keyboard('{Control>}z{/Control}');
+            await waitFor(() =>
+                expect(
+                    panel.queryByRole('button', { name: 'Remove point 3' }),
+                ).not.toBeInTheDocument(),
+            );
+            await userEvent.keyboard('{Control>}{Shift>}z{/Shift}{/Control}');
+            await expect(
+                await panel.findByRole('button', { name: 'Remove point 3' }),
+            ).toBeVisible();
+            await expect(server.sent('POST', '/routes/build')).toHaveLength(1);
+        });
     },
 };
 

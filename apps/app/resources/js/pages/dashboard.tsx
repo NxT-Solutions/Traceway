@@ -97,6 +97,14 @@ import {
 } from '@/lib/planner-draft';
 import type { PlannerTour } from '@/lib/planner-tour';
 import {
+    legsNear,
+    mostLegs,
+    nearestStop,
+    type Reshaped,
+    type RouteChange,
+    reshapeRoute,
+} from '@/lib/reshape';
+import {
     arrowIconSize,
     directionArrows,
     directionArrowsForLines,
@@ -153,6 +161,8 @@ type Preview = {
     finish_metres?: number;
     /** The avoided roads this line still uses, by id. */
     crosses_avoided?: string[];
+    /** The points a loop was planned through, start first, so one stretch can be planned again. */
+    waypoints?: Coordinate[];
 };
 
 type BuildPoint = {
@@ -806,6 +816,12 @@ const snapRadius = 36;
 // A pin snaps to the nearest road or path, but not to one so far away that
 // the rider would not recognise the spot.
 const farthestSnapMetres = 500;
+/** How many changes Undo can take back. */
+const mostUndoSteps = 30;
+/** A nudged loop this far off the length asked for says so. */
+const nudgeOffShare = 0.25;
+/** A nudged loop that rides back over this share of itself says so. */
+const nudgeBackShare = 0.12;
 const farFromRoad =
     'No road or path is close enough there. Pick a spot nearer one.';
 // The routing engine did not answer, which says nothing about the spot.
@@ -1792,12 +1808,25 @@ export default function Dashboard() {
     const moveBuildPointRef = useRef<
         (id: string, longitude: number, latitude: number) => boolean
     >(() => false);
-    // The last change to a pin or a point, so a slip can be taken back.
-    const [undo, setUndo] = useState<{
+    // The changes to the pins and points, newest last, so slips can be taken
+    // back one at a time, and put back again.
+    const undoStackRef = useRef<{ label: string; state: PlannerState }[]>([]);
+    const redoStackRef = useRef<{ label: string; state: PlannerState }[]>([]);
+    const [undoBar, setUndoBar] = useState<{
         label: string;
-        restore: () => void;
+        undo: boolean;
+        redo: boolean;
     } | null>(null);
     const [undoHeld, setUndoHeld] = useState(false);
+    const historyKeysRef = useRef<{ undo: () => void; redo: () => void }>({
+        undo: () => {},
+        redo: () => {},
+    });
+    // A loop that moved too far from the ask, with a way to start over.
+    const [nudgeNotice, setNudgeNotice] = useState<{
+        text: string;
+        via: Coordinate;
+    } | null>(null);
     const recentKey = recentPlacesKey(auth.user.id);
     const [legMetres, setLegMetres] = useState<number[]>([]);
     const nameInputRef = useRef<HTMLInputElement>(null);
@@ -2771,14 +2800,61 @@ export default function Dashboard() {
 
     // Undo stays a while, and as long as the rider points at it or tabs to it.
     useEffect(() => {
-        if (undo === null || undoHeld) {
+        if (undoBar === null || undoHeld) {
             return;
         }
 
-        const timer = window.setTimeout(() => setUndo(null), 10000);
+        const timer = window.setTimeout(() => setUndoBar(null), 10000);
 
         return () => window.clearTimeout(timer);
-    }, [undo, undoHeld]);
+    }, [undoBar, undoHeld]);
+
+    // Cmd or Ctrl and Z takes a change back, with Shift puts it back, as in
+    // any editor. A field being typed in keeps its own.
+    useEffect(() => {
+        const keys = (event: globalThis.KeyboardEvent): void => {
+            if (
+                !(event.metaKey || event.ctrlKey) ||
+                event.altKey ||
+                (event.key.toLowerCase() !== 'z' &&
+                    event.key.toLowerCase() !== 'y')
+            ) {
+                return;
+            }
+
+            const target = event.target;
+
+            if (
+                target instanceof HTMLElement &&
+                (target.isContentEditable ||
+                    target.closest('input, textarea, select') !== null)
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (event.key.toLowerCase() === 'y' || event.shiftKey) {
+                historyKeysRef.current.redo();
+            } else {
+                historyKeysRef.current.undo();
+            }
+        };
+
+        window.addEventListener('keydown', keys);
+
+        return () => window.removeEventListener('keydown', keys);
+    }, []);
+
+    // A new sport, length, or way of planning starts a new history: Undo
+    // would otherwise bring back a line drawn for the old one.
+    useEffect(() => {
+        void [mode, sport, surface, elevation, shape, roads, distanceKm];
+        undoStackRef.current = [];
+        redoStackRef.current = [];
+        setUndoBar(null);
+        setNudgeNotice(null);
+    }, [mode, sport, surface, elevation, shape, roads, distanceKm]);
 
     // A draft saved before starts had names gets its name once.
     const namedSavedStart = useRef(false);
@@ -4344,12 +4420,9 @@ export default function Dashboard() {
         changeLegs(nextLegs);
     }
 
-    /**
-     * Keeps what the pins and points look like now, so the change that
-     * follows can be taken back with Undo.
-     */
-    function remember(label: string): void {
-        const before = {
+    /** What the pins, points, lines and avoided roads look like now. */
+    function capture() {
+        return {
             latitude,
             longitude,
             startName,
@@ -4361,35 +4434,94 @@ export default function Dashboard() {
             routes,
             routeIndex,
             plan,
+            legMetres,
             avoided,
         };
+    }
+
+    type PlannerState = ReturnType<typeof capture>;
+
+    function apply(state: PlannerState): void {
+        forgetPendingFinishes();
+        dirty.current = true;
+        startAskRef.current += 1;
+        viaAskRef.current += 1;
+        drawAskRef.current += 1;
+        setBusy(false);
+        setNudgeNotice(null);
+        setLatitude(state.latitude);
+        setLongitude(state.longitude);
+        setStartName(state.startName);
+        setVia(state.via);
+        setViaName(state.viaName);
+        setBuildPoints(state.buildPoints);
+        setLegs(state.legs);
+        setSwim(state.swim);
+        setRoutes(state.routes);
+        setRouteIndex(state.routeIndex);
+        setPlan(state.plan);
+        setLegMetres(state.legMetres);
+        void restoreAvoided(state.avoided);
+    }
+
+    function showHistory(label: string): void {
         setUndoHeld(false);
-        setUndo({
+        setUndoBar({
             label,
-            restore: () => {
-                forgetPendingFinishes();
-                dirty.current = true;
-                startAskRef.current += 1;
-                viaAskRef.current += 1;
-                drawAskRef.current += 1;
-                setBusy(false);
-                setLatitude(before.latitude);
-                setLongitude(before.longitude);
-                setStartName(before.startName);
-                setVia(before.via);
-                setViaName(before.viaName);
-                setBuildPoints(before.buildPoints);
-                setLegs(before.legs);
-                setSwim(before.swim);
-                setRoutes(before.routes);
-                setRouteIndex(before.routeIndex);
-                setPlan(before.plan);
-                setUndo(null);
-                setMessage('Undone.');
-                void restoreAvoided(before.avoided);
-            },
+            undo: undoStackRef.current.length > 0,
+            redo: redoStackRef.current.length > 0,
         });
     }
+
+    /**
+     * Keeps what the pins and points look like now, so the change that
+     * follows can be taken back with Undo. A new change ends what Redo
+     * could put back.
+     */
+    function remember(label: string): void {
+        undoStackRef.current = [
+            ...undoStackRef.current.slice(-(mostUndoSteps - 1)),
+            { label, state: capture() },
+        ];
+        redoStackRef.current = [];
+        showHistory(label);
+    }
+
+    function undoChange(): void {
+        const last = undoStackRef.current.at(-1);
+
+        if (last === undefined) {
+            return;
+        }
+
+        undoStackRef.current = undoStackRef.current.slice(0, -1);
+        redoStackRef.current = [
+            ...redoStackRef.current,
+            { label: last.label, state: capture() },
+        ];
+        apply(last.state);
+        setMessage(`Undone: ${last.label}.`);
+        showHistory(undoStackRef.current.at(-1)?.label ?? last.label);
+    }
+
+    function redoChange(): void {
+        const next = redoStackRef.current.at(-1);
+
+        if (next === undefined) {
+            return;
+        }
+
+        redoStackRef.current = redoStackRef.current.slice(0, -1);
+        undoStackRef.current = [
+            ...undoStackRef.current,
+            { label: next.label, state: capture() },
+        ];
+        apply(next.state);
+        setMessage(`Redone: ${next.label}.`);
+        showHistory(next.label);
+    }
+
+    historyKeysRef.current = { undo: undoChange, redo: redoChange };
 
     /**
      * Puts the avoided roads back as they were: a road avoided since is let
@@ -4444,8 +4576,13 @@ export default function Dashboard() {
         }
     }
 
-    /** Plans again what is drawn, now that the avoided roads changed. */
-    function planAroundAvoided(): void {
+    /**
+     * Plans around a road just avoided. Only the legs of the drawn route
+     * that use it are planned again; a route that does not use it stays. A
+     * stop on the road itself, or a road that runs along much of the route,
+     * means planning it all again.
+     */
+    function planAroundAvoided(road: AvoidedRoad): void {
         if (multisport) {
             if (plan !== null) {
                 void drawMultisport();
@@ -4454,18 +4591,86 @@ export default function Dashboard() {
             return;
         }
 
-        if (mode === 'build') {
-            if (preview !== null && buildPoints.length > 0) {
+        // A loop still on its way was asked for before the change: ask again.
+        if (busy) {
+            if (mode === 'build') {
                 void drawBuild();
+            } else {
+                void generate();
             }
 
             return;
         }
 
-        // A loop still on its way was asked for before the change: ask again.
-        if (routes.length > 0 || busy) {
-            void generate();
+        const drawn = preview;
+
+        if (drawn === null) {
+            return;
         }
+
+        const start: Coordinate = [longitude, latitude];
+        const finished = (drawn.finish_coordinates?.length ?? 0) > 1;
+        const waypoints: Coordinate[] =
+            mode === 'build'
+                ? [
+                      start,
+                      ...buildPoints.map(
+                          (point): Coordinate => [
+                              point.longitude,
+                              point.latitude,
+                          ],
+                      ),
+                      ...(finished ? [start] : []),
+                  ]
+                : (drawn.waypoints ?? []);
+        const onTheRoad = waypoints.some(
+            (point) => metresToLine(point, road.shape) <= 25,
+        );
+
+        if (mode === 'build' && onTheRoad) {
+            setMessage(
+                `A point of yours is on ${roadName(road)}. Move it off the road, and the route goes around it.`,
+            );
+
+            return;
+        }
+
+        const legs =
+            waypoints.length < 2 || onTheRoad
+                ? null
+                : legsNear(drawn.coordinates, waypoints, road.shape);
+
+        if (legs !== null && legs.length === 0) {
+            setMessage(
+                `Avoiding ${roadName(road)}. This route does not use it, so it stays as it is.`,
+            );
+
+            return;
+        }
+
+        if (legs === null || legs.length > mostLegs) {
+            if (mode === 'build') {
+                void drawBuild();
+            } else {
+                void generate();
+            }
+
+            return;
+        }
+
+        if (mode === 'build') {
+            void reshapeBuild({ kind: 'reroute', legs }, buildPoints).then(
+                (kept) => {
+                    if (!kept) {
+                        void drawBuild();
+                    }
+                },
+            );
+
+            return;
+        }
+
+        void reshapeLoop({ kind: 'reroute', legs }, () => generate());
     }
 
     /**
@@ -4509,7 +4714,7 @@ export default function Dashboard() {
                 ? `Avoiding ${roadName(found)}. Every plan skips it from now on.`
                 : `Avoiding ${roadName(found)}. Planning around it.`,
         );
-        planAroundAvoided();
+        planAroundAvoided(found);
     };
 
     /** Lets an avoided road back into every plan. */
@@ -4537,8 +4742,12 @@ export default function Dashboard() {
     roadBackRef.current = (road) => {
         remember(`${roadName(road)} back in your plans`);
         setAvoided((current) => current.filter((item) => item.id !== road.id));
-        setMessage(`${roadName(road)} is back in your plans.`);
-        planAroundAvoided();
+        // The route drawn keeps off it still. The next plan may use it.
+        setMessage(
+            shown === null
+                ? `${roadName(road)} is back in your plans.`
+                : `${roadName(road)} is back in your plans. Draw again to let this route use it.`,
+        );
     };
 
     function showAvoided(road: AvoidedRoad): void {
@@ -4628,16 +4837,22 @@ export default function Dashboard() {
     };
 
     /**
-     * Sets where the loop passes and draws it again, as choosing a via
-     * always has.
+     * Sets where the loop passes. A drawn loop keeps its shape: the stop
+     * nearest the via moves there, and only the roads on either side of it
+     * are planned again. Without a loop to keep, new loops are drawn.
      */
-    function setViaPoint(point: Coordinate, name?: string): void {
+    function setViaPoint(
+        point: Coordinate,
+        name?: string,
+        options: { fresh?: boolean } = {},
+    ): void {
         remember(via === null ? 'Via set' : 'Via moved');
         dirty.current = true;
         setTapCard(null);
         setVia(point);
         setViaName(name ?? null);
         setPlacingVia(false);
+        setNudgeNotice(null);
 
         const ask = viaAskRef.current + 1;
         viaAskRef.current = ask;
@@ -4650,7 +4865,164 @@ export default function Dashboard() {
             });
         }
 
-        void generate({ via: point });
+        const stop =
+            options.fresh === true || shape !== 'loop' || busy
+                ? null
+                : nearestStop(preview?.waypoints ?? [], point);
+
+        if (stop === null) {
+            void generate({ via: point });
+
+            return;
+        }
+
+        void reshapeLoop({ kind: 'move', index: stop, point }, () =>
+            generate({ via: point }),
+        ).then((route) => {
+            if (route === null) {
+                return;
+            }
+
+            const asked = distanceKm * 1000;
+            const off = Math.abs(route.distance_metres - asked) / asked;
+            const back = route.reverse_share ?? 0;
+
+            if (off > nudgeOffShare || back > nudgeBackShare) {
+                const km = (route.distance_metres / 1000).toFixed(1);
+                setNudgeNotice({
+                    via: point,
+                    text:
+                        back > nudgeBackShare
+                            ? `This loop now rides back on itself for part of the way. New loops through here may not.`
+                            : `This loop is now ${km} km. New loops through here keep closer to ${distanceKm} km.`,
+                });
+            }
+        });
+    }
+
+    /**
+     * Plans again only the legs of the chosen loop that a change touches.
+     * A loop drawn before Traceway kept its stops, or a change it could not
+     * make, falls back to new loops.
+     */
+    async function reshapeLoop(
+        change: RouteChange,
+        fallback: () => Promise<void>,
+    ): Promise<Reshaped | null> {
+        const loop = preview;
+        const index = routeIndex;
+
+        if (loop === null || (loop.waypoints?.length ?? 0) < 3) {
+            await fallback();
+
+            return null;
+        }
+
+        setRouteSaved(false);
+        setSavedRouteId(null);
+        setBusy(true);
+        setMessage('Drawing the roads around it…');
+        const ask = drawAskRef.current + 1;
+        drawAskRef.current = ask;
+        const answer = await reshapeRoute({
+            mode: 'loop',
+            line: loop.coordinates,
+            waypoints: loop.waypoints ?? [],
+            change,
+            sport,
+            surface,
+            elevation,
+            roads,
+            distanceMetres: Math.round(distanceKm * 1000),
+        });
+        setBusy(false);
+
+        if (drawAskRef.current !== ask) {
+            return null;
+        }
+
+        if ('message' in answer) {
+            await fallback();
+
+            return null;
+        }
+
+        setRoutes((current) =>
+            current.map((line, at) => (at === index ? answer.route : line)),
+        );
+        setMessage(
+            'Only the roads around it changed. The rest of the loop stays.',
+        );
+
+        return answer.route;
+    }
+
+    /**
+     * Plans again only the legs of a built route that a change touches, with
+     * the points as they are after it. A route drawn without following the
+     * roads, or none at all, waits for Draw.
+     */
+    async function reshapeBuild(
+        change: RouteChange,
+        before: BuildPoint[],
+    ): Promise<boolean> {
+        const drawn = preview;
+
+        if (
+            mode !== 'build' ||
+            drawn === null ||
+            !followRoads ||
+            (drawn.user_coordinates?.length ?? 0) < 2 ||
+            before.length === 0
+        ) {
+            return false;
+        }
+
+        const finished = (drawn.finish_coordinates?.length ?? 0) > 1;
+        const start: Coordinate = [longitude, latitude];
+        const waypoints: Coordinate[] = [
+            start,
+            ...before.map(
+                (point): Coordinate => [point.longitude, point.latitude],
+            ),
+            ...(finished ? [start] : []),
+        ];
+
+        setRouteSaved(false);
+        setSavedRouteId(null);
+        setBusy(true);
+        setMessage('Drawing the roads around it…');
+        const ask = drawAskRef.current + 1;
+        drawAskRef.current = ask;
+        const answer = await reshapeRoute({
+            mode: 'build',
+            finish: finished,
+            line: drawn.coordinates,
+            waypoints,
+            change,
+            sport,
+            surface,
+            elevation,
+            roads,
+        });
+        setBusy(false);
+
+        if (drawAskRef.current !== ask) {
+            return true;
+        }
+
+        if ('message' in answer) {
+            setMessage(`${answer.message} Draw again to plan it whole.`);
+
+            return true;
+        }
+
+        setRoutes([answer.route]);
+        setRouteIndex(0);
+        setLegMetres(answer.route.legs_metres ?? []);
+        setMessage('Only the roads around that point changed.');
+
+        return true;
     }
 
     moveViaRef.current = (point) => {
@@ -4669,11 +5041,25 @@ export default function Dashboard() {
         });
     };
 
+    /**
+     * Stops passing the via. A drawn loop stays as it is, since it is still
+     * a good loop; Draw again asks for new ones.
+     */
     function clearVia(): void {
         remember('Via removed');
         setVia(null);
         setViaName(null);
         setPlacingVia(false);
+        setNudgeNotice(null);
+
+        if (mode === 'generate' && preview !== null) {
+            setMessage(
+                'Via removed. The loop stays as it is: Draw again for new loops.',
+            );
+
+            return;
+        }
+
         void generate({ via: null });
     }
 
@@ -4907,6 +5293,16 @@ export default function Dashboard() {
         };
         dirty.current = true;
         setBuildPoints((current) => [...current, placed]);
+        // The new point comes after the last one: only the way to it, and
+        // home from it, are planned.
+        void reshapeBuild(
+            {
+                kind: 'insert',
+                index: buildPoints.length + 1,
+                point: [point.longitude, point.latitude],
+            },
+            buildPoints,
+        );
 
         if (name !== undefined) {
             return;
@@ -4951,6 +5347,19 @@ export default function Dashboard() {
                 item.id === id ? { ...item, ...point, name: 'Junction' } : item,
             ),
         );
+        const moved = buildPoints.findIndex((item) => item.id === id);
+
+        if (moved >= 0) {
+            void reshapeBuild(
+                {
+                    kind: 'move',
+                    index: moved + 1,
+                    point: [point.longitude, point.latitude],
+                },
+                buildPoints,
+            );
+        }
+
         void labelPlace(point.longitude, point.latitude).then((name) => {
             setBuildPoints((current) =>
                 current.map((item) =>
@@ -4972,6 +5381,15 @@ export default function Dashboard() {
         setBuildPoints((current) =>
             current.filter((_, item) => item !== index),
         );
+
+        // The two legs either side join into one; a route left with only its
+        // start waits for a new point.
+        if (buildPoints.length > 1) {
+            void reshapeBuild(
+                { kind: 'remove', index: index + 1 },
+                buildPoints,
+            );
+        }
     }
 
     /**
@@ -5152,8 +5570,22 @@ export default function Dashboard() {
             label: 'Go via here',
             onSelect: done(() => setViaPoint(point, name)),
         };
+        // Go via here bends the drawn loop; this asks for new loops instead.
+        const fresh: TapAction[] =
+            preview !== null && shape === 'loop'
+                ? [
+                      {
+                          label: 'New loops through here',
+                          onSelect: done(() =>
+                              setViaPoint(point, name, { fresh: true }),
+                          ),
+                      },
+                  ]
+                : [];
         const tapped: TapAction[] =
-            purpose === 'via' ? [passing, start] : [start, passing];
+            purpose === 'via'
+                ? [passing, ...fresh, start]
+                : [start, passing, ...fresh];
         const onAvoided = roadAt(point, avoided);
 
         if (onAvoided !== null) {
@@ -5672,7 +6104,7 @@ export default function Dashboard() {
                                 onClose={() => closeTapCard(true)}
                             />
                         )}
-                        {undo === null || tapCard !== null ? null : (
+                        {undoBar === null || tapCard !== null ? null : (
                             <div
                                 className="undobar"
                                 role="group"
@@ -5682,10 +6114,25 @@ export default function Dashboard() {
                                 onFocus={() => setUndoHeld(true)}
                                 onBlur={() => setUndoHeld(false)}
                             >
-                                <span role="status">{undo.label}</span>
-                                <button type="button" onClick={undo.restore}>
-                                    Undo
-                                </button>
+                                <span role="status">{undoBar.label}</span>
+                                {undoBar.undo ? (
+                                    <button
+                                        type="button"
+                                        aria-keyshortcuts="Meta+Z Control+Z"
+                                        onClick={undoChange}
+                                    >
+                                        Undo
+                                    </button>
+                                ) : null}
+                                {undoBar.redo ? (
+                                    <button
+                                        type="button"
+                                        aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
+                                        onClick={redoChange}
+                                    >
+                                        Redo
+                                    </button>
+                                ) : null}
                             </div>
                         )}
                         <div className="mapctl">
@@ -6915,6 +7362,27 @@ export default function Dashboard() {
                                 <p className="note" role="status">
                                     {settledStatus.current}
                                 </p>
+                                {nudgeNotice !== null && mode === 'generate' ? (
+                                    <div className="nudge">
+                                        <p className="small">
+                                            {nudgeNotice.text}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            className="outline"
+                                            disabled={busy}
+                                            onClick={() =>
+                                                setViaPoint(
+                                                    nudgeNotice.via,
+                                                    viaName ?? undefined,
+                                                    { fresh: true },
+                                                )
+                                            }
+                                        >
+                                            New loops through here
+                                        </button>
+                                    </div>
+                                ) : null}
                                 <div className="btns" data-tour="send">
                                     <button
                                         type="button"

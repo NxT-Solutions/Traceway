@@ -232,6 +232,7 @@ final readonly class OsrmRoutingEngine implements RoutingEngine
                 coordinates: $coordinates,
                 distanceMetres: (int) round((float) $distance),
                 ascentMetres: 0,
+                waypoints: $waypoints,
             );
         }
 

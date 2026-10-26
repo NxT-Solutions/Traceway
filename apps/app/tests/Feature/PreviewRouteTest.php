@@ -26,7 +26,7 @@ it('previews a loop for a signed in rider', function (): void {
          */
         public function candidates(RouteQuery $routeQuery): array
         {
-            return [new GeneratedRoute($routeQuery, [[3.72, 51.05], [3.8, 51.1]], 18_000, 90)];
+            return [new GeneratedRoute($routeQuery, [[3.72, 51.05], [3.8, 51.1]], 18_000, 90, waypoints: [[3.72, 51.05], [3.8, 51.1]])];
         }
 
         public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
@@ -51,6 +51,7 @@ it('previews a loop for a signed in rider', function (): void {
         ])
         ->assertOk()
         ->assertJsonPath('distance_metres', 18_000)
+        ->assertJsonPath('routes.0.waypoints', [[3.72, 51.05], [3.8, 51.1]])
         ->assertJsonCount(1, 'routes');
 });
 

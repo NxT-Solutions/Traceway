@@ -6,6 +6,7 @@ namespace App\Http\Responses;
 
 use App\Domain\Routing\AvoidCheck;
 use App\Domain\Routing\AvoidedStretch;
+use App\Domain\Routing\LegSplitter;
 use App\Domain\Routing\LineSimplifier;
 use OpenApi\Attributes\Items;
 use OpenApi\Attributes\Property;
@@ -85,33 +86,7 @@ final readonly class BuiltRoute
      */
     private function legs(array $line, array $waypoints): array
     {
-        $indexes = [];
-
-        foreach ($waypoints as $waypoint) {
-            $best = 0;
-            $bestDistance = INF;
-
-            foreach ($line as $index => $vertex) {
-                $distance = $this->metres($waypoint, $vertex);
-
-                if ($distance < $bestDistance) {
-                    $bestDistance = $distance;
-                    $best = $index;
-                }
-            }
-
-            $indexes[] = $best;
-        }
-
-        $legs = [];
-
-        for ($index = 1, $count = count($indexes); $index < $count; $index++) {
-            $from = min($indexes[$index - 1], $indexes[$index]);
-            $to = max($indexes[$index - 1], $indexes[$index]);
-            $legs[] = $this->lengthMetres(array_slice($line, $from, $to - $from + 1));
-        }
-
-        return $legs;
+        return LegSplitter::metres($line, $waypoints);
     }
 
     /**
