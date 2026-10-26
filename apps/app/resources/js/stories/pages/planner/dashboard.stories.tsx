@@ -1485,6 +1485,58 @@ export const NudgeTooFar: Story = {
 };
 
 /**
+ * The bent loop keeps its length but now rides 1.2 km back down a road it already used. That is a small share of
+ * the loop, yet more than the start street may ride twice, so the planner says so.
+ */
+export const NudgeRidesBack: Story = {
+    beforeEach: ({ msw }) => {
+        msw.use(
+            http.post('/routes/reshape', async ({ request }) => {
+                const body = (await request.json()) as {
+                    line: [number, number][];
+                    waypoints: [number, number][];
+                };
+
+                return HttpResponse.json({
+                    distance_metres: 21_000,
+                    ascent_metres: 0,
+                    coordinates: body.line,
+                    waypoints: body.waypoints,
+                    changed_legs: [1, 2],
+                    reverse_share: 0.057,
+                    doubled_metres: 1_200,
+                    crosses_avoided: [],
+                });
+            }),
+        );
+    },
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await drawFreshLoops(canvasElement);
+
+        await step('Go via Herselt', async () => {
+            await userEvent.click(
+                await placeToPass(canvasElement, 'Herselt', 'Go via here'),
+            );
+        });
+
+        await step('The planner says the loop rides back', async () => {
+            await expect(
+                await panel.findByText(
+                    'This loop now rides back on itself for part of the way. New loops through here may not.',
+                    {},
+                    answer,
+                ),
+            ).toBeVisible();
+            await expect(
+                panel.getByRole('button', { name: 'New loops through here' }),
+            ).toBeVisible();
+        });
+    },
+};
+
+/**
  * Avoiding a road the chosen loop rides plans again only the leg that uses it. The road here is a short stretch
  * half way along the loop's second leg.
  */
