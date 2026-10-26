@@ -342,3 +342,93 @@ it('rejects a clean loop that is twice the requested length', function (): void 
 
     expect(RouteCleanliness::cleanest([$long, $near], 20_000)?->distanceMetres)->toBe(21_000);
 });
+
+it('lets the loop ride its start street both ways', function (): void {
+    // 1 km up the start street, a 10 km square, and the same 1 km home.
+    $line = lineThrough([
+        [4.0, 51.0],
+        [4.0, 51.009],
+        [4.035, 51.009],
+        [4.035, 51.0315],
+        [4.0, 51.0315],
+        [4.0, 51.009],
+        [4.0, 51.0],
+    ]);
+
+    expect(RouteCleanliness::reverseShare($line))->toBeGreaterThan(0.05)
+        ->and(RouteCleanliness::doubledMetres($line))->toBe(0.0);
+});
+
+it('counts a long road to the loop past the way home', function (): void {
+    // 4 km out to a 10 km square and 4 km back: more than a start street.
+    $line = lineThrough([
+        [4.0, 51.0],
+        [4.0, 51.036],
+        [4.035, 51.036],
+        [4.035, 51.0585],
+        [4.0, 51.0585],
+        [4.0, 51.036],
+        [4.0, 51.0],
+    ]);
+
+    expect(RouteCleanliness::doubledMetres($line))->toBeGreaterThan(RouteCleanliness::DOUBLED_METRES);
+});
+
+it('drops a long loop that rides 2 km back down one road, however small a share that is', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 44_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    // A 40 km square with a 2 km road out of its north side and back.
+    $doubled = lineThrough([
+        [4.0, 51.0],
+        [4.143, 51.0],
+        [4.143, 51.09],
+        [4.07, 51.09],
+        [4.07, 51.108],
+        [4.07, 51.09],
+        [4.0, 51.09],
+        [4.0, 51.0],
+    ]);
+    $clean = lineThrough([
+        [4.0, 51.0],
+        [4.143, 51.0],
+        [4.143, 51.09],
+        [4.0, 51.09],
+        [4.0, 51.0],
+    ]);
+    $turnBack = new GeneratedRoute($query, $doubled, 44_000, 0);
+    $loop = new GeneratedRoute($query, $clean, 40_000, 0);
+
+    expect(RouteCleanliness::reverseShare($doubled))->toBeLessThan(0.12)
+        ->and(RouteCleanliness::cleanest([$turnBack, $loop], 44_000)?->distanceMetres)->toBe(40_000)
+        ->and(RouteCleanliness::diverse([$turnBack, $loop], 44_000))->toHaveCount(1);
+});
+
+/**
+ * A line through the corners, with a point every tenth of each side, the way
+ * a router draws a road.
+ *
+ * @param  list<array{0: float, 1: float}>  $corners
+ * @return list<array{0: float, 1: float}>
+ */
+function lineThrough(array $corners): array
+{
+    $line = [$corners[0]];
+
+    for ($index = 1, $count = count($corners); $index < $count; $index++) {
+        [$fromLon, $fromLat] = $corners[$index - 1];
+        [$toLon, $toLat] = $corners[$index];
+
+        for ($step = 1; $step <= 10; $step++) {
+            $line[] = [$fromLon + (($toLon - $fromLon) * $step / 10), $fromLat + (($toLat - $fromLat) * $step / 10)];
+        }
+    }
+
+    return $line;
+}

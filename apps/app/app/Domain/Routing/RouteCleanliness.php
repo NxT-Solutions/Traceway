@@ -11,9 +11,67 @@ namespace App\Domain\Routing;
 final class RouteCleanliness
 {
     /**
+     * The street a loop starts on may be ridden both ways: it is the way out
+     * and the way home. Doubling back this close to the start is allowed.
+     */
+    public const float START_STREET_METRES = 500.0;
+
+    /**
+     * The finish may ride home along the road the loop left on, for this far
+     * and for at most HOME_SHARE of the line. Farther, the same road both
+     * ways is a turn-back, not the way home.
+     */
+    public const float HOME_METRES = 1_500.0;
+
+    public const float HOME_SHARE = 0.15;
+
+    /**
+     * Past this many metres doubled back away from the start street, or
+     * DOUBLED_SHARE of a short line, a line turns back on a road. A long loop
+     * gets no more room than this, however long it is.
+     */
+    public const float DOUBLED_METRES = 1_000.0;
+
+    public const float DOUBLED_SHARE = 0.12;
+
+    /**
      * @param  list<array{0: float, 1: float}>  $coordinates
      */
     public static function reverseShare(array $coordinates): float
+    {
+        ['reversed' => $reversed, 'total' => $total] = self::reversal($coordinates);
+
+        return $total === 0.0 ? 0.0 : $reversed / $total;
+    }
+
+    /**
+     * How many metres ride back over a road already used, leaving out the
+     * start street and the ride home along it. Unlike the share, this does
+     * not grow with the loop: kilometres back down one road always count.
+     *
+     * @param  list<array{0: float, 1: float}>  $coordinates
+     * @param  array{0: float, 1: float}|null  $start  Where the loop starts, when not the line's first point.
+     */
+    public static function doubledMetres(array $coordinates, ?array $start = null): float
+    {
+        return self::reversal($coordinates, $start ?? ($coordinates[0] ?? null))['away'];
+    }
+
+    /** The most metres a line this long may ride back down a road away from the start street. */
+    public static function doubledLimit(float $lineMetres): float
+    {
+        return min(self::DOUBLED_METRES, $lineMetres * self::DOUBLED_SHARE);
+    }
+
+    /**
+     * The metres that ride back over a road already used, all of them and
+     * those away from the start street, and the metres of the whole line.
+     *
+     * @param  list<array{0: float, 1: float}>  $coordinates
+     * @param  array{0: float, 1: float}|null  $start
+     * @return array{reversed: float, away: float, total: float}
+     */
+    private static function reversal(array $coordinates, ?array $start = null): array
     {
         /** @var list<array{from: array{0: float, 1: float}, to: array{0: float, 1: float}, fromLat: int, fromLon: int, toLat: int, toLon: int, bearing: float}> $used */
         $used = [];
@@ -24,6 +82,10 @@ final class RouteCleanliness
         $nearby = [];
         $reversedMetres = 0.0;
         $totalMetres = 0.0;
+        // Each segment by its metres, whether it rides back, and whether it is on
+        // the start street. The ride home is found from the end afterwards.
+        /** @var list<array{metres: float, reversed: bool, home: bool}> $segments */
+        $segments = [];
         $count = count($coordinates);
 
         for ($index = 1; $index < $count; $index++) {
@@ -66,9 +128,17 @@ final class RouteCleanliness
                 }
             }
 
-            if (self::reverses($candidates, $from, $to, $fromLat, $fromLon, $toLat, $toLon, $bearing)) {
+            $reversed = self::reverses($candidates, $from, $to, $fromLat, $fromLon, $toLat, $toLon, $bearing);
+
+            if ($reversed) {
                 $reversedMetres += $metres;
             }
+
+            $segments[] = [
+                'metres' => $metres,
+                'reversed' => $reversed,
+                'home' => $start !== null && self::metres($start, $midpoint) <= self::START_STREET_METRES,
+            ];
 
             foreach (self::gridKeysNear($from, $to) as $key) {
                 $nearby[$key][] = count($used);
@@ -85,11 +155,53 @@ final class RouteCleanliness
             ];
         }
 
-        if ($totalMetres === 0.0) {
-            return 0.0;
+        return ['reversed' => $reversedMetres, 'away' => $start === null ? $reversedMetres : self::away($segments, $totalMetres), 'total' => $totalMetres];
+    }
+
+    /**
+     * The doubled-back metres off the start street. The last run of doubled
+     * road before the finish is the ride home along the way out, so it is
+     * left out too, up to HOME_METRES. A short gap in that run is a junction.
+     *
+     * @param  list<array{metres: float, reversed: bool, home: bool}>  $segments
+     */
+    private static function away(array $segments, float $totalMetres): float
+    {
+        $longestHome = min(self::HOME_METRES, $totalMetres * self::HOME_SHARE);
+        $homeRun = 0.0;
+        $gap = 0.0;
+        $index = count($segments) - 1;
+
+        for (; $index >= 0; $index--) {
+            $segment = $segments[$index];
+
+            if (! $segment['reversed']) {
+                $gap += $segment['metres'];
+
+                if ($gap > 60.0) {
+                    break;
+                }
+
+                continue;
+            }
+
+            if ($homeRun + $segment['metres'] > $longestHome) {
+                break;
+            }
+
+            $homeRun += $segment['metres'];
+            $gap = 0.0;
         }
 
-        return $reversedMetres / $totalMetres;
+        $away = 0.0;
+
+        foreach (array_slice($segments, 0, max(0, $index + 1)) as $segment) {
+            if ($segment['reversed'] && ! $segment['home']) {
+                $away += $segment['metres'];
+            }
+        }
+
+        return $away;
     }
 
     /**
@@ -492,8 +604,9 @@ final class RouteCleanliness
     }
 
     /**
-     * Lowest score first. A road used in both directions loses to a clean
-     * loop, even when the clean loop is a little off the requested length.
+     * Lowest score first. A road ridden back down, anywhere but the start
+     * street, loses to a clean loop, even when the clean loop is a little
+     * off the requested length.
      *
      * @param  list<GeneratedRoute>  $routes
      * @return list<GeneratedRoute>
@@ -504,22 +617,23 @@ final class RouteCleanliness
     }
 
     /**
-     * Each route with its score and its share of doubled-back road, best
+     * Each route with its score and its metres of doubled-back road, best
      * first. Scoring once per route keeps the sort from measuring the same
      * line again on every comparison.
      *
      * @param  list<GeneratedRoute>  $routes
-     * @return list<array{route: GeneratedRoute, score: float, share: float}>
+     * @return list<array{route: GeneratedRoute, score: float, doubles: bool}>
      */
     private static function scored(array $routes, int $targetMetres): array
     {
         $scored = array_map(function (GeneratedRoute $generatedRoute) use ($targetMetres): array {
-            $share = self::reverseShare($generatedRoute->coordinates);
+            ['away' => $doubled, 'total' => $total] = self::reversal($generatedRoute->coordinates, self::startOf($generatedRoute));
+            $doubles = $doubled > self::doubledLimit($total);
 
             return [
                 'route' => $generatedRoute,
-                'score' => self::scoreWith($generatedRoute, $targetMetres, $share),
-                'share' => $share,
+                'score' => self::scoreWith($generatedRoute, $targetMetres, $doubled, $doubles),
+                'doubles' => $doubles,
             ];
         }, $routes);
 
@@ -538,8 +652,8 @@ final class RouteCleanliness
     {
         $kept = [];
 
-        foreach (self::scored($routes, $targetMetres) as ['route' => $generatedRoute, 'share' => $share]) {
-            if ($kept !== [] && $share > 0.12) {
+        foreach (self::scored($routes, $targetMetres) as ['route' => $generatedRoute, 'doubles' => $doubles]) {
+            if ($kept !== [] && $doubles) {
                 continue;
             }
 
@@ -561,23 +675,35 @@ final class RouteCleanliness
 
     public static function score(GeneratedRoute $generatedRoute, int $targetMetres): float
     {
-        return self::scoreWith($generatedRoute, $targetMetres, self::reverseShare($generatedRoute->coordinates));
+        return self::scored([$generatedRoute], $targetMetres)[0]['score'] ?? INF;
     }
 
-    private static function scoreWith(GeneratedRoute $generatedRoute, int $targetMetres, float $overlap): float
+    private static function scoreWith(GeneratedRoute $generatedRoute, int $targetMetres, float $doubled, bool $doubles): float
     {
         $error = abs($generatedRoute->distanceMetres - $targetMetres) / max(1, $targetMetres);
 
-        // A same-street double still loses. Among clean lines, the closest length wins.
-        if ($overlap > 0.12) {
-            return 2 + $overlap + $error;
+        // Back down the same road still loses, on a long loop as on a short one.
+        if ($doubles) {
+            return 2 + ($doubled / 10_000) + $error;
         }
 
         if ($error > 0.35) {
             return 5 + $error;
         }
 
-        return $error + ($overlap * 0.4);
+        // Among clean lines the closest length wins, and each doubled
+        // kilometre weighs as much as being 5% off it.
+        return $error + ($doubled / 20_000);
+    }
+
+    /**
+     * Where the rider asked the loop to start, which the line passes near.
+     *
+     * @return array{0: float, 1: float}
+     */
+    private static function startOf(GeneratedRoute $generatedRoute): array
+    {
+        return [$generatedRoute->query->startLongitude, $generatedRoute->query->startLatitude];
     }
 
     /**

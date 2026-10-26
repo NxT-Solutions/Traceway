@@ -1438,6 +1438,7 @@ export const NudgeTooFar: Story = {
                     waypoints: body.waypoints,
                     changed_legs: [1, 2],
                     reverse_share: 0,
+                    doubled_metres: 0,
                     crosses_avoided: [],
                 });
             }),

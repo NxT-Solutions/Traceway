@@ -76,7 +76,7 @@ it('moves one point of a loop and keeps the rest of it', function (): void {
         ->assertJsonPath('changed_legs', [1, 2])
         ->assertJsonPath('waypoints.2', [3.75, 51.085])
         ->assertJsonPath('coordinates.0', [3.70, 51.05])
-        ->assertJsonStructure(['distance_metres', 'reverse_share', 'crosses_avoided']);
+        ->assertJsonStructure(['distance_metres', 'reverse_share', 'doubled_metres', 'crosses_avoided']);
 
     // The corners of the legs not touched are still there.
     expect($response->json('coordinates'))->toContain([3.74, 51.05])

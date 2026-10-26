@@ -2810,6 +2810,7 @@
                     "waypoints",
                     "changed_legs",
                     "reverse_share",
+                    "doubled_metres",
                     "crosses_avoided"
                 ],
                 "properties": {
@@ -2836,6 +2837,10 @@
                     "reverse_share": {
                         "description": "The share of the loop that rides back over a road it already used, from 0 to 1.",
                         "type": "number"
+                    },
+                    "doubled_metres": {
+                        "description": "How many metres ride back over a road already used, not counting the start street and the ride home along it.",
+                        "type": "integer"
                     },
                     "crosses_avoided": {
                         "type": "array",
