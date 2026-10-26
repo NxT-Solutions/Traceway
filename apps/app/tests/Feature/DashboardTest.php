@@ -63,6 +63,15 @@ final class DashboardTest extends TestCase
         $this->get(route('dashboard', ['near' => 'L']))->assertInertia(fn (Assert $assert): Assert => $assert->where('near', expected: null));
         $this->get(route('dashboard', ['near' => str_repeat('a', 121)]))->assertInertia(fn (Assert $assert): Assert => $assert->where('near', expected: null));
         $this->get(route('dashboard', ['near' => ['Leuven']]))->assertInertia(fn (Assert $assert): Assert => $assert->where('near', expected: null));
+        $this->get('/dashboard?near=%C3%28')->assertInertia(fn (Assert $assert): Assert => $assert->where('near', expected: null));
+    }
+
+    public function test_the_planner_takes_a_town_as_short_or_as_long_as_its_search_does(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('dashboard', ['near' => 'Ay']))->assertInertia(fn (Assert $assert): Assert => $assert->where('near', 'Ay'));
+        $this->get(route('dashboard', ['near' => str_repeat('a', 120)]))->assertInertia(fn (Assert $assert): Assert => $assert->where('near', str_repeat('a', 120)));
     }
 
     public function test_a_new_rider_lands_on_their_town_after_signing_up_and_checking_their_email(): void

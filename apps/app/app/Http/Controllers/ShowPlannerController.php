@@ -46,7 +46,7 @@ class ShowPlannerController extends Controller
     {
         $near = $request->query('near');
 
-        if (! is_string($near)) {
+        if (! is_string($near) || ! mb_check_encoding($near, 'UTF-8')) {
             return null;
         }
 

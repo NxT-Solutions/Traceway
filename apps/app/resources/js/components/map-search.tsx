@@ -186,7 +186,8 @@ export function MapSearch({
     }
 
     // The town from the home page. Found, the map goes there as if the rider
-    // had picked it. Not found or busy, the search stays open and says so.
+    // had picked it. Not found or busy, the search takes the focus and says
+    // so, and closes like any search when the rider moves on.
     const askedFor = useRef(false);
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: once, for the place asked for on arrival
@@ -203,6 +204,7 @@ export function MapSearch({
             const first = places?.[0];
 
             if (first === undefined) {
+                inputRef.current?.focus();
                 setOpen(true);
             } else {
                 pick(first);

@@ -918,6 +918,37 @@ export const ArriveWithATown: Story = {
     },
 };
 
+/**
+ * A new rider who typed a town on the home page: the tour goes first, so it never covers the town's card. Closing
+ * the tour searches the town and opens its card.
+ */
+export const ArriveWithATownOnAFirstVisit: Story = {
+    name: 'Arrive with a town on a first visit',
+    args: { draft: false, showTour: true, near: 'Tongerlo' },
+    play: async ({ canvasElement, step }) => {
+        const canvas = within(canvasElement);
+
+        await step('The tour opens, and the town waits', async () => {
+            await expect(await tourCard()).toHaveAccessibleName(
+                'Welcome to Traceway',
+            );
+            await expect(server.sent('POST', '/routes/places')).toHaveLength(0);
+        });
+
+        await step('Closing the tour finds the town', async () => {
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Close the tour' }),
+            );
+            const card = within(
+                await canvas.findByRole('dialog', { name: 'Tongerlo' }, answer),
+            );
+            await expect(
+                await card.findByRole('button', { name: 'Start here' }, answer),
+            ).toBeVisible();
+        });
+    },
+};
+
 /** A town the search cannot find stays in the search, which says so. */
 export const ArriveWithATownNotFound: Story = {
     name: 'Arrive with a town not found',

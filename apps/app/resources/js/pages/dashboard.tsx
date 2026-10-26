@@ -1929,6 +1929,8 @@ export default function Dashboard() {
                 onEnd: () => {
                     tourRef.current = null;
                     setPanelOpen(false);
+                    // The town from the home page waits for the tour.
+                    setAskNow(arrivedNear);
 
                     if (toured.current) {
                         return;
@@ -1957,10 +1959,19 @@ export default function Dashboard() {
 
     // Kept from the first render: the prop is cleared below once it is read.
     const arrivedNear = useRef(near ?? null).current;
+    // Searched at once, or after the tour on a first visit, so the tour
+    // never covers the town's card.
+    const [askNow, setAskNow] = useState(toured.current ? arrivedNear : null);
 
     // The town from the home page is searched once. A reload, or back to the
     // planner from the browser's history, keeps the map where the rider left it.
     useEffect(() => {
+        // The town is where the rider looks: the map does not frame a saved
+        // route or find the rider when it finishes loading.
+        if (arrivedNear !== null) {
+            riderLookedRef.current = true;
+        }
+
         const url = new URL(window.location.href);
 
         // An empty box on the home page still sends an empty town.
@@ -1975,7 +1986,7 @@ export default function Dashboard() {
             preserveScroll: true,
             preserveState: true,
         });
-    }, []);
+    }, [arrivedNear]);
 
     // A new rider is shown around on their first visit, once the planner is on screen.
     // biome-ignore lint/correctness/useExhaustiveDependencies: once, on the first visit
@@ -6219,7 +6230,7 @@ export default function Dashboard() {
                             }
                             inputRef={searchInputRef}
                             actions={searchActions}
-                            ask={arrivedNear}
+                            ask={askNow}
                             onClearPurpose={() => {
                                 setSearchPurpose(null);
                                 setPlacingVia(false);
