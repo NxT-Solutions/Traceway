@@ -170,3 +170,16 @@ it('refuses a change that does not fit the route', function (): void {
         ->and(fn (): mixed => new Reshape(bendingEngine())->apply(gravel(), $line, $waypoints, RouteChange::reroute([7])))
         ->toThrow(InvalidArgumentException::class);
 });
+
+it('plans from where the line passes a stop, not from the field beside it', function (): void {
+    [$line, $waypoints] = square();
+    // Traceway aimed the second stop 300 m off the road; the loop passes it at the corner.
+    $waypoints[1] = [3.744, 51.048];
+    $routingEngine = bendingEngine();
+
+    $reshaped = new Reshape($routingEngine)->apply(gravel(), $line, $waypoints, RouteChange::move(2, [3.75, 51.085]));
+
+    expect($routingEngine->asked[0]['points'][0])->toBe([3.74, 51.05])
+        ->and($reshaped->waypoints[1])->toBe([3.74, 51.05])
+        ->and(array_slice($reshaped->coordinates, 0, 3))->toBe(array_slice($line, 0, 3));
+});

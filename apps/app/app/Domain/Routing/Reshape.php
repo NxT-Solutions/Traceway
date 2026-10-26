@@ -31,6 +31,11 @@ final readonly class Reshape
     {
         throw_if(count($waypoints) < 2 || count($waypoints) > self::MOST_WAYPOINTS, InvalidArgumentException::class, 'A route to change has 2 to '.self::MOST_WAYPOINTS.' points.');
 
+        // Each point as the line passes it. A loop's stops are where Traceway
+        // aimed, often a field beside the road; the line is on the road. A leg
+        // planned again then starts and ends where the kept ones do.
+        $cuts = LegSplitter::cuts($line, $waypoints);
+        $waypoints = array_map(fn (int $cut): array => $line[$cut], $cuts);
         [$waypoints, $legs] = $this->changed($waypoints, LegSplitter::legs($line, $waypoints), $routeChange);
 
         $changed = array_keys(array_filter($legs, fn (?array $leg): bool => $leg === null));
