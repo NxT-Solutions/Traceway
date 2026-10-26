@@ -169,6 +169,53 @@ it('fails when the server answers nothing at all', function (): void {
     $connector = new ValhallaConnector('https://valhalla.test');
     $connector->withMockClient($mock);
 
-    expect(fn (): RoadDescription => new ValhallaRoadDescriber($connector)->describe(Sport::Run, describedLine()))
-        ->toThrow(RuntimeException::class);
+    expect(fn (): RoadDescription => new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Run, describedLine()))
+        ->toThrow(RuntimeException::class, 'The router could not describe that line (route 500, surface 500, height 500).');
+});
+
+it('asks once more for what a busy server turned away', function (): void {
+    $mock = new MockClient([
+        MockResponse::make(['error_code' => 429, 'error' => 'Too many requests'], 429),
+        MockResponse::make(['error_code' => 429, 'error' => 'Too many requests'], 429),
+        MockResponse::make(['error_code' => 429, 'error' => 'Too many requests'], 429),
+        traceRouteResponse(),
+        MockResponse::make(['edges' => [['surface' => 'paved', 'length' => 0.42]]], 200),
+        MockResponse::make(['range_height' => [[0, 5], [30, 6]]], 200),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    $roadDescription = new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Road, describedLine());
+
+    expect($roadDescription->complete)->toBeTrue()
+        ->and($roadDescription->profile)->toHaveCount(2);
+    $mock->assertSentCount(6);
+});
+
+it('says why, when nothing came back even the second time', function (): void {
+    $mock = new MockClient([
+        TraceRouteRequest::class => MockResponse::make(['error_code' => 429, 'error' => 'Too many requests'], 429),
+        TraceAttributesRequest::class => MockResponse::make(['error_code' => 429, 'error' => 'Too many requests'], 429),
+        HeightRequest::class => MockResponse::make([], 503),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    expect(fn (): RoadDescription => new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Road, describedLine()))
+        ->toThrow(RuntimeException::class, 'The router could not describe that line (route 429/429, surface 429/429, height 503).');
+    $mock->assertSentCount(6);
+});
+
+it('does not ask again for a line the roads do not match', function (): void {
+    $mock = new MockClient([
+        TraceRouteRequest::class => MockResponse::make(['error_code' => 171, 'error' => 'No suitable edges near location'], 400),
+        TraceAttributesRequest::class => MockResponse::make(['error_code' => 171, 'error' => 'No suitable edges near location'], 400),
+        HeightRequest::class => MockResponse::make(['range_height' => [[0, 5], [30, 6]]], 200),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Road, describedLine());
+
+    $mock->assertSentCount(3);
 });

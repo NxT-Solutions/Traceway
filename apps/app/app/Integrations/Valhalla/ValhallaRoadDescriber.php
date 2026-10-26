@@ -18,7 +18,10 @@ use App\Domain\Routing\ValhallaCosting;
 use App\Integrations\Valhalla\Requests\HeightRequest;
 use App\Integrations\Valhalla\Requests\TraceAttributesRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
+use Illuminate\Support\Sleep;
 use RuntimeException;
+use Saloon\Exceptions\Request\RequestException;
+use Saloon\Http\Request;
 use Saloon\Http\Response;
 
 /**
@@ -32,12 +35,14 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
      * @param  int  $maxPieceMetres  The public server matches at most 200 km in one request.
      * @param  int  $maxPiecePoints  And at most a few thousand points.
      * @param  float  $maxGapMetres  A simplified line can skip a long straight road in one hop. Map matching breaks on a gap that wide, so the hop gets points along it.
+     * @param  int  $retryPauseMilliseconds  How long to wait before asking again for what a busy server turned away.
      */
     public function __construct(
         private ValhallaConnector $valhallaConnector,
         private int $maxPieceMetres = 100_000,
         private int $maxPiecePoints = 4_000,
         private float $maxGapMetres = 400.0,
+        private int $retryPauseMilliseconds = 1_000,
     ) {}
 
     public function describe(Sport $sport, array $line): RoadDescription
@@ -81,19 +86,19 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
             ]);
         }
 
-        /** @var array<string, Response> $responses */
-        $responses = [];
+        [$responses, $failures] = $this->send($requests);
 
-        $this->valhallaConnector->pool(
-            requests: $requests,
-            concurrency: min(count($requests), 6),
-            responseHandler: function (Response $response, int|string $key) use (&$responses): void {
-                $responses[(string) $key] = $response;
-            },
-            exceptionHandler: static function (): void {
-                // A piece the server did not answer leaves its part out.
-            },
-        )->send()->wait();
+        // The public server turns a busy caller away, or drops the line for
+        // a moment. What it turned away is asked for once more, a second
+        // later and fewer at a time, before a part is left out.
+        $again = array_intersect_key($requests, array_filter($failures, $this->passing(...)));
+
+        if ($again !== []) {
+            Sleep::usleep($this->retryPauseMilliseconds * 1_000);
+            [$retried, $stillFailing] = $this->send($again, concurrency: 2);
+            $responses = $retried + $responses;
+            $failures = array_diff_key($failures, $retried) + $stillFailing;
+        }
 
         $profile = [];
         $surfaceMetres = [];
@@ -116,9 +121,93 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
             }
         }
 
-        throw_unless($answered, RuntimeException::class, 'The router could not describe that line.');
+        throw_unless($answered, RuntimeException::class, 'The router could not describe that line ('.$this->why($failures).').');
 
         return new RoadDescription($profile, $this->shares($surfaceMetres), $cues, $complete);
+    }
+
+    /**
+     * Sends the requests together. The answers come back by key, and so does
+     * why each one that failed did: its status and Valhalla's error code, or
+     * that the server could not be reached.
+     *
+     * @param  array<string, Request>  $requests
+     * @return array{0: array<string, Response>, 1: array<string, string>}
+     */
+    private function send(array $requests, int $concurrency = 6): array
+    {
+        $responses = [];
+        $failures = [];
+
+        $this->valhallaConnector->pool(
+            requests: $requests,
+            concurrency: min(count($requests), $concurrency),
+            responseHandler: function (Response $response, int|string $key) use (&$responses, &$failures): void {
+                if ($response->successful()) {
+                    $responses[(string) $key] = $response;
+
+                    return;
+                }
+
+                $failures[(string) $key] = $this->status($response);
+            },
+            exceptionHandler: function (mixed $reason, int|string $key) use (&$failures): void {
+                $failures[(string) $key] = $reason instanceof RequestException
+                    ? $this->status($reason->getResponse())
+                    : 'unreachable';
+            },
+        )->send()->wait();
+
+        // A request the pool never settled is as good as unanswered.
+        foreach (array_keys($requests) as $key) {
+            if (! isset($responses[$key]) && ! isset($failures[$key])) {
+                $failures[$key] = 'unreachable';
+            }
+        }
+
+        return [$responses, $failures];
+    }
+
+    /** The status of a refused request, with Valhalla's own error code when it gave one. */
+    private function status(Response $response): string
+    {
+        $code = $response->json('error_code');
+
+        return is_int($code) ? $response->status().'/'.$code : (string) $response->status();
+    }
+
+    /** A refusal that may pass: the server busy, broken for a moment, or not reached. */
+    private function passing(string $failure): bool
+    {
+        $status = (int) $failure;
+
+        return $failure === 'unreachable' || $status === 429 || $status >= 500;
+    }
+
+    /**
+     * Why nothing came back, one reason per kind of request, for the error
+     * report: "route 429, surface 429, height unreachable".
+     *
+     * @param  array<string, string>  $failures
+     */
+    private function why(array $failures): string
+    {
+        $reasons = [];
+
+        foreach ($failures as $key => $failure) {
+            $kind = explode(':', $key)[0];
+            $reasons[$kind][$failure] = true;
+        }
+
+        if ($reasons === []) {
+            return 'no answer';
+        }
+
+        return implode(', ', array_map(
+            fn (string $kind, array $failures): string => $kind.' '.implode('/', array_keys($failures)),
+            array_keys($reasons),
+            $reasons,
+        ));
     }
 
     /**
