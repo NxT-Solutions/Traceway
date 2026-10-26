@@ -445,6 +445,51 @@ it('counts a road drawn with points a few metres apart', function (): void {
     expect(RouteCleanliness::doubledMetres($line))->toBeGreaterThan(1_500.0);
 });
 
+it('offers the loop near the length that rides back before a clean loop far off it', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 44_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    // A 40 km square with a 4 km road out of its north side and back, and a clean square half as big again.
+    $turnBack = new GeneratedRoute($query, lineThrough([
+        [4.0, 51.0], [4.143, 51.0], [4.143, 51.09], [4.07, 51.09], [4.07, 51.126], [4.07, 51.09], [4.0, 51.09], [4.0, 51.0],
+    ]), 44_000, 0);
+    $farOff = new GeneratedRoute($query, lineThrough([
+        [4.0, 51.0], [4.215, 51.0], [4.215, 51.135], [4.0, 51.135], [4.0, 51.0],
+    ]), 64_000, 0);
+
+    $offered = RouteCleanliness::diverse([$farOff, $turnBack], 44_000);
+
+    expect(RouteCleanliness::cleanest([$farOff, $turnBack], 44_000)?->distanceMetres)->toBe(44_000)
+        ->and(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, $offered))->toBe([44_000, 64_000]);
+});
+
+it('picks the loop with the least road ridden twice when every loop rides back', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 46_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    // The same 40 km square, with 2 km or, nearer the length, 3 km back down a road.
+    $less = new GeneratedRoute($query, lineThrough([
+        [4.0, 51.0], [4.143, 51.0], [4.143, 51.09], [4.07, 51.09], [4.07, 51.108], [4.07, 51.09], [4.0, 51.09], [4.0, 51.0],
+    ]), 44_000, 0);
+    $more = new GeneratedRoute($query, lineThrough([
+        [4.0, 51.0], [4.143, 51.0], [4.143, 51.09], [4.07, 51.09], [4.07, 51.117], [4.07, 51.09], [4.0, 51.09], [4.0, 51.0],
+    ]), 46_000, 0);
+
+    expect(RouteCleanliness::cleanest([$more, $less], 46_000)?->distanceMetres)->toBe(44_000);
+});
+
 /**
  * A line through the corners, with points evenly along each side, the way a
  * router draws a road.

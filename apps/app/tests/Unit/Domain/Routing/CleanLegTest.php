@@ -126,3 +126,13 @@ it('takes the leg with the least road ridden twice when every leg turns around',
         ->and(CleanLeg::doublesBack([], $more))->toBeTrue()
         ->and(CleanLeg::best([], [$more, $generatedRoute], 10_000))->toBe($generatedRoute);
 });
+
+it('lets a chain leg come home down the road the first leg left the transition on', function (): void {
+    // The bike leaves the transition 1.5 km up a road to the north, then 7 km east to the handover.
+    // The run goes north, west, and comes home down that same road to the transition.
+    $bike = [[4.0, 51.0], [4.0, 51.0068], [4.0, 51.0135], [4.1, 51.0135]];
+    $generatedRoute = legRoute([[4.1, 51.0135], [4.1, 51.05], [4.0, 51.05], [4.0, 51.0135], [4.0, 51.0068], [4.0, 51.0]], 16_000);
+
+    expect(CleanLeg::doubledMetres($bike, $generatedRoute))->toBeLessThan(10.0)
+        ->and(CleanLeg::doublesBack($bike, $generatedRoute))->toBeFalse();
+});
