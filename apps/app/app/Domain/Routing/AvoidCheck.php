@@ -60,8 +60,10 @@ final class AvoidCheck
         $shape = $avoidedStretch->shape;
         $lonScale = self::METRES_PER_DEGREE * max(0.01, cos(deg2rad($avoidedStretch->latitude)));
         $origin = $avoidedStretch->point();
-        $west = $east = $origin[0];
-        $south = $north = $origin[1];
+        $west = $origin[0];
+        $east = $origin[0];
+        $south = $origin[1];
+        $north = $origin[1];
         $flat = [];
 
         foreach ($shape as $point) {

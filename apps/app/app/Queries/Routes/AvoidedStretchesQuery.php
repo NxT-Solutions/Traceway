@@ -64,15 +64,15 @@ final class AvoidedStretchesQuery
      */
     private function stretches(int $riderId, ?array $box = null): array
     {
-        $query = DB::table('avoided_stretches')->where('user_id', $riderId);
+        $builder = DB::table('avoided_stretches')->where('user_id', $riderId);
 
         if ($box !== null) {
-            $query->whereBetween('latitude', [$box[0], $box[1]])->whereBetween('longitude', [$box[2], $box[3]]);
+            $builder->whereBetween('latitude', [$box[0], $box[1]])->whereBetween('longitude', [$box[2], $box[3]]);
         }
 
         $stretches = [];
 
-        foreach ($query->oldest()->get(['id', 'name', 'latitude', 'longitude', 'shape']) as $row) {
+        foreach ($builder->oldest()->get(['id', 'name', 'latitude', 'longitude', 'shape']) as $row) {
             $reader = new RowReader($row);
             $stretches[] = new AvoidedStretch(
                 id: $reader->string('id'),

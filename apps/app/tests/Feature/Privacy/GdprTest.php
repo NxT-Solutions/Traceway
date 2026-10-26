@@ -315,7 +315,7 @@ it('lists the roads a person avoids on Your data', function (): void {
 
     $this->actingAs($user)
         ->get(route('privacy.edit'))
-        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+        ->assertInertia(fn (AssertableInertia $assertableInertia): AssertableInertia => $assertableInertia
             ->has('avoided', 1)
             ->where('avoided.0.name', 'Bosweg'));
 })->group('gdpr');

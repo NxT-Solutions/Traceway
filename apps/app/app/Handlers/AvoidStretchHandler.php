@@ -9,6 +9,8 @@ use App\Contracts\Auth\CurrentRider;
 use App\Contracts\Routes\AvoidedStretchRepository;
 use App\Domain\Routing\AvoidedStretch;
 use App\Domain\Routing\EdgeFinder;
+use App\Domain\Routing\RoadEdge;
+use App\Routes\StretchToAvoid;
 use App\Routes\TooManyAvoidedStretches;
 use RuntimeException;
 
@@ -43,10 +45,18 @@ final readonly class AvoidStretchHandler
             $avoidStretchCommand->surface,
         );
 
-        if ($roadEdge === null) {
+        if (! $roadEdge instanceof RoadEdge) {
             return null;
         }
 
-        return $this->avoidedStretchRepository->add($avoidStretchCommand->riderId, $roadEdge);
+        $avoidedStretchId = $this->avoidedStretchRepository->add($avoidStretchCommand->riderId, new StretchToAvoid(
+            latitude: $roadEdge->latitude,
+            longitude: $roadEdge->longitude,
+            shape: $roadEdge->shape,
+            wayId: $roadEdge->wayId,
+            name: $roadEdge->name,
+        ));
+
+        return new AvoidedStretch($avoidedStretchId->value, $roadEdge->latitude, $roadEdge->longitude, $roadEdge->shape, $roadEdge->name);
     }
 }

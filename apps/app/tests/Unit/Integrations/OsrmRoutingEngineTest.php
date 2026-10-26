@@ -112,10 +112,10 @@ it('takes the first alternative that keeps off an avoided stretch', function ():
     $connector = new OsrmConnector('https://router.test');
     $connector->withMockClient($mock);
 
-    $route = new OsrmRoutingEngine($connector)->trace(avoidingBosweg(), [[3.715, 51.05], [3.73, 51.05]]);
+    $generatedRoute = new OsrmRoutingEngine($connector)->trace(avoidingBosweg(), [[3.715, 51.05], [3.73, 51.05]]);
 
-    expect($route->coordinates)->toBe($around);
-    $mock->assertSent(fn (CyclingRouteRequest $request): bool => $request->query()->get('alternatives') === 'true');
+    expect($generatedRoute->coordinates)->toBe($around);
+    $mock->assertSent(fn (CyclingRouteRequest $cyclingRouteRequest): bool => $cyclingRouteRequest->query()->get('alternatives') === 'true');
 });
 
 it('goes around the stretch through a point beside it when no alternative does', function (): void {
@@ -125,9 +125,9 @@ it('goes around the stretch through a point beside it when no alternative does',
     $connector = new OsrmConnector('https://router.test');
     $connector->withMockClient($mock);
 
-    $route = new OsrmRoutingEngine($connector)->trace(avoidingBosweg(), [[3.715, 51.05], [3.73, 51.05]]);
+    $generatedRoute = new OsrmRoutingEngine($connector)->trace(avoidingBosweg(), [[3.715, 51.05], [3.73, 51.05]]);
 
-    expect($route->coordinates)->toBe($around);
+    expect($generatedRoute->coordinates)->toBe($around);
     $mock->assertSentCount(2);
 });
 
@@ -137,9 +137,9 @@ it('keeps the first line when nothing keeps off the stretch', function (): void 
     $connector = new OsrmConnector('https://router.test');
     $connector->withMockClient($mock);
 
-    $route = new OsrmRoutingEngine($connector)->trace(avoidingBosweg(), [[3.715, 51.05], [3.73, 51.05]]);
+    $generatedRoute = new OsrmRoutingEngine($connector)->trace(avoidingBosweg(), [[3.715, 51.05], [3.73, 51.05]]);
 
-    expect($route->coordinates)->toBe($along);
+    expect($generatedRoute->coordinates)->toBe($along);
     $mock->assertSentCount(3);
 });
 
@@ -150,5 +150,5 @@ it('asks for one line when the rider avoids nothing', function (): void {
 
     new OsrmRoutingEngine($connector)->trace(new RouteQuery(Sport::Road, Shape::PointToPoint, 5_000, Surface::Paved, ElevationBias::Neutral, 51.05, 3.715), [[3.715, 51.05], [3.73, 51.05]]);
 
-    $mock->assertSent(fn (CyclingRouteRequest $request): bool => $request->query()->get('alternatives') === 'false');
+    $mock->assertSent(fn (CyclingRouteRequest $cyclingRouteRequest): bool => $cyclingRouteRequest->query()->get('alternatives') === 'false');
 });

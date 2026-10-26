@@ -146,7 +146,7 @@ final readonly class OsrmRoutingEngine implements RoutingEngine
 
         foreach ([1.0, -1.0] as $side) {
             try {
-                $around = $this->lines($routeQuery, $profile, self::around($first->coordinates, $waypoints, $stretch, $side), false)[0];
+                $around = $this->lines($routeQuery, $profile, $this->around($first->coordinates, $waypoints, $stretch, $side), alternatives: false)[0];
             } catch (RuntimeException) {
                 continue;
             }
@@ -167,12 +167,12 @@ final readonly class OsrmRoutingEngine implements RoutingEngine
      * @param  list<array{0: float, 1: float}>  $waypoints
      * @return list<array{0: float, 1: float}>
      */
-    private static function around(array $line, array $waypoints, AvoidedStretch $avoidedStretch, float $side): array
+    private function around(array $line, array $waypoints, AvoidedStretch $avoidedStretch, float $side): array
     {
-        $shape = LineDistance::of($avoidedStretch->shape);
-        $middle = $shape->pointAt($shape->totalMetres() / 2);
-        $before = $shape->pointAt(max(0.0, $shape->totalMetres() / 2 - 5));
-        $after = $shape->pointAt(min($shape->totalMetres(), $shape->totalMetres() / 2 + 5));
+        $lineDistance = LineDistance::of($avoidedStretch->shape);
+        $middle = $lineDistance->pointAt($lineDistance->totalMetres() / 2);
+        $before = $lineDistance->pointAt(max(0.0, $lineDistance->totalMetres() / 2 - 5));
+        $after = $lineDistance->pointAt(min($lineDistance->totalMetres(), $lineDistance->totalMetres() / 2 + 5));
         $lonScale = 111_320.0 * max(0.01, cos(deg2rad($middle[1])));
         $dx = ($after[0] - $before[0]) * $lonScale;
         $dy = ($after[1] - $before[1]) * 111_320.0;

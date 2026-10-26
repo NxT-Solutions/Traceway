@@ -33,6 +33,9 @@ function avoidingEngine(): object
             return $this->candidates($routeQuery)[0];
         }
 
+        /**
+         * @return GeneratedRoute[]
+         */
         public function candidates(RouteQuery $routeQuery): array
         {
             $this->asked[] = $routeQuery;
@@ -79,7 +82,7 @@ beforeEach(function (): void {
     AvoidedStretchModel::factory()->create(['name' => 'Somebody else']);
 });
 
-it('skips the rider\'s own nearby roads on a loop, and says when it still rides one', function (): void {
+it("skips the rider's own nearby roads on a loop, and says when it still rides one", function (): void {
     $this->actingAs($this->rider)
         ->postJson(route('routes.preview'), [
             'sport' => 'gravel',
@@ -132,7 +135,7 @@ it('skips them on every leg of a multisport plan', function (): void {
 it('skips them when an AI assistant plans a loop or a brick', function (): void {
     $this->app->instance(PlaceFinder::class, new class implements PlaceFinder
     {
-        public function find(string $search): ?Place
+        public function find(string $search): Place
         {
             return new Place('Ghent, Belgium', 51.05, 3.72);
         }

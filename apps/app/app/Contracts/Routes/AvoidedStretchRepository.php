@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Contracts\Routes;
 
 use App\Account\RiderId;
-use App\Domain\Routing\AvoidedStretch;
-use App\Domain\Routing\RoadEdge;
 use App\Routes\AvoidedStretchId;
+use App\Routes\StretchToAvoid;
 
 interface AvoidedStretchRepository
 {
     /**
-     * Keeps the stretch for the rider. The same way twice keeps the first.
+     * Keeps the stretch for the rider. The same way twice keeps the first,
+     * and its id comes back.
      */
-    public function add(RiderId $riderId, RoadEdge $roadEdge): AvoidedStretch;
+    public function add(RiderId $riderId, StretchToAvoid $stretchToAvoid): AvoidedStretchId;
 
     public function countFor(RiderId $riderId): int;
 

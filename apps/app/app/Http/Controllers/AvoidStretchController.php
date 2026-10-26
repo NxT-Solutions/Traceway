@@ -89,6 +89,6 @@ class AvoidStretchController extends Controller
             ], HttpResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        return response()->json((new AvoidedStretchResponse($avoided))->toArray(), HttpResponse::HTTP_CREATED);
+        return response()->json(new AvoidedStretchResponse($avoided)->toArray(), HttpResponse::HTTP_CREATED);
     }
 }

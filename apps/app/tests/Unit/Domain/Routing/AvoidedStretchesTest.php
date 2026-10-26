@@ -54,7 +54,7 @@ it('takes at most the stretches a plan sends', function (): void {
 });
 
 it('copies a plan with the stretches to skip', function (): void {
-    $routeQuery = new RouteQuery(Sport::Gravel, Shape::Loop, 40_000, Surface::Mixed, ElevationBias::Maximize, 51.05, 3.72, 51.1, 3.8, true);
+    $routeQuery = new RouteQuery(Sport::Gravel, Shape::Loop, 40_000, Surface::Mixed, ElevationBias::Maximize, 51.05, 3.72, 51.1, 3.8, preferQuiet: true);
     $avoiding = $routeQuery->withAvoid([stretchAt('a', 3.73, 51.05)]);
 
     expect($avoiding->avoid)->toHaveCount(1)

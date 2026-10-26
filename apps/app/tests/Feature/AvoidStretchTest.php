@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\Distance;
 use App\Integrations\Valhalla\Polyline;
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Models\AvoidedStretch;
@@ -52,7 +53,7 @@ function edgeUnder(array $shape, ?string $name = 'Bosweg', int $wayId = 4242): M
 
 it('keeps the way under the tap for the rider', function (): void {
     $user = User::factory()->create();
-    $mock = edgeConnector(edgeUnder([[3.72, 51.05], [3.724, 51.05]]));
+    $mockClient = edgeConnector(edgeUnder([[3.72, 51.05], [3.724, 51.05]]));
 
     $this->actingAs($user)
         ->postJson(route('routes.avoided.store'), ['latitude' => 51.0501, 'longitude' => 3.7221, 'sport' => 'gravel'])
@@ -62,11 +63,11 @@ it('keeps the way under the tap for the rider', function (): void {
         ->assertJsonPath('longitude', 3.722)
         ->assertJsonPath('shape', [[3.72, 51.05], [3.724, 51.05]]);
 
-    $stretch = AvoidedStretch::query()->sole();
+    $avoidedStretch = AvoidedStretch::query()->sole();
 
-    expect($stretch->user_id)->toBe($user->id)
-        ->and($stretch->way_id)->toBe(4242)
-        ->and($mock->getLastPendingRequest()?->body()?->all())->toMatchArray([
+    expect($avoidedStretch->user_id)->toBe($user->id)
+        ->and($avoidedStretch->way_id)->toBe(4242)
+        ->and($mockClient->getLastPendingRequest()?->body()?->all())->toMatchArray([
             'verbose' => true,
             'costing' => 'bicycle',
             'costing_options' => ['bicycle' => ['bicycle_type' => 'Cross', 'avoid_bad_surfaces' => 0.35]],
@@ -91,7 +92,7 @@ it('keeps only the part of a long way around the tap', function (): void {
 
     $shape = AvoidedStretch::query()->sole()->shape;
 
-    expect(App\Domain\Routing\Distance::along($shape))->toEqualWithDelta(2_000.0, 5.0);
+    expect(Distance::along($shape))->toEqualWithDelta(2_000.0, 5.0);
 });
 
 it('keeps the same way once', function (): void {
@@ -132,14 +133,14 @@ it('says the map is busy when the router does not answer', function (): void {
 it('stops at the most roads a rider can avoid', function (): void {
     $user = User::factory()->create();
     AvoidedStretch::factory()->count(TooManyAvoidedStretches::MOST)->for($user)->create();
-    $mock = edgeConnector(edgeUnder([[3.72, 51.05], [3.724, 51.05]]));
+    $mockClient = edgeConnector(edgeUnder([[3.72, 51.05], [3.724, 51.05]]));
 
     $this->actingAs($user)
         ->postJson(route('routes.avoided.store'), ['latitude' => 51.05, 'longitude' => 3.722, 'sport' => 'road'])
         ->assertUnprocessable()
         ->assertJsonPath('message', 'You already avoid 200 roads. Remove one you no longer need first.');
 
-    $mock->assertNothingSent();
+    $mockClient->assertNothingSent();
 });
 
 it('asks for a point and a sport', function (): void {
@@ -180,7 +181,7 @@ it('says when the road is already gone', function (): void {
         ->assertNotFound();
 });
 
-it('draws the rider\'s own avoided roads on the planner', function (): void {
+it("draws the rider's own avoided roads on the planner", function (): void {
     $user = User::factory()->create();
     AvoidedStretch::factory()->for($user)->create(['name' => 'Bosweg']);
     AvoidedStretch::factory()->create(['name' => 'Somebody else']);
