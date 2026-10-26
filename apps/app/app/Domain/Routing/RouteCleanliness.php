@@ -49,12 +49,17 @@ final class RouteCleanliness
      * start street and the ride home along it. Unlike the share, this does
      * not grow with the loop: kilometres back down one road always count.
      *
+     * Roads in $before count as already used, and only this line's metres
+     * are counted, so a leg of a multisport route is judged against the
+     * legs before it.
+     *
      * @param  list<array{0: float, 1: float}>  $coordinates
      * @param  array{0: float, 1: float}|null  $start  Where the loop starts, when not the line's first point.
+     * @param  list<array{0: float, 1: float}>  $before  The line ridden before this one.
      */
-    public static function doubledMetres(array $coordinates, ?array $start = null): float
+    public static function doubledMetres(array $coordinates, ?array $start = null, array $before = []): float
     {
-        return self::reversal($coordinates, $start ?? ($coordinates[0] ?? null))['away'];
+        return self::reversal($coordinates, $start ?? ($coordinates[0] ?? null), $before)['away'];
     }
 
     /**
@@ -80,12 +85,14 @@ final class RouteCleanliness
     /**
      * The metres that ride back over a road already used, all of them and
      * those away from the start street, and the metres of the whole line.
+     * The roads in $before are matched against but not counted.
      *
      * @param  list<array{0: float, 1: float}>  $coordinates
      * @param  array{0: float, 1: float}|null  $start
+     * @param  list<array{0: float, 1: float}>  $before
      * @return array{reversed: float, away: float, total: float}
      */
-    private static function reversal(array $coordinates, ?array $start = null): array
+    private static function reversal(array $coordinates, ?array $start = null, array $before = []): array
     {
         /** @var list<array{from: array{0: float, 1: float}, to: array{0: float, 1: float}, fromLat: int, fromLon: int, toLat: int, toLon: int, bearing: float}> $used */
         $used = [];
@@ -100,78 +107,94 @@ final class RouteCleanliness
         // it is off the start street. The ride home is found from the end afterwards.
         /** @var list<array{metres: float, reversed: bool, outside: float}> $segments */
         $segments = [];
-        $from = null;
 
-        foreach ($coordinates as $coordinate) {
-            if ($from === null) {
+        foreach ([[$before, false], [$coordinates, true]] as [$line, $counted]) {
+            $from = null;
+
+            foreach ($line as $coordinate) {
+                if ($from === null) {
+                    $from = $coordinate;
+
+                    continue;
+                }
+
+                $metres = self::metres($from, $coordinate);
+
+                // A point a few metres on is measured from the last one kept, so
+                // a road drawn with close points still counts in full.
+                if ($metres < 8.0) {
+                    continue;
+                }
+
+                $bearing = self::bearing($from, $coordinate);
+                $fromLat = self::cell($from[1], 0.00035);
+                $fromLon = self::cell($from[0], 0.00045);
+                $toLat = self::cell($coordinate[1], 0.00035);
+                $toLon = self::cell($coordinate[0], 0.00045);
+
+                $midpoint = [($from[0] + $coordinate[0]) / 2, ($from[1] + $coordinate[1]) / 2];
+
+                if ($counted) {
+                    $totalMetres += $metres;
+                    $close = [];
+
+                    foreach ([$from, $coordinate, $midpoint] as $point) {
+                        foreach ($nearby[self::gridKey($point)] ?? [] as $edgeIndex) {
+                            $close[$edgeIndex] = true;
+                        }
+                    }
+
+                    $candidates = [];
+
+                    foreach (array_keys($close) as $edgeIndex) {
+                        $edge = $used[$edgeIndex] ?? null;
+
+                        if ($edge !== null) {
+                            $candidates[] = $edge;
+                        }
+                    }
+
+                    $reversed = self::reverses($candidates, $from, $coordinate, $fromLat, $fromLon, $toLat, $toLon, $bearing);
+
+                    if ($reversed) {
+                        $reversedMetres += $metres;
+                    }
+
+                    $segments[] = [
+                        'metres' => $metres,
+                        'reversed' => $reversed,
+                        'outside' => $reversed && $start !== null ? self::offStartStreet($from, $coordinate, $metres, $start) : $metres,
+                    ];
+                }
+
+                foreach (self::gridKeysNear($from, $coordinate) as $key) {
+                    $nearby[$key][] = count($used);
+                }
+
+                $used[] = [
+                    'from' => $from,
+                    'to' => $coordinate,
+                    'fromLat' => $fromLat,
+                    'fromLon' => $fromLon,
+                    'toLat' => $toLat,
+                    'toLon' => $toLon,
+                    'bearing' => $bearing,
+                ];
                 $from = $coordinate;
-
-                continue;
             }
-
-            $metres = self::metres($from, $coordinate);
-
-            // A point a few metres on is measured from the last one kept, so
-            // a road drawn with close points still counts in full.
-            if ($metres < 8.0) {
-                continue;
-            }
-
-            $totalMetres += $metres;
-            $bearing = self::bearing($from, $coordinate);
-            $fromLat = self::cell($from[1], 0.00035);
-            $fromLon = self::cell($from[0], 0.00045);
-            $toLat = self::cell($coordinate[1], 0.00035);
-            $toLon = self::cell($coordinate[0], 0.00045);
-
-            $midpoint = [($from[0] + $coordinate[0]) / 2, ($from[1] + $coordinate[1]) / 2];
-            $close = [];
-
-            foreach ([$from, $coordinate, $midpoint] as $point) {
-                foreach ($nearby[self::gridKey($point)] ?? [] as $edgeIndex) {
-                    $close[$edgeIndex] = true;
-                }
-            }
-
-            $candidates = [];
-
-            foreach (array_keys($close) as $edgeIndex) {
-                $edge = $used[$edgeIndex] ?? null;
-
-                if ($edge !== null) {
-                    $candidates[] = $edge;
-                }
-            }
-
-            $reversed = self::reverses($candidates, $from, $coordinate, $fromLat, $fromLon, $toLat, $toLon, $bearing);
-
-            if ($reversed) {
-                $reversedMetres += $metres;
-            }
-
-            $segments[] = [
-                'metres' => $metres,
-                'reversed' => $reversed,
-                'outside' => $reversed && $start !== null ? self::offStartStreet($from, $coordinate, $metres, $start) : $metres,
-            ];
-
-            foreach (self::gridKeysNear($from, $coordinate) as $key) {
-                $nearby[$key][] = count($used);
-            }
-
-            $used[] = [
-                'from' => $from,
-                'to' => $coordinate,
-                'fromLat' => $fromLat,
-                'fromLon' => $fromLon,
-                'toLat' => $toLat,
-                'toLon' => $toLon,
-                'bearing' => $bearing,
-            ];
-            $from = $coordinate;
         }
 
-        return ['reversed' => $reversedMetres, 'away' => $start === null ? $reversedMetres : self::away($segments, $totalMetres), 'total' => $totalMetres];
+        if ($start === null) {
+            return ['reversed' => $reversedMetres, 'away' => $reversedMetres, 'total' => $totalMetres];
+        }
+
+        // Only a line that comes back to where it started has a ride home.
+        $first = $coordinates[0] ?? null;
+        $last = array_last($coordinates);
+        $home = $last !== null && (self::metres($start, $last) <= self::START_STREET_METRES
+            || ($first !== null && self::metres($first, $last) <= self::START_STREET_METRES));
+
+        return ['reversed' => $reversedMetres, 'away' => self::away($segments, $home ? $totalMetres : 0.0), 'total' => $totalMetres];
     }
 
     /**
@@ -182,10 +205,11 @@ final class RouteCleanliness
      * the same as the road drawn with many points.
      *
      * @param  list<array{metres: float, reversed: bool, outside: float}>  $segments
+     * @param  float  $homeFrom  The metres of a line that comes home; 0 for one that ends elsewhere.
      */
-    private static function away(array $segments, float $totalMetres): float
+    private static function away(array $segments, float $homeFrom): float
     {
-        $longestHome = min(self::HOME_METRES, $totalMetres * self::HOME_SHARE);
+        $longestHome = min(self::HOME_METRES, $homeFrom * self::HOME_SHARE);
         $homeRun = 0.0;
         $gap = 0.0;
         $past = 0.0;

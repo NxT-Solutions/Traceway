@@ -70,7 +70,7 @@ final readonly class MultisportPlanner
         $generatedRoute = $this->routingEngine->trace($routeQuery, [$from, $to]);
         $stretch = $landLeg->stretch && $generatedRoute->distanceMetres < $landLeg->distanceMetres * 0.9;
         $target = $stretch ? $landLeg->distanceMetres : $generatedRoute->distanceMetres;
-        $doubles = CleanLeg::doubledShare($ridden, $generatedRoute) > CleanLeg::DOUBLED;
+        $doubles = CleanLeg::doublesBack($ridden, $generatedRoute);
 
         if (! $stretch && ! $doubles) {
             return $this->planned($landLeg, $generatedRoute);
@@ -127,7 +127,7 @@ final readonly class MultisportPlanner
 
         $best = CleanLeg::best($ridden, $tried, $target) ?? $generatedRoute;
 
-        if (CleanLeg::doubledShare($ridden, $best) > CleanLeg::DOUBLED) {
+        if (CleanLeg::doublesBack($ridden, $best)) {
             foreach (Detour::vias($from, $to, $detourLength, $roadFactor, 1.4) as $via) {
                 $tried[] = $this->through($routeQuery, $from, $via, $to);
             }
