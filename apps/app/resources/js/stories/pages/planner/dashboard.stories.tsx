@@ -10,6 +10,7 @@ import { catchDownloads } from '../../support/planner-downloads';
 import {
     avoidedRoads,
     type PlannerDraftOptions,
+    plannerDraft,
     plannerDraftDefaults,
     plannerDraftFor,
     routeServices,
@@ -965,6 +966,92 @@ export const ArriveWithATownNotFound: Story = {
     },
 };
 
+/** Where the rider's device says they are: Tongerlo, a few kilometres from the draft's start in Westerlo. */
+const tongerlo = { longitude: 4.9545, latitude: 51.0985 };
+/** The points the planner asked a name for, in the story that runs now. */
+let named: { longitude: unknown; latitude: unknown }[] = [];
+/** How often the planner asked the device where it is. */
+let located = 0;
+
+/**
+ * A rider opens a draft that starts in Westerlo and taps Find my location. The start moves to Tongerlo and the
+ * Start row says Tongerlo. The planner never asks the name of the draft's old start again: that answer could come
+ * in last and put the old name back.
+ */
+export const FindMyLocation: Story = {
+    beforeEach: ({ msw }) => {
+        named = [];
+        located = 0;
+        msw.use(
+            http.post('/routes/place', async ({ request }) => {
+                const body = (await request.json()) as Record<string, unknown>;
+                named.push({
+                    longitude: body.longitude,
+                    latitude: body.latitude,
+                });
+
+                return HttpResponse.json({ name: 'Tongerlo' });
+            }),
+        );
+        const geolocation = window.navigator.geolocation;
+        const { getCurrentPosition } = geolocation;
+        geolocation.getCurrentPosition = (success) => {
+            located += 1;
+            success({
+                coords: {
+                    ...tongerlo,
+                    accuracy: 10,
+                    altitude: null,
+                    altitudeAccuracy: null,
+                    heading: null,
+                    speed: null,
+                },
+                timestamp: Date.now(),
+            } as GeolocationPosition);
+        };
+
+        return () => {
+            geolocation.getCurrentPosition = getCurrentPosition;
+        };
+    },
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+        const ask = within(panel.getByRole('region', { name: 'Ask' }));
+        const start = ask.getByRole('button', { name: /^Start/ });
+
+        await step('The draft starts in Westerlo', async () => {
+            await expect(start).toHaveTextContent('Westerlo');
+        });
+
+        await step('Find my location moves the start to Tongerlo', async () => {
+            const locate = await within(canvasElement).findByRole('button', {
+                name: 'Find my location',
+            });
+
+            // The map's own locate control finishes setting up just after the map is made; until then a tap
+            // does nothing, so tap until the device is asked.
+            await waitFor(async () => {
+                await userEvent.click(locate);
+                await expect(located).toBeGreaterThan(0);
+            }, answer);
+            await waitFor(
+                () => expect(start).toHaveTextContent('Tongerlo'),
+                answer,
+            );
+        });
+
+        await step('Only the new start is named', async () => {
+            await expect(
+                named.filter(
+                    (point) =>
+                        point.longitude === plannerDraft.longitude &&
+                        point.latitude === plannerDraft.latitude,
+                ),
+            ).toHaveLength(0);
+        });
+    },
+};
+
 /** Multisport draws a brick from the transition: a 40 km ride, then a 5 km run, each leg with its own climb. */
 export const Multisport: Story = {
     args: { loops: 0 },
@@ -1132,8 +1219,9 @@ export const AvoidARoad: Story = {
 };
 
 /**
- * A rider who avoids Zandstraat lets it back in from the panel, and the loops are drawn again. Undo avoids it once
- * more, for the gravel ride it was first found on, whatever the planner is set to now.
+ * A rider who avoids Zandstraat lets it back in from the panel, and the legs of the loop that pass it are planned
+ * again, as they are when a road is avoided. Undo avoids it once more, for the gravel ride it was first found on,
+ * whatever the planner is set to now.
  */
 export const StopAvoiding: Story = {
     args: { avoided: true },
@@ -1144,36 +1232,39 @@ export const StopAvoiding: Story = {
             await panel.findByText('Loop 1 of 3', {}, answer),
         ).toBeVisible();
 
-        await step('Remove lets it back into every plan', async () => {
-            const before = server.sent('POST', '/routes/preview').length;
-            await userEvent.click(
-                panel.getByRole('button', { name: 'Remove Zandstraat' }),
-            );
-            await expect(
-                await within(canvasElement).findByRole(
-                    'group',
-                    { name: 'Last change' },
+        await step(
+            'Remove lets it back in, and the loop is planned again',
+            async () => {
+                const before =
+                    server.sent('POST', '/routes/preview').length +
+                    server.sent('POST', '/routes/reshape').length;
+                await userEvent.click(
+                    panel.getByRole('button', { name: 'Remove Zandstraat' }),
+                );
+                await expect(
+                    await within(canvasElement).findByRole(
+                        'group',
+                        { name: 'Last change' },
+                        answer,
+                    ),
+                ).toHaveTextContent('Zandstraat back in your plans');
+                await expect(server.avoided()).toHaveLength(0);
+                // The legs that pass the road are planned again, so the loop may use it now.
+                await waitFor(
+                    () =>
+                        expect(
+                            server.sent('POST', '/routes/preview').length +
+                                server.sent('POST', '/routes/reshape').length,
+                        ).toBe(before + 1),
                     answer,
-                ),
-            ).toHaveTextContent('Zandstraat back in your plans');
-            await expect(server.avoided()).toHaveLength(0);
-            // The loop drawn keeps off it still: only the next plan may use it.
-            await expect(
-                await panel.findByText(
-                    'Zandstraat is back in your plans. Draw again to let this route use it.',
-                    {},
-                    answer,
-                ),
-            ).toBeVisible();
-            await expect(server.sent('POST', '/routes/preview')).toHaveLength(
-                before,
-            );
-            await expect(
-                panel.getByText(
-                    /Avoid it, and Traceway skips it on every plan/,
-                ),
-            ).toBeVisible();
-        });
+                );
+                await expect(
+                    panel.getByText(
+                        /Avoid it, and Traceway skips it on every plan/,
+                    ),
+                ).toBeVisible();
+            },
+        );
 
         await step(
             'Undo avoids it again, for the sport it was found for',

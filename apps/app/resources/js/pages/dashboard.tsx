@@ -2933,22 +2933,21 @@ export default function Dashboard() {
         setNudgeNotice(null);
     }, [mode, sport, surface, elevation, shape, roads, distanceKm]);
 
-    // A draft saved before starts had names gets its name once.
-    const namedSavedStart = useRef(false);
-
+    // A draft saved before starts had names gets its name once, when the
+    // page opens. A start moved since, by the locate button say, clears the
+    // name too, but it is named where it is now, not where the draft was.
     useEffect(() => {
-        if (namedSavedStart.current || saved === null || startName !== null) {
+        if (saved === null || typeof saved.startName === 'string') {
             return;
         }
 
-        namedSavedStart.current = true;
         const ask = startAskRef.current;
         void labelPlace(saved.longitude, saved.latitude).then((name) => {
             if (startAskRef.current === ask && name !== 'Junction') {
                 setStartName(name);
             }
         });
-    }, [saved, startName]);
+    }, [saved]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -4678,12 +4677,16 @@ export default function Dashboard() {
     }
 
     /**
-     * Plans around a road just avoided. Only the legs of the drawn route
-     * that use it are planned again; a route that does not use it stays. A
-     * stop on the road itself, or a road that runs along much of the route,
-     * means planning it all again.
+     * Plans again after a road was avoided or let back in. Only the legs of
+     * the drawn route that pass it are planned again: around a road just
+     * avoided, or along one let back in, which the route met at its ends. A
+     * route that does not pass it stays. A stop on the road itself, or a
+     * road that runs along much of the route, means planning it all again.
      */
-    function planAroundAvoided(road: AvoidedRoad): void {
+    function planAroundRoad(
+        road: AvoidedRoad,
+        change: 'avoided' | 'back',
+    ): void {
         if (multisport) {
             if (plan !== null) {
                 void drawMultisport();
@@ -4728,7 +4731,7 @@ export default function Dashboard() {
             (point) => metresToLine(point, road.shape) <= 25,
         );
 
-        if (mode === 'build' && onTheRoad) {
+        if (mode === 'build' && onTheRoad && change === 'avoided') {
             setMessage(
                 `A point of yours is on ${roadName(road)}. Move it off the road, and the route goes around it.`,
             );
@@ -4743,7 +4746,9 @@ export default function Dashboard() {
 
         if (legs !== null && legs.length === 0) {
             setMessage(
-                `Avoiding ${roadName(road)}. This route does not use it, so it stays as it is.`,
+                change === 'avoided'
+                    ? `Avoiding ${roadName(road)}. This route does not use it, so it stays as it is.`
+                    : `${roadName(road)} is back in your plans. This route does not pass it, so it stays as it is.`,
             );
 
             return;
@@ -4815,7 +4820,7 @@ export default function Dashboard() {
                 ? `Avoiding ${roadName(found)}. Every plan skips it from now on.`
                 : `Avoiding ${roadName(found)}. Planning around it.`,
         );
-        planAroundAvoided(found);
+        planAroundRoad(found, 'avoided');
     };
 
     /** Lets an avoided road back into every plan. */
@@ -4843,12 +4848,12 @@ export default function Dashboard() {
     roadBackRef.current = (road) => {
         remember(`${roadName(road)} back in your plans`);
         setAvoided((current) => current.filter((item) => item.id !== road.id));
-        // The route drawn keeps off it still. The next plan may use it.
         setMessage(
             shown === null
                 ? `${roadName(road)} is back in your plans.`
-                : `${roadName(road)} is back in your plans. Draw again to let this route use it.`,
+                : `${roadName(road)} is back in your plans. Planning along it.`,
         );
+        planAroundRoad(road, 'back');
     };
 
     function showAvoided(road: AvoidedRoad): void {
