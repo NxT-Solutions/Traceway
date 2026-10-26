@@ -71,6 +71,7 @@ export function MapSearch({
     purpose,
     inputRef,
     actions,
+    ask = null,
     onClearPurpose,
     onPick,
 }: {
@@ -85,6 +86,12 @@ export function MapSearch({
     inputRef: RefObject<HTMLInputElement | null>;
     /** Shown before the rider types. */
     actions: SearchAction[];
+    /**
+     * A place the rider asked for before they reached the planner, such as
+     * the town typed on the home page. It is searched once, and the first
+     * match is picked for them.
+     */
+    ask?: string | null;
     onClearPurpose: () => void;
     onPick: (place: FoundPlace) => void;
 }) {
@@ -133,7 +140,8 @@ export function MapSearch({
         return () => window.clearTimeout(timer);
     }, [query, map]);
 
-    async function search(words: string): Promise<void> {
+    /** The places found, or null when busy or a newer search took over. */
+    async function search(words: string): Promise<FoundPlace[] | null> {
         const ask = asked.current + 1;
         asked.current = ask;
         setActive(-1);
@@ -165,7 +173,7 @@ export function MapSearch({
         }
 
         if (asked.current !== ask) {
-            return;
+            return null;
         }
 
         setStatus(
@@ -173,7 +181,36 @@ export function MapSearch({
                 ? { kind: 'found', query: words, places: result.places, fixed }
                 : result,
         );
+
+        return result.kind === 'found' ? result.places : null;
     }
+
+    // The town from the home page. Found, the map goes there as if the rider
+    // had picked it. Not found or busy, the search takes the focus and says
+    // so, and closes like any search when the rider moves on.
+    const askedFor = useRef(false);
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: once, for the place asked for on arrival
+    useEffect(() => {
+        const words = ask?.trim() ?? '';
+
+        if (askedFor.current || words.length < 2) {
+            return;
+        }
+
+        askedFor.current = true;
+        setQuery(words);
+        void search(words).then((places) => {
+            const first = places?.[0];
+
+            if (first === undefined) {
+                inputRef.current?.focus();
+                setOpen(true);
+            } else {
+                pick(first);
+            }
+        });
+    }, [ask]);
 
     function close(): void {
         setOpen(false);

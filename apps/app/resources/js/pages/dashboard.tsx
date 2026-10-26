@@ -1629,6 +1629,7 @@ export default function Dashboard() {
         sportSurfaces,
         showTour,
         avoided: avoidedAtFirst,
+        near,
     } = usePage<{
         auth: { user: { id: number; name: string } };
         serviceNotice?: ServiceNoticeProps | null;
@@ -1638,6 +1639,8 @@ export default function Dashboard() {
         showTour?: boolean;
         /** The roads the rider skips on every plan. */
         avoided?: AvoidedRoad[];
+        /** A town typed on the home page, searched once on arrival. */
+        near?: string | null;
     }>().props;
     // A notice, or a map server going down or coming back, reaches a rider
     // who keeps the planner open.
@@ -1926,6 +1929,8 @@ export default function Dashboard() {
                 onEnd: () => {
                     tourRef.current = null;
                     setPanelOpen(false);
+                    // The town from the home page waits for the tour.
+                    setAskNow(arrivedNear);
 
                     if (toured.current) {
                         return;
@@ -1951,6 +1956,37 @@ export default function Dashboard() {
             });
         });
     }
+
+    // Kept from the first render: the prop is cleared below once it is read.
+    const arrivedNear = useRef(near ?? null).current;
+    // Searched at once, or after the tour on a first visit, so the tour
+    // never covers the town's card.
+    const [askNow, setAskNow] = useState(toured.current ? arrivedNear : null);
+
+    // The town from the home page is searched once. A reload, or back to the
+    // planner from the browser's history, keeps the map where the rider left it.
+    useEffect(() => {
+        // The town is where the rider looks: the map does not frame a saved
+        // route or find the rider when it finishes loading.
+        if (arrivedNear !== null) {
+            riderLookedRef.current = true;
+        }
+
+        const url = new URL(window.location.href);
+
+        // An empty box on the home page still sends an empty town.
+        if (!url.searchParams.has('near')) {
+            return;
+        }
+
+        url.searchParams.delete('near');
+        router.replace({
+            url: url.pathname + url.search + url.hash,
+            props: (props) => ({ ...props, near: null }),
+            preserveScroll: true,
+            preserveState: true,
+        });
+    }, [arrivedNear]);
 
     // A new rider is shown around on their first visit, once the planner is on screen.
     // biome-ignore lint/correctness/useExhaustiveDependencies: once, on the first visit
@@ -6194,6 +6230,7 @@ export default function Dashboard() {
                             }
                             inputRef={searchInputRef}
                             actions={searchActions}
+                            ask={askNow}
                             onClearPurpose={() => {
                                 setSearchPurpose(null);
                                 setPlacingVia(false);

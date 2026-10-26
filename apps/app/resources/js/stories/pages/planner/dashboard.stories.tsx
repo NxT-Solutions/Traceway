@@ -28,6 +28,7 @@ type DashboardProps = {
     sportSurfaces: Record<string, string>;
     showTour: boolean;
     avoided: AvoidedRoad[];
+    near: string | null;
 };
 
 type PlannerArgs = PlannerDraftOptions & {
@@ -39,6 +40,8 @@ type PlannerArgs = PlannerDraftOptions & {
     showTour: boolean;
     /** On: the rider avoids Zandstraat, a sandy track near Westerlo. */
     avoided: boolean;
+    /** The town typed on the home page, which the planner looks up on arrival. Empty: none. */
+    near: string;
 };
 
 const draftKey = plannerDraftKey(rider.id);
@@ -80,12 +83,18 @@ const notice: ServiceNoticeProps = {
  * The planner, opened on the draft the Controls describe. A new draft remounts the page, since the planner reads
  * its draft once, on load.
  */
-function Planner({ serviceNotice, showTour, avoided, ...args }: PlannerArgs) {
-    keepDraft({ serviceNotice, showTour, avoided, ...args });
+function Planner({
+    serviceNotice,
+    showTour,
+    avoided,
+    near,
+    ...args
+}: PlannerArgs) {
+    keepDraft({ serviceNotice, showTour, avoided, near, ...args });
 
     return (
         <InertiaPage<DashboardProps>
-            key={JSON.stringify({ ...args, showTour, avoided })}
+            key={JSON.stringify({ ...args, showTour, avoided, near })}
             name="dashboard"
             component={Dashboard}
             url="/dashboard"
@@ -94,6 +103,7 @@ function Planner({ serviceNotice, showTour, avoided, ...args }: PlannerArgs) {
                 sportSurfaces,
                 showTour,
                 avoided: avoided ? avoidedRoads : [],
+                near: near === '' ? null : near,
             }}
             shared={{ ...sharedProps(), routeServices }}
         />
@@ -123,6 +133,7 @@ const meta = {
         serviceNotice: false,
         showTour: false,
         avoided: false,
+        near: '',
     },
     argTypes: {
         sport: { control: 'select', options: sports },
@@ -885,6 +896,72 @@ export const CardStaysWhenTheMapResizes: Story = {
             ).toBeVisible();
             map?.style.removeProperty('height');
         });
+    },
+};
+
+/** A town typed on the home page: the planner finds it on arrival and opens its card, ready to start there. */
+export const ArriveWithATown: Story = {
+    name: 'Arrive with a town',
+    args: { draft: false, near: 'Tongerlo' },
+    play: async ({ canvasElement }) => {
+        const canvas = within(canvasElement);
+        const card = within(
+            await canvas.findByRole('dialog', { name: 'Tongerlo' }, answer),
+        );
+
+        await expect(
+            await card.findByRole('button', { name: 'Start here' }, answer),
+        ).toBeVisible();
+        await expect(
+            server.sent('POST', '/routes/places')[0]?.body,
+        ).toMatchObject({ query: 'Tongerlo' });
+    },
+};
+
+/**
+ * A new rider who typed a town on the home page: the tour goes first, so it never covers the town's card. Closing
+ * the tour searches the town and opens its card.
+ */
+export const ArriveWithATownOnAFirstVisit: Story = {
+    name: 'Arrive with a town on a first visit',
+    args: { draft: false, showTour: true, near: 'Tongerlo' },
+    play: async ({ canvasElement, step }) => {
+        const canvas = within(canvasElement);
+
+        await step('The tour opens, and the town waits', async () => {
+            await expect(await tourCard()).toHaveAccessibleName(
+                'Welcome to Traceway',
+            );
+            await expect(server.sent('POST', '/routes/places')).toHaveLength(0);
+        });
+
+        await step('Closing the tour finds the town', async () => {
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Close the tour' }),
+            );
+            const card = within(
+                await canvas.findByRole('dialog', { name: 'Tongerlo' }, answer),
+            );
+            await expect(
+                await card.findByRole('button', { name: 'Start here' }, answer),
+            ).toBeVisible();
+        });
+    },
+};
+
+/** A town the search cannot find stays in the search, which says so. */
+export const ArriveWithATownNotFound: Story = {
+    name: 'Arrive with a town not found',
+    args: { draft: false, near: 'Qwxzy' },
+    play: async ({ canvasElement }) => {
+        const canvas = within(canvasElement);
+
+        await expect(
+            await canvas.findByText(/Nothing found for “Qwxzy”/, {}, answer),
+        ).toBeVisible();
+        await expect(
+            canvas.getByRole('combobox', { name: /Search/ }),
+        ).toHaveValue('Qwxzy');
     },
 };
 

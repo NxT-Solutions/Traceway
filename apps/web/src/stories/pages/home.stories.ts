@@ -24,9 +24,17 @@ export const Desktop: Story = {
         const page = within(canvasElement);
 
         await shows(page.getByRole('heading', { level: 1, name: /Name the distance/ }));
-        await expect(
-            canvasElement.querySelector('.hero-btn'),
-        ).toHaveAttribute('href', '/dashboard');
+        // The town a visitor types goes to the planner, which opens there. Left empty, the
+        // button just opens the planner.
+        const town = page.getByRole('textbox', { name: 'Where do you start?' });
+
+        await expect(town).toHaveAttribute('name', 'near');
+        await expect(town.closest('form')).toHaveAttribute('action', '/dashboard');
+        await expect(town.closest('form')).toHaveAttribute('method', 'get');
+        // A first-time visitor learns, by the button, that they will need a free account.
+        await expect(canvasElement.querySelector('.hero-note')).toHaveTextContent(
+            /Free account, no card/,
+        );
 
         // The devices section sends a Garmin rider to the app in the Connect IQ store.
         await expect(

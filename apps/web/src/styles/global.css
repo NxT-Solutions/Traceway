@@ -28,7 +28,7 @@ html{scroll-behavior:auto;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;overflow-x:clip;-webkit-tap-highlight-color:transparent}
 a{color:inherit;text-decoration:none}
 a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px}
-.on-dark a:focus-visible,.on-dark button:focus-visible,.band a:focus-visible,.stage a:focus-visible{outline-color:var(--paper)}
+.on-dark a:focus-visible,.on-dark button:focus-visible,.band a:focus-visible,.stage a:focus-visible,.stage button:focus-visible{outline-color:var(--paper)}
 h1,h2,h3{text-wrap:balance;margin:0}
 p{margin:0;text-wrap:pretty}
 .wrap{max-width:var(--w);margin-inline:auto;padding-inline:max(var(--gutter), env(safe-area-inset-left, 0px)) max(var(--gutter), env(safe-area-inset-right, 0px))}
