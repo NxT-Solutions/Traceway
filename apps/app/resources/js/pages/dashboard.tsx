@@ -1687,6 +1687,9 @@ export default function Dashboard() {
     // its way for the undone pin is dropped when it lands.
     const drawAskRef = useRef(0);
     const closeTapRef = useRef<() => void>(() => {});
+    // Set once the rider looks somewhere: a search, a tap, a pan or a zoom.
+    // The map then keeps that view when it finishes loading.
+    const riderLookedRef = useRef(false);
     const moveStartRef = useRef<
         (
             longitude: number,
@@ -2472,7 +2475,14 @@ export default function Dashboard() {
             clearRoadSnapCache();
         };
         map.on('move', dropRoadSnap);
-        map.on('movestart', () => closeTapRef.current());
+        map.on('movestart', (event) => {
+            // A pan or a zoom by the rider, not a move the planner made.
+            if ('originalEvent' in event && event.originalEvent !== undefined) {
+                riderLookedRef.current = true;
+            }
+
+            closeTapRef.current();
+        });
         map.on('resize', dropRoadSnap);
         map.on('mouseout', () => {
             if (modeRef.current === 'build') {
@@ -2533,6 +2543,13 @@ export default function Dashboard() {
         observer.observe(node);
         window.addEventListener('resize', applyArrowSize);
         map.once('load', () => {
+            // A rider who already searched, tapped or moved the map on a slow
+            // connection keeps that view; framing the route now would move
+            // the map from under them, and put away the card they opened.
+            if (riderLookedRef.current) {
+                return;
+            }
+
             const line = previewRef.current;
 
             if (line !== null && line.coordinates.length > 1) {
@@ -4656,6 +4673,8 @@ export default function Dashboard() {
             return;
         }
 
+        riderLookedRef.current = true;
+
         const ask = tapAskRef.current + 1;
         tapAskRef.current = ask;
         const show = (
@@ -4731,12 +4750,12 @@ export default function Dashboard() {
     }
 
     // A move of the map puts the card away, and any card still on its way.
+    // Always put away, not only when this render saw a card: a card opened
+    // in the same moment would otherwise stay, still looking for a road its
+    // answer no longer reaches.
     closeTapRef.current = () => {
         tapAskRef.current += 1;
-
-        if (tapCard !== null) {
-            setTapCard(null);
-        }
+        setTapCard(null);
     };
 
     // What a search or a tap is for: the row that asked, or the mode's own.
@@ -4897,6 +4916,7 @@ export default function Dashboard() {
             return;
         }
 
+        riderLookedRef.current = true;
         const reduced = window.matchMedia(
             '(prefers-reduced-motion: reduce)',
         ).matches;

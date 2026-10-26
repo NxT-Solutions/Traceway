@@ -774,6 +774,44 @@ export const SearchAPlace: Story = {
     },
 };
 
+/**
+ * A rider with a loop drawn searches for a place before the map has finished loading. The map frames the loop once
+ * it loads, but not over the place the rider asked for, and the card asks what to do there as soon as the road is
+ * found. It never waits on a road it stopped looking for.
+ */
+export const SearchWhileTheMapLoads: Story = {
+    play: async ({ canvasElement, step }) => {
+        const canvas = within(canvasElement);
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Search for Tongerlo at once', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: /^Start/ }),
+            );
+            const search = await canvas.findByRole('combobox', {
+                name: 'Search for your start',
+            });
+            await userEvent.type(search, 'Tongerlo{Enter}');
+            await userEvent.click(
+                await canvas.findByRole(
+                    'option',
+                    { name: /^Tongerlo Westerlo, Antwerp, Belgium$/ },
+                    answer,
+                ),
+            );
+        });
+
+        await step('The card offers to start there', async () => {
+            const card = within(
+                await canvas.findByRole('dialog', { name: 'Tongerlo' }, answer),
+            );
+            await expect(
+                await card.findByRole('button', { name: 'Start here' }, answer),
+            ).toBeVisible();
+        });
+    },
+};
+
 /** Multisport draws a brick from the transition: a 40 km ride, then a 5 km run, each leg with its own climb. */
 export const Multisport: Story = {
     args: { loops: 0 },
