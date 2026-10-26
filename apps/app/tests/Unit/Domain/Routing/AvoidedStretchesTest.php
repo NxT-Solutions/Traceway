@@ -88,3 +88,29 @@ it('reaches as far as a whole chain of legs', function (): void {
     expect(new MultisportQuery(Layout::Chain, 51.05, 3.72, $legs)->reachMetres())->toBe(30_000)
         ->and(new MultisportQuery(Layout::Loops, 51.05, 3.72, $legs)->reachMetres())->toBe(20_000);
 });
+
+it('lays a band across the middle of a road, wide enough for both carriageways', function (): void {
+    $road = new AvoidedStretch('road', 51.05, 3.722, [[3.72, 51.05], [3.724, 51.05]]);
+    $band = AvoidedStretches::band($road);
+
+    expect($band)->toHaveCount(5)
+        ->and($band[0])->toBe($band[4])
+        // 16 m along the road, 20 m across it.
+        ->and(Distance::metres($band[0], $band[1]))->toEqualWithDelta(16.0, 0.5)
+        ->and(Distance::metres($band[1], $band[2]))->toEqualWithDelta(20.0, 0.5)
+        ->and(Distance::metres([($band[0][0] + $band[2][0]) / 2, ($band[0][1] + $band[2][1]) / 2], [3.722, 51.05]))->toBeLessThan(1.0);
+});
+
+it('keeps the band clear of the junctions at either end', function (): void {
+    $road = new AvoidedStretch('near-end', 51.05, 3.72005, [[3.72, 51.05], [3.724, 51.05]]);
+    $band = AvoidedStretches::band($road);
+
+    expect(Distance::metres([3.72, 51.05], [($band[0][0] + $band[3][0]) / 2, ($band[0][1] + $band[3][1]) / 2]))->toBeGreaterThanOrEqual(3.9);
+});
+
+it('gives a road a few metres long a band a metre long', function (): void {
+    $road = new AvoidedStretch('short', 51.05, 3.72003, [[3.72, 51.05], [3.72006, 51.05]]);
+    $band = AvoidedStretches::band($road);
+
+    expect(Distance::metres($band[0], $band[1]))->toEqualWithDelta(1.0, 0.1);
+});

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Routing\AvoidedStretch;
+use App\Domain\Routing\AvoidedStretches;
 use App\Domain\Routing\Distance;
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\FollowPoint;
@@ -257,5 +258,5 @@ it('leaves the avoided stretches out of a built route', function (): void {
 
     new ValhallaRoutingEngine($connector)->trace($routeQuery, [[3.72, 51.05], [3.73, 51.055], [3.74, 51.06]]);
 
-    expect($mock->getLastPendingRequest()?->body()?->all()['exclude_locations'] ?? null)->toBe([['lat' => 51.0502, 'lon' => 3.7302]]);
+    expect($mock->getLastPendingRequest()?->body()?->all()['exclude_polygons'] ?? null)->toBe([AvoidedStretches::band($routeQuery->avoid[0])]);
 });

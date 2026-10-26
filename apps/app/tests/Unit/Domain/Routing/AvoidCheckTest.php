@@ -27,8 +27,8 @@ it('leaves a road 20 m beside the stretch', function (): void {
     expect(AvoidCheck::crossing([[3.715, 51.05018], [3.73, 51.05018]], [bosweg()]))->toBe([]);
 });
 
-it('leaves a cycle track mapped 6 m beside the stretch', function (): void {
-    expect(AvoidCheck::crossing([[3.715, 51.050054], [3.73, 51.050054]], [bosweg()]))->toBe([]);
+it('counts a cycle path mapped 6 m beside the road as the road', function (): void {
+    expect(AvoidCheck::crossing([[3.715, 51.050054], [3.73, 51.050054]], [bosweg()]))->toBe(['bosweg']);
 });
 
 it('leaves the road a short stretch meets end on', function (): void {
