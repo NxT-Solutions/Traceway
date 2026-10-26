@@ -83,6 +83,17 @@ final class RouteCleanliness
     }
 
     /**
+     * What doubled metres under the limit cost, against being off the asked
+     * length. Each weighs twice its share of the line, so on a short run 5%
+     * doubled costs as much as being 10% off. Past 40 km a doubled kilometre
+     * stays at 5%, so a long line is not let off.
+     */
+    public static function doubledCost(float $doubled, float $lineMetres): float
+    {
+        return 2 * $doubled / max(1.0, min($lineMetres, 40_000.0));
+    }
+
+    /**
      * The metres that ride back over a road already used, all of them and
      * those away from the start street, and the metres of the whole line.
      * The roads in $before are matched against but not counted.
@@ -706,7 +717,7 @@ final class RouteCleanliness
 
             return [
                 'route' => $generatedRoute,
-                'score' => self::scoreWith($generatedRoute, $targetMetres, $doubled, $doubles),
+                'score' => self::scoreWith($generatedRoute, $targetMetres, $doubled, $doubles, $total),
                 'doubles' => $doubles,
             ];
         }, $routes);
@@ -752,7 +763,7 @@ final class RouteCleanliness
         return self::scored([$generatedRoute], $targetMetres)[0]['score'] ?? INF;
     }
 
-    private static function scoreWith(GeneratedRoute $generatedRoute, int $targetMetres, float $doubled, bool $doubles): float
+    private static function scoreWith(GeneratedRoute $generatedRoute, int $targetMetres, float $doubled, bool $doubles, float $lineMetres): float
     {
         $error = abs($generatedRoute->distanceMetres - $targetMetres) / max(1, $targetMetres);
 
@@ -765,9 +776,8 @@ final class RouteCleanliness
             return 5 + $error;
         }
 
-        // Among clean lines the closest length wins, and each doubled
-        // kilometre weighs as much as being 5% off it.
-        return $error + ($doubled / 20_000);
+        // Among clean lines the closest length wins, with the doubled metres on top.
+        return $error + self::doubledCost($doubled, $lineMetres);
     }
 
     /**

@@ -98,3 +98,15 @@ it('lets every leg ride the street of the transition both ways', function (): vo
     expect(CleanLeg::doubledMetres($run, $bike))->toBe(0.0)
         ->and(CleanLeg::doublesBack($run, $bike))->toBeFalse();
 });
+
+it('keeps a short run clean rather than closer to its length with a stretch back down a road', function (): void {
+    // A 6 km square, and the same square with a 600 m road out of its north side and back.
+    $spur = legRoute([
+        [4.0, 51.0], [4.0214, 51.0], [4.0214, 51.0135], [4.0107, 51.0135],
+        [4.0107, 51.0189], [4.0107, 51.0135], [4.0, 51.0135], [4.0, 51.0],
+    ], 7_200);
+    $clean = legRoute([[4.0, 51.0], [4.0214, 51.0], [4.0214, 51.0135], [4.0107, 51.0135], [4.0, 51.0135], [4.0, 51.0]], 6_700);
+
+    expect(CleanLeg::doublesBack([], $spur))->toBeFalse()
+        ->and(CleanLeg::best([], [$spur, $clean], 10_000))->toBe($clean);
+});

@@ -36,7 +36,7 @@ final class CleanLeg
     /**
      * Doubling back costs far more than being off the length. A leg that
      * turns around loses to any clean leg, however far off its length.
-     * Among clean legs each doubled kilometre weighs like being 5% off.
+     * Among clean legs the doubled metres cost what they cost a loop.
      *
      * @param  list<array{0: float, 1: float}>  $ridden
      */
@@ -45,7 +45,11 @@ final class CleanLeg
         $doubled = self::doubledMetres($ridden, $generatedRoute);
         $error = abs($generatedRoute->distanceMetres - $targetMetres) / max(1, $targetMetres);
 
-        return self::over($doubled, $generatedRoute) ? 1_000 + ($doubled / 10_000) + $error : ($doubled / 20_000) + $error;
+        if (self::over($doubled, $generatedRoute)) {
+            return 1_000 + ($doubled / 10_000) + $error;
+        }
+
+        return RouteCleanliness::doubledCost($doubled, Distance::along($generatedRoute->coordinates)) + $error;
     }
 
     /**
