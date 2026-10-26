@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\AvoidedStretch;
 use App\Domain\Routing\Distance;
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\FollowPoint;
@@ -227,4 +228,32 @@ it('keeps the start and the finish of a loop facing their own ways', function ()
 
     expect($locations[0]['heading'] ?? null)->toBe(90)
         ->and(array_last($locations)['heading'] ?? null)->toBe(45);
+});
+
+it('leaves the avoided stretches out of a built route', function (): void {
+    $mock = new MockClient([
+        RouteRequest::class => MockResponse::make([
+            'trip' => [
+                'summary' => ['length' => 3.1],
+                'legs' => [['shape' => Polyline::encode([[3.72, 51.05], [3.74, 51.06]])]],
+            ],
+        ], 200),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    $routeQuery = new RouteQuery(
+        sport: Sport::Gravel,
+        shape: Shape::PointToPoint,
+        distanceMetres: 5_000,
+        surface: Surface::Mixed,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+        avoid: [new AvoidedStretch('bosweg', 51.0502, 3.7302, [[3.729, 51.0502], [3.731, 51.0502]])],
+    );
+
+    new ValhallaRoutingEngine($connector)->trace($routeQuery, [[3.72, 51.05], [3.73, 51.055], [3.74, 51.06]]);
+
+    expect($mock->getLastPendingRequest()?->body()?->all()['exclude_locations'] ?? null)->toBe([['lat' => 51.0502, 'lon' => 3.7302]]);
 });

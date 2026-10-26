@@ -46,6 +46,17 @@ final readonly class RowReader
         throw new RuntimeException('Column '.$key.' is not a number.');
     }
 
+    public function float(string $key): float
+    {
+        $value = $this->value($key);
+
+        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
+            return (float) $value;
+        }
+
+        throw new RuntimeException('Column '.$key.' is not a number.');
+    }
+
     public function optionalString(string $key): ?string
     {
         $value = $this->value($key);

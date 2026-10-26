@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Responses;
 
+use App\Domain\Routing\AvoidCheck;
 use App\Domain\Routing\GeneratedRoute;
 use App\Domain\Routing\LineSimplifier;
 use LogicException;
@@ -52,7 +53,7 @@ final readonly class RoutePreview
      *     distance_metres: int,
      *     ascent_metres: int,
      *     coordinates: list<array{0: float, 1: float}>,
-     *     routes: list<array{distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>}>
+     *     routes: list<array{distance_metres: int, ascent_metres: int, coordinates: list<array{0: float, 1: float}>, crosses_avoided: list<string>}>
      * }
      */
     public function toArray(): array
@@ -73,6 +74,7 @@ final readonly class RoutePreview
                     'distance_metres' => $generatedRoute->distanceMetres,
                     'ascent_metres' => $generatedRoute->ascentMetres,
                     'coordinates' => $line,
+                    'crosses_avoided' => AvoidCheck::crossing($generatedRoute->coordinates, $generatedRoute->query->avoid),
                 ],
                 $this->routes,
                 $lines,

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Responses;
 
+use App\Domain\Routing\AvoidCheck;
+use App\Domain\Routing\AvoidedStretch;
 use App\Domain\Routing\LineSimplifier;
 use OpenApi\Attributes\Items;
 use OpenApi\Attributes\Property;
@@ -11,7 +13,7 @@ use OpenApi\Attributes\Schema;
 
 #[Schema(
     schema: 'BuiltRoute',
-    required: ['distance_metres', 'ascent_metres', 'coordinates', 'user_coordinates', 'finish_coordinates', 'user_metres', 'finish_metres', 'legs_metres'],
+    required: ['distance_metres', 'ascent_metres', 'coordinates', 'user_coordinates', 'finish_coordinates', 'user_metres', 'finish_metres', 'legs_metres', 'crosses_avoided'],
     properties: [
         new Property(property: 'distance_metres', type: 'integer'),
         new Property(property: 'ascent_metres', type: 'integer'),
@@ -21,6 +23,7 @@ use OpenApi\Attributes\Schema;
         new Property(property: 'user_metres', type: 'integer'),
         new Property(property: 'finish_metres', type: 'integer'),
         new Property(property: 'legs_metres', type: 'array', items: new Items(type: 'integer')),
+        new Property(property: 'crosses_avoided', description: 'The avoided stretches the line still rides along, by id.', type: 'array', items: new Items(type: 'string', format: 'uuid')),
     ],
 )]
 final readonly class BuiltRoute
@@ -30,6 +33,7 @@ final readonly class BuiltRoute
      * @param  list<array{0: float, 1: float}>  $user
      * @param  list<array{0: float, 1: float}>|null  $finish
      * @param  list<array{0: float, 1: float}>  $waypoints
+     * @param  list<AvoidedStretch>  $avoid
      */
     public function __construct(
         public array $line,
@@ -37,6 +41,7 @@ final readonly class BuiltRoute
         public ?array $finish,
         public array $waypoints,
         public int $ascentMetres,
+        public array $avoid = [],
     ) {}
 
     /**
@@ -44,10 +49,11 @@ final readonly class BuiltRoute
      * @param  list<array{0: float, 1: float}>  $user
      * @param  list<array{0: float, 1: float}>|null  $finish
      * @param  list<array{0: float, 1: float}>  $waypoints
+     * @param  list<AvoidedStretch>  $avoid
      */
-    public static function from(array $line, array $user, ?array $finish, array $waypoints, int $ascentMetres = 0): self
+    public static function from(array $line, array $user, ?array $finish, array $waypoints, int $ascentMetres = 0, array $avoid = []): self
     {
-        return new self($line, $user, $finish, $waypoints, $ascentMetres);
+        return new self($line, $user, $finish, $waypoints, $ascentMetres, $avoid);
     }
 
     /**
@@ -68,6 +74,7 @@ final readonly class BuiltRoute
             'user_metres' => $userMetres,
             'finish_metres' => $finishMetres,
             'legs_metres' => $this->legs($this->user, $this->waypoints),
+            'crosses_avoided' => AvoidCheck::crossing($this->line, $this->avoid),
         ];
     }
 

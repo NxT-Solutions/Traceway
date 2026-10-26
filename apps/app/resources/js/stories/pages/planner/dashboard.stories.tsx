@@ -1,12 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import type { ServiceNoticeProps } from '@/components/service-notice';
+import type { AvoidedRoad } from '@/lib/avoided-roads';
 import { plannerDraftKey, recentPlacesKey } from '@/lib/planner-draft';
 import Dashboard from '@/pages/dashboard';
 import { rider } from '../../support/fixtures';
 import { InertiaPage, sharedProps } from '../../support/inertia-page';
 import { catchDownloads } from '../../support/planner-downloads';
 import {
+    avoidedRoads,
     type PlannerDraftOptions,
     plannerDraftDefaults,
     plannerDraftFor,
@@ -18,12 +20,14 @@ import {
     type PlannerServer,
     plannerServer,
 } from '../../support/planner-server';
+import { HttpResponse, http } from '../../support/server';
 
 /** What the `dashboard` route in routes/web.php renders the planner with, besides the shared props. */
 type DashboardProps = {
     serviceNotice: ServiceNoticeProps | null;
     sportSurfaces: Record<string, string>;
     showTour: boolean;
+    avoided: AvoidedRoad[];
 };
 
 type PlannerArgs = PlannerDraftOptions & {
@@ -33,6 +37,8 @@ type PlannerArgs = PlannerDraftOptions & {
     serviceNotice: boolean;
     /** On: a rider's first visit, when the planner shows them around. */
     showTour: boolean;
+    /** On: the rider avoids Zandstraat, a sandy track near Westerlo. */
+    avoided: boolean;
 };
 
 const draftKey = plannerDraftKey(rider.id);
@@ -74,12 +80,12 @@ const notice: ServiceNoticeProps = {
  * The planner, opened on the draft the Controls describe. A new draft remounts the page, since the planner reads
  * its draft once, on load.
  */
-function Planner({ serviceNotice, showTour, ...args }: PlannerArgs) {
-    keepDraft({ serviceNotice, showTour, ...args });
+function Planner({ serviceNotice, showTour, avoided, ...args }: PlannerArgs) {
+    keepDraft({ serviceNotice, showTour, avoided, ...args });
 
     return (
         <InertiaPage<DashboardProps>
-            key={JSON.stringify({ ...args, showTour })}
+            key={JSON.stringify({ ...args, showTour, avoided })}
             name="dashboard"
             component={Dashboard}
             url="/dashboard"
@@ -87,6 +93,7 @@ function Planner({ serviceNotice, showTour, ...args }: PlannerArgs) {
                 serviceNotice: serviceNotice ? notice : null,
                 sportSurfaces,
                 showTour,
+                avoided: avoided ? avoidedRoads : [],
             }}
             shared={{ ...sharedProps(), routeServices }}
         />
@@ -115,6 +122,7 @@ const meta = {
         draft: true,
         serviceNotice: false,
         showTour: false,
+        avoided: false,
     },
     argTypes: {
         sport: { control: 'select', options: sports },
@@ -144,8 +152,8 @@ const meta = {
             control: { type: 'range', min: 0, max: 2, step: 1 },
         },
     },
-    beforeEach: ({ msw }) => {
-        server = plannerServer();
+    beforeEach: ({ msw, args }) => {
+        server = plannerServer({ avoided: args.avoided ? avoidedRoads : [] });
         msw.use(...server.handlers);
         forget(keptKeys);
 
@@ -159,6 +167,8 @@ type Story = StoryObj<typeof meta>;
 
 /** How long to wait for the mock server, while the map loads its tiles over the same connection. */
 const answer = { timeout: 5000 };
+/** How long to wait for a save, which also draws a picture of the map. */
+const slowAnswer = { timeout: 15_000 };
 
 /** The panel, where every check of the planner happens. */
 async function panelOf(canvasElement: HTMLElement): Promise<HTMLElement> {
@@ -614,8 +624,10 @@ export const SendToDevice: Story = {
             await userEvent.click(
                 dialog.getByRole('button', { name: 'Send to Wahoo' }),
             );
+            // Saving first draws the shared link's picture of the map in the
+            // background, which takes a while on a busy CI runner.
             await expect(
-                await dialog.findByText(/In your Wahoo app/, {}, answer),
+                await dialog.findByText(/In your Wahoo app/, {}, slowAnswer),
             ).toBeVisible();
             const [saved] = server.sent('POST', '/routes/saved');
             const [sent] = server.sent('POST', /\/send\/wahoo$/);
@@ -887,6 +899,206 @@ export const NoLoopCameBack: Story = {
         await expect(
             panel.getByRole('button', { name: 'Draw route' }),
         ).toBeEnabled();
+    },
+};
+
+/** The map's own keyboard: Enter taps the cross in the middle, wherever a tap would land. */
+async function tapMapCentre(canvasElement: HTMLElement): Promise<void> {
+    const map = await within(canvasElement).findByLabelText(
+        /^Map\. Arrow keys move it/,
+        {},
+        { timeout: 10_000 },
+    );
+
+    map.focus();
+    await userEvent.keyboard('{Enter}');
+}
+
+/**
+ * A track that is mapped fine but rides badly. The rider taps Avoid a road, then the road: Traceway keeps it for
+ * them, says so, and plans the loops again around it. Undo lets it back in.
+ */
+export const AvoidARoad: Story = {
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await expect(
+            await panel.findByText('Loop 1 of 3', {}, answer),
+        ).toBeVisible();
+
+        await step('Avoid a road waits for a tap on the map', async () => {
+            const pick = panel.getByRole('button', { name: 'Avoid a road' });
+            await userEvent.click(pick);
+            await expect(pick).toHaveAttribute('aria-pressed', 'true');
+        });
+
+        await step('A tap on the road avoids it and plans again', async () => {
+            const before = server.sent('POST', '/routes/preview').length;
+            await tapMapCentre(canvasElement);
+            await expect(
+                await panel.findByRole(
+                    'button',
+                    { name: 'Remove Netepad' },
+                    answer,
+                ),
+            ).toBeVisible();
+            await expect(
+                server.sent('POST', '/routes/avoided').at(-1)?.body,
+            ).toMatchObject({
+                sport: plannerDraftDefaults.sport,
+                surface: plannerDraftDefaults.surface,
+            });
+            await waitFor(
+                () =>
+                    expect(server.sent('POST', '/routes/preview')).toHaveLength(
+                        before + 1,
+                    ),
+                answer,
+            );
+            await expect(
+                await within(canvasElement).findByRole(
+                    'group',
+                    { name: 'Last change' },
+                    answer,
+                ),
+            ).toHaveTextContent('Avoiding Netepad');
+        });
+
+        await step('Undo lets the road back in', async () => {
+            await userEvent.click(
+                await within(canvasElement).findByRole(
+                    'button',
+                    { name: 'Undo' },
+                    answer,
+                ),
+            );
+            await waitFor(
+                () =>
+                    expect(
+                        server.sent('DELETE', /^\/routes\/avoided\//),
+                    ).toHaveLength(1),
+                answer,
+            );
+            await waitFor(
+                () => expect(server.avoided()).toHaveLength(0),
+                answer,
+            );
+            await expect(
+                panel.queryByRole('button', { name: 'Remove Netepad' }),
+            ).not.toBeInTheDocument();
+        });
+    },
+};
+
+/**
+ * A rider who avoids Zandstraat lets it back in from the panel, and the loops are drawn again. Undo avoids it once
+ * more, for the gravel ride it was first found on, whatever the planner is set to now.
+ */
+export const StopAvoiding: Story = {
+    args: { avoided: true },
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await expect(
+            await panel.findByText('Loop 1 of 3', {}, answer),
+        ).toBeVisible();
+
+        await step('Remove lets it back into every plan', async () => {
+            const before = server.sent('POST', '/routes/preview').length;
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Remove Zandstraat' }),
+            );
+            await expect(
+                await within(canvasElement).findByRole(
+                    'group',
+                    { name: 'Last change' },
+                    answer,
+                ),
+            ).toHaveTextContent('Zandstraat back in your plans');
+            await expect(server.avoided()).toHaveLength(0);
+            await waitFor(
+                () =>
+                    expect(server.sent('POST', '/routes/preview')).toHaveLength(
+                        before + 1,
+                    ),
+                answer,
+            );
+            await expect(
+                panel.getByText(
+                    /Avoid it, and Traceway skips it on every plan/,
+                ),
+            ).toBeVisible();
+        });
+
+        await step(
+            'Undo avoids it again, for the sport it was found for',
+            async () => {
+                await userEvent.click(
+                    await within(canvasElement).findByRole(
+                        'button',
+                        { name: 'Undo' },
+                        answer,
+                    ),
+                );
+                await expect(
+                    await panel.findByRole(
+                        'button',
+                        { name: 'Remove Zandstraat' },
+                        answer,
+                    ),
+                ).toBeVisible();
+                await waitFor(
+                    () =>
+                        expect(
+                            server.sent('POST', '/routes/avoided').at(-1)?.body,
+                        ).toMatchObject({ sport: 'gravel', surface: 'mixed' }),
+                    answer,
+                );
+                await waitFor(
+                    () => expect(server.avoided()).toHaveLength(1),
+                    answer,
+                );
+            },
+        );
+    },
+};
+
+/** Far from any road the rider can use: the planner says so and keeps the loops as they were. */
+export const NoRoadToAvoid: Story = {
+    beforeEach: ({ msw }) => {
+        msw.use(
+            http.post('/routes/avoided', () =>
+                HttpResponse.json(
+                    {
+                        message:
+                            'No road or path is close enough there. Tap right on the road.',
+                    },
+                    { status: 422 },
+                ),
+            ),
+        );
+    },
+    play: async ({ canvasElement }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await expect(
+            await panel.findByText('Loop 1 of 3', {}, answer),
+        ).toBeVisible();
+        const before = server.sent('POST', '/routes/preview').length;
+        await userEvent.click(
+            panel.getByRole('button', { name: 'Avoid a road' }),
+        );
+        await tapMapCentre(canvasElement);
+        await expect(
+            await panel.findByText(
+                'No road or path is close enough there. Tap right on the road.',
+                {},
+                answer,
+            ),
+        ).toBeVisible();
+        await expect(server.sent('POST', '/routes/preview')).toHaveLength(
+            before,
+        );
     },
 };
 

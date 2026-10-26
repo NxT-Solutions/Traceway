@@ -822,3 +822,13 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
 .tw-planner .svc-note a{color:var(--text);text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 .tw-planner .svc-note button{flex:0 0 auto;display:grid;place-items:center;width:32px;height:32px;margin:-4px -6px -4px 0;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer}
 .tw-planner .svc-note button:hover{background:var(--hover);color:var(--text)}
+.tw-planner .avoided ul{display:flex;flex-direction:column;gap:2px;margin:0 0 8px;padding:0;list-style:none}
+.tw-planner .avoided li{display:flex;align-items:center;gap:6px;min-height:42px;border-top:1px solid var(--hair);font-size:14px}
+.tw-planner .avoided li:last-child{border-bottom:1px solid var(--hair)}
+.tw-planner .avoided li i{display:inline-block;flex:0 0 auto;width:22px;height:0;margin-right:4px;border-top:3px dashed currentColor}
+.tw-planner .avoided .name{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;font-weight:500;overflow-wrap:anywhere}
+.tw-planner .avoided .still{font-size:12px;font-weight:400;color:var(--muted)}
+.tw-planner .avoided .textbtn{height:34px;padding:0 8px}
+.tw-planner .avoided .import-file[aria-pressed="true"]{border-style:solid;border-color:var(--text);background:var(--hover)}
+.tw-planner .avoided .avoided-status:empty{display:none}
+.tw-planner .avoided .avoided-status{margin-top:6px}

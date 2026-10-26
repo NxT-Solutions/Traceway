@@ -97,7 +97,17 @@ if ($path === '/health') {
 }
 
 if ($path === '/locate' && $points !== []) {
-    reply(200, [['edges' => [['correlated_lat' => $points[0][1], 'correlated_lon' => $points[0][0]]]]]);
+    // The way under the point: a short east-west street through it, as a verbose locate names it.
+    [$longitude, $latitude] = $points[0];
+    reply(200, [['edges' => [[
+        'correlated_lat' => $latitude,
+        'correlated_lon' => $longitude,
+        'edge_info' => [
+            'way_id' => 4242,
+            'names' => ['Stub Street'],
+            'shape' => Polyline::encode([[$longitude - 0.001, $latitude], [$longitude, $latitude], [$longitude + 0.001, $latitude]]),
+        ],
+    ]]]]);
 
     return;
 }

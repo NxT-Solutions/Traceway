@@ -28,6 +28,10 @@ final class PersonalDataQuery
             $account->optionalString('two_factor_confirmed_at') !== null,
             $account->iso('created_at'),
             $this->summaries($riderId),
+            array_map(
+                fn (array $avoided): array => ['name' => $avoided['name'], 'created_at' => $avoided['created_at']],
+                $this->avoidedStretches($riderId),
+            ),
         );
     }
 
@@ -51,7 +55,37 @@ final class PersonalDataQuery
             $this->adminActions($riderId),
             $account->optionalString('pending_email'),
             $account->iso('toured_at'),
+            $this->avoidedStretches($riderId),
         );
+    }
+
+    /**
+     * @return list<array{name: string|null, way_id: int|null, sport: string, latitude: float, longitude: float, shape: list<array{0: float, 1: float}>, created_at: string|null}>
+     */
+    private function avoidedStretches(int $riderId): array
+    {
+        $rows = DB::table('avoided_stretches')
+            ->where('user_id', $riderId)->oldest()
+            ->orderBy('id')
+            ->get(['name', 'way_id', 'sport', 'latitude', 'longitude', 'shape', 'created_at']);
+
+        $avoided = [];
+
+        foreach ($rows as $row) {
+            $reader = new RowReader($row);
+            $wayId = $reader->mixed('way_id');
+            $avoided[] = [
+                'name' => $reader->optionalString('name'),
+                'way_id' => is_numeric($wayId) ? (int) $wayId : null,
+                'sport' => $reader->string('sport'),
+                'latitude' => $reader->float('latitude'),
+                'longitude' => $reader->float('longitude'),
+                'shape' => $reader->line('shape'),
+                'created_at' => $reader->iso('created_at'),
+            ];
+        }
+
+        return $avoided;
     }
 
     /**

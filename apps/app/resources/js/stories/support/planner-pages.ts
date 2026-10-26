@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react';
+import type { AvoidedRoad } from '@/lib/avoided-roads';
 import type { FoundPlace } from '@/lib/places';
 import type { Cue, RouteDetails, Stop } from '@/lib/route-details';
 import type Saved from '@/pages/saved';
@@ -660,3 +661,20 @@ export const sportSurfaces: Record<string, string> = {
     walk: 'mixed',
     hike: 'dirt',
 };
+
+/** A sandy track near Westerlo the rider avoids: mapped as a fine track, ridden it is a sand pit. */
+export const avoidedRoads: AvoidedRoad[] = [
+    {
+        id: '0199f2a4-6c1b-7d3e-9a8f-4b4c6d8e0f21',
+        name: 'Zandstraat',
+        latitude: 51.0952,
+        longitude: 4.9241,
+        sport: 'gravel',
+        surface: 'mixed',
+        shape: [
+            [4.9223, 51.0949],
+            [4.9241, 51.0952],
+            [4.9262, 51.0956],
+        ],
+    },
+];

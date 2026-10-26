@@ -21,6 +21,7 @@ use App\Mcp\SportDefaults;
 use App\Mcp\StartPoint;
 use App\Queries\Routes\RouteDrawingQuery;
 use App\Routes\CoordinateLine;
+use App\Routes\RiderAvoids;
 use App\Routes\RouteName;
 use App\Routes\SavedRouteLink;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -54,6 +55,7 @@ final class PlanLoopTool extends Tool
         StartPoint $startPoint,
         DispatchesCommands $dispatchesCommands,
         RouteDrawingQuery $routeDrawingQuery,
+        RiderAvoids $riderAvoids,
     ): Response|ResponseFactory {
         $riderId = $this->riderId($request);
 
@@ -101,7 +103,7 @@ final class PlanLoopTool extends Tool
         $distanceKm = $this->number($validated, 'distance_km');
 
         try {
-            $routes = $routingEngine->candidates(new RouteQuery(
+            $routes = $routingEngine->candidates($riderAvoids->apply(new RouteQuery(
                 $sport,
                 Shape::Loop,
                 (int) round($distanceKm * 1000),
@@ -112,7 +114,7 @@ final class PlanLoopTool extends Tool
                 $via?->latitude,
                 $via?->longitude,
                 $quiet,
-            ));
+            ), $riderId));
         } catch (Throwable) {
             $routes = [];
         }

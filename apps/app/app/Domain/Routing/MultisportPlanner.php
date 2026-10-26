@@ -23,11 +23,11 @@ final readonly class MultisportPlanner
 
         foreach ($multisportQuery->legs as $position => $landLeg) {
             if ($multisportQuery->layout === Layout::Loops) {
-                $leg = $this->loop($landLeg, $from, $position, $ridden);
+                $leg = $this->loop($landLeg, $from, $position, $ridden, $multisportQuery->avoid);
             } else {
                 /** @var array{0: float, 1: float} $finish */
                 $finish = $landLeg->finish;
-                $leg = $this->handover($landLeg, $from, $finish, $ridden);
+                $leg = $this->handover($landLeg, $from, $finish, $ridden, $multisportQuery->avoid);
                 $from = $finish;
             }
 
@@ -44,10 +44,11 @@ final readonly class MultisportPlanner
      *
      * @param  array{0: float, 1: float}  $transition
      * @param  list<array{0: float, 1: float}>  $ridden
+     * @param  list<AvoidedStretch>  $avoid
      */
-    private function loop(LandLeg $landLeg, array $transition, int $position, array $ridden): PlannedLeg
+    private function loop(LandLeg $landLeg, array $transition, int $position, array $ridden, array $avoid): PlannedLeg
     {
-        $best = CleanLeg::best($ridden, $this->routingEngine->candidates($this->query($landLeg, Shape::Loop, $transition)), $landLeg->distanceMetres)
+        $best = CleanLeg::best($ridden, $this->routingEngine->candidates($this->query($landLeg, Shape::Loop, $transition, $avoid)), $landLeg->distanceMetres)
             ?? throw new RuntimeException(sprintf('No loop came back for leg %d.', $position + 1));
 
         return new PlannedLeg($landLeg->sport, $best->coordinates, $best->distanceMetres, $best->ascentMetres);
@@ -61,10 +62,11 @@ final readonly class MultisportPlanner
      * @param  array{0: float, 1: float}  $from
      * @param  array{0: float, 1: float}  $to
      * @param  list<array{0: float, 1: float}>  $ridden
+     * @param  list<AvoidedStretch>  $avoid
      */
-    private function handover(LandLeg $landLeg, array $from, array $to, array $ridden): PlannedLeg
+    private function handover(LandLeg $landLeg, array $from, array $to, array $ridden, array $avoid): PlannedLeg
     {
-        $routeQuery = $this->query($landLeg, Shape::PointToPoint, $from);
+        $routeQuery = $this->query($landLeg, Shape::PointToPoint, $from, $avoid);
         $generatedRoute = $this->routingEngine->trace($routeQuery, [$from, $to]);
         $stretch = $landLeg->stretch && $generatedRoute->distanceMetres < $landLeg->distanceMetres * 0.9;
         $target = $stretch ? $landLeg->distanceMetres : $generatedRoute->distanceMetres;
@@ -153,8 +155,9 @@ final readonly class MultisportPlanner
 
     /**
      * @param  array{0: float, 1: float}  $start
+     * @param  list<AvoidedStretch>  $avoid
      */
-    private function query(LandLeg $landLeg, Shape $shape, array $start): RouteQuery
+    private function query(LandLeg $landLeg, Shape $shape, array $start, array $avoid): RouteQuery
     {
         return new RouteQuery(
             sport: $landLeg->sport,
@@ -165,6 +168,7 @@ final readonly class MultisportPlanner
             startLatitude: $start[1],
             startLongitude: $start[0],
             preferQuiet: $landLeg->preferQuiet,
+            avoid: AvoidedStretches::forSport($avoid, $landLeg->sport),
         );
     }
 }

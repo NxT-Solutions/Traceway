@@ -23,7 +23,7 @@ final class ValhallaCosting
         // A followed line already chose its roads. The rider's surface, hill,
         // and road filters would only pull it off them and back again.
         if ($headings !== null) {
-            return ['locations' => self::locations($waypoints, $routeQuery->shape, $departHeading, $mustVisit, $viaRadius, $headings)] + self::trace($routeQuery->sport);
+            return ['locations' => self::locations($waypoints, $routeQuery->shape, $departHeading, $mustVisit, $viaRadius, $headings)] + self::trace($routeQuery->sport) + self::excluding($routeQuery);
         }
 
         $useHills = match ($routeQuery->elevation) {
@@ -43,7 +43,7 @@ final class ValhallaCosting
                 'costing_options' => [
                     'pedestrian' => self::pedestrian($routeQuery, $useHills),
                 ],
-            ];
+            ] + self::excluding($routeQuery);
         }
 
         $bicycleType = match ($routeQuery->sport) {
@@ -72,7 +72,25 @@ final class ValhallaCosting
                     'use_roads' => $useRoads,
                 ],
             ],
-        ];
+        ] + self::excluding($routeQuery);
+    }
+
+    /**
+     * The stretches the rider skips. Each point lies on its way, so Valhalla
+     * leaves that way between its two junctions out of every route.
+     *
+     * @return array{exclude_locations?: list<array{lat: float, lon: float}>}
+     */
+    private static function excluding(RouteQuery $routeQuery): array
+    {
+        if ($routeQuery->avoid === []) {
+            return [];
+        }
+
+        return ['exclude_locations' => array_map(
+            fn (AvoidedStretch $avoidedStretch): array => ['lat' => $avoidedStretch->latitude, 'lon' => $avoidedStretch->longitude],
+            $routeQuery->avoid,
+        )];
     }
 
     /**

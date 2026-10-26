@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Domain\Routing\MultisportPlanner;
 use App\Http\Requests\PreviewMultisportRequest;
 use App\Http\Responses\MultisportPreview;
+use App\Models\User;
+use App\Routes\RiderAvoids;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Attributes\JsonContent;
 use OpenApi\Attributes\Post;
@@ -49,10 +51,14 @@ class PreviewMultisportController extends Controller
         description: 'A leg did not come back.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
-    public function __invoke(PreviewMultisportRequest $previewMultisportRequest, MultisportPlanner $multisportPlanner): JsonResponse
+    public function __invoke(PreviewMultisportRequest $previewMultisportRequest, MultisportPlanner $multisportPlanner, RiderAvoids $riderAvoids): JsonResponse
     {
+        $user = $previewMultisportRequest->user();
+
+        abort_unless($user instanceof User, 403);
+
         try {
-            $plan = $multisportPlanner->plan($previewMultisportRequest->toQuery());
+            $plan = $multisportPlanner->plan($riderAvoids->applyToMultisport($previewMultisportRequest->toQuery(), $user->id));
         } catch (Throwable $throwable) {
             report($throwable);
 

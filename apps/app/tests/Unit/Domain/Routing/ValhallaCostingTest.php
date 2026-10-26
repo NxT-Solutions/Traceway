@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\AvoidedStretch;
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
@@ -269,3 +270,53 @@ it('snaps a point with the limits its route is planned with', function (Sport $s
         ->and(array_keys($limits))->toBe($snap['costing'] === 'bicycle' ? ['bicycle_type', 'avoid_bad_surfaces'] : ['walking_speed', 'max_hiking_difficulty'])
         ->and(array_intersect_key($route['costing_options'][$route['costing']], $limits))->toBe($limits);
 })->with(Sport::cases())->with(Surface::cases());
+
+it('leaves out the stretches the rider avoids', function (): void {
+    $routeQuery = new RouteQuery(
+        sport: Sport::Gravel,
+        shape: Shape::Loop,
+        distanceMetres: 40_000,
+        surface: Surface::Mixed,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+        avoid: [new AvoidedStretch('bosweg', 51.0501, 3.7222, [[3.72, 51.0501], [3.724, 51.0501]])],
+    );
+
+    expect(ValhallaCosting::payload($routeQuery, [[3.72, 51.05], [3.8, 51.1], [3.72, 51.05]])['exclude_locations'])
+        ->toBe([['lat' => 51.0501, 'lon' => 3.7222]])
+        ->and(ValhallaCosting::payload($routeQuery, [[3.72, 51.05], [3.8, 51.1]], headings: [null, null])['exclude_locations'])
+        ->toBe([['lat' => 51.0501, 'lon' => 3.7222]]);
+});
+
+it('leaves out every stretch on foot too', function (): void {
+    $payload = ValhallaCosting::payload(new RouteQuery(
+        sport: Sport::Hike,
+        shape: Shape::Loop,
+        distanceMetres: 10_000,
+        surface: Surface::Dirt,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+        avoid: [
+            new AvoidedStretch('a', 51.05, 3.722, [[3.72, 51.05], [3.724, 51.05]]),
+            new AvoidedStretch('b', 51.06, 3.73, [[3.73, 51.059], [3.73, 51.061]]),
+        ],
+    ), [[3.72, 51.05], [3.8, 51.1]]);
+
+    expect($payload['exclude_locations'])->toHaveCount(2);
+});
+
+it('sends no excluded points when the rider avoids nothing', function (): void {
+    $payload = ValhallaCosting::payload(new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 20_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+    ), [[3.72, 51.05]]);
+
+    expect($payload)->not->toHaveKey('exclude_locations');
+});

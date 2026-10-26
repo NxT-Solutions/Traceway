@@ -12,7 +12,8 @@ type Props = ComponentProps<typeof Privacy>;
 
 /**
  * Settings, Your data (`/settings/privacy`): what Traceway keeps about the rider, a download of all of it, and the
- * AI assistants that can plan for them. Saved routes are listed here; they are deleted from the library.
+ * AI assistants that can plan for them. Saved routes are listed here; they are deleted from the library. The roads the
+ * rider avoids are listed too; they are removed on the planner map.
  *
  * `ExportsData` runs against a mocked server (Mock Service Worker) that answers the download as PrivacyController
  * does: `traceway-data.json` as an attachment. "Connections" and "Manage AI assistants" open those pages' stories.
@@ -77,6 +78,10 @@ const withRoutes: Props = {
             created_at: '2026-09-21T08:30:00Z',
         },
     ],
+    avoided: [
+        { name: 'Bosweg', created_at: '2026-10-19T09:12:00Z' },
+        { name: null, created_at: '2026-10-22T16:40:00Z' },
+    ],
     apps: [
         {
             id: '0199f2a4-6c1b-7d3e-9a8f-2b4c6d8e0f12',
@@ -86,16 +91,33 @@ const withRoutes: Props = {
     ],
 };
 
-/** Three saved routes, and Claude connected. */
-export const WithRoutes: Story = { render: page(withRoutes) };
+/** Three saved routes, two roads avoided (one has no name), and Claude connected. */
+export const WithRoutes: Story = {
+    render: page(withRoutes),
+    play: async ({ canvas }) => {
+        await expect(
+            canvas.getByRole('heading', { name: 'Roads you avoid' }),
+        ).toBeVisible();
+        await expect(canvas.getByText('Bosweg')).toBeVisible();
+        await expect(canvas.getByText('Unnamed road')).toBeVisible();
+    },
+};
 
 /** A new account: nothing saved, no assistants, email not confirmed yet. */
 export const Empty: Story = {
     render: page({
         account: { ...account, email_verified_at: null },
         routes: [],
+        avoided: [],
         apps: [],
     }),
+    play: async ({ canvas }) => {
+        await expect(
+            canvas.getByText(
+                'None yet. Use Avoid a road in the planner to add one.',
+            ),
+        ).toBeVisible();
+    },
 };
 
 /** Where the download link went, instead of leaving the story. */
