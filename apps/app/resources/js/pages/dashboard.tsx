@@ -2429,6 +2429,9 @@ export default function Dashboard() {
             // A hand that drifts a little while tapping still taps, and a
             // short drag never counts as a tap.
             clickTolerance: 6,
+            // The planner watches the map box itself, so its resizes can be
+            // told from a move (see the movestart handler below).
+            trackResize: false,
         });
 
         const geolocate = new maplibregl.GeolocateControl({
@@ -2635,6 +2638,12 @@ export default function Dashboard() {
         };
         map.on('move', dropRoadSnap);
         map.on('movestart', (event) => {
+            // The map box growing or shrinking, as the panel beside it fills,
+            // shows the same place: a card open there stays.
+            if ('fromResize' in event && event.fromResize === true) {
+                return;
+            }
+
             // A pan or a zoom by the rider, not a move the planner made.
             if ('originalEvent' in event && event.originalEvent !== undefined) {
                 riderLookedRef.current = true;
@@ -2683,9 +2692,11 @@ export default function Dashboard() {
         });
         markerRef.current = startPin;
 
+        // Marks the moves a resize makes, so they do not put a card away.
+        const resized = { fromResize: true };
         // MapLibre sets position:relative on its root, which drops the
         // absolute sizing. Resize once the box has a real height.
-        requestAnimationFrame(() => map.resize());
+        requestAnimationFrame(() => map.resize(resized));
         const applyArrowSize = () => {
             if (map.getLayer('route-arrows') !== undefined) {
                 map.setLayoutProperty(
@@ -2696,7 +2707,7 @@ export default function Dashboard() {
             }
         };
         const observer = new ResizeObserver(() => {
-            map.resize();
+            map.resize(resized);
             applyArrowSize();
         });
         observer.observe(node);

@@ -824,6 +824,70 @@ export const SearchWhileTheMapLoads: Story = {
     },
 };
 
+/**
+ * The map box changes size while a card is open, as it does when the panel beside it fills with the climb and the
+ * turns. The map shows the same place, so the card stays and still offers to start there.
+ */
+export const CardStaysWhenTheMapResizes: Story = {
+    args: { loops: 0 },
+    play: async ({ canvasElement, step }) => {
+        const canvas = within(canvasElement);
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Search for Tongerlo', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: /^Start/ }),
+            );
+            const search = await canvas.findByRole('combobox', {
+                name: 'Search for your start',
+            });
+            await userEvent.type(search, 'Tongerlo{Enter}');
+            await userEvent.click(
+                await canvas.findByRole(
+                    'option',
+                    { name: /^Tongerlo Westerlo, Antwerp, Belgium$/ },
+                    answer,
+                ),
+            );
+            await expect(
+                await within(
+                    await canvas.findByRole(
+                        'dialog',
+                        { name: 'Tongerlo' },
+                        answer,
+                    ),
+                ).findByRole('button', { name: 'Start here' }, answer),
+            ).toBeVisible();
+        });
+
+        await step('The map box shrinks, and the card stays', async () => {
+            const map =
+                canvasElement.querySelector<HTMLElement>('.maplibregl-map');
+            const height = map?.getBoundingClientRect().height ?? 0;
+            map?.style.setProperty(
+                'height',
+                `${Math.round(height * 0.8)}px`,
+                'important',
+            );
+            // The map resizes on the next frames; the card must still be there after.
+            await waitFor(
+                () =>
+                    expect(
+                        canvasElement.querySelector('canvas')?.clientHeight,
+                    ).toBe(Math.round(height * 0.8)),
+                answer,
+            );
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            await expect(
+                within(
+                    canvas.getByRole('dialog', { name: 'Tongerlo' }),
+                ).getByRole('button', { name: 'Start here' }),
+            ).toBeVisible();
+            map?.style.removeProperty('height');
+        });
+    },
+};
+
 /** Multisport draws a brick from the transition: a 40 km ride, then a 5 km run, each leg with its own climb. */
 export const Multisport: Story = {
     args: { loops: 0 },
