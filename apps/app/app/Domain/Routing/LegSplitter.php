@@ -11,13 +11,18 @@ use InvalidArgumentException;
  * stretch between two points can be measured or planned again on its own.
  *
  * A loop can pass near a point twice. Each point is matched on the line
- * after the one before it, at the first close pass, not the closest one
- * anywhere.
+ * after the one before it, on the first pass that comes about as near as
+ * the nearest one, not the closest vertex anywhere.
  */
 final class LegSplitter
 {
-    /** A pass this much farther than the closest still counts as the first close one. */
+    /** Vertices this much farther than the closest still belong to a pass near the point. */
     private const float CLOSE_METRES = 30.0;
+
+    /** A pass this near, or this share nearer, than the closest counts as near as it. */
+    private const float NEAR_METRES = 15.0;
+
+    private const float NEAR_SHARE = 0.25;
 
     /**
      * The vertex each waypoint falls on, never going back along the line.
@@ -60,17 +65,33 @@ final class LegSplitter
             }
 
             $closest = min($distances);
-            $cut = array_key_first($distances);
+            $near = $closest + max(self::NEAR_METRES, $closest * self::NEAR_SHARE);
+            $cut = null;
+            $pass = null;
 
+            // Each pass near the point in turn, and the nearest vertex of
+            // each. The first pass that comes about as near as the nearest
+            // one wins, so a loop coming back the same way later does not;
+            // within it, its nearest vertex, not the first one in reach.
             foreach ($distances as $index => $metres) {
-                $next = $distances[$index + 1] ?? INF;
+                if ($metres > $closest + self::CLOSE_METRES) {
+                    if ($pass !== null && $distances[$pass] <= $near) {
+                        break;
+                    }
 
-                if ($metres <= $closest + self::CLOSE_METRES && $metres <= $next) {
-                    $cut = $index;
+                    $pass = null;
 
-                    break;
+                    continue;
                 }
+
+                if ($pass === null || $metres < $distances[$pass]) {
+                    $pass = $index;
+                }
+
+                $cut = $pass;
             }
+
+            $cut ??= array_key_first($distances);
 
             $cuts[] = $cut;
             $from = $cut;

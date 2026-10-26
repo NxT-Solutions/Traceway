@@ -195,3 +195,37 @@ it('says so when the router cannot join the changed legs', function (): void {
         ])
         ->assertStatus(502);
 });
+
+it('skips an avoided road where the moved point takes the route', function (): void {
+    $user = User::factory()->create();
+    // 6 km east of the square, out of reach of its own points.
+    AvoidedStretch::factory()->for($user)->create(['latitude' => 51.065, 'longitude' => 3.83, 'shape' => [[3.829, 51.065], [3.831, 51.065]]]);
+
+    $this->actingAs($user)
+        ->postJson(route('routes.reshape'), [
+            'sport' => 'gravel',
+            'surface' => 'mixed',
+            'elevation' => 'neutral',
+            'mode' => 'loop',
+            'line' => SQUARE_LINE,
+            'waypoints' => SQUARE_POINTS,
+            'change' => ['kind' => 'move', 'index' => 1, 'latitude' => 51.065, 'longitude' => 3.83],
+        ])
+        ->assertOk();
+
+    expect($this->engine->asked[0]->avoid)->toHaveCount(1);
+});
+
+it('keeps a loop closed', function (): void {
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.reshape'), [
+            'sport' => 'gravel',
+            'surface' => 'mixed',
+            'elevation' => 'neutral',
+            'mode' => 'loop',
+            'line' => SQUARE_LINE,
+            'waypoints' => SQUARE_POINTS,
+            'change' => ['kind' => 'remove', 'index' => 4],
+        ])
+        ->assertUnprocessable();
+});

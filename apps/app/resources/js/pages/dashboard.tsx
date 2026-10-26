@@ -163,6 +163,9 @@ type Preview = {
     crosses_avoided?: string[];
     /** The points a loop was planned through, start first, so one stretch can be planned again. */
     waypoints?: Coordinate[];
+    /** A built route drawn along the roads, and whether it came home: so a change knows what it changes. */
+    followed?: boolean;
+    finished?: boolean;
 };
 
 type BuildPoint = {
@@ -1732,21 +1735,16 @@ export default function Dashboard() {
     const activePointIndex = buildPoints.findIndex(
         (point) => point.id === activePoint,
     );
+    // A change to the points since a drawing or a reshape set out, so one
+    // that lands after another change draws the route again instead.
+    const buildVersionRef = useRef(0);
+    const reorderPointsRef = useRef<(from: number, to: number) => void>(
+        () => {},
+    );
+    const drawBuildRef = useRef<() => void>(() => {});
     const pointDrag = useDragReorder(
         buildPoints.map((point) => point.id),
-        (from, to) =>
-            setBuildPoints((current) => {
-                const next = [...current];
-                const [item] = next.splice(from, 1);
-
-                if (item === undefined) {
-                    return current;
-                }
-
-                next.splice(to, 0, item);
-
-                return next;
-            }),
+        (from, to) => reorderPointsRef.current(from, to),
     );
     const [followRoads, setFollowRoads] = useState(true);
     const [finishLoop, setFinishLoop] = useState(true);
@@ -1818,10 +1816,19 @@ export default function Dashboard() {
         redo: boolean;
     } | null>(null);
     const [undoHeld, setUndoHeld] = useState(false);
-    const historyKeysRef = useRef<{ undo: () => void; redo: () => void }>({
+    const historyKeysRef = useRef<{
+        undo: () => void;
+        redo: () => void;
+        canUndo: () => boolean;
+        canRedo: () => boolean;
+    }>({
         undo: () => {},
         redo: () => {},
+        canUndo: () => false,
+        canRedo: () => false,
     });
+    // Avoided roads change on the server one step at a time, in order.
+    const avoidQueueRef = useRef<Promise<void>>(Promise.resolve());
     // A loop that moved too far from the ask, with a way to start over.
     const [nudgeNotice, setNudgeNotice] = useState<{
         text: string;
@@ -2813,28 +2820,46 @@ export default function Dashboard() {
     // any editor. A field being typed in keeps its own.
     useEffect(() => {
         const keys = (event: globalThis.KeyboardEvent): void => {
+            const key = event.key.toLowerCase();
+            // Ctrl+Y is Redo on Windows and Linux; Cmd+Y is the browser's own on a Mac.
+            const redo =
+                (key === 'z' && event.shiftKey) ||
+                (key === 'y' && event.ctrlKey && !event.metaKey);
+            const undo = key === 'z' && !event.shiftKey;
+
             if (
                 !(event.metaKey || event.ctrlKey) ||
                 event.altKey ||
-                (event.key.toLowerCase() !== 'z' &&
-                    event.key.toLowerCase() !== 'y')
+                event.repeat ||
+                (!undo && !redo)
             ) {
                 return;
             }
 
             const target = event.target;
 
+            // A field, a sheet or a card keeps its own keys.
             if (
                 target instanceof HTMLElement &&
                 (target.isContentEditable ||
-                    target.closest('input, textarea, select') !== null)
+                    target.closest(
+                        'input, textarea, select, [role="dialog"], [role="alertdialog"]',
+                    ) !== null)
+            ) {
+                return;
+            }
+
+            if (
+                redo
+                    ? !historyKeysRef.current.canRedo()
+                    : !historyKeysRef.current.canUndo()
             ) {
                 return;
             }
 
             event.preventDefault();
 
-            if (event.key.toLowerCase() === 'y' || event.shiftKey) {
+            if (redo) {
                 historyKeysRef.current.redo();
             } else {
                 historyKeysRef.current.undo();
@@ -4020,8 +4045,12 @@ export default function Dashboard() {
         elevation?: string;
         roads?: 'quiet' | 'any';
         distanceKm?: number;
+        points?: BuildPoint[];
     }): Promise<void> {
-        if (buildPoints.length === 0) {
+        const points = next?.points ?? buildPoints;
+        const version = buildVersionRef.current;
+
+        if (points.length === 0) {
             setMessage('Tap a road on the map to add a point.');
 
             return;
@@ -4059,7 +4088,7 @@ export default function Dashboard() {
                 longitude,
                 follow: followRoads,
                 finish: finishLoop,
-                points: buildPoints.map((point) => ({
+                points: points.map((point) => ({
                     latitude: point.latitude,
                     longitude: point.longitude,
                 })),
@@ -4092,11 +4121,23 @@ export default function Dashboard() {
             finish_metres?: number;
             finish_coordinates?: Coordinate[];
         };
-        setRoutes([record]);
+        setRoutes([
+            {
+                ...record,
+                followed: followRoads,
+                finished:
+                    finishLoop && (record.finish_coordinates?.length ?? 0) > 1,
+            },
+        ]);
         setRouteIndex(0);
         setLegMetres(
             Array.isArray(record.legs_metres) ? record.legs_metres : [],
         );
+
+        // A point changed while this was drawn: draw the points as they are now.
+        if (buildVersionRef.current !== version) {
+            drawBuildRef.current();
+        }
         setMessage(
             finishLoop
                 ? 'Your points are kept. Traceway closed the loop from the last point without doubling back.'
@@ -4461,11 +4502,13 @@ export default function Dashboard() {
         setRouteIndex(state.routeIndex);
         setPlan(state.plan);
         setLegMetres(state.legMetres);
-        void restoreAvoided(state.avoided);
+        avoidQueueRef.current = avoidQueueRef.current.then(() =>
+            restoreAvoided(state.avoided),
+        );
     }
 
+    /** The bar says what just happened, and offers what can be taken back or put back. */
     function showHistory(label: string): void {
-        setUndoHeld(false);
         setUndoBar({
             label,
             undo: undoStackRef.current.length > 0,
@@ -4479,6 +4522,7 @@ export default function Dashboard() {
      * could put back.
      */
     function remember(label: string): void {
+        setUndoHeld(false);
         undoStackRef.current = [
             ...undoStackRef.current.slice(-(mostUndoSteps - 1)),
             { label, state: capture() },
@@ -4500,8 +4544,8 @@ export default function Dashboard() {
             { label: last.label, state: capture() },
         ];
         apply(last.state);
-        setMessage(`Undone: ${last.label}.`);
-        showHistory(undoStackRef.current.at(-1)?.label ?? last.label);
+        setMessage('');
+        showHistory(`Undone: ${last.label}`);
     }
 
     function redoChange(): void {
@@ -4517,11 +4561,16 @@ export default function Dashboard() {
             { label: next.label, state: capture() },
         ];
         apply(next.state);
-        setMessage(`Redone: ${next.label}.`);
-        showHistory(next.label);
+        setMessage('');
+        showHistory(`Redone: ${next.label}`);
     }
 
-    historyKeysRef.current = { undo: undoChange, redo: redoChange };
+    historyKeysRef.current = {
+        undo: undoChange,
+        redo: redoChange,
+        canUndo: () => undoStackRef.current.length > 0,
+        canRedo: () => redoStackRef.current.length > 0,
+    };
 
     /**
      * Puts the avoided roads back as they were: a road avoided since is let
@@ -4785,6 +4834,8 @@ export default function Dashboard() {
         setTapCard(null);
         setLongitude(lng);
         setLatitude(lat);
+        // A route still on its way was for the old start.
+        drawAskRef.current += 1;
         setRoutes([]);
         setRouteIndex(0);
         setPlan(null);
@@ -4865,10 +4916,12 @@ export default function Dashboard() {
             });
         }
 
+        // A loop already bent through the via moves that stop again; a new via
+        // takes the stop nearest it, as a plan through a via does.
         const stop =
             options.fresh === true || shape !== 'loop' || busy
                 ? null
-                : nearestStop(preview?.waypoints ?? [], point);
+                : nearestStop(preview?.waypoints ?? [], via ?? point);
 
         if (stop === null) {
             void generate({ via: point });
@@ -4941,6 +4994,15 @@ export default function Dashboard() {
             return null;
         }
 
+        // The rider picked another loop while this one was being bent.
+        if (routeIndexRef.current !== index) {
+            setMessage(
+                'You picked another loop. Set the via again to bend it.',
+            );
+
+            return null;
+        }
+
         if ('message' in answer) {
             await fallback();
 
@@ -4968,17 +5030,22 @@ export default function Dashboard() {
     ): Promise<boolean> {
         const drawn = preview;
 
+        // Only a route drawn along the roads, with the points it was drawn
+        // through. One still being drawn redraws once it lands.
         if (
             mode !== 'build' ||
             drawn === null ||
+            drawn.followed !== true ||
             !followRoads ||
             (drawn.user_coordinates?.length ?? 0) < 2 ||
-            before.length === 0
+            before.length === 0 ||
+            busy
         ) {
             return false;
         }
 
-        const finished = (drawn.finish_coordinates?.length ?? 0) > 1;
+        const finished = drawn.finished === true;
+        const version = buildVersionRef.current;
         const start: Coordinate = [longitude, latitude];
         const waypoints: Coordinate[] = [
             start,
@@ -5017,10 +5084,15 @@ export default function Dashboard() {
             return true;
         }
 
-        setRoutes([answer.route]);
+        setRoutes([{ ...answer.route, followed: true, finished }]);
         setRouteIndex(0);
         setLegMetres(answer.route.legs_metres ?? []);
         setMessage('Only the roads around that point changed.');
+
+        // The points changed again while this was planned: draw them all.
+        if (buildVersionRef.current !== version) {
+            drawBuildRef.current();
+        }
 
         return true;
     }
@@ -5285,6 +5357,7 @@ export default function Dashboard() {
      */
     function addBuildPoint(point: RoadSnap, name?: string): void {
         remember('Point added');
+        buildVersionRef.current += 1;
         const placed = {
             id: crypto.randomUUID(),
             longitude: point.longitude,
@@ -5342,6 +5415,7 @@ export default function Dashboard() {
 
         remember('Point moved');
         dirty.current = true;
+        buildVersionRef.current += 1;
         setBuildPoints((current) =>
             current.map((item) =>
                 item.id === id ? { ...item, ...point, name: 'Junction' } : item,
@@ -5375,9 +5449,37 @@ export default function Dashboard() {
         return true;
     };
 
+    drawBuildRef.current = () => {
+        void drawBuild();
+    };
+
+    /**
+     * Puts a point earlier or later. The drawn route went through the points
+     * in their old order, so it is drawn again whole.
+     */
+    reorderPointsRef.current = (from, to) => {
+        const next = [...buildPoints];
+        const [item] = next.splice(from, 1);
+
+        if (item === undefined) {
+            return;
+        }
+
+        next.splice(to, 0, item);
+        remember('Points put in a new order');
+        dirty.current = true;
+        buildVersionRef.current += 1;
+        setBuildPoints(next);
+
+        if (preview !== null && mode === 'build') {
+            void drawBuild({ points: next });
+        }
+    };
+
     function removeBuildPoint(index: number): void {
         remember('Point removed');
         dirty.current = true;
+        buildVersionRef.current += 1;
         setBuildPoints((current) =>
             current.filter((_, item) => item !== index),
         );
@@ -6115,24 +6217,31 @@ export default function Dashboard() {
                                 onBlur={() => setUndoHeld(false)}
                             >
                                 <span role="status">{undoBar.label}</span>
-                                {undoBar.undo ? (
-                                    <button
-                                        type="button"
-                                        aria-keyshortcuts="Meta+Z Control+Z"
-                                        onClick={undoChange}
-                                    >
-                                        Undo
-                                    </button>
-                                ) : null}
-                                {undoBar.redo ? (
-                                    <button
-                                        type="button"
-                                        aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
-                                        onClick={redoChange}
-                                    >
-                                        Redo
-                                    </button>
-                                ) : null}
+                                {/* Both stay, greyed out when they cannot act, so the focus stays on the bar when one runs out. */}
+                                <button
+                                    type="button"
+                                    aria-keyshortcuts="Meta+Z Control+Z"
+                                    aria-disabled={!undoBar.undo}
+                                    onClick={() => {
+                                        if (undoBar.undo) {
+                                            undoChange();
+                                        }
+                                    }}
+                                >
+                                    Undo
+                                </button>
+                                <button
+                                    type="button"
+                                    aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z Control+Y"
+                                    aria-disabled={!undoBar.redo}
+                                    onClick={() => {
+                                        if (undoBar.redo) {
+                                            redoChange();
+                                        }
+                                    }}
+                                >
+                                    Redo
+                                </button>
                             </div>
                         )}
                         <div className="mapctl">

@@ -34,3 +34,10 @@ it('measures each leg', function (): void {
         ->and($legs[0])->toEqualWithDelta(700, 2)
         ->and($legs[1])->toEqualWithDelta(700, 2);
 });
+
+it('cuts at the nearest vertex of a pass, not the first one in reach', function (): void {
+    // The line comes in 25 m north of the point, passes 5 m from it, and leaves 20 m south.
+    $line = [[3.70, 51.05], [3.7198, 51.050225], [3.72, 51.050045], [3.7202, 51.04982], [3.74, 51.05]];
+
+    expect(LegSplitter::cuts($line, [[3.70, 51.05], [3.72, 51.05], [3.74, 51.05]]))->toBe([0, 2, 4]);
+});

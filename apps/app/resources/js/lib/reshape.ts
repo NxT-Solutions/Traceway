@@ -138,17 +138,33 @@ export function cutsOf(line: Coordinate[], waypoints: Coordinate[]): number[] {
             .slice(from)
             .map((vertex) => metresBetween(waypoint, vertex));
         const closest = Math.min(...distances);
+        const near = closest + Math.max(15, closest * 0.25);
         let cut = from;
+        let pass: number | null = null;
 
+        // The first pass that comes about as near as the nearest one, at its
+        // nearest vertex, as the server cuts it: a loop's later pass loses.
         for (let index = 0; index < distances.length; index += 1) {
             const metres = distances[index] ?? Number.POSITIVE_INFINITY;
-            const next = distances[index + 1] ?? Number.POSITIVE_INFINITY;
 
-            if (metres <= closest + 30 && metres <= next) {
-                cut = from + index;
+            if (metres > closest + 30) {
+                if (pass !== null && (distances[pass] ?? 0) <= near) {
+                    break;
+                }
 
-                break;
+                pass = null;
+
+                continue;
             }
+
+            if (
+                pass === null ||
+                metres < (distances[pass] ?? Number.POSITIVE_INFINITY)
+            ) {
+                pass = index;
+            }
+
+            cut = from + pass;
         }
 
         cuts.push(cut);

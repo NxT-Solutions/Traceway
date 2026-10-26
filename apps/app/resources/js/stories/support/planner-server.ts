@@ -310,14 +310,16 @@ export function plannerServer(options: Options = {}): PlannerServer {
             const changed = legs.flatMap((leg, at) =>
                 leg === null ? [at] : [],
             );
-            const joined = legs.reduce<Coordinate[]>((all, leg, at) => {
+            const joined: Coordinate[] = [];
+
+            legs.forEach((leg, at) => {
                 const piece = leg ?? [
                     waypoints[at] ?? point,
                     waypoints[at + 1] ?? point,
                 ];
 
-                return all.length === 0 ? piece : [...all, ...piece.slice(1)];
-            }, []);
+                joined.push(...(joined.length === 0 ? piece : piece.slice(1)));
+            });
 
             if (body.mode === 'loop') {
                 return HttpResponse.json({

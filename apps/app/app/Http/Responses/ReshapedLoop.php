@@ -44,7 +44,12 @@ final readonly class ReshapedLoop
      */
     public function toArray(): array
     {
-        $line = RouteCleanliness::withoutSpurs($this->reshaped->coordinates);
+        // A spur the rider rode to on purpose, to reach a point they placed, stays.
+        $line = RouteCleanliness::keepingVisits(
+            RouteCleanliness::withoutSpurs($this->reshaped->coordinates),
+            $this->reshaped->coordinates,
+            $this->reshaped->waypoints,
+        );
 
         return [
             'distance_metres' => $line === $this->reshaped->coordinates ? $this->reshaped->distanceMetres : (int) round(Distance::along($line)),

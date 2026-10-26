@@ -20,16 +20,21 @@ final readonly class Reshape
 {
     public const int MOST_WAYPOINTS = 14;
 
+    /** A moved or new point farther than this from the route is not a change to it. */
+    public const float FARTHEST_METRES = 30_000.0;
+
     public function __construct(private RoutingEngine $routingEngine) {}
 
     /**
      * @param  list<array{0: float, 1: float}>  $line
      * @param  list<array{0: float, 1: float}>  $waypoints  The points the line passes, start first.
      * @param  bool  $closing  Whether the last leg is the way home of a built loop.
+     * @param  bool  $loop  Whether the line ends where it starts, so its first and last points stay.
      */
-    public function apply(RouteQuery $routeQuery, array $line, array $waypoints, RouteChange $routeChange, bool $closing = false): Reshaped
+    public function apply(RouteQuery $routeQuery, array $line, array $waypoints, RouteChange $routeChange, bool $closing = false, bool $loop = false): Reshaped
     {
         throw_if(count($waypoints) < 2 || count($waypoints) > self::MOST_WAYPOINTS, InvalidArgumentException::class, 'A route to change has 2 to '.self::MOST_WAYPOINTS.' points.');
+        $this->fits($line, $waypoints, $routeChange, $closing || $loop);
 
         // Each point as the line passes it. A loop's stops are where Traceway
         // aimed, often a field beside the road; the line is on the road. A leg
@@ -37,6 +42,8 @@ final readonly class Reshape
         $cuts = LegSplitter::cuts($line, $waypoints);
         $waypoints = array_map(fn (int $cut): array => $line[$cut], $cuts);
         [$waypoints, $legs] = $this->changed($waypoints, LegSplitter::legs($line, $waypoints), $routeChange);
+
+        throw_if(count($waypoints) > self::MOST_WAYPOINTS, InvalidArgumentException::class, 'A route has at most '.self::MOST_WAYPOINTS.' points.');
 
         $changed = array_keys(array_filter($legs, fn (?array $leg): bool => $leg === null));
 
@@ -58,6 +65,47 @@ final readonly class Reshape
         $coordinates = $this->joined($planned);
 
         return new Reshaped($coordinates, $waypoints, $changed, (int) round(Distance::along($coordinates)));
+    }
+
+    /**
+     * A change the route can take: the start stays where it is, a loop's
+     * finish stays on its start, nothing goes past the finish, and a new
+     * place is near the route, so one change never asks the router to cross
+     * a continent.
+     *
+     * @param  list<array{0: float, 1: float}>  $line
+     * @param  list<array{0: float, 1: float}>  $waypoints
+     */
+    private function fits(array $line, array $waypoints, RouteChange $routeChange, bool $closed): void
+    {
+        $count = count($waypoints);
+        $index = $routeChange->index;
+        $last = $count - 1;
+
+        switch ($routeChange->kind) {
+            case RouteChangeKind::Move:
+                throw_if($index === 0 || ($closed && $index === $last), InvalidArgumentException::class, 'The start and the finish move with the start pin.');
+
+                break;
+            case RouteChangeKind::Insert:
+                throw_if($closed && $index > $last, InvalidArgumentException::class, 'A new point goes before the finish.');
+
+                break;
+            case RouteChangeKind::Remove:
+                throw_if($closed && ($index === $last || $count <= 3), InvalidArgumentException::class, 'The finish stays, and so do two points besides it.');
+
+                break;
+            case RouteChangeKind::Reroute:
+                break;
+        }
+
+        if ($routeChange->point !== null) {
+            throw_if(
+                LineDistance::of($line)->project($routeChange->point)['gap'] > self::FARTHEST_METRES,
+                InvalidArgumentException::class,
+                'That place is too far from the route to bend it there. Draw a new route instead.',
+            );
+        }
     }
 
     /**

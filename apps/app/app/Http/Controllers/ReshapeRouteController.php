@@ -71,8 +71,11 @@ class ReshapeRouteController extends Controller
         $finish = ! $loop && $reshapeRouteRequest->boolean('finish');
 
         try {
-            $routeQuery = $riderAvoids->apply($reshapeRouteRequest->toQuery(), $user->id, $waypoints);
-            $reshaped = $reshape->apply($routeQuery, $reshapeRouteRequest->line(), $waypoints, $reshapeRouteRequest->change(), $finish);
+            $routeChange = $reshapeRouteRequest->change();
+            // The avoided roads around the route, and around where it goes now.
+            $reach = $routeChange->point === null ? $waypoints : [...$waypoints, $routeChange->point];
+            $routeQuery = $riderAvoids->apply($reshapeRouteRequest->toQuery(), $user->id, $reach);
+            $reshaped = $reshape->apply($routeQuery, $reshapeRouteRequest->line(), $waypoints, $routeChange, $finish, $loop);
         } catch (InvalidArgumentException $invalidArgumentException) {
             return response()->json(['message' => $invalidArgumentException->getMessage()], HttpResponse::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Throwable $throwable) {

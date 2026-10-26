@@ -1101,7 +1101,10 @@ async function drawFreshLoops(canvasElement: HTMLElement): Promise<void> {
     );
 }
 
-/** Picks a place to pass from the search: the tap card that asks what to do with it. */
+/**
+ * Picks a place to pass from the search: the tap card that asks what to do with it, once it offers Go via here. A
+ * card left looking for its road by a late map move is closed and the place picked again (see `addPoint`).
+ */
 async function placeToPass(
     canvasElement: HTMLElement,
     place: string,
@@ -1110,16 +1113,31 @@ async function placeToPass(
     const canvas = within(canvasElement);
     const panel = within(await panelOf(canvasElement));
 
-    await userEvent.click(panel.getByRole('button', { name: /^Via/ }));
-    const search = await canvas.findByRole('combobox', {
-        name: 'Search for a place to pass',
-    });
-    await userEvent.type(search, `${place}{Enter}`);
-    await userEvent.click(
-        await canvas.findByRole('option', { name: option }, answer),
-    );
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        await userEvent.click(panel.getByRole('button', { name: /^Via/ }));
+        const search = await canvas.findByRole('combobox', {
+            name: 'Search for a place to pass',
+        });
+        await userEvent.clear(search);
+        await userEvent.type(search, `${place}{Enter}`);
+        await userEvent.click(
+            await canvas.findByRole('option', { name: option }, answer),
+        );
+        const card = within(
+            await canvas.findByRole('dialog', { name: place }, answer),
+        );
+        const ready = await card
+            .findByRole('button', { name: 'Go via here' }, { timeout: 3000 })
+            .catch(() => null);
 
-    return within(await canvas.findByRole('dialog', { name: place }, answer));
+        if (ready !== null) {
+            return card;
+        }
+
+        await userEvent.click(card.getByRole('button', { name: 'Close' }));
+    }
+
+    throw new Error(`No road near ${place} to pass.`);
 }
 
 /**
@@ -1176,6 +1194,83 @@ export const NudgeTheLoop: Story = {
                 before,
             );
         });
+
+        await step('No via keeps the loop as it is', async () => {
+            const canvas = within(canvasElement);
+            await userEvent.click(panel.getByRole('button', { name: /^Via/ }));
+            const search = await canvas.findByRole('combobox', {
+                name: 'Search for a place to pass',
+            });
+            await userEvent.clear(search);
+            await userEvent.click(
+                await canvas.findByRole('option', { name: /^No via/ }, answer),
+            );
+            await expect(
+                await panel.findByText(
+                    'Via removed. The loop stays as it is: Draw again for new loops.',
+                    {},
+                    answer,
+                ),
+            ).toBeVisible();
+            await expect(server.sent('POST', '/routes/preview')).toHaveLength(
+                before,
+            );
+        });
+
+        await step(
+            'Undo brings the via back, without asking the server',
+            async () => {
+                await userEvent.click(
+                    within(canvasElement).getByRole('button', { name: 'Undo' }),
+                );
+                await expect(
+                    within(canvasElement).getByRole('group', {
+                        name: 'Last change',
+                    }),
+                ).toHaveTextContent('Undone: Via removed');
+                await expect(
+                    panel.getByRole('button', { name: /^Via/ }),
+                ).toHaveTextContent('Tongerlo');
+                await expect(
+                    server.sent('POST', '/routes/reshape'),
+                ).toHaveLength(1);
+            },
+        );
+    },
+};
+
+/** The routing engine could not bend the loop there: new loops through the place are drawn instead. */
+export const NudgeFails: Story = {
+    beforeEach: ({ msw }) => {
+        msw.use(
+            http.post('/routes/reshape', () =>
+                HttpResponse.json(
+                    {
+                        message:
+                            'The roads around that point did not join up. Try a spot closer to a road.',
+                    },
+                    { status: 502 },
+                ),
+            ),
+        );
+    },
+    play: async ({ canvasElement }) => {
+        await drawFreshLoops(canvasElement);
+        const before = server.sent('POST', '/routes/preview').length;
+        const card = await placeToPass(canvasElement, 'Herselt');
+        await userEvent.click(
+            await card.findByRole('button', { name: 'Go via here' }, answer),
+        );
+        await waitFor(
+            () =>
+                expect(server.sent('POST', '/routes/preview')).toHaveLength(
+                    before + 1,
+                ),
+            answer,
+        );
+        await expect(
+            server.sent('POST', '/routes/preview').at(-1)?.body,
+        ).toHaveProperty('via_latitude');
     },
 };
 

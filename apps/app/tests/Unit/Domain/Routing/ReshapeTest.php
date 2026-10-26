@@ -183,3 +183,31 @@ it('plans from where the line passes a stop, not from the field beside it', func
         ->and($reshaped->waypoints[1])->toBe([3.74, 51.05])
         ->and(array_slice($reshaped->coordinates, 0, 3))->toBe(array_slice($line, 0, 3));
 });
+
+it("keeps the start, a loop's finish, and nothing past it", function (RouteChange $routeChange, bool $loop): void {
+    [$line, $waypoints] = square();
+
+    expect(fn (): mixed => new Reshape(bendingEngine())->apply(gravel(), $line, $waypoints, $routeChange, loop: $loop))
+        ->toThrow(InvalidArgumentException::class);
+})->with([
+    'moving the start' => [RouteChange::move(0, [3.71, 51.05]), false],
+    "moving a loop's finish" => [RouteChange::move(4, [3.71, 51.05]), true],
+    "taking out a loop's finish" => [RouteChange::remove(4), true],
+    "a point after a loop's finish" => [RouteChange::insert(5, [3.71, 51.05]), true],
+]);
+
+it('refuses a place too far from the route to bend it there', function (): void {
+    [$line, $waypoints] = square();
+    $routingEngine = bendingEngine();
+
+    expect(fn (): mixed => new Reshape($routingEngine)->apply(gravel(), $line, $waypoints, RouteChange::move(2, [-179.0, -89.0])))
+        ->toThrow(InvalidArgumentException::class)
+        ->and($routingEngine->asked)->toBe([]);
+});
+
+it('stops at the most points a route has', function (): void {
+    $waypoints = array_map(fn (int $index): array => [3.70 + $index * 0.001, 51.05], range(0, Reshape::MOST_WAYPOINTS - 1));
+
+    expect(fn (): mixed => new Reshape(bendingEngine())->apply(gravel(), $waypoints, $waypoints, RouteChange::insert(1, [3.7005, 51.051])))
+        ->toThrow(InvalidArgumentException::class);
+});

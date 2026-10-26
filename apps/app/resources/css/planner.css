@@ -834,3 +834,4 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
 .tw-planner .avoided .avoided-status{margin-top:6px}
 .tw-planner .nudge{display:flex;flex-direction:column;gap:8px;margin:4px 0 8px;padding:10px 12px;border:1px solid var(--hair);border-radius:10px}
 .tw-planner .nudge .outline{flex:0 0 auto}
+.tw-planner .undobar button[aria-disabled="true"]{opacity:.45;cursor:default}
