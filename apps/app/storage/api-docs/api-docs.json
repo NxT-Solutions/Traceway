@@ -1450,6 +1450,73 @@
                 ]
             }
         },
+        "/routes/reshape": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Change one point of a drawn route",
+                "description": "Plans again only the legs the change touches and keeps the rest of the line as it was. A moved point moves only the roads around it.",
+                "operationId": "reshapeRoute",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/ReshapeRouteRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The route after the change: a loop, or a built route as Build draws it.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ReshapedLoop"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/BuiltRoute"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The change does not fit the route, or the roads miss a built point.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "The changed legs did not join along the roads.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
         "/routes/details": {
             "post": {
                 "tags": [
@@ -2735,6 +2802,51 @@
                 },
                 "type": "object"
             },
+            "ReshapedLoop": {
+                "required": [
+                    "distance_metres",
+                    "ascent_metres",
+                    "coordinates",
+                    "waypoints",
+                    "changed_legs",
+                    "reverse_share",
+                    "crosses_avoided"
+                ],
+                "properties": {
+                    "distance_metres": {
+                        "type": "integer"
+                    },
+                    "ascent_metres": {
+                        "description": "Unknown until the details are read: 0.",
+                        "type": "integer"
+                    },
+                    "coordinates": {
+                        "$ref": "#/components/schemas/CoordinateLine"
+                    },
+                    "waypoints": {
+                        "$ref": "#/components/schemas/CoordinateLine"
+                    },
+                    "changed_legs": {
+                        "description": "The legs planned again, by number, from 0.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "reverse_share": {
+                        "description": "The share of the loop that rides back over a road it already used, from 0 to 1.",
+                        "type": "number"
+                    },
+                    "crosses_avoided": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                },
+                "type": "object"
+            },
             "RouteStop": {
                 "required": [
                     "distance_metres",
@@ -3937,6 +4049,121 @@
                                 "longitude": {
                                     "description": "The start pin, for from_start.",
                                     "type": "number"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "ReshapeRouteRequest": {
+                "description": "A drawn route, the points it passes, and one change to it.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "sport",
+                                "surface",
+                                "elevation",
+                                "mode",
+                                "line",
+                                "waypoints",
+                                "change"
+                            ],
+                            "properties": {
+                                "sport": {
+                                    "type": "string",
+                                    "enum": [
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                },
+                                "surface": {
+                                    "type": "string",
+                                    "enum": [
+                                        "paved",
+                                        "mixed",
+                                        "dirt"
+                                    ]
+                                },
+                                "elevation": {
+                                    "type": "string",
+                                    "enum": [
+                                        "minimize",
+                                        "neutral",
+                                        "maximize"
+                                    ]
+                                },
+                                "roads": {
+                                    "type": "string",
+                                    "enum": [
+                                        "quiet",
+                                        "any"
+                                    ]
+                                },
+                                "distance_metres": {
+                                    "description": "The length asked for, for a loop.",
+                                    "type": "integer",
+                                    "maximum": 300000,
+                                    "minimum": 1000
+                                },
+                                "mode": {
+                                    "description": "A loop Traceway planned, or a route the rider built from points.",
+                                    "type": "string",
+                                    "enum": [
+                                        "loop",
+                                        "build"
+                                    ]
+                                },
+                                "finish": {
+                                    "description": "A built route whose last leg is the way home Traceway found.",
+                                    "type": "boolean"
+                                },
+                                "line": {
+                                    "$ref": "#/components/schemas/CoordinateLine"
+                                },
+                                "waypoints": {
+                                    "$ref": "#/components/schemas/CoordinateLine"
+                                },
+                                "change": {
+                                    "required": [
+                                        "kind"
+                                    ],
+                                    "properties": {
+                                        "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                                "move",
+                                                "insert",
+                                                "remove",
+                                                "reroute"
+                                            ]
+                                        },
+                                        "index": {
+                                            "description": "The waypoint moved, put in, or taken out.",
+                                            "type": "integer"
+                                        },
+                                        "latitude": {
+                                            "type": "number"
+                                        },
+                                        "longitude": {
+                                            "type": "number"
+                                        },
+                                        "legs": {
+                                            "description": "The legs to plan again, for a reroute.",
+                                            "type": "array",
+                                            "items": {
+                                                "type": "integer"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
                                 }
                             },
                             "type": "object"

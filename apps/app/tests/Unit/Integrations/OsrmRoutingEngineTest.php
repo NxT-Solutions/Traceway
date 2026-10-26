@@ -127,7 +127,8 @@ it('goes around the stretch through a point beside it when no alternative does',
 
     $generatedRoute = new OsrmRoutingEngine($connector)->trace(avoidingBosweg(), [[3.715, 51.05], [3.73, 51.05]]);
 
-    expect($generatedRoute->coordinates)->toBe($around);
+    expect($generatedRoute->coordinates)->toBe($around)
+        ->and($generatedRoute->waypoints)->toBe([[3.715, 51.05], [3.73, 51.05]]);
     $mock->assertSentCount(2);
 });
 

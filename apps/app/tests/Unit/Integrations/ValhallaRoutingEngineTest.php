@@ -54,6 +54,8 @@ it('draws a loop from a valhalla trip', function (): void {
 
     expect($route->distanceMetres)->toBe(19400)
         ->and($route->coordinates[0][0])->toEqualWithDelta(3.72, 0.00001)
+        ->and($route->waypoints)->toHaveCount(5)
+        ->and($route->waypoints[0])->toBe([3.72, 51.05])
         ->and($mock->getRecordedResponses())->toHaveCount(6);
 });
 

@@ -290,7 +290,7 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
                 $metres += $line['metres'];
             }
 
-            $routes[] = $coordinates === null || $coordinates === [] ? null : $this->routeOf($routeQuery, $coordinates, $metres);
+            $routes[] = $coordinates === null || $coordinates === [] ? null : $this->routeOf($routeQuery, $coordinates, $metres, $plans[$planIndex]['waypoints'] ?? []);
         }
 
         return $routes;
@@ -386,8 +386,9 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
 
     /**
      * @param  list<array{0: float, 1: float}>  $coordinates
+     * @param  list<array{0: float, 1: float}>  $waypoints
      */
-    private function routeOf(RouteQuery $routeQuery, array $coordinates, int $distanceMetres): GeneratedRoute
+    private function routeOf(RouteQuery $routeQuery, array $coordinates, int $distanceMetres, array $waypoints = []): GeneratedRoute
     {
         if ($routeQuery->shape === Shape::Loop) {
             $trimmed = RouteCleanliness::withoutSpurs($coordinates);
@@ -403,6 +404,7 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             coordinates: $coordinates,
             distanceMetres: $distanceMetres,
             ascentMetres: 0,
+            waypoints: $waypoints,
         );
     }
 

@@ -3,6 +3,7 @@ import { delay, type HttpHandler, HttpResponse, http, passthrough } from 'msw';
 import type {} from 'msw-storybook-addon/csf3';
 import { type AvoidedRoad, metresToLine } from '@/lib/avoided-roads';
 import { legDeviceName } from '@/lib/multisport';
+import { cutsOf } from '@/lib/reshape';
 import { routeGpx } from '@/lib/route-details';
 import type { RouteServiceStatus } from '@/types/route-services';
 import { sharedProps } from './inertia-page';
@@ -42,6 +43,8 @@ export type PlannerServer = {
     library: () => SavedRoute[];
     /** The roads the rider avoids as the server holds them now. */
     avoided: () => AvoidedRoad[];
+    /** The loops the last plan drew, the first one chosen. */
+    drawn: () => Coordinate[][];
 };
 
 type Options = {
@@ -240,6 +243,122 @@ export function plannerServer(options: Options = {}): PlannerServer {
             });
         }),
 
+        // ReshapeRouteController: the legs the change touches drawn again as straight lines, the rest kept.
+        http.post('/routes/reshape', async ({ request }) => {
+            const body = await read(request);
+            const line = coordinatesOf(body.line);
+            let waypoints = coordinatesOf(body.waypoints);
+
+            if (line.length < 2 || waypoints.length < 2) {
+                return invalid(
+                    'The line field must have at least 2 items.',
+                    'line',
+                );
+            }
+
+            const cuts = cutsOf(line, waypoints);
+            let legs: (Coordinate[] | null)[] = cuts
+                .slice(1)
+                .map((cut, index) => line.slice(cuts[index], cut + 1));
+            const change =
+                typeof body.change === 'object' && body.change !== null
+                    ? (body.change as Record<string, unknown>)
+                    : {};
+            const index = number(change.index, 0);
+            const point: Coordinate = [
+                number(change.longitude, 0),
+                number(change.latitude, 0),
+            ];
+
+            if (change.kind === 'move') {
+                waypoints = waypoints.map((stop, at) =>
+                    at === index ? point : stop,
+                );
+                legs = legs.map((leg, at) =>
+                    at === index - 1 || at === index ? null : leg,
+                );
+            } else if (change.kind === 'insert') {
+                waypoints = [
+                    ...waypoints.slice(0, index),
+                    point,
+                    ...waypoints.slice(index),
+                ];
+                legs =
+                    index >= legs.length + 1
+                        ? [...legs, null]
+                        : [
+                              ...legs.slice(0, index - 1),
+                              null,
+                              null,
+                              ...legs.slice(index),
+                          ];
+            } else if (change.kind === 'remove') {
+                waypoints = waypoints.filter((_, at) => at !== index);
+                legs =
+                    index === legs.length
+                        ? legs.slice(0, -1)
+                        : [
+                              ...legs.slice(0, index - 1),
+                              null,
+                              ...legs.slice(index + 1),
+                          ];
+            } else {
+                const asked = Array.isArray(change.legs) ? change.legs : [];
+                legs = legs.map((leg, at) => (asked.includes(at) ? null : leg));
+            }
+
+            const changed = legs.flatMap((leg, at) =>
+                leg === null ? [at] : [],
+            );
+            const joined: Coordinate[] = [];
+
+            legs.forEach((leg, at) => {
+                const piece = leg ?? [
+                    waypoints[at] ?? point,
+                    waypoints[at + 1] ?? point,
+                ];
+
+                joined.push(...(joined.length === 0 ? piece : piece.slice(1)));
+            });
+
+            if (body.mode === 'loop') {
+                return HttpResponse.json({
+                    ...previewOf(joined),
+                    ascent_metres: 0,
+                    waypoints,
+                    changed_legs: changed,
+                    reverse_share: 0,
+                    crosses_avoided: [],
+                });
+            }
+
+            const finish = body.finish === true;
+            const userEnd = finish
+                ? (cutsOf(joined, waypoints).at(-2) ?? joined.length - 1)
+                : joined.length - 1;
+            const user = joined.slice(0, userEnd + 1);
+            const finishLine = finish ? joined.slice(userEnd) : [];
+
+            return HttpResponse.json({
+                distance_metres: metres(joined),
+                ascent_metres: 0,
+                coordinates: joined,
+                user_coordinates: user,
+                finish_coordinates: finishLine,
+                user_metres: metres(user),
+                finish_metres: metres(finishLine),
+                legs_metres: cutsOf(
+                    user,
+                    finish ? waypoints.slice(0, -1) : waypoints,
+                )
+                    .slice(1)
+                    .map((cut, at, all) =>
+                        metres(user.slice(at === 0 ? 0 : all[at - 1], cut + 1)),
+                    ),
+                crosses_avoided: [],
+            });
+        }),
+
         // AvoidStretchController (AvoidedStretch): the way under the tap, kept; a miss far from the Kempen.
         http.post('/routes/avoided', async ({ request }) => {
             const body = await read(request);
@@ -390,6 +509,7 @@ export function plannerServer(options: Options = {}): PlannerServer {
             drawn = lines;
             const routes = lines.map((line) => ({
                 ...previewOf(line),
+                waypoints: stopsOf(line),
                 crosses_avoided: avoided
                     .filter((road) => usesRoad(line, road))
                     .map((road) => road.id),
@@ -892,7 +1012,19 @@ export function plannerServer(options: Options = {}): PlannerServer {
             ),
         library: () => library,
         avoided: () => avoided,
+        drawn: () => drawn,
     };
+}
+
+/** Five stops along a loop, start and finish included, as a plan keeps them. */
+function stopsOf(line: Coordinate[]): Coordinate[] {
+    const last = line.length - 1;
+
+    return [0, 0.25, 0.5, 0.75, 1].flatMap((share) => {
+        const point = line[Math.round(last * share)];
+
+        return point === undefined ? [] : [point];
+    });
 }
 
 /** The planner's server with the example library, for a story that only needs answers: `msw.use(...plannerHandlers)`. */

@@ -24,6 +24,7 @@ use App\Http\Controllers\NamePlaceController;
 use App\Http\Controllers\PreviewMultisportController;
 use App\Http\Controllers\PreviewRouteController;
 use App\Http\Controllers\RedoImportedRouteController;
+use App\Http\Controllers\ReshapeRouteController;
 use App\Http\Controllers\RouteDetailsController;
 use App\Http\Controllers\RouteStopsController;
 use App\Http\Controllers\SavedRouteLibraryController;
@@ -123,6 +124,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('saved', SavedRouteLibraryController::class)->name('routes.library');
     Route::post('routes/preview', PreviewRouteController::class)->middleware(['throttle:routing', CountUsage::as(UsageMetric::RoutePreviews)])->name('routes.preview');
     Route::post('routes/build', BuildRouteController::class)->middleware(['throttle:routing', CountUsage::as(UsageMetric::RouteBuilds)])->name('routes.build');
+    Route::post('routes/reshape', ReshapeRouteController::class)->middleware(['throttle:routing', CountUsage::as(UsageMetric::RouteBuilds)])->name('routes.reshape');
     Route::post('routes/multisport', PreviewMultisportController::class)->middleware(['throttle:routing', CountUsage::as(UsageMetric::MultisportPreviews)])->name('routes.multisport');
     Route::post('routes/avoided', AvoidStretchController::class)->middleware('throttle:saving')->name('routes.avoided.store');
     Route::delete('routes/avoided/{avoidedStretch}', ForgetAvoidedStretchController::class)->whereUuid('avoidedStretch')->middleware('throttle:saving')->name('routes.avoided.destroy');

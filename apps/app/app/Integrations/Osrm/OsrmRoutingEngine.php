@@ -153,7 +153,8 @@ final readonly class OsrmRoutingEngine implements RoutingEngine
             }
 
             if (AvoidCheck::crossing($around->coordinates, $routeQuery->avoid) === []) {
-                return $around;
+                // The point beside the stretch only steered the line; the stops are the asked ones.
+                return new GeneratedRoute($routeQuery, $around->coordinates, $around->distanceMetres, $around->ascentMetres, $waypoints);
             }
         }
 
@@ -232,6 +233,7 @@ final readonly class OsrmRoutingEngine implements RoutingEngine
                 coordinates: $coordinates,
                 distanceMetres: (int) round((float) $distance),
                 ascentMetres: 0,
+                waypoints: $waypoints,
             );
         }
 
