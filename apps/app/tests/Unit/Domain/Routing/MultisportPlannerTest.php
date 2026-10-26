@@ -48,8 +48,8 @@ function recordingEngine(bool $empty = false): RoutingEngine
             $start = [$routeQuery->startLongitude, $routeQuery->startLatitude];
 
             return $this->empty ? [] : [
-                new GeneratedRoute($routeQuery, [$start, [3.8, 51.1], $start], $routeQuery->distanceMetres - 500, 40),
-                new GeneratedRoute($routeQuery, [$start, [3.6, 51.0], $start], 1, 1),
+                new GeneratedRoute($routeQuery, [$start, [3.8, 51.1], [3.9, 51.05], $start], $routeQuery->distanceMetres - 500, 40),
+                new GeneratedRoute($routeQuery, [$start, [3.6, 51.0], [3.65, 50.95], $start], 1, 1),
             ];
         }
 
@@ -90,7 +90,7 @@ it('loops every land leg from the transition with its own sport and settings', f
         ->toBe([[3.72, 51.05], [3.72, 51.05]])
         ->and($plan->layout)->toBe(Layout::Loops)
         ->and(array_map(fn (PlannedLeg $plannedLeg): string => $plannedLeg->discipline(), $plan->legs))->toBe(['road', 'run'])
-        ->and($plan->legs[0]->coordinates)->toBe([[3.72, 51.05], [3.8, 51.1], [3.72, 51.05]])
+        ->and($plan->legs[0]->coordinates)->toBe([[3.72, 51.05], [3.8, 51.1], [3.9, 51.05], [3.72, 51.05]])
         ->and($plan->legs[0]->distanceMetres)->toBe(39_500)
         ->and($plan->legs[1]->distanceMetres)->toBe(9_500)
         ->and($plan->distanceMetres())->toBe(49_000)

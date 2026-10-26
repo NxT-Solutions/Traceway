@@ -6,15 +6,12 @@ namespace App\Domain\Routing;
 
 /**
  * Picks the leg that does not turn around on a road already used, by this
- * leg or by the legs before it. Among clean legs, the one nearest the length
- * wins. A leg is judged by its share of doubled road, not by the metres a
- * loop is held to: a leg ends at a handover, so it has no ride home.
+ * leg or by the legs before it. It is held to the same limit as a loop: 1 km
+ * past its start street, or 12% of a short leg. Among clean legs, the one
+ * nearest the length wins.
  */
 final class CleanLeg
 {
-    /** Above this share of doubled-back metres, a leg counts as turning around. */
-    public const float DOUBLED = 0.12;
-
     /**
      * @param  list<array{0: float, 1: float}>  $ridden  The legs already planned, joined.
      * @param  list<GeneratedRoute>  $routes
@@ -39,38 +36,49 @@ final class CleanLeg
     /**
      * Doubling back costs far more than being off the length. A leg that
      * turns around loses to any clean leg, however far off its length.
+     * When every leg turns around, the least doubled road wins. Among clean
+     * legs the doubled metres cost what they cost a loop.
      *
      * @param  list<array{0: float, 1: float}>  $ridden
      */
     public static function score(array $ridden, GeneratedRoute $generatedRoute, int $targetMetres): float
     {
-        $share = self::doubledShare($ridden, $generatedRoute);
+        $doubled = self::doubledMetres($ridden, $generatedRoute);
         $error = abs($generatedRoute->distanceMetres - $targetMetres) / max(1, $targetMetres);
 
-        return $share > self::DOUBLED ? 1_000 + $share + $error : $share * 2 + $error;
+        if (self::over($doubled, $generatedRoute)) {
+            return 1_000 + ($doubled / 1_000) + $error;
+        }
+
+        return RouteCleanliness::doubledCost($doubled, Distance::along($generatedRoute->coordinates)) + $error;
     }
 
     /**
-     * The share of this leg that runs back over a road it, or a leg before
-     * it, already used.
+     * Whether this leg rides back down a road, its own or one a leg before
+     * it used, past the street the leg starts on.
      *
      * @param  list<array{0: float, 1: float}>  $ridden
      */
-    public static function doubledShare(array $ridden, GeneratedRoute $generatedRoute): float
+    public static function doublesBack(array $ridden, GeneratedRoute $generatedRoute): bool
     {
-        $leg = $generatedRoute->coordinates;
+        return self::over(self::doubledMetres($ridden, $generatedRoute), $generatedRoute);
+    }
 
-        if ($ridden === []) {
-            return RouteCleanliness::reverseShare($leg);
-        }
+    /**
+     * The metres of this leg that ride back over a road it, or a leg before
+     * it, already used. The street the leg starts on, the transition or the
+     * handover, may be ridden both ways, and so may a loop leg's ride home.
+     *
+     * @param  list<array{0: float, 1: float}>  $ridden
+     */
+    public static function doubledMetres(array $ridden, GeneratedRoute $generatedRoute): float
+    {
+        return RouteCleanliness::doubledMetres($generatedRoute->coordinates, before: $ridden);
+    }
 
-        $before = RouteCleanliness::reverseShare($ridden);
-        $riddenMetres = Distance::along($ridden);
-        $legMetres = Distance::along($leg);
-        $joined = RouteCleanliness::reverseShare(array_merge($ridden, array_slice($leg, 1)));
-        $added = $joined * ($riddenMetres + $legMetres) - $before * $riddenMetres;
-
-        return $legMetres > 0 ? max(0.0, $added / $legMetres) : 0.0;
+    private static function over(float $doubled, GeneratedRoute $generatedRoute): bool
+    {
+        return $doubled > RouteCleanliness::doubledLimit(Distance::along($generatedRoute->coordinates));
     }
 
     /**
