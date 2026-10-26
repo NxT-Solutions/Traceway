@@ -15,11 +15,11 @@ namespace App\Domain\Routing;
 final class AvoidCheck
 {
     /**
-     * How far from the stretch a point of the line may be and still be on it.
-     * Routes and stretches come from the same OpenStreetMap ways, so a line
-     * on the stretch lies on it; a cycle track mapped beside a road does not.
+     * How far from the stretch a point of the line may be and still be on it:
+     * as wide as the band the router leaves out, so the other carriageway and
+     * a path mapped beside the road count as the road.
      */
-    private const float ON_IT_METRES = 4.0;
+    private const float ON_IT_METRES = AvoidedStretches::BAND_HALF_WIDTH_METRES;
 
     /** The most a line may turn from the stretch and still follow it. */
     private const float SAME_WAY_DEGREES = 35.0;

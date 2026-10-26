@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Routing\AvoidedStretch;
+use App\Domain\Routing\AvoidedStretches;
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
@@ -283,10 +284,13 @@ it('leaves out the stretches the rider avoids', function (): void {
         avoid: [new AvoidedStretch('bosweg', 51.0501, 3.7222, [[3.72, 51.0501], [3.724, 51.0501]])],
     );
 
-    expect(ValhallaCosting::payload($routeQuery, [[3.72, 51.05], [3.8, 51.1], [3.72, 51.05]])['exclude_locations'])
-        ->toBe([['lat' => 51.0501, 'lon' => 3.7222]])
-        ->and(ValhallaCosting::payload($routeQuery, [[3.72, 51.05], [3.8, 51.1]], headings: [null, null])['exclude_locations'])
-        ->toBe([['lat' => 51.0501, 'lon' => 3.7222]]);
+    $band = AvoidedStretches::band($routeQuery->avoid[0]);
+
+    expect(ValhallaCosting::payload($routeQuery, [[3.72, 51.05], [3.8, 51.1], [3.72, 51.05]])['exclude_polygons'])
+        ->toBe([$band])
+        ->and(ValhallaCosting::payload($routeQuery, [[3.72, 51.05], [3.8, 51.1]], headings: [null, null])['exclude_polygons'])
+        ->toBe([$band])
+        ->and(ValhallaCosting::payload($routeQuery, [[3.72, 51.05], [3.8, 51.1]]))->not->toHaveKey('exclude_locations');
 });
 
 it('leaves out every stretch on foot too', function (): void {
@@ -304,7 +308,7 @@ it('leaves out every stretch on foot too', function (): void {
         ],
     ), [[3.72, 51.05], [3.8, 51.1]]);
 
-    expect($payload['exclude_locations'])->toHaveCount(2);
+    expect($payload['exclude_polygons'])->toHaveCount(2);
 });
 
 it('sends no excluded points when the rider avoids nothing', function (): void {
@@ -318,5 +322,5 @@ it('sends no excluded points when the rider avoids nothing', function (): void {
         startLongitude: 3.72,
     ), [[3.72, 51.05]]);
 
-    expect($payload)->not->toHaveKey('exclude_locations');
+    expect($payload)->not->toHaveKey('exclude_polygons');
 });

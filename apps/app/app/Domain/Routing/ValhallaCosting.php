@@ -76,10 +76,12 @@ final class ValhallaCosting
     }
 
     /**
-     * The stretches the rider skips. Each point lies on its way, so Valhalla
-     * leaves that way between its two junctions out of every route.
+     * The stretches the rider skips, each as a small band across the middle
+     * of its way. Valhalla leaves out every way the band touches, in both
+     * directions, so a road is skipped whichever way the route rides it, and
+     * a path mapped beside it with it.
      *
-     * @return array{exclude_locations?: list<array{lat: float, lon: float}>}
+     * @return array{exclude_polygons?: list<list<array{0: float, 1: float}>>}
      */
     private static function excluding(RouteQuery $routeQuery): array
     {
@@ -87,8 +89,8 @@ final class ValhallaCosting
             return [];
         }
 
-        return ['exclude_locations' => array_map(
-            fn (AvoidedStretch $avoidedStretch): array => ['lat' => $avoidedStretch->latitude, 'lon' => $avoidedStretch->longitude],
+        return ['exclude_polygons' => array_map(
+            AvoidedStretches::band(...),
             $routeQuery->avoid,
         )];
     }
