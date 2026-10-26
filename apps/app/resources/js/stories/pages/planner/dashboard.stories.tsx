@@ -1102,42 +1102,47 @@ async function drawFreshLoops(canvasElement: HTMLElement): Promise<void> {
 }
 
 /**
- * Picks a place to pass from the search: the tap card that asks what to do with it, once it offers Go via here. A
- * card left looking for its road by a late map move is closed and the place picked again (see `addPoint`).
+ * Picks a place to pass from the search, and the button the tap card offers once it found the road. The card is
+ * drawn again when the road is found, so the button is looked up in the card on the page then, not the first one.
  */
 async function placeToPass(
     canvasElement: HTMLElement,
     place: string,
+    action: string,
     option: RegExp = new RegExp(`^${place} `),
-): Promise<ReturnType<typeof within>> {
+): Promise<HTMLElement> {
     const canvas = within(canvasElement);
     const panel = within(await panelOf(canvasElement));
 
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-        await userEvent.click(panel.getByRole('button', { name: /^Via/ }));
-        const search = await canvas.findByRole('combobox', {
-            name: 'Search for a place to pass',
-        });
-        await userEvent.clear(search);
-        await userEvent.type(search, `${place}{Enter}`);
-        await userEvent.click(
-            await canvas.findByRole('option', { name: option }, answer),
-        );
-        const card = within(
-            await canvas.findByRole('dialog', { name: place }, answer),
-        );
-        const ready = await card
-            .findByRole('button', { name: 'Go via here' }, { timeout: 3000 })
-            .catch(() => null);
+    await userEvent.click(panel.getByRole('button', { name: /^Via/ }));
+    const search = await canvas.findByRole('combobox', {
+        name: 'Search for a place to pass',
+    });
+    await userEvent.clear(search);
+    await userEvent.type(search, `${place}{Enter}`);
+    await userEvent.click(
+        await canvas.findByRole('option', { name: option }, answer),
+    );
 
-        if (ready !== null) {
-            return card;
-        }
+    return cardButton(canvasElement, place, action);
+}
 
-        await userEvent.click(card.getByRole('button', { name: 'Close' }));
-    }
+/** A button on the tap card for a place, as the card is now. */
+function cardButton(
+    canvasElement: HTMLElement,
+    place: string,
+    action: string,
+): Promise<HTMLElement> {
+    const canvas = within(canvasElement);
 
-    throw new Error(`No road near ${place} to pass.`);
+    return waitFor(
+        () =>
+            within(canvas.getByRole('dialog', { name: place })).getByRole(
+                'button',
+                { name: action },
+            ),
+        answer,
+    );
 }
 
 /**
@@ -1153,21 +1158,20 @@ export const NudgeTheLoop: Story = {
         const before = server.sent('POST', '/routes/preview').length;
 
         await step('Go via Tongerlo', async () => {
-            const card = await placeToPass(
+            const go = await placeToPass(
                 canvasElement,
                 'Tongerlo',
+                'Go via here',
                 /^Tongerlo Westerlo/,
             );
             await expect(
-                await card.findByRole(
-                    'button',
-                    { name: 'New loops through here' },
-                    answer,
+                await cardButton(
+                    canvasElement,
+                    'Tongerlo',
+                    'New loops through here',
                 ),
             ).toBeVisible();
-            await userEvent.click(
-                card.getByRole('button', { name: 'Go via here' }),
-            );
+            await userEvent.click(go);
         });
 
         await step('Only the stop and its two legs change', async () => {
@@ -1257,9 +1261,8 @@ export const NudgeFails: Story = {
     play: async ({ canvasElement }) => {
         await drawFreshLoops(canvasElement);
         const before = server.sent('POST', '/routes/preview').length;
-        const card = await placeToPass(canvasElement, 'Herselt');
         await userEvent.click(
-            await card.findByRole('button', { name: 'Go via here' }, answer),
+            await placeToPass(canvasElement, 'Herselt', 'Go via here'),
         );
         await waitFor(
             () =>
@@ -1305,13 +1308,8 @@ export const NudgeTooFar: Story = {
         await drawFreshLoops(canvasElement);
 
         await step('Go via Herselt, to the south', async () => {
-            const card = await placeToPass(canvasElement, 'Herselt');
             await userEvent.click(
-                await card.findByRole(
-                    'button',
-                    { name: 'Go via here' },
-                    answer,
-                ),
+                await placeToPass(canvasElement, 'Herselt', 'Go via here'),
             );
         });
 
@@ -1418,48 +1416,24 @@ export const AvoidKeepsTheLoop: Story = {
     },
 };
 
-/**
- * Adds a Build point from the search. The card opens once the map has eased to the place; a move that ends after it
- * opened can leave it waiting on the road (a known race in the planner, not what this story is about), so the story
- * picks the place once more when the card is still looking after a few seconds.
- */
+/** Adds a Build point from the search. */
 async function addPoint(
     canvasElement: HTMLElement,
     place: string,
     option: RegExp = new RegExp(`^${place} `),
 ): Promise<void> {
     const canvas = within(canvasElement);
-
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-        const search = await canvas.findByRole('combobox', {
-            name: 'Search for a point to add',
-        });
-        await userEvent.clear(search);
-        await userEvent.type(search, `${place}{Enter}`);
-        await userEvent.click(
-            await canvas.findByRole('option', { name: option }, answer),
-        );
-        const card = within(
-            await canvas.findByRole('dialog', { name: place }, answer),
-        );
-        const add = await card
-            .findByRole(
-                'button',
-                { name: 'Add a point here' },
-                { timeout: 3000 },
-            )
-            .catch(() => null);
-
-        if (add !== null) {
-            await userEvent.click(add);
-
-            return;
-        }
-
-        await userEvent.click(card.getByRole('button', { name: 'Close' }));
-    }
-
-    throw new Error(`No road near ${place} to add a point on.`);
+    const search = await canvas.findByRole('combobox', {
+        name: 'Search for a point to add',
+    });
+    await userEvent.clear(search);
+    await userEvent.type(search, `${place}{Enter}`);
+    await userEvent.click(
+        await canvas.findByRole('option', { name: option }, answer),
+    );
+    await userEvent.click(
+        await cardButton(canvasElement, place, 'Add a point here'),
+    );
 }
 
 /**
