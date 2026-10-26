@@ -824,6 +824,70 @@ export const SearchWhileTheMapLoads: Story = {
     },
 };
 
+/**
+ * The map box changes size while a card is open, as it does when the panel beside it fills with the climb and the
+ * turns. The map shows the same place, so the card stays and still offers to start there.
+ */
+export const CardStaysWhenTheMapResizes: Story = {
+    args: { loops: 0 },
+    play: async ({ canvasElement, step }) => {
+        const canvas = within(canvasElement);
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Search for Tongerlo', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: /^Start/ }),
+            );
+            const search = await canvas.findByRole('combobox', {
+                name: 'Search for your start',
+            });
+            await userEvent.type(search, 'Tongerlo{Enter}');
+            await userEvent.click(
+                await canvas.findByRole(
+                    'option',
+                    { name: /^Tongerlo Westerlo, Antwerp, Belgium$/ },
+                    answer,
+                ),
+            );
+            await expect(
+                await within(
+                    await canvas.findByRole(
+                        'dialog',
+                        { name: 'Tongerlo' },
+                        answer,
+                    ),
+                ).findByRole('button', { name: 'Start here' }, answer),
+            ).toBeVisible();
+        });
+
+        await step('The map box shrinks, and the card stays', async () => {
+            const map =
+                canvasElement.querySelector<HTMLElement>('.maplibregl-map');
+            const height = map?.getBoundingClientRect().height ?? 0;
+            map?.style.setProperty(
+                'height',
+                `${Math.round(height * 0.8)}px`,
+                'important',
+            );
+            // The map resizes on the next frames; the card must still be there after.
+            await waitFor(
+                () =>
+                    expect(
+                        canvasElement.querySelector('canvas')?.clientHeight,
+                    ).toBe(Math.round(height * 0.8)),
+                answer,
+            );
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            await expect(
+                within(
+                    canvas.getByRole('dialog', { name: 'Tongerlo' }),
+                ).getByRole('button', { name: 'Start here' }),
+            ).toBeVisible();
+            map?.style.removeProperty('height');
+        });
+    },
+};
+
 /** Multisport draws a brick from the transition: a 40 km ride, then a 5 km run, each leg with its own climb. */
 export const Multisport: Story = {
     args: { loops: 0 },
@@ -1436,39 +1500,39 @@ async function addPoint(
     );
 }
 
+/** Build with two points from the search, drawn along the roads. */
+async function drawTwoPoints(canvasElement: HTMLElement): Promise<void> {
+    const panel = within(await panelOf(canvasElement));
+
+    await userEvent.click(panel.getByRole('tab', { name: 'Build' }));
+    await addPoint(canvasElement, 'Tongerlo', /^Tongerlo Westerlo/);
+    await addPoint(canvasElement, 'Herselt');
+    await userEvent.click(
+        panel.getByRole('button', { name: /^Draw (route|again)$/ }),
+    );
+    await waitFor(
+        () => expect(server.sent('POST', '/routes/build')).toHaveLength(1),
+        answer,
+    );
+    await waitFor(
+        () =>
+            expect(
+                panel.getByRole('button', { name: 'Draw again' }),
+            ).toBeEnabled(),
+        answer,
+    );
+}
+
 /**
- * Build keeps the roads it drew. Once a route is drawn, a new point plans only the way to it and home from it, and
- * a removed point joins only its two neighbours. Undo goes back one change at a time, Redo puts a change back, and
- * Ctrl+Z works from the keyboard. No change asks for the whole route again.
+ * Build keeps the roads it drew. Once a route is drawn, a new point plans only the way to it and home from it; the
+ * whole route is not asked for again.
  */
 export const BuildKeepsTheRoute: Story = {
     play: async ({ canvasElement, step }) => {
-        const canvas = within(canvasElement);
         const panel = within(await panelOf(canvasElement));
-        const lastChange = () =>
-            canvas.findByRole('group', { name: 'Last change' }, answer);
 
         await step('Two points, then Draw', async () => {
-            await userEvent.click(panel.getByRole('tab', { name: 'Build' }));
-            await addPoint(canvasElement, 'Tongerlo', /^Tongerlo Westerlo/);
-            await addPoint(canvasElement, 'Herselt');
-            await userEvent.click(
-                panel.getByRole('button', { name: /^Draw (route|again)$/ }),
-            );
-            await waitFor(
-                () =>
-                    expect(server.sent('POST', '/routes/build')).toHaveLength(
-                        1,
-                    ),
-                answer,
-            );
-            await waitFor(
-                () =>
-                    expect(
-                        panel.getByRole('button', { name: 'Draw again' }),
-                    ).toBeEnabled(),
-                answer,
-            );
+            await drawTwoPoints(canvasElement);
         });
 
         await step('A third point plans only its own legs', async () => {
@@ -1494,6 +1558,18 @@ export const BuildKeepsTheRoute: Story = {
                 ),
             ).toBeVisible();
         });
+    },
+};
+
+/** Build: a removed point joins its two neighbours, and only the leg between them is planned again. */
+export const BuildRemovesAPoint: Story = {
+    play: async ({ canvasElement, step }) => {
+        const canvas = within(canvasElement);
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Two points, then Draw', async () => {
+            await drawTwoPoints(canvasElement);
+        });
 
         await step(
             'Removing the first point joins its neighbours',
@@ -1505,52 +1581,63 @@ export const BuildKeepsTheRoute: Story = {
                     () =>
                         expect(
                             server.sent('POST', '/routes/reshape'),
-                        ).toHaveLength(2),
+                        ).toHaveLength(1),
                     answer,
                 );
                 await expect(
-                    server.sent('POST', '/routes/reshape')[1]?.body,
+                    server.sent('POST', '/routes/reshape')[0]?.body,
                 ).toMatchObject({ change: { kind: 'remove', index: 1 } });
-                await expect(await lastChange()).toHaveTextContent(
-                    'Point removed',
+                await expect(
+                    await canvas.findByRole(
+                        'group',
+                        { name: 'Last change' },
+                        answer,
+                    ),
+                ).toHaveTextContent('Point removed');
+                await expect(server.sent('POST', '/routes/build')).toHaveLength(
+                    1,
                 );
             },
         );
+    },
+};
+
+/**
+ * Undo in Build goes back one change at a time and Redo puts a change back, from the bar or with Ctrl+Z and
+ * Ctrl+Shift+Z. Neither asks the server for anything: the route each change drew comes back with it.
+ */
+export const UndoAndRedoInBuild: Story = {
+    play: async ({ canvasElement, step }) => {
+        const canvas = within(canvasElement);
+        const panel = within(await panelOf(canvasElement));
+        const second = () =>
+            panel.queryByRole('button', { name: 'Remove point 2' });
+
+        await step('Two points, drawn, and the first removed', async () => {
+            await drawTwoPoints(canvasElement);
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Remove point 1' }),
+            );
+            await waitFor(() => expect(second()).not.toBeInTheDocument());
+        });
 
         await step('Undo twice, then Redo once', async () => {
             await userEvent.click(canvas.getByRole('button', { name: 'Undo' }));
-            await expect(
-                await panel.findByRole('button', { name: 'Remove point 3' }),
-            ).toBeVisible();
+            await waitFor(() => expect(second()).toBeVisible(), answer);
             await userEvent.click(canvas.getByRole('button', { name: 'Undo' }));
-            await waitFor(() =>
-                expect(
-                    panel.queryByRole('button', { name: 'Remove point 3' }),
-                ).not.toBeInTheDocument(),
-            );
+            await waitFor(() => expect(second()).not.toBeInTheDocument());
             await userEvent.click(canvas.getByRole('button', { name: 'Redo' }));
-            await expect(
-                await panel.findByRole('button', { name: 'Remove point 3' }),
-            ).toBeVisible();
-            await expect(server.sent('POST', '/routes/reshape')).toHaveLength(
-                2,
-            );
+            await waitFor(() => expect(second()).toBeVisible(), answer);
         });
 
-        await step('Ctrl+Z from the keyboard', async () => {
+        await step('Ctrl+Z and Ctrl+Shift+Z from the keyboard', async () => {
             (
                 canvasElement.ownerDocument.activeElement as HTMLElement | null
             )?.blur();
             await userEvent.keyboard('{Control>}z{/Control}');
-            await waitFor(() =>
-                expect(
-                    panel.queryByRole('button', { name: 'Remove point 3' }),
-                ).not.toBeInTheDocument(),
-            );
+            await waitFor(() => expect(second()).not.toBeInTheDocument());
             await userEvent.keyboard('{Control>}{Shift>}z{/Shift}{/Control}');
-            await expect(
-                await panel.findByRole('button', { name: 'Remove point 3' }),
-            ).toBeVisible();
+            await waitFor(() => expect(second()).toBeVisible(), answer);
             await expect(server.sent('POST', '/routes/build')).toHaveLength(1);
         });
     },
