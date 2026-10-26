@@ -167,6 +167,8 @@ type Story = StoryObj<typeof meta>;
 
 /** How long to wait for the mock server, while the map loads its tiles over the same connection. */
 const answer = { timeout: 5000 };
+/** How long to wait for a save, which also draws a picture of the map. */
+const slowAnswer = { timeout: 15_000 };
 
 /** The panel, where every check of the planner happens. */
 async function panelOf(canvasElement: HTMLElement): Promise<HTMLElement> {
@@ -622,8 +624,10 @@ export const SendToDevice: Story = {
             await userEvent.click(
                 dialog.getByRole('button', { name: 'Send to Wahoo' }),
             );
+            // Saving first draws the shared link's picture of the map in the
+            // background, which takes a while on a busy CI runner.
             await expect(
-                await dialog.findByText(/In your Wahoo app/, {}, answer),
+                await dialog.findByText(/In your Wahoo app/, {}, slowAnswer),
             ).toBeVisible();
             const [saved] = server.sent('POST', '/routes/saved');
             const [sent] = server.sent('POST', /\/send\/wahoo$/);
