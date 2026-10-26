@@ -768,8 +768,10 @@ final class RouteCleanliness
         $error = abs($generatedRoute->distanceMetres - $targetMetres) / max(1, $targetMetres);
 
         // Back down the same road still loses, on a long loop as on a short one.
+        // When every loop does, the one with the least doubled road wins:
+        // each doubled kilometre weighs like being 100% off the length.
         if ($doubles) {
-            return 2 + ($doubled / 10_000) + $error;
+            return 2 + ($doubled / 1_000) + $error;
         }
 
         if ($error > 0.35) {
