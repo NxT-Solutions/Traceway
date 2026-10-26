@@ -97,6 +97,7 @@ import {
 } from '@/lib/planner-draft';
 import type { PlannerTour } from '@/lib/planner-tour';
 import {
+    legsAround,
     legsNear,
     mostLegs,
     nearestStop,
@@ -4727,11 +4728,13 @@ export default function Dashboard() {
                       ...(finished ? [start] : []),
                   ]
                 : (drawn.waypoints ?? []);
-        const onTheRoad = waypoints.some(
-            (point) => metresToLine(point, road.shape) <= 25,
-        );
+        // A stop on a road just avoided means the whole route changes. On a
+        // road let back in, a stop is fine where it is.
+        const onTheRoad =
+            change === 'avoided' &&
+            waypoints.some((point) => metresToLine(point, road.shape) <= 25);
 
-        if (mode === 'build' && onTheRoad && change === 'avoided') {
+        if (mode === 'build' && onTheRoad) {
             setMessage(
                 `A point of yours is on ${roadName(road)}. Move it off the road, and the route goes around it.`,
             );
@@ -4739,10 +4742,16 @@ export default function Dashboard() {
             return;
         }
 
-        const legs =
+        const near =
             waypoints.length < 2 || onTheRoad
                 ? null
                 : legsNear(drawn.coordinates, waypoints, road.shape);
+        // A route drawn round a road may never come near it: the legs that go
+        // round it are the ones a road let back in can shorten.
+        const legs =
+            near !== null && near.length === 0 && change === 'back'
+                ? legsAround(drawn.coordinates, waypoints, road.shape)
+                : near;
 
         if (legs !== null && legs.length === 0) {
             setMessage(

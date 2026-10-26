@@ -1228,16 +1228,14 @@ export const StopAvoiding: Story = {
     play: async ({ canvasElement, step }) => {
         const panel = within(await panelOf(canvasElement));
 
-        await expect(
-            await panel.findByText('Loop 1 of 3', {}, answer),
-        ).toBeVisible();
+        // Loops the server drew carry their stops, so only the legs by the road are planned again.
+        await drawFreshLoops(canvasElement);
 
         await step(
-            'Remove lets it back in, and the loop is planned again',
+            'Remove lets it back in, and the legs by it are planned again',
             async () => {
-                const before =
-                    server.sent('POST', '/routes/preview').length +
-                    server.sent('POST', '/routes/reshape').length;
+                const previews = server.sent('POST', '/routes/preview').length;
+                const reshapes = server.sent('POST', '/routes/reshape').length;
                 await userEvent.click(
                     panel.getByRole('button', { name: 'Remove Zandstraat' }),
                 );
@@ -1249,15 +1247,21 @@ export const StopAvoiding: Story = {
                     ),
                 ).toHaveTextContent('Zandstraat back in your plans');
                 await expect(server.avoided()).toHaveLength(0);
-                // The legs that pass the road are planned again, so the loop may use it now.
+                // The legs that go round the road are planned again, so the loop may use it now. The other
+                // loops stay.
                 await waitFor(
                     () =>
                         expect(
-                            server.sent('POST', '/routes/preview').length +
-                                server.sent('POST', '/routes/reshape').length,
-                        ).toBe(before + 1),
+                            server.sent('POST', '/routes/reshape'),
+                        ).toHaveLength(reshapes + 1),
                     answer,
                 );
+                await expect(
+                    server.sent('POST', '/routes/reshape').at(-1)?.body,
+                ).toMatchObject({ change: { kind: 'reroute' } });
+                await expect(
+                    server.sent('POST', '/routes/preview'),
+                ).toHaveLength(previews);
                 await expect(
                     panel.getByText(
                         /Avoid it, and Traceway skips it on every plan/,
