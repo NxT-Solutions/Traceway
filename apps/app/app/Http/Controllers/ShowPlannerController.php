@@ -9,6 +9,7 @@ use App\Auth\Impersonation;
 use App\Contracts\Account\UserRepository;
 use App\Domain\Routing\Sport;
 use App\Models\User;
+use App\Queries\Routes\AvoidedStretchesQuery;
 use App\Queries\Status\ServiceStatusQuery;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,9 +19,9 @@ class ShowPlannerController extends Controller
 {
     /**
      * The planner shows a rider around on their first visit. An admin acting as the rider does not use up the
-     * rider's tour.
+     * rider's tour. The roads the rider avoids are drawn on the map.
      */
-    public function __invoke(Request $request, ServiceStatusQuery $serviceStatusQuery, UserRepository $userRepository): Response
+    public function __invoke(Request $request, ServiceStatusQuery $serviceStatusQuery, UserRepository $userRepository, AvoidedStretchesQuery $avoidedStretchesQuery): Response
     {
         $user = $request->user();
 
@@ -30,6 +31,7 @@ class ShowPlannerController extends Controller
             'serviceNotice' => $serviceStatusQuery->banner(),
             'sportSurfaces' => Sport::defaultSurfaces(),
             'showTour' => ! Impersonation::active($request) && ! $userRepository->toured(new RiderId($user->id)),
+            'avoided' => $avoidedStretchesQuery->forRider($user->id),
         ]);
     }
 }

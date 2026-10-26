@@ -20,7 +20,7 @@ export interface LegalPage {
     sections: readonly LegalSection[];
 }
 
-export const legalUpdated = '23 October 2026';
+export const legalUpdated = '26 October 2026';
 
 const operator = 'NxT-Solutions, Westerlo, Belgium';
 const email = '[privacy@nxt-solutions.com](mailto:privacy@nxt-solutions.com)';
@@ -49,6 +49,7 @@ export const privacy: LegalPage = {
             items: [
                 '**Your account.** Your name, your email address, and your password, stored only as a hash that cannot be turned back into the password. An account you open with a connected account has no password until you set one. A new email you ask for waits beside the old one until you open the link sent to it, and your account keeps the old one until then. If you turn on two-step sign-in or a passkey, the secret it needs is kept too.',
                 '**Your saved routes.** The name, the sport, what you asked the planner for, the line itself, its start and finish, every leg of a multisport plan, and the climb, surfaces, turns, and stops along it. Each saved route also gets a picture of the route on the map, for shared links.',
+                '**Roads you avoid.** For each road you ask the planner to skip: a point on it, its line between the two junctions, its name and its OpenStreetMap number, and when you added it. Only your own plans skip it, and no one else sees it.',
                 '**Your watches.** The name you give a watch, a pairing code that works for 10 minutes, the key the watch uses to fetch your routes (stored only as a hash), and when it last did.',
                 '**AI assistants you connect.** Which app you connected, the sign-in keys it uses, and when they run out.',
                 '**Accounts you connect.** If you log in with, or connect, an account you have at another service, such as Google or GitHub: which service, your account number there, when you connected and when you last logged in with it, and what you allowed. With the number, it keeps the email address Google, Wahoo, Ride with GPS, or RunSignup shares, your username at GitHub or Discord, and your display name at OpenStreetMap. Only Wahoo and Ride with GPS give Traceway keys that it keeps, encrypted, to send your routes. For them, it also keeps which routes you sent there.',
@@ -156,6 +157,7 @@ export const privacy: LegalPage = {
             heading: 'How long it is kept',
             items: [
                 '**Your account and saved routes:** until you delete them, or your account.',
+                '**Roads you avoid:** until you remove them, or delete your account.',
                 '**A session:** until you log out, or 2 hours after you last used Traceway. With “Remember me”, up to 400 days.',
                 '**A pairing code:** 10 minutes.',
                 '**A connected account:** until you disconnect it, or delete your account.',
@@ -180,7 +182,7 @@ export const privacy: LegalPage = {
                 'You can see, correct, download, and delete your data yourself, in the planner:',
             ],
             items: [
-                '**See it and download it:** Settings, then Your data. The file has your account, your connected accounts, and every saved route, and a copy is emailed to you.',
+                '**See it and download it:** Settings, then Your data. The file has your account, your connected accounts, every saved route, and the roads you avoid, and a copy is emailed to you.',
                 '**Correct it:** Settings, then Profile.',
                 '**Delete it:** delete a route in your library, or your whole account under Settings, then Profile. It is deleted straight away.',
                 '**Disconnect a watch or an AI assistant:** Settings, then Devices or AI assistants.',

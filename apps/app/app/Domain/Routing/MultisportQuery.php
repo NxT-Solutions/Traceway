@@ -16,6 +16,7 @@ final readonly class MultisportQuery
 
     /**
      * @param  list<LandLeg>  $legs
+     * @param  list<AvoidedStretch>  $avoid  The stretches every land leg skips.
      */
     public function __construct(
         public Layout $layout,
@@ -23,6 +24,7 @@ final readonly class MultisportQuery
         public float $transitionLongitude,
         public array $legs,
         public ?SwimLeg $swim = null,
+        public array $avoid = [],
     ) {
         if ($this->transitionLatitude < -90 || $this->transitionLatitude > 90) {
             throw new InvalidArgumentException('Transition latitude is out of range.');
@@ -43,6 +45,22 @@ final readonly class MultisportQuery
                 }
             }
         }
+    }
+
+    /**
+     * The same plan, skipping these stretches.
+     *
+     * @param  list<AvoidedStretch>  $avoid
+     */
+    public function withAvoid(array $avoid): self
+    {
+        return new self($this->layout, $this->transitionLatitude, $this->transitionLongitude, $this->legs, $this->swim, $avoid);
+    }
+
+    /** The farthest any leg could take a rider from the transition. */
+    public function reachMetres(): int
+    {
+        return max(array_map(fn (LandLeg $landLeg): int => $landLeg->distanceMetres, $this->legs));
     }
 
     /**

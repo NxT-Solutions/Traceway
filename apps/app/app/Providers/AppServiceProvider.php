@@ -22,6 +22,7 @@ use App\Commands\AdminDeleteUserCommand;
 use App\Commands\AdminEndSessionsCommand;
 use App\Commands\AdminResetTwoFactorCommand;
 use App\Commands\AdminUpdateUserCommand;
+use App\Commands\AvoidStretchCommand;
 use App\Commands\CancelEmailChangeCommand;
 use App\Commands\ChangePasswordCommand;
 use App\Commands\ClaimDevicePairingCommand;
@@ -34,6 +35,7 @@ use App\Commands\DisconnectAppCommand;
 use App\Commands\DisconnectConnectionCommand;
 use App\Commands\ExportPersonalDataCommand;
 use App\Commands\FinishTourCommand;
+use App\Commands\ForgetAvoidedStretchCommand;
 use App\Commands\IdentifyConnectionsCommand;
 use App\Commands\LinkConnectionCommand;
 use App\Commands\LinkDeviceCommand;
@@ -77,6 +79,7 @@ use App\Contracts\Auth\Impersonator;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Contracts\Mail\AccountMailer;
 use App\Contracts\Releases\ReleaseRepository;
+use App\Contracts\Routes\AvoidedStretchRepository;
 use App\Contracts\Routes\RouteImageStore;
 use App\Contracts\Routes\SavedRouteRepository;
 use App\Contracts\Status\StatusRepository;
@@ -88,6 +91,7 @@ use App\Domain\Courses\Services\CourseServices;
 use App\Domain\Releases\ReleaseFeed;
 use App\Domain\Routing\Details\RouteDetailer;
 use App\Domain\Routing\Details\RouteDetailsSource;
+use App\Domain\Routing\EdgeFinder;
 use App\Domain\Routing\LineFollower;
 use App\Domain\Routing\PlaceFinder;
 use App\Domain\Routing\PlaceNamer;
@@ -107,6 +111,7 @@ use App\Handlers\AdminDeleteUserHandler;
 use App\Handlers\AdminEndSessionsHandler;
 use App\Handlers\AdminResetTwoFactorHandler;
 use App\Handlers\AdminUpdateUserHandler;
+use App\Handlers\AvoidStretchHandler;
 use App\Handlers\CancelEmailChangeHandler;
 use App\Handlers\ChangePasswordHandler;
 use App\Handlers\ClaimDevicePairingHandler;
@@ -119,6 +124,7 @@ use App\Handlers\DisconnectAppHandler;
 use App\Handlers\DisconnectConnectionHandler;
 use App\Handlers\ExportPersonalDataHandler;
 use App\Handlers\FinishTourHandler;
+use App\Handlers\ForgetAvoidedStretchHandler;
 use App\Handlers\IdentifyConnectionsHandler;
 use App\Handlers\LinkConnectionHandler;
 use App\Handlers\LinkDeviceHandler;
@@ -171,6 +177,7 @@ use App\Integrations\Status\ConnectIqStoreProbe;
 use App\Integrations\Status\HttpServiceProbe;
 use App\Integrations\Status\StatusConnector;
 use App\Integrations\Valhalla\ValhallaConnector;
+use App\Integrations\Valhalla\ValhallaEdgeFinder;
 use App\Integrations\Valhalla\ValhallaRoadDescriber;
 use App\Integrations\Valhalla\ValhallaRoutingEngine;
 use App\Integrations\Wahoo\WahooConnector;
@@ -186,6 +193,7 @@ use App\Repositories\DatabaseStatusRepository;
 use App\Repositories\DatabaseTrafficSnapshots;
 use App\Repositories\DatabaseUsageCounter;
 use App\Repositories\DiskRouteImageStore;
+use App\Repositories\EloquentAvoidedStretchRepository;
 use App\Repositories\EloquentConnectedAppRepository;
 use App\Repositories\EloquentConnectionRepository;
 use App\Repositories\EloquentDeviceLinkRepository;
@@ -242,6 +250,8 @@ class AppServiceProvider extends ServiceProvider
             SaveRouteCommand::class => SaveRouteHandler::class,
             ReadRouteDetailsCommand::class => ReadRouteDetailsHandler::class,
             DeleteRouteCommand::class => DeleteRouteHandler::class,
+            AvoidStretchCommand::class => AvoidStretchHandler::class,
+            ForgetAvoidedStretchCommand::class => ForgetAvoidedStretchHandler::class,
             StoreRouteImageCommand::class => StoreRouteImageHandler::class,
             DisconnectAppCommand::class => DisconnectAppHandler::class,
             StartDevicePairingCommand::class => StartDevicePairingHandler::class,
@@ -280,6 +290,8 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(UserRepository::class, EloquentUserRepository::class);
         $this->app->bind(SavedRouteRepository::class, EloquentSavedRouteRepository::class);
+        $this->app->bind(AvoidedStretchRepository::class, EloquentAvoidedStretchRepository::class);
+        $this->app->bind(EdgeFinder::class, ValhallaEdgeFinder::class);
         $this->app->bind(RouteImageStore::class, fn (): DiskRouteImageStore => new DiskRouteImageStore(Storage::disk('local')));
         $this->app->bind(ConnectedAppRepository::class, EloquentConnectedAppRepository::class);
         $this->app->bind(DeviceLinkRepository::class, EloquentDeviceLinkRepository::class);

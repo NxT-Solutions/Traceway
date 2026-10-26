@@ -19,6 +19,7 @@ final class CyclingRouteRequest extends Request
     public function __construct(
         private readonly array $coordinates,
         private readonly string $profile = 'bike',
+        private readonly bool $alternatives = false,
     ) {}
 
     public function resolveEndpoint(): string
@@ -41,6 +42,7 @@ final class CyclingRouteRequest extends Request
             'geometries' => 'geojson',
             'steps' => 'false',
             'continue_straight' => 'true',
+            'alternatives' => $this->alternatives ? 'true' : 'false',
         ];
     }
 }

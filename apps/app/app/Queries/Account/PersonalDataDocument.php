@@ -12,7 +12,7 @@ use OpenApi\Attributes\Schema;
 
 #[Schema(
     schema: 'PersonalDataDocument',
-    required: ['exported_at', 'account', 'saved_routes', 'release_notes_read', 'connections', 'withheld'],
+    required: ['exported_at', 'account', 'saved_routes', 'avoided_stretches', 'release_notes_read', 'connections', 'withheld'],
     properties: [
         new Property(property: 'exported_at', type: 'string', format: 'date-time'),
         new Property(
@@ -45,6 +45,23 @@ use OpenApi\Attributes\Schema;
             ),
         ),
         new Property(property: 'saved_routes', type: 'array', items: new Items(type: 'object')),
+        new Property(
+            property: 'avoided_stretches',
+            description: 'The roads the rider asked the planner to skip, each one way between two junctions.',
+            type: 'array',
+            items: new Items(
+                required: ['name', 'way_id', 'latitude', 'longitude', 'shape', 'created_at'],
+                properties: [
+                    new Property(property: 'name', type: 'string', nullable: true),
+                    new Property(property: 'way_id', description: 'The OpenStreetMap way.', type: 'integer', nullable: true),
+                    new Property(property: 'latitude', type: 'number'),
+                    new Property(property: 'longitude', type: 'number'),
+                    new Property(property: 'shape', ref: '#/components/schemas/CoordinateLine'),
+                    new Property(property: 'created_at', type: 'string', nullable: true),
+                ],
+                type: 'object',
+            ),
+        ),
         new Property(
             property: 'release_notes_read',
             type: 'array',
@@ -104,6 +121,7 @@ final readonly class PersonalDataDocument
      * @param  list<array{tag: string, read_at: string|null}>  $releaseNotesRead
      * @param  list<array{service: string, account_number: string|null, account: string|null, allowed: list<string>, connected_at: string|null, last_signed_in_at: string|null, last_sent_at: string|null, sent: list<array{saved_route_id: string, leg: int, url: string|null, sent_at: string|null}>}>  $connections
      * @param  list<array{action: string, at: string|null}>  $adminActions
+     * @param  list<array{name: string|null, way_id: int|null, latitude: float, longitude: float, shape: list<array{0: float, 1: float}>, created_at: string|null}>  $avoidedStretches
      */
     public function __construct(
         public string $exportedAt,
@@ -121,6 +139,7 @@ final readonly class PersonalDataDocument
         public array $adminActions = [],
         public ?string $pendingEmail = null,
         public ?string $touredAt = null,
+        public array $avoidedStretches = [],
     ) {}
 
     /**
@@ -146,6 +165,7 @@ final readonly class PersonalDataDocument
                 fn (ExportedRoute $exportedRoute): array => $exportedRoute->toArray(),
                 $this->routes,
             ),
+            'avoided_stretches' => $this->avoidedStretches,
             'release_notes_read' => $this->releaseNotesRead,
             'connections' => $this->connections,
             'admin_actions' => $this->adminActions,

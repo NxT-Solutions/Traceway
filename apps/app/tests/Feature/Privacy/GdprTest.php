@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Mail\AccountMessage;
+use App\Models\AvoidedStretch;
 use App\Models\ConnectedAccount;
 use App\Models\Release;
 use App\Models\SavedRoute;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
 
@@ -286,4 +288,49 @@ it('names the sign-up check in the privacy policy', function (): void {
     $legal = file_get_contents(dirname(base_path(), 1).'/web/src/legal.ts') ?: '';
 
     expect($legal)->toContain('checks that a person, not a script, fills in the sign-up and password reset forms');
+})->group('gdpr');
+
+it('puts the roads a person avoids in the download, and only theirs', function (): void {
+    Mail::fake();
+
+    $user = User::factory()->create(['created_at' => now()->subYear()]);
+    AvoidedStretch::factory()->for($user)->create(['name' => 'Bosweg', 'way_id' => 4242]);
+    AvoidedStretch::factory()->create(['name' => 'Somebody else']);
+
+    $document = json_decode($this->actingAs($user)->get(route('privacy.export'))->streamedContent(), associative: true);
+
+    expect($document['avoided_stretches'])->toHaveCount(1)
+        ->and($document['avoided_stretches'][0])->toMatchArray([
+            'name' => 'Bosweg',
+            'way_id' => 4242,
+            'latitude' => 51.05,
+            'longitude' => 3.722,
+            'shape' => [[3.72, 51.05], [3.724, 51.05]],
+        ]);
+})->group('gdpr');
+
+it('lists the roads a person avoids on Your data', function (): void {
+    $user = User::factory()->create();
+    AvoidedStretch::factory()->for($user)->create(['name' => 'Bosweg']);
+
+    $this->actingAs($user)
+        ->get(route('privacy.edit'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('avoided', 1)
+            ->where('avoided.0.name', 'Bosweg'));
+})->group('gdpr');
+
+it('forgets the roads a person avoids when the account is deleted', function (): void {
+    Mail::fake();
+
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+    AvoidedStretch::factory()->for($user)->create();
+    $kept = AvoidedStretch::factory()->for($other)->create();
+
+    $this->actingAs($user)->delete(route('profile.destroy'), [
+        'password' => 'password',
+    ])->assertRedirect('/');
+
+    expect(AvoidedStretch::query()->pluck('id')->all())->toBe([$kept->id]);
 })->group('gdpr');

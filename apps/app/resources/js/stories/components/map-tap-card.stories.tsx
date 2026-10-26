@@ -168,3 +168,38 @@ export const NearTheEdge: Story = {
         await expect(card.right).toBeLessThanOrEqual(map?.right ?? 0);
     },
 };
+
+/** A tap on the drawn loop can also avoid the road there, last so it is never chosen by accident. */
+export const OnTheLoop: Story = {
+    args: {
+        name: 'Netepad, Westerlo',
+        actions: [
+            { label: 'Start here', onSelect: fn() },
+            { label: 'Go via here', onSelect: fn() },
+            { label: 'Avoid this road', onSelect: fn() },
+        ],
+    },
+    play: async ({ canvas, args, userEvent }) => {
+        await userEvent.click(
+            canvas.getByRole('button', { name: 'Avoid this road' }),
+        );
+        await expect(args.actions[2]?.onSelect).toHaveBeenCalledOnce();
+    },
+};
+
+/** A tap on a road the rider avoids offers to let it back in first. */
+export const OnAnAvoidedRoad: Story = {
+    args: {
+        name: 'Zandstraat, Westerlo',
+        actions: [
+            { label: 'Stop avoiding this road', onSelect: fn() },
+            { label: 'Start here', onSelect: fn() },
+            { label: 'Go via here', onSelect: fn() },
+        ],
+    },
+    play: async ({ canvas }) => {
+        await expect(
+            canvas.getByRole('button', { name: 'Stop avoiding this road' }),
+        ).toHaveFocus();
+    },
+};

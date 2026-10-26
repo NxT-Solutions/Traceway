@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Domain\Routing\RoutingEngine;
 use App\Http\Requests\PreviewRouteRequest;
 use App\Http\Responses\RoutePreview;
+use App\Models\User;
+use App\Routes\RiderAvoids;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Attributes\JsonContent;
 use OpenApi\Attributes\Post;
@@ -49,10 +51,14 @@ class PreviewRouteController extends Controller
         description: 'No loop came back.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
-    public function __invoke(PreviewRouteRequest $previewRouteRequest, RoutingEngine $routingEngine): JsonResponse
+    public function __invoke(PreviewRouteRequest $previewRouteRequest, RoutingEngine $routingEngine, RiderAvoids $riderAvoids): JsonResponse
     {
+        $user = $previewRouteRequest->user();
+
+        abort_unless($user instanceof User, 403);
+
         try {
-            $routes = $routingEngine->candidates($previewRouteRequest->toQuery());
+            $routes = $routingEngine->candidates($riderAvoids->apply($previewRouteRequest->toQuery(), $user->id));
         } catch (Throwable $throwable) {
             report($throwable);
 

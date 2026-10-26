@@ -6,6 +6,66 @@
         "version": "1.0.0"
     },
     "paths": {
+        "/routes/avoided": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Skip a stretch of road from now on",
+                "description": "Finds the way under the point and keeps it, so every later plan skips it. The same way twice keeps the first.",
+                "operationId": "avoidStretch",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/AvoidStretchRequest"
+                },
+                "responses": {
+                    "201": {
+                        "description": "The stretch now skipped.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AvoidedStretch"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "No road or path is close enough, or the rider already skips as many stretches as allowed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "The routing engine is busy or did not answer. Try again in a moment.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
         "/routes/build": {
             "post": {
                 "tags": [
@@ -990,6 +1050,68 @@
                     },
                     "401": {
                         "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    }
+                ]
+            }
+        },
+        "/routes/avoided/{avoidedStretch}": {
+            "delete": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Stop skipping a stretch of road",
+                "description": "Later plans may use the stretch again. A stretch kept by someone else is rejected.",
+                "operationId": "forgetAvoidedStretch",
+                "parameters": [
+                    {
+                        "name": "avoidedStretch",
+                        "in": "path",
+                        "description": "The avoided stretch.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The stretch is no longer skipped."
+                    },
+                    "401": {
+                        "description": "No signed-in person.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The stretch belongs to someone else.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The stretch does not exist.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2423,6 +2545,39 @@
     },
     "components": {
         "schemas": {
+            "AvoidedStretch": {
+                "description": "A stretch of road the router skips for this rider: one way between two junctions.",
+                "required": [
+                    "id",
+                    "name",
+                    "latitude",
+                    "longitude",
+                    "shape"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "description": "The street or path name, when it has one.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "latitude": {
+                        "description": "A point on the stretch.",
+                        "type": "number"
+                    },
+                    "longitude": {
+                        "description": "A point on the stretch.",
+                        "type": "number"
+                    },
+                    "shape": {
+                        "$ref": "#/components/schemas/CoordinateLine"
+                    }
+                },
+                "type": "object"
+            },
             "BuiltRoute": {
                 "required": [
                     "distance_metres",
@@ -2432,7 +2587,8 @@
                     "finish_coordinates",
                     "user_metres",
                     "finish_metres",
-                    "legs_metres"
+                    "legs_metres",
+                    "crosses_avoided"
                 ],
                 "properties": {
                     "distance_metres": {
@@ -2460,6 +2616,14 @@
                         "type": "array",
                         "items": {
                             "type": "integer"
+                        }
+                    },
+                    "crosses_avoided": {
+                        "description": "The avoided stretches the line still rides along, by id.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
                         }
                     }
                 },
@@ -2776,6 +2940,7 @@
                     "exported_at",
                     "account",
                     "saved_routes",
+                    "avoided_stretches",
                     "release_notes_read",
                     "connections",
                     "withheld"
@@ -2864,6 +3029,45 @@
                     "saved_routes": {
                         "type": "array",
                         "items": {
+                            "type": "object"
+                        }
+                    },
+                    "avoided_stretches": {
+                        "description": "The roads the rider asked the planner to skip, each one way between two junctions.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "name",
+                                "way_id",
+                                "latitude",
+                                "longitude",
+                                "shape",
+                                "created_at"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "way_id": {
+                                    "description": "The OpenStreetMap way.",
+                                    "type": "integer",
+                                    "nullable": true
+                                },
+                                "latitude": {
+                                    "type": "number"
+                                },
+                                "longitude": {
+                                    "type": "number"
+                                },
+                                "shape": {
+                                    "$ref": "#/components/schemas/CoordinateLine"
+                                },
+                                "created_at": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
                             "type": "object"
                         }
                     },
@@ -3186,6 +3390,55 @@
             }
         },
         "requestBodies": {
+            "AvoidStretchRequest": {
+                "description": "A tapped point, and the sport and surface used to find the way under it.",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": [
+                                "latitude",
+                                "longitude",
+                                "sport"
+                            ],
+                            "properties": {
+                                "latitude": {
+                                    "type": "number",
+                                    "maximum": 90,
+                                    "minimum": -90
+                                },
+                                "longitude": {
+                                    "type": "number",
+                                    "maximum": 180,
+                                    "minimum": -180
+                                },
+                                "sport": {
+                                    "type": "string",
+                                    "enum": [
+                                        "road",
+                                        "gravel",
+                                        "mtb",
+                                        "run",
+                                        "trail_run",
+                                        "walk",
+                                        "hike"
+                                    ]
+                                },
+                                "surface": {
+                                    "description": "The route's surface. Without it, the sport's own.",
+                                    "type": "string",
+                                    "enum": [
+                                        "paved",
+                                        "mixed",
+                                        "dirt"
+                                    ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
             "BuildRouteRequest": {
                 "description": "The points to join, and how the roads should be chosen.",
                 "required": true,

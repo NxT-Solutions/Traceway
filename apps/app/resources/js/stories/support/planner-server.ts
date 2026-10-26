@@ -1,6 +1,7 @@
 import { delay, type HttpHandler, HttpResponse, http, passthrough } from 'msw';
 // Types `context.msw`, so a story can `beforeEach({ msw }) { msw.use(…) }`.
 import type {} from 'msw-storybook-addon/csf3';
+import { type AvoidedRoad, metresToLine } from '@/lib/avoided-roads';
 import { legDeviceName } from '@/lib/multisport';
 import { routeGpx } from '@/lib/route-details';
 import type { RouteServiceStatus } from '@/types/route-services';
@@ -39,6 +40,8 @@ export type PlannerServer = {
     sent: (method: string, path: string | RegExp) => PlannerRequest[];
     /** The rider's library as the server holds it now, after any save or delete. */
     library: () => SavedRoute[];
+    /** The roads the rider avoids as the server holds them now. */
+    avoided: () => AvoidedRoad[];
 };
 
 type Options = {
@@ -48,6 +51,8 @@ type Options = {
     services?: RouteServiceStatus[];
     /** How long each answer takes, in milliseconds, so a story shows its busy states. */
     latency?: number;
+    /** The roads the rider avoided before. */
+    avoided?: AvoidedRoad[];
 };
 
 const sendMessages: Record<string, string> = {
@@ -133,6 +138,12 @@ export function plannerServer(options: Options = {}): PlannerServer {
     const latency = options.latency ?? 250;
     const services = options.services ?? routeServices;
     let library = [...(options.library ?? libraryRoutes)];
+    let avoided = [...(options.avoided ?? [])];
+    let avoidedCount = 0;
+    // The loops a plan drew last, so an avoided road can be cut from the one a tap landed on.
+    let drawn: Coordinate[][] = [];
+    const usesRoad = (line: Coordinate[], road: AvoidedRoad) =>
+        metresToLine([road.longitude, road.latitude], line) < 25;
     const legLines: Record<string, Coordinate[][]> = { ...libraryLegLines };
     const requests: PlannerRequest[] = [];
 
@@ -227,6 +238,85 @@ export function plannerServer(options: Options = {}): PlannerServer {
             });
         }),
 
+        // AvoidStretchController (AvoidedStretch): the way under the tap, kept; a miss far from the Kempen.
+        http.post('/routes/avoided', async ({ request }) => {
+            const body = await read(request);
+            const point: Coordinate = [
+                number(body.longitude, westerlo.longitude),
+                number(body.latitude, westerlo.latitude),
+            ];
+
+            if (
+                metres([point, [westerlo.longitude, westerlo.latitude]]) >
+                40_000
+            ) {
+                return HttpResponse.json(
+                    {
+                        message:
+                            'No road or path is close enough there. Tap right on the road.',
+                    },
+                    { status: 422 },
+                );
+            }
+
+            const same = avoided.find(
+                (road) => metres([point, [road.longitude, road.latitude]]) < 3,
+            );
+
+            if (same !== undefined) {
+                return HttpResponse.json(same, { status: 201 });
+            }
+
+            // The stretch of a drawn loop around the tap, or a short way across it.
+            const line = drawn.find((loop) => metresToLine(point, loop) < 30);
+            const nearest = line
+                ?.map((vertex, index) => ({
+                    index,
+                    away: metres([point, vertex]),
+                }))
+                .sort((a, b) => a.away - b.away)[0];
+            const shape: Coordinate[] =
+                line !== undefined && nearest !== undefined
+                    ? line.slice(
+                          Math.max(0, nearest.index - 1),
+                          nearest.index + 2,
+                      )
+                    : [
+                          [point[0] - 0.0015, point[1]],
+                          point,
+                          [point[0] + 0.0015, point[1]],
+                      ];
+            avoidedCount += 1;
+            const road: AvoidedRoad = {
+                id: `0199f2a4-6c1b-7d3e-9a8f-${String(avoidedCount).padStart(12, '0')}`,
+                name: 'Netepad',
+                latitude: point[1],
+                longitude: point[0],
+                shape,
+            };
+            avoided = [...avoided, road];
+
+            return HttpResponse.json(road, { status: 201 });
+        }),
+
+        // ForgetAvoidedStretchController: no content, or a 404 for a road already gone.
+        http.delete('/routes/avoided/:id', async ({ request, params }) => {
+            await note(request);
+            await delay(latency);
+            const id = String(params.id);
+
+            if (!avoided.some((road) => road.id === id)) {
+                return HttpResponse.json(
+                    { message: 'Not Found' },
+                    { status: 404 },
+                );
+            }
+
+            avoided = avoided.filter((road) => road.id !== id);
+
+            return new HttpResponse(null, { status: 204 });
+        }),
+
         // SnapPointController: the point on the nearest way, or a miss far from the Kempen.
         http.post('/routes/snap', async ({ request }) => {
             const body = await read(request);
@@ -270,9 +360,21 @@ export function plannerServer(options: Options = {}): PlannerServer {
                 longitude: number(body.longitude, westerlo.longitude),
                 latitude: number(body.latitude, westerlo.latitude),
             };
-            const routes = [0, 1, 2].map((index) =>
-                previewOf(loopFrom(start, distance, index)),
-            );
+            // The loops that keep off the avoided roads first, as Valhalla leaves them out.
+            const lines = [0, 1, 2]
+                .map((index) => loopFrom(start, distance, index))
+                .sort(
+                    (a, b) =>
+                        avoided.filter((road) => usesRoad(a, road)).length -
+                        avoided.filter((road) => usesRoad(b, road)).length,
+                );
+            drawn = lines;
+            const routes = lines.map((line) => ({
+                ...previewOf(line),
+                crosses_avoided: avoided
+                    .filter((road) => usesRoad(line, road))
+                    .map((road) => road.id),
+            }));
             const [first] = routes;
 
             return HttpResponse.json({ ...first, routes });
@@ -770,6 +872,7 @@ export function plannerServer(options: Options = {}): PlannerServer {
                         : path.test(sent.path)),
             ),
         library: () => library,
+        avoided: () => avoided,
     };
 }
 

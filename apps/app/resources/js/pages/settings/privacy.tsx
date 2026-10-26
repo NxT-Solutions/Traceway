@@ -16,6 +16,11 @@ type ConnectedApp = {
     connected_at: string | null;
 };
 
+type AvoidedRoad = {
+    name: string | null;
+    created_at: string | null;
+};
+
 type StoredRoute = {
     name: string;
     sport: string;
@@ -36,10 +41,12 @@ function written(value: string | null): string {
 export default function Privacy({
     account,
     routes,
+    avoided = [],
     apps,
 }: {
     account: Account;
     routes: StoredRoute[];
+    avoided?: AvoidedRoad[];
     apps: ConnectedApp[];
 }) {
     return (
@@ -110,6 +117,27 @@ export default function Privacy({
                 </div>
 
                 <div>
+                    <h2 className="text-base font-semibold">Roads you avoid</h2>
+                    {avoided.length === 0 ? (
+                        <p className="desc">
+                            None. Tap a road on the planner map to avoid it.
+                        </p>
+                    ) : (
+                        <ul className="mt-2 space-y-2">
+                            {avoided.map((road, index) => (
+                                <li key={`${road.created_at ?? ''}-${index}`}>
+                                    {road.name ?? 'Unnamed road'}
+                                    <span className="text-muted-foreground">
+                                        {' '}
+                                        · added {written(road.created_at)}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+
+                <div>
                     <h2 className="text-base font-semibold">
                         Connected accounts
                     </h2>
@@ -124,10 +152,10 @@ export default function Privacy({
 
                 <p className="desc">
                     The download includes your account, the accounts you
-                    connected, and the full geometry of each saved route, with
-                    every leg of a multisport plan and the swim you drew. Your
-                    password and sign-in secrets stay here. A copy of the file
-                    is also sent to {account.email}.
+                    connected, the roads you avoid, and the full geometry of
+                    each saved route, with every leg of a multisport plan and
+                    the swim you drew. Your password and sign-in secrets stay
+                    here. A copy of the file is also sent to {account.email}.
                 </p>
 
                 <a className="fill" href="/settings/privacy/export">

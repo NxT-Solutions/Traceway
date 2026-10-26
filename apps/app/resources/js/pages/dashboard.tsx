@@ -23,6 +23,7 @@ import {
 } from 'react';
 import { flushSync } from 'react-dom';
 import FinishTourController from '@/actions/App/Http/Controllers/FinishTourController';
+import { AvoidedRoads } from '@/components/avoided-roads';
 import { MapSearch, type SearchAction } from '@/components/map-search';
 import { MapTapCard, type TapAction } from '@/components/map-tap-card';
 import { MultisportIcon } from '@/components/multisport-icon';
@@ -48,6 +49,16 @@ import {
 } from '@/components/ui/sheet';
 import { type ResolvedAppearance, useAppearance } from '@/hooks/use-appearance';
 import { useDragReorder } from '@/hooks/use-drag-reorder';
+import {
+    type AvoidedRoad,
+    avoidedFeatures,
+    avoidedPaint,
+    avoidRoad,
+    forgetRoad,
+    metresToLine,
+    roadAt,
+    roadName,
+} from '@/lib/avoided-roads';
 import {
     darkMapStyle,
     lightMapStyle,
@@ -140,6 +151,8 @@ type Preview = {
     user_coordinates?: Coordinate[];
     user_metres?: number;
     finish_metres?: number;
+    /** The avoided roads this line still uses, by id. */
+    crosses_avoided?: string[];
 };
 
 type BuildPoint = {
@@ -665,6 +678,59 @@ function addRouteLayers(map: maplibregl.Map, coordinates: Coordinate[]): void {
                 'icon-ignore-placement': true,
             },
         });
+    }
+}
+
+/**
+ * The roads the rider avoids, dashed over the map so they show under or
+ * beside a route. One the route still uses is drawn wider.
+ */
+function addAvoidedLayers(map: maplibregl.Map): void {
+    if (map.getSource('avoided') === undefined) {
+        map.addSource('avoided', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+        });
+    }
+
+    if (map.getLayer('avoided-casing') === undefined) {
+        map.addLayer({
+            id: 'avoided-casing',
+            type: 'line',
+            source: 'avoided',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+                'line-color': avoidedPaint.casing,
+                'line-width': ['case', ['get', 'crossing'], 9, 7],
+                'line-opacity': 0.9,
+            },
+        });
+    }
+
+    if (map.getLayer('avoided') === undefined) {
+        map.addLayer({
+            id: 'avoided',
+            type: 'line',
+            source: 'avoided',
+            layout: { 'line-cap': 'butt', 'line-join': 'round' },
+            paint: {
+                'line-color': avoidedPaint.line,
+                'line-width': ['case', ['get', 'crossing'], 5, 3.5],
+                'line-dasharray': [1.4, 1],
+            },
+        });
+    }
+}
+
+function syncAvoided(
+    map: maplibregl.Map,
+    roads: AvoidedRoad[],
+    crossing: string[],
+): void {
+    const source = map.getSource('avoided');
+
+    if (source !== undefined && source.type === 'geojson') {
+        (source as GeoJSONSource).setData(avoidedFeatures(roads, crossing));
     }
 }
 
@@ -1538,13 +1604,21 @@ export default function Dashboard() {
     const hideSnapRef = useRef<() => void>(() => {});
     const routesRef = useRef<Preview[]>([]);
     const routeIndexRef = useRef(0);
-    const { auth, serviceNotice, sportSurfaces, showTour } = usePage<{
+    const {
+        auth,
+        serviceNotice,
+        sportSurfaces,
+        showTour,
+        avoided: avoidedAtFirst,
+    } = usePage<{
         auth: { user: { id: number; name: string } };
         serviceNotice?: ServiceNoticeProps | null;
         /** The surface each sport starts on, shared with the AI connector. */
         sportSurfaces: Record<string, string>;
         /** True on a rider's first visit, until the tour ends once. */
         showTour?: boolean;
+        /** The roads the rider skips on every plan. */
+        avoided?: AvoidedRoad[];
     }>().props;
     // A notice, or a map server going down or coming back, reaches a rider
     // who keeps the planner open.
@@ -1681,6 +1755,16 @@ export default function Dashboard() {
         status: 'ready' | 'snapping' | SnapMiss;
     } | null>(null);
     const tapAskRef = useRef(0);
+    const [avoided, setAvoided] = useState<AvoidedRoad[]>(
+        () => avoidedAtFirst ?? [],
+    );
+    const avoidedRef = useRef<{ roads: AvoidedRoad[]; crossing: string[] }>({
+        roads: [],
+        crossing: [],
+    });
+    // The next tap on the map avoids the road under it.
+    const [pickingAvoid, setPickingAvoid] = useState(false);
+    const [avoidBusy, setAvoidBusy] = useState(false);
     const startAskRef = useRef(0);
     const viaAskRef = useRef(0);
     // Each drawing takes a number; Undo moves it on, so a route still on
@@ -2029,6 +2113,19 @@ export default function Dashboard() {
                   coordinates: joinedLine(plan),
               };
     const shown = multisport ? planLine : preview;
+    const crossing = useMemo(
+        () => (multisport ? [] : (preview?.crosses_avoided ?? [])),
+        [multisport, preview],
+    );
+    avoidedRef.current = { roads: avoided, crossing };
+
+    useEffect(() => {
+        const map = mapRef.current;
+
+        if (map !== null && map.getSource('avoided') !== undefined) {
+            syncAvoided(map, avoided, crossing);
+        }
+    }, [avoided, crossing]);
     const [roadDetails, setRoadDetails] = useState<RouteDetails | null>(null);
     const [stops, setStops] = useState<Stop[]>([]);
     const details = useMemo(
@@ -2382,6 +2479,12 @@ export default function Dashboard() {
                 multisportRef.current.colours,
             );
             paintArrowLines(map, arrowLinesRef.current);
+            addAvoidedLayers(map);
+            syncAvoided(
+                map,
+                avoidedRef.current.roads,
+                avoidedRef.current.crossing,
+            );
         };
 
         map.on('style.load', paintLoadedStyle);
@@ -4201,6 +4304,7 @@ export default function Dashboard() {
             routes,
             routeIndex,
             plan,
+            avoided,
         };
         setUndoHeld(false);
         setUndo({
@@ -4225,8 +4329,139 @@ export default function Dashboard() {
                 setPlan(before.plan);
                 setUndo(null);
                 setMessage('Undone.');
+                void restoreAvoided(before.avoided);
             },
         });
+    }
+
+    /**
+     * Puts the avoided roads back as they were: a road avoided since is let
+     * back in, and a road let back in since is avoided again. The routes
+     * come back with Undo, so nothing is drawn again.
+     */
+    async function restoreAvoided(before: AvoidedRoad[]): Promise<void> {
+        const now = avoidedRef.current.roads;
+        const kept = new Set(before.map((road) => road.id));
+        const still = new Set(now.map((road) => road.id));
+
+        setAvoided(before);
+
+        for (const road of now) {
+            if (!kept.has(road.id)) {
+                void forgetRoad(road.id);
+            }
+        }
+
+        for (const road of before) {
+            if (still.has(road.id)) {
+                continue;
+            }
+
+            const again = await avoidRoad(
+                [road.longitude, road.latitude],
+                sheetSport,
+                sheetSurface,
+            );
+
+            if ('id' in again) {
+                setAvoided((current) =>
+                    current.map((item) => (item.id === road.id ? again : item)),
+                );
+            }
+        }
+    }
+
+    /** Plans again what is drawn, now that the avoided roads changed. */
+    function planAroundAvoided(): void {
+        if (multisport) {
+            if (plan !== null) {
+                void drawMultisport();
+            }
+
+            return;
+        }
+
+        if (mode === 'build') {
+            if (preview !== null && buildPoints.length > 0) {
+                void drawBuild();
+            }
+
+            return;
+        }
+
+        if (routes.length > 0) {
+            void generate();
+        }
+    }
+
+    /**
+     * Skips the road under a point from now on: the way between its two
+     * junctions, for the sport and surface being planned.
+     */
+    async function avoidAt(point: Coordinate): Promise<void> {
+        setTapCard(null);
+        setPickingAvoid(false);
+        setAvoidBusy(true);
+        setMessage('Finding the road…');
+        const found = await avoidRoad(point, sheetSport, sheetSurface);
+        setAvoidBusy(false);
+
+        if (!('id' in found)) {
+            setMessage(found.message);
+
+            return;
+        }
+
+        if (avoidedRef.current.roads.some((road) => road.id === found.id)) {
+            setMessage(`You already avoid ${roadName(found)}.`);
+
+            return;
+        }
+
+        remember(`Avoiding ${roadName(found)}`);
+        setAvoided((current) => [...current, found]);
+        setMessage(
+            shown === null
+                ? `Avoiding ${roadName(found)}. Every plan skips it from now on.`
+                : `Avoiding ${roadName(found)}. Planning around it.`,
+        );
+        planAroundAvoided();
+    }
+
+    /** Lets an avoided road back into every plan. */
+    async function stopAvoiding(road: AvoidedRoad): Promise<void> {
+        setTapCard(null);
+        setAvoidBusy(true);
+        const gone = await forgetRoad(road.id);
+        setAvoidBusy(false);
+
+        if (!gone) {
+            setMessage('The map is busy. Try again in a moment.');
+
+            return;
+        }
+
+        remember(`${roadName(road)} back in your plans`);
+        setAvoided((current) => current.filter((item) => item.id !== road.id));
+        setMessage(`${roadName(road)} is back in your plans.`);
+        planAroundAvoided();
+    }
+
+    function showAvoided(road: AvoidedRoad): void {
+        const map = mapRef.current;
+        const first = road.shape[0];
+
+        if (map === null || first === undefined) {
+            return;
+        }
+
+        map.fitBounds(
+            road.shape.reduce(
+                (bounds, coordinate) => bounds.extend(coordinate),
+                new maplibregl.LngLatBounds(first, first),
+            ),
+            { padding: framePadding(), duration: 300, maxZoom: 17 },
+        );
     }
 
     /**
@@ -4821,8 +5056,35 @@ export default function Dashboard() {
             label: 'Go via here',
             onSelect: done(() => setViaPoint(point, name)),
         };
+        const tapped: TapAction[] =
+            purpose === 'via' ? [passing, start] : [start, passing];
+        const onAvoided = roadAt(point, avoided);
 
-        return purpose === 'via' ? [passing, start] : [start, passing];
+        if (onAvoided !== null) {
+            return [
+                {
+                    label: 'Stop avoiding this road',
+                    onSelect: done(() => void stopAvoiding(onAvoided)),
+                },
+                ...tapped,
+            ];
+        }
+
+        // A road the drawn loop rides can be skipped from here.
+        if (
+            preview !== null &&
+            metresToLine(point, preview.coordinates) <= 25
+        ) {
+            return [
+                ...tapped,
+                {
+                    label: 'Avoid this road',
+                    onSelect: done(() => void avoidAt(point)),
+                },
+            ];
+        }
+
+        return tapped;
     }
 
     // A card shows its actions once its spot is on a road, and a way to ask
@@ -4845,6 +5107,12 @@ export default function Dashboard() {
               : [];
 
     onMapClickRef.current = (lng, lat) => {
+        if (pickingAvoid) {
+            void avoidAt([lng, lat]);
+
+            return;
+        }
+
         if (mode === 'multisport') {
             clickMultisport(lng, lat);
 
@@ -5396,7 +5664,11 @@ export default function Dashboard() {
                                 point
                             </p>
                         ) : null}
-                        {placingVia && !mapKeyboard ? (
+                        {pickingAvoid && !mapKeyboard ? (
+                            <p className="maphint">
+                                <b>+</b> Tap the road to avoid
+                            </p>
+                        ) : placingVia && !mapKeyboard ? (
                             <p className="maphint">
                                 <b>+</b> Tap where the loop should pass
                             </p>
@@ -6345,6 +6617,23 @@ export default function Dashboard() {
                                     />
                                 </>
                             )}
+                            <AvoidedRoads
+                                roads={avoided}
+                                picking={pickingAvoid}
+                                crossing={crossing}
+                                busy={avoidBusy}
+                                onPick={(next) => {
+                                    setPickingAvoid(next);
+                                    setTapCard(null);
+                                    setMessage(
+                                        next
+                                            ? 'Tap the road to avoid on the map.'
+                                            : '',
+                                    );
+                                }}
+                                onShow={showAvoided}
+                                onRemove={(road) => void stopAvoiding(road)}
+                            />
                             <section className="result" aria-label="Result">
                                 <div className="top">
                                     <p

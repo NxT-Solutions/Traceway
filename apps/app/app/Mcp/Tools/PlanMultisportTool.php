@@ -25,6 +25,7 @@ use App\Mcp\StartPoint;
 use App\Queries\Routes\RouteDrawingQuery;
 use App\Queries\Routes\SignedRouteLink;
 use App\Routes\CoordinateLine;
+use App\Routes\RiderAvoids;
 use App\Routes\RouteName;
 use App\Routes\SavedLeg;
 use App\Routes\SavedRouteLink;
@@ -61,6 +62,7 @@ final class PlanMultisportTool extends Tool
         StartPoint $startPoint,
         DispatchesCommands $dispatchesCommands,
         RouteDrawingQuery $routeDrawingQuery,
+        RiderAvoids $riderAvoids,
     ): Response|ResponseFactory {
         $riderId = $this->riderId($request);
 
@@ -105,7 +107,7 @@ final class PlanMultisportTool extends Tool
         $pin = [$transition->longitude, $transition->latitude];
 
         try {
-            $plan = $multisportPlanner->plan(new MultisportQuery(
+            $plan = $multisportPlanner->plan($riderAvoids->applyToMultisport(new MultisportQuery(
                 Layout::Loops,
                 $transition->latitude,
                 $transition->longitude,
@@ -117,7 +119,7 @@ final class PlanMultisportTool extends Tool
                     $quiet,
                 ), $plannedLegs),
                 $swimKm === null ? null : new SwimLeg([$pin]),
-            ));
+            ), $riderId));
         } catch (Throwable) {
             return Response::error('No plan came back from that transition. Try shorter legs, or a transition closer to roads.');
         }

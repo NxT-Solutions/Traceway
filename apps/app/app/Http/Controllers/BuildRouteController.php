@@ -9,6 +9,8 @@ use App\Domain\Routing\RouteCleanliness;
 use App\Domain\Routing\RoutingEngine;
 use App\Http\Requests\BuildRouteRequest;
 use App\Http\Responses\BuiltRoute;
+use App\Models\User;
+use App\Routes\RiderAvoids;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Attributes\JsonContent;
 use OpenApi\Attributes\Post;
@@ -51,8 +53,12 @@ class BuildRouteController extends Controller
         description: 'Those points did not join along the roads.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
-    public function __invoke(BuildRouteRequest $buildRouteRequest, RoutingEngine $routingEngine): JsonResponse
+    public function __invoke(BuildRouteRequest $buildRouteRequest, RoutingEngine $routingEngine, RiderAvoids $riderAvoids): JsonResponse
     {
+        $user = $buildRouteRequest->user();
+
+        abort_unless($user instanceof User, 403);
+
         $waypoints = $buildRouteRequest->waypoints();
 
         if (count($waypoints) < 2) {
@@ -76,7 +82,8 @@ class BuildRouteController extends Controller
         $closing = null;
 
         try {
-            $through = $routingEngine->trace($buildRouteRequest->toQuery(), $waypoints);
+            $routeQuery = $riderAvoids->apply($buildRouteRequest->toQuery(), $user->id, $waypoints);
+            $through = $routingEngine->trace($routeQuery, $waypoints);
             $trimmed = RouteCleanliness::withoutSpurs($through->coordinates);
             $onThePoint = 25.0;
             $userLine = RouteCleanliness::keepingVisits($trimmed, $through->coordinates, $waypoints, $onThePoint);
@@ -89,7 +96,7 @@ class BuildRouteController extends Controller
             }
 
             if ($finish && $last !== $start) {
-                $closing = $routingEngine->closeLoop($buildRouteRequest->toQuery(), $ridden, $last, $start);
+                $closing = $routingEngine->closeLoop($routeQuery, $ridden, $last, $start);
             }
         } catch (Throwable $throwable) {
             report($throwable);
@@ -99,10 +106,9 @@ class BuildRouteController extends Controller
             ], 502);
         }
 
-        $user = $ridden;
         $tail = $closing instanceof GeneratedRoute ? $closing->coordinates : [];
-        $line = $tail === [] ? $user : array_merge($user, array_slice($tail, 1));
+        $line = $tail === [] ? $ridden : array_merge($ridden, array_slice($tail, 1));
 
-        return response()->json(BuiltRoute::from($line, $user, $finish ? $tail : null, $waypoints, $through->ascentMetres)->toArray());
+        return response()->json(BuiltRoute::from($line, $ridden, $finish ? $tail : null, $waypoints, $through->ascentMetres, $routeQuery->avoid)->toArray());
     }
 }
