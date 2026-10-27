@@ -6,6 +6,7 @@ namespace App\Integrations\Nominatim;
 
 use App\Domain\Routing\Place;
 use App\Domain\Routing\PlaceFinder;
+use App\Integrations\JsonBody;
 use App\Integrations\Nominatim\Requests\SearchRequest;
 use RuntimeException;
 
@@ -17,7 +18,7 @@ final readonly class NominatimPlaceFinder implements PlaceFinder
     {
         $response = $this->nominatimConnector->send(new SearchRequest($search));
 
-        throw_if($response->failed(), RuntimeException::class, 'The place search did not answer.');
+        throw_if($response->failed() || ! JsonBody::readable($response), RuntimeException::class, 'The place search did not answer.');
 
         $match = $response->json(0);
 

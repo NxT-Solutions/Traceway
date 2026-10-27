@@ -15,6 +15,7 @@ use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
+use App\Integrations\JsonBody;
 use App\Integrations\Osrm\Requests\CyclingRouteRequest;
 use RuntimeException;
 
@@ -213,7 +214,7 @@ final readonly class OsrmRoutingEngine implements RoutingEngine
     {
         $response = $this->osrmConnector->send(new CyclingRouteRequest($waypoints, $profile, $alternatives));
 
-        throw_if(! $response->successful() || $response->json('code') !== 'Ok', RuntimeException::class, 'The cycling router did not return a loop.');
+        throw_if(! $response->successful() || JsonBody::get($response, 'code') !== 'Ok', RuntimeException::class, 'The cycling router did not return a loop.');
 
         $routes = $response->json('routes');
         $lines = [];

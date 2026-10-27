@@ -153,3 +153,20 @@ it('asks for one line when the rider avoids nothing', function (): void {
 
     $mock->assertSent(fn (CyclingRouteRequest $cyclingRouteRequest): bool => $cyclingRouteRequest->query()->get('alternatives') === 'false');
 });
+
+it('says no loop came back when the cycling router answers with a page', function (): void {
+    $connector = new OsrmConnector('https://router.test');
+    $connector->withMockClient(new MockClient([
+        CyclingRouteRequest::class => MockResponse::make('<html><body>Please wait</body></html>', 200, ['Content-Type' => 'text/html']),
+    ]));
+
+    new OsrmRoutingEngine($connector)->route(new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 12_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+    ));
+})->throws(RuntimeException::class, 'The cycling router did not return a loop.');

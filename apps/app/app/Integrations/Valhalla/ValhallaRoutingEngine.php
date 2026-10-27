@@ -17,6 +17,7 @@ use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\ValhallaCosting;
 use App\Domain\Routing\WaypointPieces;
+use App\Integrations\JsonBody;
 use App\Integrations\Valhalla\Requests\RouteRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
 use RuntimeException;
@@ -361,9 +362,9 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
      */
     private function lineFrom(Response $response): array
     {
-        $length = $response->json('trip.summary.length');
+        $length = JsonBody::get($response, 'trip.summary.length');
         /** @var list<array{shape?: string}> $legs */
-        $legs = $response->json('trip.legs') ?? [];
+        $legs = JsonBody::get($response, 'trip.legs') ?? [];
 
         throw_if(! $response->successful() || ! is_numeric($length) || $legs === [], RuntimeException::class, 'No loop matched those filters.');
 

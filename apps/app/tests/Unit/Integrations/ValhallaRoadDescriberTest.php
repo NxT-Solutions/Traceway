@@ -160,6 +160,27 @@ it('keeps the heights when the turns do not come back', function (): void {
         ->and($roadDescription->complete)->toBeFalse();
 });
 
+it('keeps the turns and surfaces when the heights come back as a page', function (string $body): void {
+    $mock = new MockClient([
+        TraceRouteRequest::class => traceRouteResponse(),
+        TraceAttributesRequest::class => MockResponse::make(['edges' => [['surface' => 'paved', 'length' => 0.42]]], 200),
+        HeightRequest::class => MockResponse::make($body, 200, ['Content-Type' => 'text/html']),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    $roadDescription = new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Road, describedLine());
+
+    expect($roadDescription->profile)->toBe([])
+        ->and($roadDescription->cues)->not->toBe([])
+        ->and($roadDescription->surfaces[0]->surface)->toBe(RoadSurface::Paved)
+        ->and($roadDescription->complete)->toBeFalse();
+})->with([
+    'a page' => '<html><body>Please wait</body></html>',
+    'a bare string' => '"Please wait"',
+    'nothing' => '',
+]);
+
 it('fails when the server answers nothing at all', function (): void {
     $mock = new MockClient([
         TraceRouteRequest::class => MockResponse::make([], 500),

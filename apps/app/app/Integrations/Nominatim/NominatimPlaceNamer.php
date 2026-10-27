@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Integrations\Nominatim;
 
 use App\Domain\Routing\PlaceNamer;
+use App\Integrations\JsonBody;
 use App\Integrations\Nominatim\Requests\ReverseRequest;
 use RuntimeException;
 
@@ -21,7 +22,7 @@ final readonly class NominatimPlaceNamer implements PlaceNamer
     {
         $response = $this->nominatimConnector->send(new ReverseRequest($latitude, $longitude));
 
-        throw_if($response->failed(), RuntimeException::class, 'The place search did not answer.');
+        throw_if($response->failed() || ! JsonBody::readable($response), RuntimeException::class, 'The place search did not answer.');
 
         $address = $response->json('address');
 

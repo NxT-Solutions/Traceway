@@ -10,6 +10,7 @@ use App\Domain\Routing\Details\StopFinder;
 use App\Domain\Routing\Details\StopKind;
 use App\Domain\Routing\Distance;
 use App\Domain\Routing\Sport;
+use App\Integrations\JsonBody;
 use App\Integrations\OpenFreeMap\Requests\TileIndexRequest;
 use App\Integrations\OpenFreeMap\Requests\TileRequest;
 use RuntimeException;
@@ -131,7 +132,7 @@ final readonly class OpenFreeMapStopFinder implements StopFinder
     {
         $response = $this->openFreeMapConnector->send(new TileIndexRequest);
 
-        throw_if($response->failed(), RuntimeException::class, 'The map tiles did not say where they are.');
+        throw_if($response->failed() || ! JsonBody::readable($response), RuntimeException::class, 'The map tiles did not say where they are.');
 
         $template = $response->json('tiles.0');
         $path = is_string($template) ? parse_url($template, PHP_URL_PATH) : null;

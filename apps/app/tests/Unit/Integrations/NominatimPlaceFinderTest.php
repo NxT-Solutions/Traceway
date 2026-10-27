@@ -47,3 +47,11 @@ it('finds nothing when the map knows no such place', function (): void {
 it('fails loudly when the place search is down', function (): void {
     nominatim(MockResponse::make(['error' => 'busy'], 503))->find('Westerlo');
 })->throws(RuntimeException::class, 'The place search did not answer.');
+
+it('fails loudly when a page comes back instead of an answer', function (string $body): void {
+    nominatim(MockResponse::make($body, 200, ['Content-Type' => 'text/html']))->find('Westerlo');
+})->with([
+    'a page' => '<html><body>Please wait</body></html>',
+    'a bare string' => '"Please wait"',
+    'nothing' => '',
+])->throws(RuntimeException::class, 'The place search did not answer.');
