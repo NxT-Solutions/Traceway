@@ -18,6 +18,7 @@ use App\Domain\Routing\ValhallaCosting;
 use App\Integrations\Valhalla\Requests\HeightRequest;
 use App\Integrations\Valhalla\Requests\TraceAttributesRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
+use JsonException;
 use RuntimeException;
 use Saloon\Config;
 use Saloon\Exceptions\Request\RequestException;
@@ -168,10 +169,18 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
         return [$responses, $failures];
     }
 
-    /** The status of a refused request, with Valhalla's own error code when it gave one. */
+    /**
+     * The status of a refused request, with Valhalla's own error code when it
+     * gave one. A proxy in front of the server answers a busy moment with a
+     * page instead, which has no code to read.
+     */
     private function status(Response $response): string
     {
-        $code = $response->json('error_code');
+        try {
+            $code = $response->json('error_code');
+        } catch (JsonException) {
+            $code = null;
+        }
 
         return is_int($code) ? $response->status().'/'.$code : (string) $response->status();
     }
