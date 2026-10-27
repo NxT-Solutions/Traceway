@@ -206,6 +206,38 @@ it('says why, when nothing came back even the second time', function (): void {
     $mock->assertSentCount(6);
 });
 
+it('asks once more when a proxy answers for the busy server with a page', function (): void {
+    $page = '<html><head><title>502 Bad Gateway</title></head><body>nginx</body></html>';
+    $mock = new MockClient([
+        MockResponse::make($page, 502, ['Content-Type' => 'text/html']),
+        MockResponse::make($page, 502, ['Content-Type' => 'text/html']),
+        MockResponse::make($page, 502, ['Content-Type' => 'text/html']),
+        traceRouteResponse(),
+        MockResponse::make(['edges' => [['surface' => 'paved', 'length' => 0.42]]], 200),
+        MockResponse::make(['range_height' => [[0, 5], [30, 6]]], 200),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    $roadDescription = new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Road, describedLine());
+
+    expect($roadDescription->complete)->toBeTrue();
+    $mock->assertSentCount(6);
+});
+
+it('says the status when a page came back instead of an error', function (): void {
+    $mock = new MockClient([
+        TraceRouteRequest::class => MockResponse::make('<html>Bad Gateway</html>', 502, ['Content-Type' => 'text/html']),
+        TraceAttributesRequest::class => MockResponse::make('<html>Bad Gateway</html>', 502, ['Content-Type' => 'text/html']),
+        HeightRequest::class => MockResponse::make('"Gateway Timeout"', 504, ['Content-Type' => 'application/json']),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    expect(fn (): RoadDescription => new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Road, describedLine()))
+        ->toThrow(RuntimeException::class, 'The router could not describe that line (route 502, surface 502, height 504).');
+});
+
 it('does not ask again for a line the roads do not match', function (): void {
     $mock = new MockClient([
         TraceRouteRequest::class => MockResponse::make(['error_code' => 171, 'error' => 'No suitable edges near location'], 400),

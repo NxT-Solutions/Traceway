@@ -18,11 +18,13 @@ use App\Domain\Routing\ValhallaCosting;
 use App\Integrations\Valhalla\Requests\HeightRequest;
 use App\Integrations\Valhalla\Requests\TraceAttributesRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
+use JsonException;
 use RuntimeException;
 use Saloon\Config;
 use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Request;
 use Saloon\Http\Response;
+use TypeError;
 
 /**
  * Reads a finished line back from Valhalla: the turns from trace_route, the
@@ -168,10 +170,19 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
         return [$responses, $failures];
     }
 
-    /** The status of a refused request, with Valhalla's own error code when it gave one. */
+    /**
+     * The status of a refused request, with Valhalla's own error code when it
+     * gave one. A proxy in front of the server answers a busy moment with a
+     * page or a bare string instead, which has no code to read. Saloon keeps
+     * a decoded body as an array, so a string throws a TypeError.
+     */
     private function status(Response $response): string
     {
-        $code = $response->json('error_code');
+        try {
+            $code = $response->json('error_code');
+        } catch (JsonException|TypeError) {
+            $code = null;
+        }
 
         return is_int($code) ? $response->status().'/'.$code : (string) $response->status();
     }
