@@ -2068,6 +2068,13 @@ export const ServiceNotice: Story = {
         await expect(
             panel.getByRole('button', { name: /^Draw (route|again)$/ }),
         ).toBeDisabled();
+        const shuffle = panel.queryByRole('button', {
+            name: 'Shuffle: three other loops',
+        });
+
+        if (shuffle !== null) {
+            await expect(shuffle).toBeDisabled();
+        }
         await expect(
             panel.getByText(
                 /Route drawing is down\. Draw comes back by itself/,
