@@ -36,7 +36,9 @@ final class ReleaseNotesFolder
         [$fields, $body] = self::split($releaseFile, $tag.'/'.self::RELEASE_FILE);
 
         $title = $fields['title'] ?? '';
-        throw_if($title === '', InvalidArgumentException::class, $tag.'/'.self::RELEASE_FILE.' needs a title.');
+        if ($title === '') {
+            throw new InvalidArgumentException($tag.'/'.self::RELEASE_FILE.' needs a title.');
+        }
 
         $sections = self::sections($tag, $branchNotes);
         $parts = trim($body) === '' ? [] : [trim($body)];
@@ -45,7 +47,9 @@ final class ReleaseNotesFolder
             $parts[] = '## '.$section."\n\n".implode("\n", $changes);
         }
 
-        throw_if($parts === [], InvalidArgumentException::class, $tag.' has no notes for riders.');
+        if ($parts === []) {
+            throw new InvalidArgumentException($tag.' has no notes for riders.');
+        }
 
         return new Release(
             $tag,
@@ -66,8 +70,13 @@ final class ReleaseNotesFolder
         [$fields, $body] = self::split($contents, $name);
 
         $section = $fields['section'] ?? '';
-        throw_if($section === '', InvalidArgumentException::class, $name.' needs a section, such as New, Fixes, or Devices.');
-        throw_if(trim($body) === '', InvalidArgumentException::class, $name.' has no changes under its section.');
+        if ($section === '') {
+            throw new InvalidArgumentException($name.' needs a section, such as New, Fixes, or Devices.');
+        }
+
+        if (trim($body) === '') {
+            throw new InvalidArgumentException($name.' has no changes under its section.');
+        }
 
         $known = array_values(array_filter(self::SECTIONS, fn (string $known): bool => strcasecmp($known, $section) === 0));
 
@@ -112,7 +121,9 @@ final class ReleaseNotesFolder
      */
     public static function releaseFile(string $title, ?string $summary): string
     {
-        throw_if(trim($title) === '', InvalidArgumentException::class, 'A release needs a title for riders.');
+        if (trim($title) === '') {
+            throw new InvalidArgumentException('A release needs a title for riders.');
+        }
 
         $lines = ['---', 'title: '.self::oneLine($title)];
 

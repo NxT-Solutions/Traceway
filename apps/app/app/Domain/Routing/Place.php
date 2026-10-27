@@ -16,7 +16,12 @@ final readonly class Place
         public float $latitude,
         public float $longitude,
     ) {
-        throw_if($this->latitude < -90 || $this->latitude > 90, InvalidArgumentException::class, 'Latitude must be between -90 and 90.');
-        throw_if($this->longitude < -180 || $this->longitude > 180, InvalidArgumentException::class, 'Longitude must be between -180 and 180.');
+        if ($this->latitude < -90 || $this->latitude > 90) {
+            throw new InvalidArgumentException('Latitude must be between -90 and 90.');
+        }
+
+        if ($this->longitude < -180 || $this->longitude > 180) {
+            throw new InvalidArgumentException('Longitude must be between -180 and 180.');
+        }
     }
 }

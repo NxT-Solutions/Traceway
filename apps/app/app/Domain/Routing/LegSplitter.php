@@ -33,7 +33,9 @@ final class LegSplitter
      */
     public static function cuts(array $line, array $waypoints): array
     {
-        throw_if(count($line) < 2, InvalidArgumentException::class, 'A line needs at least two points.');
+        if (count($line) < 2) {
+            throw new InvalidArgumentException('A line needs at least two points.');
+        }
 
         $last = count($line) - 1;
         $cuts = [];

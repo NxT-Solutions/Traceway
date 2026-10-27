@@ -41,4 +41,4 @@ Add the command, the handler, and one line in the bus map. Add a query when a sc
 
 An event log can sit behind a handler later. Controllers stay on the bus. Do not add one until a feature needs replay.
 
-The current map is `references/map.md`. The layer rules are `phparkitect.php`. Run `vendor/bin/phparkitect check` after a new command, handler, or query. `rector.php` must stay a clean dry run. Domain code keeps `throw new` and `time()`. It does not call Laravel helpers.
+The current map is `references/map.md`. The layer rules are the Pest arch tests in `tests/Arch`. Run `vendor/bin/pest --testsuite=Arch` after a new command, handler, or query. `rector.php` must stay a clean dry run. Domain code keeps `throw new` and `time()`. It does not call Laravel helpers.

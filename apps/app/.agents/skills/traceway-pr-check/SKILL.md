@@ -15,7 +15,7 @@ Commands run from the repo root unless they say otherwise. In a worktree, DDEV s
 ddev exec -d /var/www/html/apps/app composer ci:check
 ```
 
-Rector, Pint, PHPArkitect, the Blade formatter, PHPStan, Biome, tsc, and Pest. In a worktree whose `node_modules` came from macOS, Biome and tsc fail inside the container for that reason alone; run `bun run check` and `bun run types:check` from `apps/app` on the host instead. A violation from PHPArkitect is a design problem, not a formatting one: move the class or change the port, do not loosen the rule.
+Rector, Pint, the Pest arch tests, the Blade formatter, PHPStan, Biome, tsc, and Pest. In a worktree whose `node_modules` came from macOS, Biome and tsc fail inside the container for that reason alone; run `bun run check` and `bun run types:check` from `apps/app` on the host instead. A failing arch test in `tests/Arch` is a design problem, not a formatting one: move the class or change the port, do not loosen the rule.
 
 New behaviour needs a Pest test, and a fixed bug needs a test that fails without the fix. Check that it does.
 

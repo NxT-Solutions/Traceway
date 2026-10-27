@@ -27,9 +27,17 @@ final readonly class AvoidedStretch
         public Sport $sport = Sport::Road,
         public Surface $surface = Surface::Paved,
     ) {
-        throw_if($this->latitude < -90 || $this->latitude > 90, InvalidArgumentException::class, 'An avoided stretch has a latitude out of range.');
-        throw_if($this->longitude < -180 || $this->longitude > 180, InvalidArgumentException::class, 'An avoided stretch has a longitude out of range.');
-        throw_if(count($this->shape) < 2, InvalidArgumentException::class, 'An avoided stretch needs a line of two points or more.');
+        if ($this->latitude < -90 || $this->latitude > 90) {
+            throw new InvalidArgumentException('An avoided stretch has a latitude out of range.');
+        }
+
+        if ($this->longitude < -180 || $this->longitude > 180) {
+            throw new InvalidArgumentException('An avoided stretch has a longitude out of range.');
+        }
+
+        if (count($this->shape) < 2) {
+            throw new InvalidArgumentException('An avoided stretch needs a line of two points or more.');
+        }
     }
 
     /** Whether a plan for the sport can be sent this stretch. */

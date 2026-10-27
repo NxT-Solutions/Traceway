@@ -18,7 +18,6 @@ return RectorConfig::configure()
         __DIR__.'/database',
         __DIR__.'/routes',
         __DIR__.'/tests',
-        __DIR__.'/phparkitect.php',
     ])
     ->withSkip([
         __DIR__.'/bootstrap/cache',

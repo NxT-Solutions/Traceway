@@ -17,7 +17,7 @@ Traceway plans routes for any sport and exports them as course files for a watch
 - Route geometry comes from the routing engine. An LLM does not emit coordinates.
 - A device name is 1 to 15 characters.
 - Do not use Strava orange, their wordmark, the chevron mark, or the words beacon, kudos, segment, or suffer.
-- Biome formats JavaScript. Pint formats PHP. Blade formatter formats Blade. PHPStan runs at level max with strict rules on. PHPArkitect checks `apps/app/phparkitect.php`. Rector checks `apps/app/rector.php`.
+- Biome formats JavaScript. Pint formats PHP. Blade formatter formats Blade. PHPStan runs at level max with strict rules on. Pest arch tests in `apps/app/tests/Arch` check the layers. Rector checks `apps/app/rector.php`.
 
 ## Storybook and the design system
 

@@ -2,21 +2,58 @@
 
 declare(strict_types=1);
 
-arch('domain does not reach http, eloquent, or integrations')
+arch('sport rules and course files stay free of HTTP, Eloquent, Saloon, and the application layers')
     ->expect('App\Domain')
-    ->not->toUse([
-        'Saloon',
-        'App\Integrations',
-        'App\Models',
-        'Illuminate\Http',
-        'Illuminate\Database\Eloquent',
-    ]);
+    ->toOnlyUse('App\Domain');
 
-arch('integrations do not reach http controllers')
-    ->expect('App\Integrations')
-    ->not->toUse('App\Http\Controllers');
-
-arch('domain types stay final')
+arch('a domain class is closed. Enums and the routing port stay as they are')
     ->expect('App\Domain')
     ->classes()
     ->toBeFinal();
+
+arch('an integration speaks Saloon and returns domain types')
+    ->expect('App\Integrations')
+    ->toOnlyUse([
+        'App\Domain',
+        'App\Integrations',
+        ...vendorNamespaces('Saloon'),
+    ])
+    ->ignoring(['throw_if', 'throw_unless']);
+
+arch('a connector, request, and routing engine are closed adapters')
+    ->expect('App\Integrations')
+    ->classes()
+    ->toBeFinal();
+
+arch('a contract is a port. It does not know Eloquent, HTTP, or a concrete adapter')
+    ->expect('App\Contracts')
+    ->toOnlyUse([
+        'App\Contracts',
+        'App\Commands',
+        'App\Account',
+        'App\Routes',
+    ]);
+
+arch('the sign-in adapter returns identities. Controllers decide what to do with them')
+    ->expect('App\Auth\Connections')
+    ->not->toUse([
+        'App\Http',
+        'App\Handlers',
+        'App\Repositories',
+        ...vendorNamespaces('Saloon'),
+    ]);
+
+arch('outbound HTTP is a Saloon connector under App\Integrations')
+    ->expect('App')
+    ->not->toUse(vendorNamespaces('Saloon'))
+    ->ignoring(within('App\Integrations'));
+
+arch('logging in with another service is a Socialite handshake in App\Auth\Connections')
+    ->expect('App')
+    ->not->toUse(vendorNamespaces('Laravel\Socialite', 'SocialiteProviders', 'GuzzleHttp'))
+    ->ignoring(within('App\Auth\Connections', 'App\Providers'));
+
+arch('Eloquent stays on the models. A query uses the query builder')
+    ->expect('App')
+    ->not->toUse('Illuminate\Database\Eloquent')
+    ->ignoring(within('App\Models', 'App\Repositories'));

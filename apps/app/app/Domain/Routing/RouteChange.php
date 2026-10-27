@@ -51,7 +51,9 @@ final readonly class RouteChange
      */
     public static function reroute(array $legs): self
     {
-        throw_if($legs === [], InvalidArgumentException::class, 'A reroute needs a leg.');
+        if ($legs === []) {
+            throw new InvalidArgumentException('A reroute needs a leg.');
+        }
 
         return new self(RouteChangeKind::Reroute, legs: array_values(array_unique($legs)));
     }
