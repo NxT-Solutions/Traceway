@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\GeneratedRoute;
+use App\Domain\Routing\LengthBias;
 use App\Domain\Routing\RouteCleanliness;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
@@ -50,6 +51,48 @@ it('cuts a same-street turnaround out of the line', function (): void {
     expect($trimmed)->not->toContain([4.8635, 51.090])
         ->and($trimmed[0])->toBe([4.860, 51.090])
         ->and(array_last($trimmed))->toBe([4.862, 51.0885]);
+});
+
+it('cuts a small knot tied in the road, and carries on from where it closed', function (): void {
+    // 7 km east along one road, with an 800 m triangle tied in it halfway.
+    $line = lineThrough([
+        [4.0, 51.0], [4.05, 51.0], [4.052, 50.998], [4.048, 50.998], [4.05, 51.0], [4.1, 51.0],
+    ]);
+
+    $trimmed = RouteCleanliness::withoutKnots($line);
+
+    expect(min(array_column($trimmed, 1)))->toBeGreaterThan(50.9999)
+        ->and($trimmed[0])->toBe([4.0, 51.0])
+        ->and(array_last($trimmed))->toBe([4.1, 51.0]);
+});
+
+it('drops a lasso: the road out, the knot at its end, and the road back', function (): void {
+    // A 20 km square, with a 500 m road south off its bottom side and a small triangle at the end of it.
+    $line = lineThrough([
+        [4.0, 51.0], [4.035, 51.0], [4.035, 50.9955], [4.039, 50.9935], [4.031, 50.9935], [4.035, 50.9955],
+        [4.035, 51.0], [4.07, 51.0], [4.07, 51.045], [4.0, 51.045], [4.0, 51.0],
+    ]);
+
+    expect(min(array_column(RouteCleanliness::withoutSpurs($line), 1)))->toBeGreaterThan(50.9998);
+});
+
+it('cuts a knot far north, where a degree of longitude is short', function (): void {
+    // A road at Tromsø with a 430 m triangle tied in it, closing 19 m east of where it opened.
+    $line = lineThrough([
+        [19.0, 69.65], [19.05, 69.65], [19.052, 69.649], [19.048, 69.649], [19.0505, 69.65], [19.1, 69.65],
+    ]);
+
+    // The knot reached 110 m south. What is left closes within KNOT_METRES of the road.
+    expect(min(array_column(RouteCleanliness::withoutKnots($line), 1)))->toBeGreaterThan(69.6498);
+});
+
+it('keeps a lobe too long to be a knot', function (): void {
+    // The same road, with a 5 km lobe south of it: a figure of eight, not a knot.
+    $line = lineThrough([
+        [4.0, 51.0], [4.05, 51.0], [4.07, 50.985], [4.03, 50.985], [4.05, 51.0], [4.1, 51.0],
+    ]);
+
+    expect(RouteCleanliness::withoutKnots($line))->toBe($line);
 });
 
 it('drops the finish when it rides back along the opening road', function (): void {
@@ -276,7 +319,7 @@ it('picks the clean loop closest to the asked distance', function (): void {
     expect(RouteCleanliness::cleanest([$short, $close], 20_000)?->distanceMetres)->toBe(19_400);
 });
 
-it('offers another forward loop instead of a same-road turn-back', function (): void {
+it('offers other forward loops before a same-road turn-back', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
@@ -306,13 +349,11 @@ it('offers another forward loop instead of a same-road turn-back', function (): 
         [4.32, 51.32],
         [4.3, 51.32],
         [4.3, 51.3],
-    ], 12_600, 0);
+    ], 18_200, 0);
 
     $offered = RouteCleanliness::diverse([$turnBack, $forward, $shorter], 20_000);
 
-    expect($offered)->toHaveCount(2)
-        ->and($offered[0]->distanceMetres)->toBe(19_400)
-        ->and($offered[1]->distanceMetres)->toBe(12_600);
+    expect(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, $offered))->toBe([19_400, 18_200, 15_100]);
 });
 
 it('rejects a clean loop that is twice the requested length', function (): void {
@@ -374,7 +415,7 @@ it('counts a long road to the loop past the way home', function (): void {
     expect(RouteCleanliness::doubledMetres($line))->toBeGreaterThan(RouteCleanliness::DOUBLED_METRES);
 });
 
-it('drops a long loop that rides 2 km back down one road, however small a share that is', function (): void {
+it('ranks a long loop that rides 2 km back down one road last, however small a share that is', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
@@ -407,7 +448,7 @@ it('drops a long loop that rides 2 km back down one road, however small a share 
 
     expect(RouteCleanliness::reverseShare($doubled))->toBeLessThan(0.12)
         ->and(RouteCleanliness::cleanest([$turnBack, $loop], 44_000)?->distanceMetres)->toBe(40_000)
-        ->and(RouteCleanliness::diverse([$turnBack, $loop], 44_000))->toHaveCount(1);
+        ->and(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, RouteCleanliness::diverse([$turnBack, $loop], 44_000)))->toBe([40_000, 44_000]);
 });
 
 it('measures the ride home the same however densely the road is drawn', function (): void {
@@ -488,6 +529,220 @@ it('picks the loop with the least road ridden twice when every loop rides back',
     ]), 46_000, 0);
 
     expect(RouteCleanliness::cleanest([$more, $less], 46_000)?->distanceMetres)->toBe(44_000);
+});
+
+it('allows 15% off a short loop and a smaller share of a longer one', function (int $kilometres, float $tolerance): void {
+    expect(RouteCleanliness::lengthTolerance($kilometres * 1_000))->toEqualWithDelta($tolerance, 1.0);
+})->with([
+    '5 km' => [5, 750.0],
+    '10 km' => [10, 1_500.0],
+    '20 km' => [20, 2_236.0],
+    '60 km' => [60, 3_873.0],
+    '100 km' => [100, 5_000.0],
+    '200 km' => [200, 7_071.0],
+]);
+
+it('offers the loops within the tolerance of a 30 km run first, then the next closest', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Run,
+        shape: Shape::Loop,
+        distanceMetres: 30_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    $loops = array_map(
+        fn (int $metres, float $east): GeneratedRoute => new GeneratedRoute($query, [
+            [$east, 51.0], [$east + 0.02, 51.0], [$east + 0.02, 51.02], [$east, 51.02], [$east, 51.0],
+        ], $metres, 0),
+        [29_000, 19_900, 25_400, 27_300],
+        [4.0, 4.1, 4.2, 4.3],
+    );
+
+    $offered = RouteCleanliness::diverse($loops, 30_000);
+
+    expect(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, $offered))->toBe([29_000, 27_300, 25_400]);
+});
+
+it('offers the loops of a long ride within 5 km of 100 km first', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 100_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    $loops = array_map(
+        fn (int $metres, float $east): GeneratedRoute => new GeneratedRoute($query, [
+            [$east, 51.0], [$east + 0.02, 51.0], [$east + 0.02, 51.02], [$east, 51.02], [$east, 51.0],
+        ], $metres, 0),
+        [99_000, 93_800, 104_600, 85_000],
+        [4.0, 4.1, 4.2, 4.3],
+    );
+
+    $offered = RouteCleanliness::diverse($loops, 100_000);
+
+    expect(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, $offered))->toBe([99_000, 104_600, 93_800]);
+});
+
+it('does not let a flatter loop win by coming out further off than a loop may', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 100_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Minimize,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    // 8 km long and dead flat, against right on the length and 15 m a kilometre.
+    $flat = new GeneratedRoute($query, [[4.1, 51.0], [4.12, 51.0], [4.12, 51.02], [4.1, 51.02], [4.1, 51.0]], 108_000, 0);
+    $hilly = new GeneratedRoute($query, [[4.0, 51.0], [4.02, 51.0], [4.02, 51.02], [4.0, 51.02], [4.0, 51.0]], 100_000, 1_500);
+
+    expect(RouteCleanliness::cleanest([$flat, $hilly], 100_000)?->distanceMetres)->toBe(100_000);
+});
+
+it('offers three loops through a via point that reach it from different sides', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 40_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    // Each goes out a different way, passes the via at the top halfway round, and comes home another way.
+    $loops = array_map(
+        fn (float $west, float $east, int $metres): GeneratedRoute => new GeneratedRoute($query, lineThrough([
+            [4.0, 51.0], [$west, 51.05], [4.0, 51.1], [$east, 51.05], [4.0, 51.0],
+        ]), $metres, 0),
+        [3.9, 3.95, 4.05],
+        [4.1, 4.15, 3.85],
+        [40_000, 40_400, 39_600],
+    );
+
+    expect(RouteCleanliness::diverse($loops, 40_000))->toHaveCount(3);
+});
+
+it('keeps a most or a least before the closest length', function (LengthBias $lengthBias, array $offered): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 100_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+        lengthBias: $lengthBias,
+    );
+    $loops = array_map(
+        fn (int $metres, float $east): GeneratedRoute => new GeneratedRoute($query, [
+            [$east, 51.0], [$east + 0.02, 51.0], [$east + 0.02, 51.02], [$east, 51.02], [$east, 51.0],
+        ], $metres, 0),
+        [100_400, 97_000, 103_500, 92_000],
+        [4.0, 4.1, 4.2, 4.3],
+    );
+
+    expect(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, RouteCleanliness::diverse($loops, 100_000)))->toBe($offered);
+})->with([
+    'closest' => [LengthBias::Closest, [100_400, 97_000, 103_500]],
+    // Under it first, then the closest of what is over.
+    'at most' => [LengthBias::AtMost, [97_000, 92_000, 100_400]],
+    'at least' => [LengthBias::AtLeast, [100_400, 103_500, 97_000]],
+]);
+
+it('aims a most a little under the length and a least a little over', function (LengthBias $lengthBias, int $aimed): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 100_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+        lengthBias: $lengthBias,
+    );
+
+    expect(RouteCleanliness::aimMetres($query))->toBe($aimed);
+})->with([
+    'closest' => [LengthBias::Closest, 100_000],
+    'at most' => [LengthBias::AtMost, 97_500],
+    'at least' => [LengthBias::AtLeast, 102_500],
+]);
+
+it('still offers the best loop when every loop is far off the length', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Run,
+        shape: Shape::Loop,
+        distanceMetres: 30_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    $loop = new GeneratedRoute($query, [[4.0, 51.0], [4.02, 51.0], [4.02, 51.02], [4.0, 51.02], [4.0, 51.0]], 19_900, 0);
+
+    expect(RouteCleanliness::diverse([$loop], 30_000))->toBe([$loop]);
+});
+
+it('picks the flatter loop for flat and the hillier one for hilly', function (ElevationBias $elevationBias, int $chosenAscent): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 40_000,
+        surface: Surface::Paved,
+        elevation: $elevationBias,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    // The hilly loop is right on the length and climbs 15 m a kilometre. The flat one is 5% long and climbs 2.
+    $hilly = new GeneratedRoute($query, [[4.0, 51.0], [4.02, 51.0], [4.02, 51.02], [4.0, 51.02], [4.0, 51.0]], 40_000, 600);
+    $flat = new GeneratedRoute($query, [[4.1, 51.0], [4.12, 51.0], [4.12, 51.02], [4.1, 51.02], [4.1, 51.0]], 42_000, 84);
+
+    expect(RouteCleanliness::cleanest([$flat, $hilly], 40_000)?->ascentMetres)->toBe($chosenAscent);
+})->with([
+    'flat' => [ElevationBias::Minimize, 84],
+    'neutral' => [ElevationBias::Neutral, 600],
+    'hilly' => [ElevationBias::Maximize, 600],
+]);
+
+it('measures the flattest among loops near the length, so one far off it cannot flip the pick', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 40_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Minimize,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    $flatter = new GeneratedRoute($query, [[4.0, 51.0], [4.02, 51.0], [4.02, 51.02], [4.0, 51.02], [4.0, 51.0]], 41_000, 300);
+    $hillier = new GeneratedRoute($query, [[4.1, 51.0], [4.12, 51.0], [4.12, 51.02], [4.1, 51.02], [4.1, 51.0]], 40_000, 500);
+    // 15 km short and dead flat: with it as the bar, both loops near the length would climb too much to tell apart.
+    $farOff = new GeneratedRoute($query, [[4.2, 51.0], [4.22, 51.0], [4.22, 51.02], [4.2, 51.02], [4.2, 51.0]], 25_000, 20);
+
+    expect(RouteCleanliness::cleanest([$hillier, $flatter, $farOff], 40_000)?->ascentMetres)->toBe(300);
+});
+
+it('lets the climb pick only among loops near the length', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 40_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Minimize,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    // A dead flat loop half the length loses to a steep one on it.
+    $steep = new GeneratedRoute($query, [[4.0, 51.0], [4.02, 51.0], [4.02, 51.02], [4.0, 51.02], [4.0, 51.0]], 40_000, 2_000);
+    $short = new GeneratedRoute($query, [[4.1, 51.0], [4.12, 51.0], [4.12, 51.02], [4.1, 51.02], [4.1, 51.0]], 20_000, 0);
+
+    expect(RouteCleanliness::cleanest([$short, $steep], 40_000)?->distanceMetres)->toBe(40_000);
 });
 
 /**

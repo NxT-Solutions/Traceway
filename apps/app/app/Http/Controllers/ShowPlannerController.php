@@ -31,6 +31,7 @@ class ShowPlannerController extends Controller
 
         return Inertia::render('dashboard', [
             'serviceNotice' => $serviceStatusQuery->banner(),
+            'routingDown' => $serviceStatusQuery->routingDown(),
             'sportSurfaces' => Sport::defaultSurfaces(),
             'showTour' => ! Impersonation::active($request) && ! $userRepository->toured(new RiderId($user->id)),
             'avoided' => $avoidedStretchesQuery->forRider($user->id),

@@ -10,6 +10,8 @@ final readonly class RouteQuery
 {
     /**
      * @param  list<AvoidedStretch>  $avoid  The stretches the rider asked the router to skip.
+     * @param  LengthBias  $lengthBias  Whether the length is a target, a most, or a least.
+     * @param  int  $turnDegrees  How far round the directions a loop is tried in are turned, so Shuffle finds other loops.
      */
     public function __construct(
         public Sport $sport,
@@ -23,7 +25,13 @@ final readonly class RouteQuery
         public ?float $viaLongitude = null,
         public bool $preferQuiet = false,
         public array $avoid = [],
+        public LengthBias $lengthBias = LengthBias::Closest,
+        public int $turnDegrees = 0,
     ) {
+        if ($this->turnDegrees < 0 || $this->turnDegrees > 359) {
+            throw new InvalidArgumentException('A turn is 0 to 359 degrees.');
+        }
+
         if ($this->distanceMetres < 1_000 || $this->distanceMetres > 300_000) {
             throw new InvalidArgumentException('Distance must be between 1 km and 300 km.');
         }
@@ -72,6 +80,8 @@ final readonly class RouteQuery
             viaLongitude: $this->viaLongitude,
             preferQuiet: $this->preferQuiet,
             avoid: $avoid,
+            lengthBias: $this->lengthBias,
+            turnDegrees: $this->turnDegrees,
         );
     }
 }

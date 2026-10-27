@@ -35,7 +35,7 @@ it('draws a loop from a valhalla trip', function (): void {
     $mock = new MockClient([
         RouteRequest::class => MockResponse::make([
             'trip' => [
-                'summary' => ['length' => 19.4],
+                'summary' => ['length' => 19.9],
                 'legs' => [['shape' => $shape]],
             ],
         ], 200),
@@ -53,11 +53,12 @@ it('draws a loop from a valhalla trip', function (): void {
         startLongitude: 3.72,
     ));
 
-    expect($route->distanceMetres)->toBe(19400)
+    expect($route->distanceMetres)->toBe(19900)
         ->and($route->coordinates[0][0])->toEqualWithDelta(3.72, 0.00001)
         ->and($route->waypoints)->toHaveCount(5)
         ->and($route->waypoints[0])->toBe([3.72, 51.05])
-        ->and($mock->getRecordedResponses())->toHaveCount(6);
+        // Every direction drew the same loop, so the six between them are tried too.
+        ->and($mock->getRecordedResponses())->toHaveCount(12);
 });
 
 it('leaves out a loop the router answered with a page, and draws one of the others', function (): void {
@@ -255,6 +256,197 @@ it('keeps the start and the finish of a loop facing their own ways', function ()
 
     expect($locations[0]['heading'] ?? null)->toBe(90)
         ->and(array_last($locations)['heading'] ?? null)->toBe(45);
+});
+
+/**
+ * A router that draws each loop straight through the points it was asked
+ * for, and says it is as long as the next length given. Every body it was
+ * sent is kept.
+ *
+ * @param  list<float>  $kilometres  The lengths of the first loops; each after them is 20 km.
+ * @param  list<array<string, mixed>>  $bodies
+ */
+function loopsOfLength(array $kilometres, array &$bodies): ValhallaConnector
+{
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient(new MockClient([
+        RouteRequest::class => function (PendingRequest $pendingRequest) use ($kilometres, &$bodies): MockResponse {
+            /** @var array{locations: list<array{lon: float, lat: float}>} $body */
+            $body = $pendingRequest->body()?->all();
+            $length = $kilometres[count($bodies)] ?? 20.0;
+            $bodies[] = $body;
+            $line = array_map(fn (array $location): array => [$location['lon'], $location['lat']], $body['locations']);
+
+            return MockResponse::make(['trip' => ['summary' => ['length' => $length], 'legs' => [['shape' => Polyline::encode($line)]]]], 200);
+        },
+    ]));
+
+    return $connector;
+}
+
+function twentyKilometreLoop(): RouteQuery
+{
+    return new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 20_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+    );
+}
+
+/**
+ * How far the farthest point of a loop's request is from its start, in metres.
+ *
+ * @param  array<string, mixed>  $body
+ */
+function reach(array $body): float
+{
+    /** @var list<array{lon: float, lat: float}> $locations */
+    $locations = $body['locations'] ?? [];
+
+    return max(array_map(fn (array $location): float => Distance::metres([3.72, 51.05], [$location['lon'], $location['lat']]), $locations));
+}
+
+it('aims a loop that came out short again on a bigger circle', function (): void {
+    $bodies = [];
+
+    $route = new ValhallaRoutingEngine(loopsOfLength(array_fill(0, 6, 14.0), $bodies))->route(twentyKilometreLoop());
+
+    // 14 km for 20 km: each circle grows by 20 / 14.
+    expect($bodies)->toHaveCount(12)
+        ->and(reach($bodies[6]) / reach($bodies[0]))->toEqualWithDelta(20 / 14, 0.05)
+        ->and($route->distanceMetres)->toBe(20_000);
+});
+
+it('asks again only in the directions that came out far off the length', function (): void {
+    $bodies = [];
+
+    $route = new ValhallaRoutingEngine(loopsOfLength([14.0, 14.0, 14.0, 14.0, 14.0, 19.9], $bodies))->route(twentyKilometreLoop());
+
+    expect($bodies)->toHaveCount(11)
+        ->and($route->distanceMetres)->toBeIn([19_900, 20_000]);
+});
+
+it('turns every direction a loop is tried in when the rider shuffles', function (): void {
+    $straight = [];
+    $turned = [];
+    $query = twentyKilometreLoop();
+
+    new ValhallaRoutingEngine(loopsOfLength(array_fill(0, 6, 19.9), $straight))->candidates($query);
+    new ValhallaRoutingEngine(loopsOfLength(array_fill(0, 6, 19.9), $turned))->candidates(new RouteQuery(
+        sport: $query->sport,
+        shape: $query->shape,
+        distanceMetres: $query->distanceMetres,
+        surface: $query->surface,
+        elevation: $query->elevation,
+        startLatitude: $query->startLatitude,
+        startLongitude: $query->startLongitude,
+        turnDegrees: 23,
+    ));
+
+    /** @var list<array{lon: float, lat: float}> $first */
+    $first = $straight[0]['locations'] ?? [];
+    /** @var list<array{lon: float, lat: float}> $shuffled */
+    $shuffled = $turned[0]['locations'] ?? [];
+
+    // The same loops, each with its points turned round the start.
+    expect($turned)->toHaveCount(count($straight))
+        ->and($shuffled[1] ?? null)->not->toBe($first[1] ?? null)
+        ->and(Distance::metres([3.72, 51.05], [$shuffled[1]['lon'] ?? 0.0, $shuffled[1]['lat'] ?? 0.0]))
+        ->toEqualWithDelta(Distance::metres([3.72, 51.05], [$first[1]['lon'] ?? 0.0, $first[1]['lat'] ?? 0.0]), 50.0);
+});
+
+it('asks nothing again when three loops are already on the length', function (): void {
+    $bodies = [];
+
+    $routes = new ValhallaRoutingEngine(loopsOfLength(array_fill(0, 6, 19.9), $bodies))->candidates(twentyKilometreLoop());
+
+    expect($bodies)->toHaveCount(6)
+        ->and($routes)->toHaveCount(3);
+});
+
+it('asks for the heights along a loop and climbs them', function (): void {
+    $bodies = [];
+    $mock = new MockClient([
+        RouteRequest::class => function (PendingRequest $pendingRequest) use (&$bodies): MockResponse {
+            $bodies[] = $pendingRequest->body()?->all();
+
+            return MockResponse::make(['trip' => [
+                'summary' => ['length' => 19.4],
+                'legs' => [[
+                    'shape' => Polyline::encode([[3.72, 51.05], [3.8, 51.08], [3.72, 51.05]]),
+                    'elevation_interval' => 30.0,
+                    // 60 m up over a kilometre, and back down.
+                    'elevation' => [...array_map(fn (int $index): float => $index * 1.8, range(0, 33)), ...array_map(fn (int $index): float => 60 - $index * 1.8, range(0, 33))],
+                ]],
+            ]], 200);
+        },
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    $route = new ValhallaRoutingEngine($connector)->route(new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 20_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Minimize,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+    ));
+
+    expect($bodies[0]['elevation_interval'] ?? null)->toBe(30)
+        ->and($route->ascentMetres)->toBeGreaterThan(50)->toBeLessThan(62);
+});
+
+it('climbs nothing on a loop whose heights did not come back', function (): void {
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient(new MockClient([
+        RouteRequest::class => MockResponse::make(['trip' => [
+            'summary' => ['length' => 19.4],
+            'legs' => [['shape' => Polyline::encode([[3.72, 51.05], [3.8, 51.08], [3.72, 51.05]]), 'elevation' => [10.0, 'none', 30.0]]],
+        ]], 200),
+    ]));
+
+    $route = new ValhallaRoutingEngine($connector)->route(new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 20_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Minimize,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+    ));
+
+    expect($route->ascentMetres)->toBe(0);
+});
+
+it('asks for no heights along a built route', function (): void {
+    $bodies = [];
+    $mock = new MockClient([
+        RouteRequest::class => function (PendingRequest $pendingRequest) use (&$bodies): MockResponse {
+            $bodies[] = $pendingRequest->body()?->all();
+
+            return MockResponse::make(['trip' => ['summary' => ['length' => 1.0], 'legs' => [['shape' => Polyline::encode([[4.0, 51.0], [4.01, 51.0]])]]]], 200);
+        },
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    new ValhallaRoutingEngine($connector)->trace(new RouteQuery(
+        sport: Sport::Run,
+        shape: Shape::Loop,
+        distanceMetres: 5_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Minimize,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    ), [[4.0, 51.0], [4.01, 51.0]]);
+
+    expect($bodies[0] ?? [])->not->toHaveKey('elevation_interval');
 });
 
 it('leaves the avoided stretches out of a built route', function (): void {

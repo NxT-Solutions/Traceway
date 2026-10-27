@@ -44,6 +44,20 @@ it('rejects a distance outside the planning range', function (int $distanceMetre
     'too long' => [300_001],
 ]);
 
+it('turns the directions by 0 to 359 degrees', function (int $turnDegrees, bool $kept): void {
+    $make = fn (): RouteQuery => new RouteQuery(Sport::Road, Shape::Loop, 40_000, Surface::Paved, ElevationBias::Neutral, 51.05, 3.72, turnDegrees: $turnDegrees);
+
+    $kept
+        ? expect($make()->turnDegrees)->toBe($turnDegrees)
+        : expect($make)->toThrow(InvalidArgumentException::class);
+})->with([
+    'none' => [0, true],
+    'a shuffle' => [23, true],
+    'almost round' => [359, true],
+    'all the way round' => [360, false],
+    'backwards' => [-1, false],
+]);
+
 it('rejects a start pin off the map', function (float $latitude, float $longitude): void {
     expect(fn (): RouteQuery => query(latitude: $latitude, longitude: $longitude))->toThrow(InvalidArgumentException::class);
 })->with([

@@ -3974,6 +3974,21 @@
                                         "quiet",
                                         "any"
                                     ]
+                                },
+                                "turn": {
+                                    "description": "Degrees to turn the directions the loops are tried in, so a shuffle finds other loops. Defaults to 0.",
+                                    "type": "integer",
+                                    "maximum": 359,
+                                    "minimum": 0
+                                },
+                                "length_bias": {
+                                    "description": "Whether the length is a target (closest), a most (at_most), or a least (at_least). Defaults to closest.",
+                                    "type": "string",
+                                    "enum": [
+                                        "closest",
+                                        "at_most",
+                                        "at_least"
+                                    ]
                                 }
                             },
                             "type": "object"

@@ -157,6 +157,43 @@ test('the map tells the rider when route drawing is down, and says nothing when 
         ->where('serviceNotice.title', 'We are moving to a new map server tonight'));
 });
 
+test('the planner stops offering Draw only while route drawing is down', function (): void {
+    $user = User::factory()->create();
+    $routingDown = fn (): bool => (bool) $this->actingAs($user)->get('/dashboard')->viewData('page')['props']['routingDown'];
+
+    $this->app->instance(ServiceProbes::class, fakeProbes(allUp()));
+    $this->artisan('status:check');
+
+    expect($routingDown())->toBeFalse();
+
+    // Slow still draws, and another service being down does not stop it.
+    $this->travel(5)->minutes();
+    $this->app->instance(ServiceProbes::class, fakeProbes([...allUp(), 'routing' => ServiceState::Slow, 'places' => ServiceState::Down]));
+    $this->artisan('status:check');
+
+    expect($routingDown())->toBeFalse();
+
+    $this->travel(5)->minutes();
+    $this->app->instance(ServiceProbes::class, fakeProbes([...allUp(), 'routing' => ServiceState::Down]));
+    $this->artisan('status:check');
+
+    expect($routingDown())->toBeTrue();
+
+    // A check gone stale says nothing: Draw comes back rather than stay off.
+    $this->travel(2)->hours();
+
+    expect($routingDown())->toBeFalse();
+
+    // An open notice about route drawing holds it off, until it is closed.
+    $this->artisan('status:notice', ['title' => 'Moving the map server', '--component' => ['routing']]);
+
+    expect($routingDown())->toBeTrue();
+
+    $this->artisan('status:resolve');
+
+    expect($routingDown())->toBeFalse();
+});
+
 test('the checks run every five minutes', function (): void {
     $this->artisan('schedule:list')->expectsOutputToContain('status:check');
 });

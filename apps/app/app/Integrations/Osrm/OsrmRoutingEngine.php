@@ -69,7 +69,7 @@ final readonly class OsrmRoutingEngine implements RoutingEngine
                         $routeQuery->startLatitude,
                         $routeQuery->startLongitude,
                         $routeQuery->distanceMetres,
-                        $bearing,
+                        fmod($bearing + $routeQuery->turnDegrees, 360.0),
                         $routeQuery->viaLatitude,
                         $routeQuery->viaLongitude,
                     ),

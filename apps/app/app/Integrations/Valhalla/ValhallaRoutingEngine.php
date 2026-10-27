@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Integrations\Valhalla;
 
+use App\Domain\Routing\Details\Climb;
+use App\Domain\Routing\Details\ProfilePoint;
 use App\Domain\Routing\Distance;
 use App\Domain\Routing\FollowPoint;
 use App\Domain\Routing\GeneratedRoute;
@@ -28,6 +30,18 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
 {
     /** The public server matches at most about this much of a line at once. */
     private const int MAX_MATCH_METRES = 150_000;
+
+    /** The directions a loop is first tried in, a sixth of a turn apart. */
+    private const array BEARINGS = [12.0, 72.0, 132.0, 192.0, 252.0, 312.0];
+
+    /** The size of the first circle each loop is tried on. See LoopWaypoints::around(). */
+    private const float FIRST_SCALE = 0.95;
+
+    /** How far round from each of BEARINGS the directions halfway between them are. */
+    private const float BETWEEN_DEGREES = 30.0;
+
+    /** A loop's heights come back with its line, one every this many metres, so loops can be ranked by their climb. */
+    private const int HEIGHT_METRES = 30;
 
     /**
      * @param  int  $maxRequestMetres  The straight-line span one request may cover. The public
@@ -71,20 +85,55 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             return [$this->fetch($routeQuery, $waypoints)];
         }
 
-        $scale = 0.95;
-        $found = $this->loops($routeQuery, $scale, 4, offsetCenter: true);
-        $best = RouteCleanliness::cleanest($found, $routeQuery->distanceMetres);
+        $target = $routeQuery->distanceMetres;
+        $tolerance = RouteCleanliness::lengthTolerance($target);
+        // A most or a least aims a little inside it. See RouteCleanliness::aimMetres().
+        $aimed = RouteCleanliness::aimMetres($routeQuery);
+        $firstScale = self::FIRST_SCALE * $aimed / $target;
+        $first = $this->loops($routeQuery, array_fill_keys(array_keys(self::BEARINGS), $firstScale));
+        $found = array_values($first);
+        $best = RouteCleanliness::cleanest($found, $target);
+        $aims = [];
 
-        if ($best instanceof GeneratedRoute && $best->distanceMetres > 0) {
-            $error = abs($best->distanceMetres - $routeQuery->distanceMetres) / $routeQuery->distanceMetres;
+        foreach ($first as $index => $route) {
+            $aims[$index] = $this->aim($firstScale, $route, $aimed);
+        }
 
-            if ($error > 0.10) {
-                $adjusted = min(1.45, max(0.5, $scale * ($routeQuery->distanceMetres / $best->distanceMetres)));
-                $found = array_merge($found, $this->loops($routeQuery, $adjusted, 4, offsetCenter: true));
+        // The roads one way may wind more than the roads another, so each
+        // direction is aimed again on its own: its circle grows or shrinks by
+        // how far its loop came out off the length. A direction already close
+        // keeps its loop. This runs when the best loop is not close, or when
+        // there are not yet three loops on the length to choose from.
+        if ($best instanceof GeneratedRoute && (abs($best->distanceMetres - $aimed) > $tolerance / 2 || count(RouteCleanliness::diverse($found, $target, fill: false)) < 3)) {
+            $scales = [];
+
+            foreach ($first as $index => $route) {
+                if (abs($route->distanceMetres - $aimed) > $tolerance / 4) {
+                    $scales[$index] = $aims[$index];
+                }
+            }
+
+            foreach ($this->loops($routeQuery, $scales) as $index => $route) {
+                $found[] = $route;
+                $aims[$index] = $this->aim($scales[$index] ?? $firstScale, $route, $aimed);
             }
         }
 
-        $diverse = RouteCleanliness::diverse($found, $routeQuery->distanceMetres);
+        // Still fewer than three loops on the length: the six directions
+        // halfway between are tried too, each on the circle its two
+        // neighbours were aimed at.
+        if ($found !== [] && count(RouteCleanliness::diverse($found, $target, fill: false)) < 3) {
+            $between = [];
+
+            foreach (array_keys(self::BEARINGS) as $index) {
+                $near = array_values(array_filter([$aims[$index] ?? null, $aims[($index + 1) % count(self::BEARINGS)] ?? null], is_float(...)));
+                $between[$index] = $near === [] ? $firstScale : array_sum($near) / count($near);
+            }
+
+            $found = array_merge($found, array_values($this->loops($routeQuery, $between, self::BETWEEN_DEGREES)));
+        }
+
+        $diverse = RouteCleanliness::diverse($found, $target);
 
         throw_if($diverse === [], RuntimeException::class, 'No loop matched those filters.');
 
@@ -92,28 +141,46 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
     }
 
     /**
-     * @return list<GeneratedRoute>
+     * The circle a direction should be tried on to land on the length, from
+     * the circle it was tried on and how long its loop came out.
      */
-    private function loops(RouteQuery $routeQuery, float $radiusScale, int $stops, bool $offsetCenter): array
+    private function aim(float $scale, GeneratedRoute $generatedRoute, int $targetMetres): float
+    {
+        if ($generatedRoute->distanceMetres <= 0) {
+            return $scale;
+        }
+
+        return min(1.45, max(0.5, $scale * ($targetMetres / $generatedRoute->distanceMetres)));
+    }
+
+    /**
+     * A loop for each direction given, by its index in BEARINGS turned by
+     * $turn degrees and by the rider's shuffle, each on a circle of its own
+     * scale.
+     *
+     * @param  array<int, float>  $scales
+     * @return array<int, GeneratedRoute>
+     */
+    private function loops(RouteQuery $routeQuery, array $scales, float $turn = 0.0): array
     {
         $plans = [];
 
-        foreach ([12.0, 72.0, 132.0, 192.0, 252.0, 312.0] as $bearing) {
+        foreach ($scales as $index => $scale) {
             $plans[] = ['waypoints' => LoopWaypoints::around(
                 $routeQuery->startLatitude,
                 $routeQuery->startLongitude,
                 $routeQuery->distanceMetres,
-                $bearing,
+                fmod((self::BEARINGS[$index] ?? 0.0) + $turn + $routeQuery->turnDegrees, 360.0),
                 $routeQuery->viaLatitude,
                 $routeQuery->viaLongitude,
-                $radiusScale,
-                $stops,
-                $offsetCenter,
+                $scale,
+                4,
+                offsetCenter: true,
             )];
         }
 
         // A direction that does not fit, or that the server did not answer, is skipped.
-        return array_values(array_filter($this->routeAll($routeQuery, $plans)));
+        return array_filter(array_combine(array_keys($scales), $this->routeAll($routeQuery, $plans)));
     }
 
     /**
@@ -248,11 +315,11 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
                     mustVisit: $plan['mustVisit'] ?? false,
                     viaRadius: $plan['viaRadius'] ?? null,
                     headings: $headings[$pieceIndex] ?? null,
-                ));
+                ) + ($routeQuery->shape === Shape::Loop ? ['elevation_interval' => self::HEIGHT_METRES] : []));
             }
         }
 
-        /** @var array<string, array{coordinates: list<array{0: float, 1: float}>, metres: int}> $lines */
+        /** @var array<string, array{coordinates: list<array{0: float, 1: float}>, metres: int, heights: list<float>|null}> $lines */
         $lines = [];
 
         if ($requests !== []) {
@@ -277,6 +344,7 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
         foreach ($pieceCounts as $planIndex => $count) {
             $coordinates = [];
             $metres = 0;
+            $heights = [];
 
             for ($pieceIndex = 0; $pieceIndex < $count; $pieceIndex++) {
                 $line = $lines[$planIndex.':'.$pieceIndex] ?? null;
@@ -289,9 +357,11 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
 
                 $coordinates = $coordinates === [] ? $line['coordinates'] : array_merge($coordinates, array_slice($line['coordinates'], 1));
                 $metres += $line['metres'];
+                // A piece without heights leaves the whole line's climb unknown.
+                $heights = $heights === null || $line['heights'] === null ? null : array_merge($heights, $line['heights']);
             }
 
-            $routes[] = $coordinates === null || $coordinates === [] ? null : $this->routeOf($routeQuery, $coordinates, $metres, $plans[$planIndex]['waypoints'] ?? []);
+            $routes[] = $coordinates === null || $coordinates === [] ? null : $this->routeOf($routeQuery, $coordinates, $metres, $plans[$planIndex]['waypoints'] ?? [], $heights ?? []);
         }
 
         return $routes;
@@ -358,17 +428,18 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
     }
 
     /**
-     * @return array{coordinates: list<array{0: float, 1: float}>, metres: int}
+     * @return array{coordinates: list<array{0: float, 1: float}>, metres: int, heights: list<float>|null}
      */
     private function lineFrom(Response $response): array
     {
         $length = JsonBody::get($response, 'trip.summary.length');
-        /** @var list<array{shape?: string}> $legs */
+        /** @var list<array{shape?: string, elevation?: mixed}> $legs */
         $legs = JsonBody::get($response, 'trip.legs') ?? [];
 
         throw_if(! $response->successful() || ! is_numeric($length) || $legs === [], RuntimeException::class, 'No loop matched those filters.');
 
         $coordinates = [];
+        $heights = [];
 
         foreach ($legs as $leg) {
             $shape = $leg['shape'] ?? '';
@@ -378,21 +449,55 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             }
 
             $coordinates = array_merge($coordinates, Polyline::decode($shape));
+            $elevation = $leg['elevation'] ?? null;
+
+            if (! is_array($elevation)) {
+                $heights = null;
+            }
+
+            // One height that is not a number leaves the whole line's climb unknown.
+            foreach (is_array($elevation) ? $elevation : [] as $height) {
+                if ($heights === null || ! is_numeric($height)) {
+                    $heights = null;
+
+                    break;
+                }
+
+                $heights[] = (float) $height;
+            }
         }
 
         throw_if($coordinates === [], RuntimeException::class, 'The router returned an empty line.');
 
-        return ['coordinates' => $coordinates, 'metres' => (int) round(((float) $length) * 1000)];
+        return ['coordinates' => $coordinates, 'metres' => (int) round(((float) $length) * 1000), 'heights' => $heights === [] ? null : $heights];
     }
 
     /**
+     * The climb is of the line as routed. A spur trimmed off it afterwards
+     * may have climbed a little, which only adds to that loop's climb.
+     *
      * @param  list<array{0: float, 1: float}>  $coordinates
      * @param  list<array{0: float, 1: float}>  $waypoints
+     * @param  list<float>  $heights  The ground every HEIGHT_METRES along the line; none when they did not come back.
      */
-    private function routeOf(RouteQuery $routeQuery, array $coordinates, int $distanceMetres, array $waypoints = []): GeneratedRoute
+    private function routeOf(RouteQuery $routeQuery, array $coordinates, int $distanceMetres, array $waypoints = [], array $heights = []): GeneratedRoute
     {
+        $profile = array_map(
+            fn (int $index, float $height): ProfilePoint => new ProfilePoint($index * self::HEIGHT_METRES, $height),
+            array_keys($heights),
+            $heights,
+        );
+
         if ($routeQuery->shape === Shape::Loop) {
             $trimmed = RouteCleanliness::withoutSpurs($coordinates);
+            $via = $routeQuery->viaLatitude === null || $routeQuery->viaLongitude === null ? null : [$routeQuery->viaLongitude, $routeQuery->viaLatitude];
+
+            // A knot or a spur the line ties at the via point is how it gets
+            // there, so it stays. A via pin off the road, which the line never
+            // reached, does not stop the rest being cleaned.
+            if ($via !== null) {
+                $trimmed = RouteCleanliness::keepingVisits($trimmed, $coordinates, [$via]);
+            }
 
             if ($trimmed !== $coordinates) {
                 $coordinates = $trimmed;
@@ -404,7 +509,7 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             query: $routeQuery,
             coordinates: $coordinates,
             distanceMetres: $distanceMetres,
-            ascentMetres: 0,
+            ascentMetres: Climb::ascent(Climb::smooth($profile)),
             waypoints: $waypoints,
         );
     }
