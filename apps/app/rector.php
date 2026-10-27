@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Rector\Carbon\Rector\FuncCall\DateFuncCallToCarbonRector;
 use Rector\Carbon\Rector\FuncCall\TimeFuncCallToCarbonRector;
-use Rector\CodingStyle\Rector\PostInc\PostIncDecToPreIncDecRector;
 use Rector\Config\RectorConfig;
 use RectorLaravel\Rector\ArrayDimFetch\ServerVariableToRequestFacadeRector;
 use RectorLaravel\Rector\FuncCall\ThrowIfAndThrowUnlessExceptionsToUseClassStringRector;
@@ -31,12 +30,15 @@ return RectorConfig::configure()
         ThrowIfAndThrowUnlessExceptionsToUseClassStringRector::class => [__DIR__.'/app/Domain'],
         TimeFuncCallToCarbonRector::class => [__DIR__.'/app/Domain'],
         DateFuncCallToCarbonRector::class => [__DIR__.'/app/Domain'],
-        // Pint's increment style owns ++ and --. Rector would undo it on every run.
-        PostIncDecToPreIncDecRector::class,
         // The router stub runs under php -S with no framework, so it reads $_SERVER itself.
         ServerVariableToRequestFacadeRector::class => [__DIR__.'/tests/Browser'],
     ])
     ->withCache('/tmp/rector')
+    // Rector 2.8's parallel workers stop on routes/console.php with
+    // "array_merge(): Argument #2 must be of type array, ClosureType given";
+    // one process reads it fine, in about a minute from a cold cache. Turn
+    // parallel back on once a release no longer does.
+    ->withoutParallel()
     ->withImportNames()
     ->withPhpSets(php85: true)
     ->withComposerBased(laravel: true, phpunit: true)
