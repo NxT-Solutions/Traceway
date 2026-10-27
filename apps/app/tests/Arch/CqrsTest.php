@@ -11,10 +11,14 @@ arch('a command carries value objects. It does not touch the database, a facade,
         'App\Domain',
     ]);
 
-arch('a command is closed and does not change after it is built')
+arch('a command is not a base class')
     ->expect('App\Commands')
     ->classes()
-    ->toBeFinal()
+    ->toBeFinal();
+
+arch('a command does not change after it is built')
+    ->expect('App\Commands')
+    ->classes()
     ->toBeReadonly();
 
 arch('a command is named for the write. Results live in App\Routes')
@@ -41,7 +45,7 @@ arch('a handler talks to contracts. Repositories persist, the mailer sends, and 
         'App\Repositories',
         'Illuminate\Database\Eloquent',
         'Illuminate\Support\Facades',
-        'Saloon',
+        ...vendorNamespaces('Saloon'),
     ]);
 
 arch('only the service provider wires a handler. Callers dispatch a command')
@@ -66,7 +70,7 @@ arch('a query uses the query builder and returns arrays or a readonly DTO')
         'App\Integrations',
         'App\Mail',
         'Illuminate\Database\Eloquent',
-        'Saloon',
+        ...vendorNamespaces('Saloon'),
     ]);
 
 arch('the bus maps a command class to a handler class. The provider owns that map')
@@ -77,10 +81,14 @@ arch('the bus maps a command class to a handler class. The provider owns that ma
     ])
     ->ignoring(['throw_if', 'throw_unless']);
 
-arch('there is one command bus, and its handler map does not change after registration')
+arch('there is one command bus')
     ->expect('App\Bus')
     ->classes()
-    ->toBeFinal()
+    ->toBeFinal();
+
+arch('the handler map does not change after registration')
+    ->expect('App\Bus')
+    ->classes()
     ->toBeReadonly();
 
 arch('callers use the DispatchesCommands contract. The provider builds the concrete bus')
@@ -102,7 +110,7 @@ arch('a repository persists. It does not mail, route, or render')
         'App\Http',
         'App\Mail',
         'App\Integrations',
-        'Saloon',
+        ...vendorNamespaces('Saloon'),
     ]);
 
 arch('handlers depend on the repository contract. Only the provider chooses the Eloquent adapter')

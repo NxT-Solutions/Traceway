@@ -34,7 +34,7 @@ arch('Fortify actions validate and dispatch. The handler writes the row')
         'App\Integrations',
         'App\Mail',
         'Illuminate\Database\Eloquent',
-        'Saloon',
+        ...vendorNamespaces('Saloon'),
     ]);
 
 arch('mail renders a Maizzle template. The handler decides when it is sent')
@@ -47,7 +47,7 @@ arch('mail renders a Maizzle template. The handler decides when it is sent')
         'App\Queries',
         'App\Domain',
         'App\Integrations',
-        'Saloon',
+        ...vendorNamespaces('Saloon'),
     ]);
 
 arch('a notification only swaps the Fortify mail body for the Traceway template')
@@ -58,5 +58,5 @@ arch('a notification only swaps the Fortify mail body for the Traceway template'
         'App\Http',
         'App\Queries',
         'App\Integrations',
-        'Saloon',
+        ...vendorNamespaces('Saloon'),
     ]);

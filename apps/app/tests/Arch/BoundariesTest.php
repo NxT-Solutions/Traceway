@@ -16,9 +16,9 @@ arch('an integration speaks Saloon and returns domain types')
     ->toOnlyUse([
         'App\Domain',
         'App\Integrations',
-        'Saloon',
+        ...vendorNamespaces('Saloon'),
     ])
-    ->ignoring(['throw_if', 'throw_unless', 'value']);
+    ->ignoring(['throw_if', 'throw_unless']);
 
 arch('a connector, request, and routing engine are closed adapters')
     ->expect('App\Integrations')
@@ -40,21 +40,17 @@ arch('the sign-in adapter returns identities. Controllers decide what to do with
         'App\Http',
         'App\Handlers',
         'App\Repositories',
-        'Saloon',
+        ...vendorNamespaces('Saloon'),
     ]);
 
 arch('outbound HTTP is a Saloon connector under App\Integrations')
     ->expect('App')
-    ->not->toUse('Saloon')
+    ->not->toUse(vendorNamespaces('Saloon'))
     ->ignoring('App\Integrations');
 
 arch('logging in with another service is a Socialite handshake in App\Auth\Connections')
     ->expect('App')
-    ->not->toUse([
-        'Laravel\Socialite',
-        'SocialiteProviders',
-        'GuzzleHttp',
-    ])
+    ->not->toUse(vendorNamespaces('Laravel\Socialite', 'SocialiteProviders', 'GuzzleHttp'))
     ->ignoring([
         'App\Auth\Connections',
         'App\Providers',

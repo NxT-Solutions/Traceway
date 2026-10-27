@@ -8,4 +8,4 @@ Before changing a save, update, delete, export, or a screen that reads account o
 
 Dispatch one readonly command for a write. Read screens with `DB::table` in `App\Queries`. Do not call `Model::create()`, `update()`, or `delete()` from a controller for a fact that already has a command. Do not load `SavedRoute` to render a page. Do not store a password or a two-factor secret anywhere except the user columns Fortify already uses.
 
-The Pest arch tests in `tests/Arch` are the layer check. `composer architecture` must pass. Add an `arch()` test there when a new boundary should hold. Pest does not read docblocks, so a type named only in a docblock is not checked.
+The Pest arch tests in `tests/Arch` are the layer check. `composer architecture` must pass. Add an `arch()` test there when a new boundary should hold. Name a vendor through `vendorNamespaces()` in `tests/Pest.php`, which lists every Composer prefix under it. Pest does not read docblocks, so a type named only in a docblock is not checked.
