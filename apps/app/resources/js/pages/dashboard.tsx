@@ -7,6 +7,7 @@ import {
     Footprints,
     LocateFixed,
     Mountain,
+    Shuffle,
     Waves,
     X,
 } from 'lucide-react';
@@ -263,6 +264,9 @@ type SportOption = {
     group: 'Foot' | 'Bike';
 };
 
+/** The sport sheet gets a search box once it lists more sports than this. */
+const sportSearchFrom = 10;
+
 const sports: SportOption[] = [
     {
         value: 'run',
@@ -317,14 +321,45 @@ const elevations = [
     {
         value: 'minimize',
         label: 'Flat',
-        copy: 'Avoid climbing where the roads allow.',
+        copy: 'Of the loops near your length, the one that climbs least.',
     },
     {
         value: 'maximize',
         label: 'Hilly',
-        copy: 'No extra push round climbs. A steep one still counts as slow.',
+        copy: 'Of the loops near your length, the one that climbs most.',
     },
 ] as const;
+
+const lengthBiases = [
+    {
+        value: 'closest',
+        label: 'Close to it',
+        copy: 'A little over or under, as near as the roads allow.',
+    },
+    {
+        value: 'at_most',
+        label: 'At most',
+        copy: 'Never longer. Loops come out at or under it.',
+    },
+    {
+        value: 'at_least',
+        label: 'At least',
+        copy: 'Never shorter. Loops come out at or over it.',
+    },
+] as const;
+
+/** What the Length row says for a length and how strictly it is kept. */
+function lengthText(kilometres: number, bias: string): string {
+    if (bias === 'at_most') {
+        return `Up to ${kilometres} km`;
+    }
+
+    if (bias === 'at_least') {
+        return `At least ${kilometres} km`;
+    }
+
+    return `${kilometres} km`;
+}
 
 const surfaces = [
     {
@@ -1108,6 +1143,8 @@ type SavedPlanner = {
     elevation: string;
     shape: string;
     roads?: string;
+    /** Absent in drafts saved before the length could be a most or a least. */
+    lengthBias?: string;
     mapStyle: string;
     /**
      * Set once the map style can follow the appearance. Older saves stored
@@ -1443,18 +1480,22 @@ function bindLengthField(node: HTMLInputElement | null): void {
 
 function LengthEditor({
     initialKm,
+    initialBias,
     onApply,
     onShortest,
-    note = 'Whole kilometres from 5 to 200. Loops land within a few kilometres of this. The three closest are kept.',
+    note = 'Whole kilometres from 5 to 200. Loops land within a few kilometres of this, and a long ride is held closer.',
 }: {
     initialKm: number;
-    onApply: (kilometres: number) => void;
+    /** How strictly a loop keeps the length. A multisport leg has no choice. */
+    initialBias?: string;
+    onApply: (kilometres: number, bias: string) => void;
     /** Offered for a chained leg, which can take the shortest way instead. */
     onShortest?: () => void;
     note?: string;
 }) {
     const field = useRef<HTMLInputElement>(null);
     const committed = useRef(initialKm);
+    const [bias, setBias] = useState(initialBias ?? 'closest');
 
     function read(): number {
         const raw = field.current?.value.trim() ?? '';
@@ -1513,7 +1554,7 @@ function LengthEditor({
                                 }
 
                                 event.preventDefault();
-                                onApply(commit());
+                                onApply(commit(), bias);
                             }}
                         />
                         <b>km</b>
@@ -1521,6 +1562,19 @@ function LengthEditor({
                 </div>
             </div>
             <p className="small">{note}</p>
+            {initialBias === undefined ? null : (
+                <ChoiceList label="Keep the length">
+                    {lengthBiases.map((option) => (
+                        <RadioRow
+                            key={option.value}
+                            label={option.label}
+                            copy={option.copy}
+                            selected={bias === option.value}
+                            onSelect={() => setBias(option.value)}
+                        />
+                    ))}
+                </ChoiceList>
+            )}
             <div className="foot">
                 {onShortest === undefined ? (
                     <button
@@ -1542,7 +1596,7 @@ function LengthEditor({
                 <button
                     type="button"
                     className="outline sm"
-                    onClick={() => onApply(commit())}
+                    onClick={() => onApply(commit(), bias)}
                 >
                     Apply
                 </button>
@@ -1657,6 +1711,9 @@ export default function Dashboard() {
     const [latitude, setLatitude] = useState(saved?.latitude ?? 51.05);
     const [longitude, setLongitude] = useState(saved?.longitude ?? 3.72);
     const [distanceKm, setDistanceKm] = useState(saved?.distanceKm ?? 20);
+    const [lengthBias, setLengthBias] = useState(
+        typeof saved?.lengthBias === 'string' ? saved.lengthBias : 'closest',
+    );
     const [sport, setSport] = useState(saved?.sport ?? 'road');
     const [surface, setSurface] = useState(
         saved?.surface ?? sportSurfaces[saved?.sport ?? 'road'] ?? 'paved',
@@ -2177,6 +2234,10 @@ export default function Dashboard() {
             : describe(saved?.shape ?? 'loop', null);
     });
     const [busy, setBusy] = useState(false);
+    // How far round the loops' directions are turned. Shuffle steps it by 23
+    // degrees, which comes back round only after 60 shuffles: the directions
+    // repeat every 60 degrees.
+    const [turn, setTurn] = useState(0);
     const settledStatus = useRef(message);
 
     if (!busy && message !== 'Drawing the loop…') {
@@ -2221,6 +2282,19 @@ export default function Dashboard() {
         [roadDetails, stops],
     );
     const [detailsLoading, setDetailsLoading] = useState(false);
+    // The height of the climb and the turns last shown. While the next ones
+    // load, the block in their place keeps it, so the panel does not jump
+    // and a second click does not land on Save.
+    const detailsHeight = useRef<number | null>(null);
+    const measureDetails = useCallback((node: HTMLDivElement) => {
+        const observer = new ResizeObserver(() => {
+            detailsHeight.current = node.offsetHeight;
+        });
+
+        observer.observe(node);
+
+        return () => observer.disconnect();
+    }, []);
     const [steepness, setSteepness] = useState(false);
     const detailsRef = useRef<{
         line: Coordinate[];
@@ -2928,11 +3002,12 @@ export default function Dashboard() {
     // would otherwise bring back a line drawn for the old one.
     useEffect(() => {
         void [mode, sport, surface, elevation, shape, roads, distanceKm];
+        void lengthBias;
         undoStackRef.current = [];
         redoStackRef.current = [];
         setUndoBar(null);
         setNudgeNotice(null);
-    }, [mode, sport, surface, elevation, shape, roads, distanceKm]);
+    }, [mode, sport, surface, elevation, shape, roads, distanceKm, lengthBias]);
 
     // A draft saved before starts had names gets its name once, when the
     // page opens. A start moved since, by the locate button say, clears the
@@ -3119,6 +3194,7 @@ export default function Dashboard() {
             latitude,
             longitude,
             distanceKm,
+            lengthBias,
             sport,
             surface,
             elevation,
@@ -3149,6 +3225,7 @@ export default function Dashboard() {
         latitude,
         longitude,
         distanceKm,
+        lengthBias,
         sport,
         surface,
         elevation,
@@ -3503,9 +3580,11 @@ export default function Dashboard() {
         surface?: string;
         elevation?: string;
         distanceKm?: number;
+        lengthBias?: string;
         shape?: string;
         via?: Coordinate | null;
         roads?: 'quiet' | 'any';
+        turn?: number;
     }): Promise<void> {
         setRouteSaved(false);
         setSavedRouteId(null);
@@ -3514,11 +3593,14 @@ export default function Dashboard() {
         const chosenSurface = next?.surface ?? surface;
         const chosenElevation = next?.elevation ?? elevation;
         const chosenDistance = next?.distanceKm ?? distanceKm;
+        const chosenLengthBias = next?.lengthBias ?? lengthBias;
+        const chosenTurn = next?.turn ?? turn;
         const chosenShape = next?.shape ?? shape;
         const chosenVia = next?.via === undefined ? via : next.via;
         const chosenRoads = next?.roads ?? roads;
 
         dirty.current = true;
+        setTurn(chosenTurn);
         setBusy(true);
         setMessage('Drawing the loop…');
         const ask = drawAskRef.current + 1;
@@ -3538,6 +3620,8 @@ export default function Dashboard() {
                 shape: chosenShape,
                 roads: chosenRoads,
                 distance_metres: Math.round(chosenDistance * 1000),
+                length_bias: chosenLengthBias,
+                turn: chosenTurn,
                 latitude,
                 longitude,
                 ...(chosenVia === null
@@ -6044,6 +6128,7 @@ export default function Dashboard() {
         surface?: string;
         elevation?: string;
         distanceKm?: number;
+        lengthBias?: string;
         shape?: string;
         via?: Coordinate | null;
         roads?: 'quiet' | 'any';
@@ -6719,7 +6804,7 @@ export default function Dashboard() {
                                     >
                                         <span className="k">Length</span>
                                         <span className="v">
-                                            {distanceKm} km
+                                            {lengthText(distanceKm, lengthBias)}
                                             <Chevron />
                                         </span>
                                     </button>
@@ -7162,7 +7247,7 @@ export default function Dashboard() {
                                     >
                                         <span className="k">Length</span>
                                         <span className="v">
-                                            {distanceKm} km
+                                            {lengthText(distanceKm, lengthBias)}
                                             <Chevron />
                                         </span>
                                     </button>
@@ -7273,44 +7358,66 @@ export default function Dashboard() {
                                     </p>
                                 </section>
                             ) : null}
-                            <button
-                                type="button"
-                                className="fill"
-                                data-tour="draw"
-                                disabled={busy}
-                                onClick={() =>
-                                    void (multisport
-                                        ? drawMultisport()
-                                        : mode === 'build'
-                                          ? drawBuild()
-                                          : generate())
-                                }
-                            >
-                                {busy ? (
-                                    <>
-                                        <span
-                                            className="drawing"
-                                            aria-hidden="true"
-                                        >
-                                            {drawingIcons.map((Icon, index) => (
-                                                <Icon
-                                                    // Icons follow the leg order.
-                                                    key={`${index}-${Icon.displayName ?? ''}`}
-                                                    className="size-4"
-                                                    style={{
-                                                        animationDelay: `${index * 160}ms`,
-                                                    }}
-                                                />
-                                            ))}
-                                        </span>
-                                        Drawing…
-                                    </>
-                                ) : shown ? (
-                                    'Draw again'
-                                ) : (
-                                    'Draw route'
-                                )}
-                            </button>
+                            <div className="draw-row">
+                                <button
+                                    type="button"
+                                    className="fill"
+                                    data-tour="draw"
+                                    disabled={busy}
+                                    onClick={() =>
+                                        void (multisport
+                                            ? drawMultisport()
+                                            : mode === 'build'
+                                              ? drawBuild()
+                                              : generate())
+                                    }
+                                >
+                                    {busy ? (
+                                        <>
+                                            <span
+                                                className="drawing"
+                                                aria-hidden="true"
+                                            >
+                                                {drawingIcons.map(
+                                                    (Icon, index) => (
+                                                        <Icon
+                                                            // Icons follow the leg order.
+                                                            key={`${index}-${Icon.displayName ?? ''}`}
+                                                            className="size-4"
+                                                            style={{
+                                                                animationDelay: `${index * 160}ms`,
+                                                            }}
+                                                        />
+                                                    ),
+                                                )}
+                                            </span>
+                                            Drawing…
+                                        </>
+                                    ) : shown ? (
+                                        'Draw again'
+                                    ) : (
+                                        'Draw route'
+                                    )}
+                                </button>
+                                {mode === 'generate' &&
+                                !multisport &&
+                                shape === 'loop' ? (
+                                    <button
+                                        type="button"
+                                        className="shuffle"
+                                        aria-label="Shuffle: three other loops"
+                                        title="Shuffle: three other loops"
+                                        disabled={busy}
+                                        onClick={() =>
+                                            void generate({
+                                                turn: (turn + 23) % 360,
+                                            })
+                                        }
+                                    >
+                                        <Shuffle size={20} aria-hidden="true" />
+                                    </button>
+                                ) : null}
+                            </div>
                             {multisport ? null : (
                                 <>
                                     <button
@@ -7509,7 +7616,10 @@ export default function Dashboard() {
                                     </div>
                                 ) : null}
                                 {details !== null && detailLine !== null ? (
-                                    <div className="tw-details">
+                                    <div
+                                        ref={measureDetails}
+                                        className="tw-details"
+                                    >
                                         <RouteProfile
                                             details={details}
                                             steepness={steepness}
@@ -7537,6 +7647,13 @@ export default function Dashboard() {
                                         className="tw-details-loading"
                                         role="status"
                                         aria-label="Reading the climb and the turns"
+                                        style={
+                                            detailsHeight.current === null
+                                                ? undefined
+                                                : {
+                                                      height: detailsHeight.current,
+                                                  }
+                                        }
                                     />
                                 ) : null}
                                 <p className="note" role="status">
@@ -7725,17 +7842,19 @@ export default function Dashboard() {
                     <SheetHeader className={sheetHeading}>
                         <SheetTitle className="pr-6">Choose a sport</SheetTitle>
                     </SheetHeader>
-                    <div className="px-4 pb-3">
-                        <input
-                            value={sportQuery}
-                            onChange={(event) =>
-                                setSportQuery(event.target.value)
-                            }
-                            placeholder="Search"
-                            aria-label="Search"
-                            className="h-8 w-full rounded-[10px] border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                        />
-                    </div>
+                    {sports.length > sportSearchFrom ? (
+                        <div className="sheet-search pb-3">
+                            <input
+                                value={sportQuery}
+                                onChange={(event) =>
+                                    setSportQuery(event.target.value)
+                                }
+                                placeholder="Search"
+                                aria-label="Search"
+                                className="h-8 w-full rounded-[10px] border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                            />
+                        </div>
+                    ) : null}
                     <OptionGroup
                         title="Foot"
                         options={visibleSports.filter(
@@ -7763,7 +7882,7 @@ export default function Dashboard() {
                 <SheetContent
                     side="bottom"
                     className={choiceSheet}
-                    style={{ maxHeight: '24rem' }}
+                    style={{ maxHeight: multisport ? '24rem' : '40rem' }}
                     onOpenAutoFocus={(event) => {
                         // A selected number makes Firefox repeat the first
                         // key, and Backspace deletes the whole field.
@@ -7776,6 +7895,7 @@ export default function Dashboard() {
                     {sheet === 'length' ? (
                         <LengthEditor
                             initialKm={sheetKm}
+                            {...(multisport ? {} : { initialBias: lengthBias })}
                             {...(multisport && layout === 'chain'
                                 ? {
                                       onShortest: () =>
@@ -7783,7 +7903,7 @@ export default function Dashboard() {
                                       note: 'Whole kilometres from 5 to 200. The leg winds out to cover this on the way to its finish. Shortest way takes the direct route.',
                                   }
                                 : {})}
-                            onApply={(kilometres) => {
+                            onApply={(kilometres, bias) => {
                                 if (multisport) {
                                     updateLeg({
                                         distanceKm: kilometres,
@@ -7794,8 +7914,12 @@ export default function Dashboard() {
                                 }
 
                                 setDistanceKm(kilometres);
+                                setLengthBias(bias);
                                 setSheet(null);
-                                redraw({ distanceKm: kilometres });
+                                redraw({
+                                    distanceKm: kilometres,
+                                    lengthBias: bias,
+                                });
                             }}
                         />
                     ) : null}
@@ -8112,7 +8236,7 @@ function OptionGroup({
     }
 
     return (
-        <div className="px-4 pb-4">
+        <div className="sheet-group pb-4">
             <h3 className="group-label">{title}</h3>
             <div className="choices">
                 {options.map((option) => {

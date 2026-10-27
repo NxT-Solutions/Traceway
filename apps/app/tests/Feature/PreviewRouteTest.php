@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\GeneratedRoute;
+use App\Domain\Routing\LengthBias;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\Sport;
@@ -165,6 +166,123 @@ it('builds with the sport, surface, hills, roads, and length the rider chose', f
         ->and($seen->close->elevation)->toBe(ElevationBias::Maximize)
         ->and($seen->close->preferQuiet)->toBeFalse()
         ->and($seen->close->distanceMetres)->toBe(20_000);
+});
+
+it('keeps the length as a most or a least when the rider asks', function (?string $asked, LengthBias $lengthBias): void {
+    $engine = new class implements RoutingEngine
+    {
+        public ?RouteQuery $asked = null;
+
+        public function route(RouteQuery $routeQuery): GeneratedRoute
+        {
+            return $this->candidates($routeQuery)[0];
+        }
+
+        /**
+         * @return GeneratedRoute[]
+         */
+        public function candidates(RouteQuery $routeQuery): array
+        {
+            $this->asked = $routeQuery;
+
+            return [new GeneratedRoute($routeQuery, [[3.72, 51.05], [3.8, 51.1]], 18_000, 90)];
+        }
+
+        public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
+        {
+            return new GeneratedRoute($routeQuery, $waypoints, 12_000, 40);
+        }
+
+        public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
+        {
+            return new GeneratedRoute($routeQuery, [$from, $to], 4_000, 10);
+        }
+    };
+    $this->app->instance(RoutingEngine::class, $engine);
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.preview'), [
+            'sport' => 'road',
+            'surface' => 'paved',
+            'elevation' => 'neutral',
+            'distance_metres' => 20_000,
+            'latitude' => 51.05,
+            'longitude' => 3.72,
+            ...($asked === null ? [] : ['length_bias' => $asked]),
+        ])
+        ->assertOk();
+
+    expect($engine->asked?->lengthBias)->toBe($lengthBias);
+})->with([
+    'not said' => [null, LengthBias::Closest],
+    'closest' => ['closest', LengthBias::Closest],
+    'at most' => ['at_most', LengthBias::AtMost],
+    'at least' => ['at_least', LengthBias::AtLeast],
+]);
+
+it('turns the directions the loops are tried in when the rider shuffles', function (): void {
+    $engine = new class implements RoutingEngine
+    {
+        public ?RouteQuery $asked = null;
+
+        public function route(RouteQuery $routeQuery): GeneratedRoute
+        {
+            return $this->candidates($routeQuery)[0];
+        }
+
+        /**
+         * @return GeneratedRoute[]
+         */
+        public function candidates(RouteQuery $routeQuery): array
+        {
+            $this->asked = $routeQuery;
+
+            return [new GeneratedRoute($routeQuery, [[3.72, 51.05], [3.8, 51.1]], 18_000, 90)];
+        }
+
+        public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
+        {
+            return new GeneratedRoute($routeQuery, $waypoints, 12_000, 40);
+        }
+
+        public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
+        {
+            return new GeneratedRoute($routeQuery, [$from, $to], 4_000, 10);
+        }
+    };
+    $this->app->instance(RoutingEngine::class, $engine);
+    $ask = [
+        'sport' => 'road',
+        'surface' => 'paved',
+        'elevation' => 'neutral',
+        'distance_metres' => 20_000,
+        'latitude' => 51.05,
+        'longitude' => 3.72,
+    ];
+    $rider = User::factory()->create();
+
+    $this->actingAs($rider)->postJson(route('routes.preview'), [...$ask, 'turn' => 23])->assertOk();
+
+    expect($engine->asked?->turnDegrees)->toBe(23);
+
+    $this->actingAs($rider)->postJson(route('routes.preview'), [...$ask, 'turn' => 360])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('turn');
+});
+
+it('turns away a length kept some other way', function (): void {
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.preview'), [
+            'sport' => 'road',
+            'surface' => 'paved',
+            'elevation' => 'neutral',
+            'distance_metres' => 20_000,
+            'latitude' => 51.05,
+            'longitude' => 3.72,
+            'length_bias' => 'roughly',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('length_bias');
 });
 
 it('asks a guest to log in before previewing a loop', function (): void {

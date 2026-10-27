@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Domain\Routing\ElevationBias;
+use App\Domain\Routing\LengthBias;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
@@ -30,6 +31,8 @@ use OpenApi\Attributes\RequestBody;
             new Property(property: 'longitude', type: 'number', maximum: 180, minimum: -180),
             new Property(property: 'shape', type: 'string', enum: ['loop', 'point_to_point', 'out_and_back']),
             new Property(property: 'roads', type: 'string', enum: ['quiet', 'any']),
+            new Property(property: 'turn', description: 'Degrees to turn the directions the loops are tried in, so a shuffle finds other loops. Defaults to 0.', type: 'integer', maximum: 359, minimum: 0),
+            new Property(property: 'length_bias', description: 'Whether the length is a target (closest), a most (at_most), or a least (at_least). Defaults to closest.', type: 'string', enum: ['closest', 'at_most', 'at_least']),
         ],
         type: 'object',
     ),
@@ -55,6 +58,8 @@ class PreviewRouteRequest extends FormRequest
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'shape' => ['sometimes', Rule::enum(Shape::class)],
             'roads' => ['sometimes', Rule::in(['quiet', 'any'])],
+            'length_bias' => ['sometimes', Rule::enum(LengthBias::class)],
+            'turn' => ['sometimes', 'integer', 'between:0,359'],
             'via_latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:via_longitude'],
             'via_longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:via_latitude'],
         ];
@@ -62,7 +67,7 @@ class PreviewRouteRequest extends FormRequest
 
     public function toQuery(): RouteQuery
     {
-        /** @var array{sport: string, surface: string, elevation: string, distance_metres: int, latitude: float|int, longitude: float|int, shape?: string, roads?: string, via_latitude?: float|int|null, via_longitude?: float|int|null} $validated */
+        /** @var array{sport: string, surface: string, elevation: string, distance_metres: int, latitude: float|int, longitude: float|int, shape?: string, roads?: string, length_bias?: string, turn?: int, via_latitude?: float|int|null, via_longitude?: float|int|null} $validated */
         $validated = $this->validated();
         $viaLatitude = $validated['via_latitude'] ?? null;
         $viaLongitude = $validated['via_longitude'] ?? null;
@@ -78,6 +83,8 @@ class PreviewRouteRequest extends FormRequest
             viaLatitude: $viaLatitude === null ? null : (float) $viaLatitude,
             viaLongitude: $viaLongitude === null ? null : (float) $viaLongitude,
             preferQuiet: ($validated['roads'] ?? 'any') === 'quiet',
+            lengthBias: LengthBias::tryFrom($validated['length_bias'] ?? '') ?? LengthBias::Closest,
+            turnDegrees: $validated['turn'] ?? 0,
         );
     }
 }

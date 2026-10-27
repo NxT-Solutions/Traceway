@@ -478,6 +478,116 @@ export const PlanALoop: Story = {
 };
 
 /**
+ * Three loops that are not what the rider wants: Shuffle, beside Draw, asks for three others, tried in directions
+ * turned round from the last.
+ */
+export const ShuffleLoops: Story = {
+    args: { loops: 0, sport: 'road', surface: 'paved', distanceKm: 20 },
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Draw three loops', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: 'Draw route' }),
+            );
+            await expect(
+                await panel.findByText('Loop 1 of 3', {}, answer),
+            ).toBeVisible();
+            await expect(
+                server.sent('POST', '/routes/preview').at(-1)?.body,
+            ).toMatchObject({ turn: 0 });
+        });
+
+        await step(
+            'Shuffle asks for three others, turned further each time',
+            async () => {
+                for (const turn of [23, 46]) {
+                    const shuffle = await panel.findByRole(
+                        'button',
+                        { name: 'Shuffle: three other loops' },
+                        answer,
+                    );
+                    await waitFor(() => expect(shuffle).toBeEnabled(), answer);
+                    await userEvent.click(shuffle);
+                    await waitFor(
+                        () =>
+                            expect(
+                                server.sent('POST', '/routes/preview').at(-1)
+                                    ?.body,
+                            ).toMatchObject({ turn }),
+                        answer,
+                    );
+                }
+                await expect(
+                    await panel.findByText('Loop 1 of 3', {}, answer),
+                ).toBeVisible();
+                // The story ends with Draw and Shuffle at rest, so the accessibility check reads their colours.
+                const shuffle = panel.getByRole('button', {
+                    name: 'Shuffle: three other loops',
+                });
+                await waitFor(() => expect(shuffle).toBeEnabled(), answer);
+                await waitFor(
+                    () => expect(getComputedStyle(shuffle).opacity).toBe('1'),
+                    answer,
+                );
+            },
+        );
+    },
+};
+
+/**
+ * A rider who wants no more than 50 km sets the length to At most. The Length row says so, and the loops are asked for
+ * at or under it.
+ */
+export const KeepTheLengthAtMost: Story = {
+    args: { loops: 0, sport: 'road', surface: 'paved', distanceKm: 20 },
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await step('Pick At most 50 km', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: /^Length/ }),
+            );
+            const sheet = within(
+                await screen.findByRole('dialog', { name: 'Length' }),
+            );
+            const keep = within(
+                sheet.getByRole('radiogroup', { name: 'Keep the length' }),
+            );
+            await expect(
+                keep.getByRole('radio', { name: /^Close to it/ }),
+            ).toBeChecked();
+            const field = sheet.getByLabelText('Preferred length');
+            await userEvent.clear(field);
+            await userEvent.type(field, '50');
+            await userEvent.click(
+                keep.getByRole('radio', { name: /^At most/ }),
+            );
+            await userEvent.click(sheet.getByRole('button', { name: 'Apply' }));
+        });
+
+        await step('The loops are asked for at most 50 km', async () => {
+            await waitFor(
+                () =>
+                    expect(
+                        server.sent('POST', '/routes/preview').at(-1)?.body,
+                    ).toMatchObject({
+                        distance_metres: 50_000,
+                        length_bias: 'at_most',
+                    }),
+                answer,
+            );
+            await expect(
+                panel.getByRole('button', { name: /^Length/ }),
+            ).toHaveTextContent('Up to 50 km');
+            await expect(
+                await panel.findByText('Loop 1 of 3', {}, answer),
+            ).toBeVisible();
+        });
+    },
+};
+
+/**
  * Next loop steps through the three loops and back to the first; each brings its own climb and turns. Previous loop
  * steps the other way.
  */
@@ -1236,9 +1346,21 @@ export const StopAvoiding: Story = {
             async () => {
                 const previews = server.sent('POST', '/routes/preview').length;
                 const reshapes = server.sent('POST', '/routes/reshape').length;
+                const result = panel.getByRole('region', { name: 'Result' });
+                const tall = result.getBoundingClientRect().height;
                 await userEvent.click(
                     panel.getByRole('button', { name: 'Remove Zandstraat' }),
                 );
+                // While the climb and the turns load again, their place keeps its height, so the panel does
+                // not jump and a second click does not land on Save.
+                await panel.findByRole(
+                    'status',
+                    { name: 'Reading the climb and the turns' },
+                    answer,
+                );
+                await expect(
+                    result.getBoundingClientRect().height,
+                ).toBeGreaterThanOrEqual(tall - 1);
                 await expect(
                     await within(canvasElement).findByRole(
                         'group',

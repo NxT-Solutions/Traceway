@@ -217,6 +217,14 @@
 .tw-planner .fill{box-sizing:border-box;flex:0 0 auto;height:48px;min-height:48px;width:100%;border:0;border-radius:10px;background:var(--chart);color:var(--chart-ink);font-size:16px;font-weight:600;cursor:pointer}
 .tw-planner .fill:hover{background:var(--chart-dim)}
 .tw-planner .fill:disabled{opacity:.6;cursor:default}
+/* Draw and Shuffle share a row: Draw takes the room, Shuffle is a square. */
+.tw-planner .draw-row{display:flex;gap:8px}
+.tw-planner .draw-row .fill{flex:1 1 auto;width:auto;min-width:0}
+.tw-planner .shuffle{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:56px;height:48px;border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);cursor:pointer;transition:background-color 180ms var(--ease),opacity 80ms var(--ease)}
+.tw-planner .shuffle:hover{background:var(--hover)}
+.tw-planner .shuffle:active{transition-duration:80ms;opacity:.72}
+.tw-planner .shuffle:disabled{opacity:.6;cursor:default}
+.tw-planner .shuffle:focus-visible{outline:2px solid var(--text);outline-offset:2px}
 .tw-planner .result{display:flex;flex-direction:column;gap:10px;padding-top:2px}
 .tw-planner .result .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .tw-planner .stepper{display:flex;align-items:center;gap:6px}
@@ -607,6 +615,8 @@ body:has(.tw-planner) .tw-pop .thumb{position:absolute;top:50%;width:20px;height
 body:has(.tw-planner) .tw-pop .minmax{display:flex;justify-content:space-between;font-size:12px;color:var(--muted, oklch(0.45 0.02 200))}
 body:has(.tw-planner) .tw-pop .small{margin:0;font-size:13px;line-height:1.45;color:var(--muted, oklch(0.45 0.02 200))}
 body:has(.tw-planner) .tw-pop .foot{display:flex;justify-content:flex-end;align-items:center;gap:8px}
+body:has(.tw-planner) .tw-pop .small + .choices{margin-top:12px}
+body:has(.tw-planner) .tw-pop .choices + .foot{margin-top:14px}
 body:has(.tw-planner) .tw-pop .textbtn{height:38px;padding:0 14px;border:0;border-radius:10px;background:transparent;color:var(--muted, oklch(0.45 0.02 200));font-size:14px;font-weight:500;cursor:pointer;box-shadow:none}
 body:has(.tw-planner) .tw-pop .textbtn:hover{color:var(--text, oklch(0.22 0.03 200))}
 body:has(.tw-planner) .tw-pop .outline.sm{height:38px;padding:0 16px;border:1px solid var(--outline, oklch(0.22 0.03 200 / 0.25));border-radius:10px;background:transparent;color:var(--text, oklch(0.22 0.03 200));font-size:14px;font-weight:500;cursor:pointer;box-shadow:none}
@@ -697,7 +707,7 @@ body:has(.tw-planner) .tw-pop .swatch:focus-visible{outline:2px solid var(--text
 @media (prefers-reduced-motion: reduce){
   .tw-planner .fill .drawing svg{animation:none}
 }
-body:has(.tw-planner) .tw-pop [data-slot="sheet-header"] + :is(.choices, .colour-picker, .slider){margin-top:14px}
+body:has(.tw-planner) .tw-pop [data-slot="sheet-header"] + :is(.choices, .colour-picker, .slider, .sheet-search, .sheet-group){margin-top:14px}
 body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child{cursor:pointer;color:var(--text, oklch(0.22 0.03 200));opacity:.7}
 body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{background:var(--hover, oklch(0.94 0.012 95));opacity:1}
 .tw-planner .row.order{cursor:default}
@@ -830,8 +840,8 @@ body:has(.tw-planner) [data-slot="sheet-content"] > button:last-child:hover{back
 .tw-planner .avoided .still{font-size:12px;font-weight:400;color:var(--muted)}
 .tw-planner .avoided .textbtn{height:34px;padding:0 8px}
 .tw-planner .avoided .import-file[aria-pressed="true"]{border-style:solid;border-color:var(--text);background:var(--hover)}
-.tw-planner .avoided .avoided-status:empty{display:none}
-.tw-planner .avoided .avoided-status{margin-top:6px}
+/* The line keeps its room when empty, so "One moment…" does not push the panel about. */
+.tw-planner .avoided .avoided-status{margin-top:6px;min-height:1lh}
 .tw-planner .nudge{display:flex;flex-direction:column;gap:8px;margin:4px 0 8px;padding:10px 12px;border:1px solid var(--hair);border-radius:10px}
 .tw-planner .nudge .outline{flex:0 0 auto}
 .tw-planner .undobar button[aria-disabled="true"]{opacity:.45;cursor:default}

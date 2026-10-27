@@ -8,6 +8,7 @@ use App\Account\RiderId;
 use App\Commands\SaveRouteCommand;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Domain\Routing\ElevationBias;
+use App\Domain\Routing\LengthBias;
 use App\Domain\Routing\LineSimplifier;
 use App\Domain\Routing\Place;
 use App\Domain\Routing\RouteQuery;
@@ -69,6 +70,7 @@ final class PlanLoopTool extends Tool
             'distance_km' => ['required', 'numeric', 'min:1', 'max:300'],
             'surface' => ['nullable', 'string', 'in:paved,mixed,dirt'],
             'hills' => ['nullable', 'string', 'in:flat,any,hilly'],
+            'length' => ['nullable', 'string', 'in:closest,at_most,at_least'],
             'quiet_roads' => ['nullable', 'boolean'],
             'via' => ['nullable', 'string', 'max:200'],
             'name' => ['nullable', 'string', 'max:80'],
@@ -114,6 +116,7 @@ final class PlanLoopTool extends Tool
                 $via?->latitude,
                 $via?->longitude,
                 $quiet,
+                lengthBias: LengthBias::tryFrom($this->text($validated, 'length')) ?? LengthBias::Closest,
             ), $riderId));
         } catch (Throwable) {
             $routes = [];
@@ -193,7 +196,10 @@ final class PlanLoopTool extends Tool
                 ->description('Leave it out to use what suits the sport. On foot, dirt puts tracks and walkways first, and paved cannot keep a walk on paved ground. On a bike, paved keeps a road bike off gravel and dirt, and for other bikes changes only the roughest ground; dirt uses fewer roads and allows rough ground.'),
             'hills' => $schema->string()
                 ->enum(['flat', 'any', 'hilly'])
-                ->description('flat avoids climbing, any steers round steep climbs, and hilly adds no extra push round climbs, though a steep one still counts as slow. Defaults to any.'),
+                ->description('flat picks the loop that climbs least, and hilly the one that climbs most, among loops near the length. any leaves the climb out. Defaults to any.'),
+            'length' => $schema->string()
+                ->enum(['closest', 'at_most', 'at_least'])
+                ->description('closest keeps the loop as near the distance as it can. at_most keeps it no longer, and at_least no shorter. Defaults to closest.'),
             'quiet_roads' => $schema->boolean()
                 ->description('On foot, put walkways first. On a bike, put cycle paths and quiet lanes first, and busy roads lose. Defaults to true.'),
             'via' => $schema->string()
