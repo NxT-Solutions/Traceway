@@ -9,7 +9,6 @@ parameters:
         - app/
         - bootstrap/app.php
         - database/
-        - phparkitect.php
         - rector.php
         - routes/
 

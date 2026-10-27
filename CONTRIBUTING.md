@@ -46,7 +46,7 @@ The repo has three apps:
 
 ## Formatting and checks
 
-Biome formats JavaScript. Pint formats PHP. Blade formatter formats Blade. PHPStan runs at level max with strict rules. PHPArkitect and Rector check the architecture.
+Biome formats JavaScript. Pint formats PHP. Blade formatter formats Blade. PHPStan runs at level max with strict rules. Pest arch tests in `apps/app/tests/Arch` check the layers, and Rector checks the code.
 
 While you work, run the narrow Pest file, then the whole suite:
 

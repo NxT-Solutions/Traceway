@@ -11,7 +11,7 @@ From `apps/app`:
 - Blade: `bun run blade:fix`. Rules are in `.bladeformatterrc.json`: 4 spaces, final newline, Tailwind class order. `composer blade:check` is the same check as the gate.
 - The runtime is PHP 8.5. PHPStan is level max on `phpVersion: 80500`, with every `phpstan-strict-rules` toggle on: `vendor/bin/phpstan analyse`
 - Rector is the refactor check: `vendor/bin/rector process --dry-run`, rules in `rector.php`. Pint owns formatting, so Rector does not fight Pint's increment style.
-- Architecture is PHPArkitect: `vendor/bin/phparkitect check`, rules in `phparkitect.php`
+- Architecture is Pest arch tests: `composer architecture` (`pest --testsuite=Arch`), rules in `tests/Arch`
 - Tests: Pest 5, parallel. The full gate is `composer test`. It finishes in a few seconds, so it is the loop to run while iterating. PCOV is installed in the DDEV image and left off (`pcov.enabled=0`) so the site and that gate stay fast.
 - Pest TIA (`--tia`) refuses to run here. Pest 5 only enables it when the Composer project is the git root, and this app lives in `apps/app` inside the Traceway repo.
 - `composer test:smoke` is the fast HTTP sweep of the public pages, the guest walls, and the rider pages.

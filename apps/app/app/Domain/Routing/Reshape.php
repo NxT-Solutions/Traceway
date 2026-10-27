@@ -33,7 +33,10 @@ final readonly class Reshape
      */
     public function apply(RouteQuery $routeQuery, array $line, array $waypoints, RouteChange $routeChange, bool $closing = false, bool $loop = false): Reshaped
     {
-        throw_if(count($waypoints) < 2 || count($waypoints) > self::MOST_WAYPOINTS, InvalidArgumentException::class, 'A route to change has 2 to '.self::MOST_WAYPOINTS.' points.');
+        if (count($waypoints) < 2 || count($waypoints) > self::MOST_WAYPOINTS) {
+            throw new InvalidArgumentException('A route to change has 2 to '.self::MOST_WAYPOINTS.' points.');
+        }
+
         $this->fits($line, $waypoints, $routeChange, $closing || $loop);
 
         // Each point as the line passes it. A loop's stops are where Traceway
@@ -43,7 +46,9 @@ final readonly class Reshape
         $waypoints = array_map(fn (int $cut): array => $line[$cut], $cuts);
         [$waypoints, $legs] = $this->changed($waypoints, LegSplitter::legs($line, $waypoints), $routeChange);
 
-        throw_if(count($waypoints) > self::MOST_WAYPOINTS, InvalidArgumentException::class, 'A route has at most '.self::MOST_WAYPOINTS.' points.');
+        if (count($waypoints) > self::MOST_WAYPOINTS) {
+            throw new InvalidArgumentException('A route has at most '.self::MOST_WAYPOINTS.' points.');
+        }
 
         $changed = array_keys(array_filter($legs, fn (?array $leg): bool => $leg === null));
 
@@ -58,7 +63,10 @@ final readonly class Reshape
         $planned = [];
 
         foreach ($legs as $leg) {
-            throw_if($leg === null, RuntimeException::class, 'A leg was not planned again.');
+            if ($leg === null) {
+                throw new RuntimeException('A leg was not planned again.');
+            }
+
             $planned[] = $leg;
         }
 
@@ -84,15 +92,21 @@ final readonly class Reshape
 
         switch ($routeChange->kind) {
             case RouteChangeKind::Move:
-                throw_if($index === 0 || ($closed && $index === $last), InvalidArgumentException::class, 'The start and the finish move with the start pin.');
+                if ($index === 0 || ($closed && $index === $last)) {
+                    throw new InvalidArgumentException('The start and the finish move with the start pin.');
+                }
 
                 break;
             case RouteChangeKind::Insert:
-                throw_if($closed && $index > $last, InvalidArgumentException::class, 'A new point goes before the finish.');
+                if ($closed && $index > $last) {
+                    throw new InvalidArgumentException('A new point goes before the finish.');
+                }
 
                 break;
             case RouteChangeKind::Remove:
-                throw_if($closed && ($index === $last || $count <= 3), InvalidArgumentException::class, 'The finish stays, and so do two points besides it.');
+                if ($closed && ($index === $last || $count <= 3)) {
+                    throw new InvalidArgumentException('The finish stays, and so do two points besides it.');
+                }
 
                 break;
             case RouteChangeKind::Reroute:
@@ -100,11 +114,9 @@ final readonly class Reshape
         }
 
         if ($routeChange->point !== null) {
-            throw_if(
-                LineDistance::of($line)->project($routeChange->point)['gap'] > self::FARTHEST_METRES,
-                InvalidArgumentException::class,
-                'That place is too far from the route to bend it there. Draw a new route instead.',
-            );
+            if (LineDistance::of($line)->project($routeChange->point)['gap'] > self::FARTHEST_METRES) {
+                throw new InvalidArgumentException('That place is too far from the route to bend it there. Draw a new route instead.');
+            }
         }
     }
 
@@ -124,7 +136,10 @@ final readonly class Reshape
 
         switch ($routeChange->kind) {
             case RouteChangeKind::Move:
-                throw_if($index < 0 || $index >= $count || $routeChange->point === null, InvalidArgumentException::class, 'No such point to move.');
+                if ($index < 0 || $index >= $count || $routeChange->point === null) {
+                    throw new InvalidArgumentException('No such point to move.');
+                }
+
                 $waypoints[$index] = $routeChange->point;
 
                 if ($index > 0) {
@@ -138,7 +153,10 @@ final readonly class Reshape
                 break;
 
             case RouteChangeKind::Insert:
-                throw_if($index < 1 || $index > $count || $routeChange->point === null, InvalidArgumentException::class, 'A new point goes after the start.');
+                if ($index < 1 || $index > $count || $routeChange->point === null) {
+                    throw new InvalidArgumentException('A new point goes after the start.');
+                }
+
                 array_splice($waypoints, $index, 0, [$routeChange->point]);
 
                 if ($index === $count) {
@@ -150,7 +168,10 @@ final readonly class Reshape
                 break;
 
             case RouteChangeKind::Remove:
-                throw_if($index < 1 || $index >= $count || $count < 3, InvalidArgumentException::class, 'Only a point after the start can go, and two must stay.');
+                if ($index < 1 || $index >= $count || $count < 3) {
+                    throw new InvalidArgumentException('Only a point after the start can go, and two must stay.');
+                }
+
                 array_splice($waypoints, $index, 1);
 
                 if ($index === $count - 1) {
@@ -163,7 +184,10 @@ final readonly class Reshape
 
             case RouteChangeKind::Reroute:
                 foreach ($routeChange->legs as $leg) {
-                    throw_if($leg < 0 || $leg >= count($legs), InvalidArgumentException::class, 'No such leg to plan again.');
+                    if ($leg < 0 || $leg >= count($legs)) {
+                        throw new InvalidArgumentException('No such leg to plan again.');
+                    }
+
                     $legs[$leg] = null;
                 }
 
@@ -231,7 +255,9 @@ final readonly class Reshape
             $planned[] = $this->routingEngine->closeLoop($routeQuery, $ridden === [] ? [$from] : $ridden, $from, $to)->coordinates;
         }
 
-        throw_if(count($planned) !== $last - $first + 1, RuntimeException::class, 'The router did not plan every leg again.');
+        if (count($planned) !== $last - $first + 1) {
+            throw new RuntimeException('The router did not plan every leg again.');
+        }
 
         return $planned;
     }

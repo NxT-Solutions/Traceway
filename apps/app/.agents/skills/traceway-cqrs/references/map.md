@@ -1,6 +1,6 @@
 # CQRS map
 
-Commands are in `App\Commands`. Handlers in `App\Handlers` are the application services. They depend on contracts in `App\Contracts`. Eloquent writes live in `App\Repositories`. Queries use `DB::table` and do not load Eloquent models. `phparkitect.php` checks these layers.
+Commands are in `App\Commands`. Handlers in `App\Handlers` are the application services. They depend on contracts in `App\Contracts`. Eloquent writes live in `App\Repositories`. Queries use `DB::table` and do not load Eloquent models. The Pest arch tests in `tests/Arch` check these layers.
 
 ## Commands
 

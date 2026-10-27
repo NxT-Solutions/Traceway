@@ -96,7 +96,7 @@ The device already knows the map. Traceway gives it the course.
 
 Route geometry always comes from the routing engine. Traceway scores and picks what the engine returns. It never invents a coordinate.
 
-Quality gates run on every pull request: Pest, PHPStan at level max with strict rules, Rector, Pint, PHPArkitect, Biome, TypeScript, and the Blade formatter. `main` only takes a change once they pass.
+Quality gates run on every pull request: Pest with its architecture tests, PHPStan at level max with strict rules, Rector, Pint, Biome, TypeScript, and the Blade formatter. `main` only takes a change once they pass.
 
 ## Run it locally
 
