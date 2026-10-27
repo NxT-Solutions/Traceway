@@ -7,3 +7,4 @@ section: Fixes
 - **No more small knots.** A loop no longer rides out a side road, circles a block, and comes back the same way.
 - **A tidier sport list.** Choose a sport no longer has a search box: with seven sports, the list is quicker to read.
 - **Remove stays put.** Letting an avoided road back in no longer makes the panel jump while the loop draws again, so a quick second click cannot land on Save by mistake.
+- **Draw waits when the map server is down.** While route drawing is down, Draw is switched off with a short note, so a press does not just fail. It comes back by itself.

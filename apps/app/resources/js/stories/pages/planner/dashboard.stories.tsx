@@ -2069,7 +2069,9 @@ export const ServiceNotice: Story = {
             panel.getByRole('button', { name: /^Draw (route|again)$/ }),
         ).toBeDisabled();
         await expect(
-            panel.getByText(/Route drawing is down\. Draw comes back by itself/),
+            panel.getByText(
+                /Route drawing is down\. Draw comes back by itself/,
+            ),
         ).toBeVisible();
     },
 };
