@@ -24,11 +24,6 @@ use OpenApi\Attributes\RequestBody;
 )]
 class ClaimDevicePairingRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * @return array<string, mixed>
      */

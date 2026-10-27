@@ -198,6 +198,44 @@ export function legsNear(
     return legs;
 }
 
+/**
+ * The legs of a line that go round a road: the box their stretch of line
+ * spans holds the road's middle. A route drawn while the road was avoided
+ * may go well round it, never coming within reach of either end.
+ */
+export function legsAround(
+    line: Coordinate[],
+    waypoints: Coordinate[],
+    road: Coordinate[],
+): number[] {
+    const middle = road[Math.floor(road.length / 2)];
+
+    if (middle === undefined) {
+        return [];
+    }
+
+    const cuts = cutsOf(line, waypoints);
+    const legs: number[] = [];
+
+    for (let leg = 1; leg < cuts.length; leg += 1) {
+        const piece = line.slice(cuts[leg - 1], (cuts[leg] ?? 0) + 1);
+        const longitudes = piece.map((vertex) => vertex[0]);
+        const latitudes = piece.map((vertex) => vertex[1]);
+
+        if (
+            piece.length > 1 &&
+            middle[0] >= Math.min(...longitudes) &&
+            middle[0] <= Math.max(...longitudes) &&
+            middle[1] >= Math.min(...latitudes) &&
+            middle[1] <= Math.max(...latitudes)
+        ) {
+            legs.push(leg - 1);
+        }
+    }
+
+    return legs;
+}
+
 /** The waypoint between the start and the finish that lies nearest a point. */
 export function nearestStop(
     waypoints: Coordinate[],
