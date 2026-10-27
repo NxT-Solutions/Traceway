@@ -76,6 +76,16 @@ it('drops a lasso: the road out, the knot at its end, and the road back', functi
     expect(min(array_column(RouteCleanliness::withoutSpurs($line), 1)))->toBeGreaterThan(50.9998);
 });
 
+it('cuts a knot far north, where a degree of longitude is short', function (): void {
+    // A road at Tromsø with a 430 m triangle tied in it, closing 19 m east of where it opened.
+    $line = lineThrough([
+        [19.0, 69.65], [19.05, 69.65], [19.052, 69.649], [19.048, 69.649], [19.0505, 69.65], [19.1, 69.65],
+    ]);
+
+    // The knot reached 110 m south. What is left closes within KNOT_METRES of the road.
+    expect(min(array_column(RouteCleanliness::withoutKnots($line), 1)))->toBeGreaterThan(69.6498);
+});
+
 it('keeps a lobe too long to be a knot', function (): void {
     // The same road, with a 5 km lobe south of it: a figure of eight, not a knot.
     $line = lineThrough([
@@ -699,6 +709,24 @@ it('picks the flatter loop for flat and the hillier one for hilly', function (El
     'neutral' => [ElevationBias::Neutral, 600],
     'hilly' => [ElevationBias::Maximize, 600],
 ]);
+
+it('measures the flattest among loops near the length, so one far off it cannot flip the pick', function (): void {
+    $query = new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 40_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Minimize,
+        startLatitude: 51.0,
+        startLongitude: 4.0,
+    );
+    $flatter = new GeneratedRoute($query, [[4.0, 51.0], [4.02, 51.0], [4.02, 51.02], [4.0, 51.02], [4.0, 51.0]], 41_000, 300);
+    $hillier = new GeneratedRoute($query, [[4.1, 51.0], [4.12, 51.0], [4.12, 51.02], [4.1, 51.02], [4.1, 51.0]], 40_000, 500);
+    // 15 km short and dead flat: with it as the bar, both loops near the length would climb too much to tell apart.
+    $farOff = new GeneratedRoute($query, [[4.2, 51.0], [4.22, 51.0], [4.22, 51.02], [4.2, 51.02], [4.2, 51.0]], 25_000, 20);
+
+    expect(RouteCleanliness::cleanest([$hillier, $flatter, $farOff], 40_000)?->ascentMetres)->toBe(300);
+});
 
 it('lets the climb pick only among loops near the length', function (): void {
     $query = new RouteQuery(

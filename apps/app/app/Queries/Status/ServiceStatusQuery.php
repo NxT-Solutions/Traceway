@@ -102,6 +102,32 @@ final readonly class ServiceStatusQuery
     }
 
     /**
+     * Whether route drawing is down: an open notice names it, or the latest
+     * check, while fresh, found it down. The planner then stops offering Draw
+     * and Shuffle, which would only fail. Slow is not down: a slow loop still
+     * comes back.
+     */
+    public function routingDown(): bool
+    {
+        $named = array_any(
+            $this->notices(openOnly: true),
+            fn (array $notice): bool => in_array(StatusComponent::Routing->value, $notice['components'], strict: true),
+        );
+
+        if ($named) {
+            return true;
+        }
+
+        [$latest, $checkedAt] = $this->latest();
+
+        if (! $checkedAt instanceof CarbonImmutable || $this->isStale($checkedAt)) {
+            return false;
+        }
+
+        return ($latest[StatusComponent::Routing->value]['state'] ?? null) === ServiceState::Down;
+    }
+
+    /**
      * @return Page
      */
     private function build(): array

@@ -1686,6 +1686,7 @@ export default function Dashboard() {
     const {
         auth,
         serviceNotice,
+        routingDown = false,
         sportSurfaces,
         showTour,
         avoided: avoidedAtFirst,
@@ -1693,6 +1694,8 @@ export default function Dashboard() {
     } = usePage<{
         auth: { user: { id: number; name: string } };
         serviceNotice?: ServiceNoticeProps | null;
+        /** True while the map server cannot draw routes: Draw and Shuffle would only fail. */
+        routingDown?: boolean;
         /** The surface each sport starts on, shared with the AI connector. */
         sportSurfaces: Record<string, string>;
         /** True on a rider's first visit, until the tour ends once. */
@@ -1704,15 +1707,16 @@ export default function Dashboard() {
     }>().props;
     // A notice, or a map server going down or coming back, reaches a rider
     // who keeps the planner open.
-    usePoll(300_000, { only: ['serviceNotice'] });
+    usePoll(300_000, { only: ['serviceNotice', 'routingDown'] });
     const storageKey = plannerDraftKey(auth.user.id);
     const saved = useRef(readSaved(storageKey)).current;
     const dirty = useRef(saved !== null);
     const [latitude, setLatitude] = useState(saved?.latitude ?? 51.05);
     const [longitude, setLongitude] = useState(saved?.longitude ?? 3.72);
     const [distanceKm, setDistanceKm] = useState(saved?.distanceKm ?? 20);
-    const [lengthBias, setLengthBias] = useState(
-        typeof saved?.lengthBias === 'string' ? saved.lengthBias : 'closest',
+    const [lengthBias, setLengthBias] = useState<string>(
+        lengthBiases.find((option) => option.value === saved?.lengthBias)
+            ?.value ?? 'closest',
     );
     const [sport, setSport] = useState(saved?.sport ?? 'road');
     const [surface, setSurface] = useState(
@@ -2288,7 +2292,10 @@ export default function Dashboard() {
     const detailsHeight = useRef<number | null>(null);
     const measureDetails = useCallback((node: HTMLDivElement) => {
         const observer = new ResizeObserver(() => {
-            detailsHeight.current = node.offsetHeight;
+            // A folded panel on a phone measures 0: keep the last real height.
+            if (node.offsetHeight > 0) {
+                detailsHeight.current = node.offsetHeight;
+            }
         });
 
         observer.observe(node);
@@ -6804,7 +6811,12 @@ export default function Dashboard() {
                                     >
                                         <span className="k">Length</span>
                                         <span className="v">
-                                            {lengthText(distanceKm, lengthBias)}
+                                            {lengthText(
+                                                distanceKm,
+                                                mode === 'generate'
+                                                    ? lengthBias
+                                                    : 'closest',
+                                            )}
                                             <Chevron />
                                         </span>
                                     </button>
@@ -7247,7 +7259,7 @@ export default function Dashboard() {
                                     >
                                         <span className="k">Length</span>
                                         <span className="v">
-                                            {lengthText(distanceKm, lengthBias)}
+                                            {distanceKm} km
                                             <Chevron />
                                         </span>
                                     </button>
@@ -7363,7 +7375,7 @@ export default function Dashboard() {
                                     type="button"
                                     className="fill"
                                     data-tour="draw"
-                                    disabled={busy}
+                                    disabled={busy || routingDown}
                                     onClick={() =>
                                         void (multisport
                                             ? drawMultisport()
@@ -7400,14 +7412,14 @@ export default function Dashboard() {
                                     )}
                                 </button>
                                 {mode === 'generate' &&
-                                !multisport &&
-                                shape === 'loop' ? (
+                                shape === 'loop' &&
+                                shown ? (
                                     <button
                                         type="button"
                                         className="shuffle"
                                         aria-label="Shuffle: three other loops"
                                         title="Shuffle: three other loops"
-                                        disabled={busy}
+                                        disabled={busy || routingDown}
                                         onClick={() =>
                                             void generate({
                                                 turn: (turn + 23) % 360,
@@ -7418,6 +7430,12 @@ export default function Dashboard() {
                                     </button>
                                 ) : null}
                             </div>
+                            {routingDown ? (
+                                <p className="small draw-down">
+                                    Route drawing is down. Draw comes back by
+                                    itself once the map server answers.
+                                </p>
+                            ) : null}
                             {multisport ? null : (
                                 <>
                                     <button
@@ -7882,7 +7900,9 @@ export default function Dashboard() {
                 <SheetContent
                     side="bottom"
                     className={choiceSheet}
-                    style={{ maxHeight: multisport ? '24rem' : '40rem' }}
+                    style={{
+                        maxHeight: multisport ? '24rem' : 'min(40rem, 70vh)',
+                    }}
                     onOpenAutoFocus={(event) => {
                         // A selected number makes Firefox repeat the first
                         // key, and Backspace deletes the whole field.
@@ -7895,7 +7915,9 @@ export default function Dashboard() {
                     {sheet === 'length' ? (
                         <LengthEditor
                             initialKm={sheetKm}
-                            {...(multisport ? {} : { initialBias: lengthBias })}
+                            {...(mode === 'generate' && !multisport
+                                ? { initialBias: lengthBias }
+                                : {})}
                             {...(multisport && layout === 'chain'
                                 ? {
                                       onShortest: () =>

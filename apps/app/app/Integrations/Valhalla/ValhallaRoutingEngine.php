@@ -493,9 +493,10 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             $via = $routeQuery->viaLatitude === null || $routeQuery->viaLongitude === null ? null : [$routeQuery->viaLongitude, $routeQuery->viaLatitude];
 
             // A knot or a spur the line ties at the via point is how it gets
-            // there, so it stays.
-            if ($via !== null && ! RouteCleanliness::visits($trimmed, [$via])) {
-                $trimmed = $coordinates;
+            // there, so it stays. A via pin off the road, which the line never
+            // reached, does not stop the rest being cleaned.
+            if ($via !== null) {
+                $trimmed = RouteCleanliness::keepingVisits($trimmed, $coordinates, [$via]);
             }
 
             if ($trimmed !== $coordinates) {

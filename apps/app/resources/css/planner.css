@@ -217,10 +217,16 @@
 .tw-planner .fill{box-sizing:border-box;flex:0 0 auto;height:48px;min-height:48px;width:100%;border:0;border-radius:10px;background:var(--chart);color:var(--chart-ink);font-size:16px;font-weight:600;cursor:pointer}
 .tw-planner .fill:hover{background:var(--chart-dim)}
 .tw-planner .fill:disabled{opacity:.6;cursor:default}
-/* Draw and Shuffle share a row: Draw takes the room, Shuffle is a square. */
-.tw-planner .draw-row{display:flex;gap:8px}
+/* Draw and Shuffle share a row: Draw takes the room, Shuffle is a square.
+   Shuffle slides in from under Draw once there are loops to shuffle: its
+   width and the space before it grow from nothing, so Draw makes room
+   smoothly instead of jumping. */
+.tw-planner .draw-row{display:flex}
 .tw-planner .draw-row .fill{flex:1 1 auto;width:auto;min-width:0}
-.tw-planner .shuffle{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:56px;height:48px;border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);cursor:pointer;transition:background-color 180ms var(--ease),opacity 80ms var(--ease)}
+.tw-planner .shuffle{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:56px;height:48px;margin-left:8px;overflow:hidden;border:1px solid var(--outline);border-radius:10px;background:transparent;color:var(--text);cursor:pointer;transition:background-color 180ms var(--ease),opacity 80ms var(--ease);animation:tw-shuffle-in 260ms var(--ease) both}
+@keyframes tw-shuffle-in{from{width:0;margin-left:0;opacity:0;transform:translateX(-12px)}to{width:56px;margin-left:8px;opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.tw-planner .shuffle{animation:none}}
+.tw-planner .draw-down{margin:6px 0 0}
 .tw-planner .shuffle:hover{background:var(--hover)}
 .tw-planner .shuffle:active{transition-duration:80ms;opacity:.72}
 .tw-planner .shuffle:disabled{opacity:.6;cursor:default}

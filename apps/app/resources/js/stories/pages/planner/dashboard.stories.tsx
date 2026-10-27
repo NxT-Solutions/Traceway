@@ -26,6 +26,7 @@ import { HttpResponse, http } from '../../support/server';
 /** What the `dashboard` route in routes/web.php renders the planner with, besides the shared props. */
 type DashboardProps = {
     serviceNotice: ServiceNoticeProps | null;
+    routingDown: boolean;
     sportSurfaces: Record<string, string>;
     showTour: boolean;
     avoided: AvoidedRoad[];
@@ -101,6 +102,8 @@ function Planner({
             url="/dashboard"
             props={{
                 serviceNotice: serviceNotice ? notice : null,
+                // The notice is about route drawing, so drawing is down too.
+                routingDown: serviceNotice,
                 sportSurfaces,
                 showTour,
                 avoided: avoided ? avoidedRoads : [],
@@ -487,6 +490,12 @@ export const ShuffleLoops: Story = {
         const panel = within(await panelOf(canvasElement));
 
         await step('Draw three loops', async () => {
+            // Nothing to shuffle yet.
+            await expect(
+                panel.queryByRole('button', {
+                    name: 'Shuffle: three other loops',
+                }),
+            ).not.toBeInTheDocument();
             await userEvent.click(
                 panel.getByRole('button', { name: 'Draw route' }),
             );
@@ -2052,4 +2061,15 @@ export const Phone: Story = {
 /** A line above the map when route drawing is down, from the status checks. */
 export const ServiceNotice: Story = {
     args: { serviceNotice: true },
+    play: async ({ canvasElement }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        // Drawing would only fail, so Draw waits for the map server instead of being pressed again and again.
+        await expect(
+            panel.getByRole('button', { name: /^Draw (route|again)$/ }),
+        ).toBeDisabled();
+        await expect(
+            panel.getByText(/Route drawing is down\. Draw comes back by itself/),
+        ).toBeVisible();
+    },
 };

@@ -265,6 +265,10 @@ it('turns the directions the loops are tried in when the rider shuffles', functi
 
     expect($engine->asked?->turnDegrees)->toBe(23);
 
+    $this->actingAs($rider)->postJson(route('routes.preview'), [...$ask, 'turn' => '45'])->assertOk();
+
+    expect($engine->asked?->turnDegrees)->toBe(45);
+
     $this->actingAs($rider)->postJson(route('routes.preview'), [...$ask, 'turn' => 360])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('turn');

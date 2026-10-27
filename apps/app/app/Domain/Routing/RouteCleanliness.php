@@ -331,6 +331,9 @@ final class RouteCleanliness
 
     public const float KNOT_SHARE = 0.15;
 
+    /** About 33 m of latitude: a cell wider than KNOT_METRES, so a knot is in a cell next to it at most. */
+    private const float KNOT_CELL_DEGREES = 0.0003;
+
     /**
      * Drops a stretch that leaves a point and comes straight back along the same road.
      * A real corner stays. An out-and-back spur, like the one east of Bergom, does not.
@@ -449,6 +452,9 @@ final class RouteCleanliness
     public static function withoutKnots(array $coordinates): array
     {
         $most = min(self::KNOT_MOST_METRES, self::KNOT_SHARE * Distance::along($coordinates));
+        // A degree of longitude shrinks towards the poles, so its cells are
+        // widened to stay as wide as KNOT_METRES on the ground.
+        $lonCell = self::KNOT_CELL_DEGREES / max(0.1, cos(deg2rad($coordinates[0][1] ?? 0.0)));
         /** @var list<array{0: float, 1: float}> $kept */
         $kept = [];
         /** @var list<float> $along */
@@ -460,7 +466,7 @@ final class RouteCleanliness
             $here = $kept === [] ? 0.0 : ($along[count($along) - 1] ?? 0.0) + self::metres($kept[count($kept) - 1], $coordinate);
             $closed = null;
 
-            foreach (self::knotCellsNear($coordinate) as $key) {
+            foreach (self::knotCellsNear($coordinate, $lonCell) as $key) {
                 foreach ($cells[$key] ?? [] as $index) {
                     // An index past the end was cut with an earlier knot. One
                     // since reused is checked against the point it is now.
@@ -488,7 +494,7 @@ final class RouteCleanliness
 
             $kept[] = $coordinate;
             $along[] = $here;
-            $cells[self::knotCell($coordinate)][] = count($kept) - 1;
+            $cells[self::knotCell($coordinate, $lonCell)][] = count($kept) - 1;
         }
 
         return count($kept) < 2 ? $coordinates : $kept;
@@ -497,9 +503,9 @@ final class RouteCleanliness
     /**
      * @param  array{0: float, 1: float}  $point
      */
-    private static function knotCell(array $point): string
+    private static function knotCell(array $point, float $lonCell): string
     {
-        return self::cell($point[1], 0.0003).':'.self::cell($point[0], 0.0005);
+        return self::cell($point[1], self::KNOT_CELL_DEGREES).':'.self::cell($point[0], $lonCell);
     }
 
     /**
@@ -509,10 +515,10 @@ final class RouteCleanliness
      * @param  array{0: float, 1: float}  $point
      * @return list<string>
      */
-    private static function knotCellsNear(array $point): array
+    private static function knotCellsNear(array $point, float $lonCell): array
     {
-        $lat = self::cell($point[1], 0.0003);
-        $lon = self::cell($point[0], 0.0005);
+        $lat = self::cell($point[1], self::KNOT_CELL_DEGREES);
+        $lon = self::cell($point[0], $lonCell);
         $keys = [];
 
         foreach ([-1, 0, 1] as $latStep) {
@@ -843,7 +849,11 @@ final class RouteCleanliness
      */
     private static function scored(array $routes, int $targetMetres): array
     {
-        $ascents = array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->ascentMetres, $routes);
+        // The flattest and the hilliest are measured among the loops near the
+        // length, so a loop far off it cannot set the bar for the rest.
+        $tolerance = self::lengthTolerance($targetMetres);
+        $near = array_filter($routes, fn (GeneratedRoute $generatedRoute): bool => abs($generatedRoute->distanceMetres - $targetMetres) <= $tolerance && self::onItsSide($generatedRoute, $targetMetres));
+        $ascents = array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->ascentMetres, $near === [] ? $routes : $near);
         $least = $ascents === [] ? 0 : min($ascents);
         $most = $ascents === [] ? 0 : max($ascents);
 
@@ -1005,7 +1015,7 @@ final class RouteCleanliness
             ElevationBias::Neutral => 0,
         };
 
-        return min(self::LENGTH_SHARE, $extra / max(1.0, $targetMetres / 1_000) / self::CLIMB_PER_KM_WEIGHT);
+        return min(self::LENGTH_SHARE, max(0, $extra) / max(1.0, $targetMetres / 1_000) / self::CLIMB_PER_KM_WEIGHT);
     }
 
     /**

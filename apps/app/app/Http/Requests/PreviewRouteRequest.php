@@ -67,7 +67,7 @@ class PreviewRouteRequest extends FormRequest
 
     public function toQuery(): RouteQuery
     {
-        /** @var array{sport: string, surface: string, elevation: string, distance_metres: int, latitude: float|int, longitude: float|int, shape?: string, roads?: string, length_bias?: string, turn?: int, via_latitude?: float|int|null, via_longitude?: float|int|null} $validated */
+        /** @var array{sport: string, surface: string, elevation: string, distance_metres: int, latitude: float|int, longitude: float|int, shape?: string, roads?: string, length_bias?: string, turn?: int|string, via_latitude?: float|int|null, via_longitude?: float|int|null} $validated */
         $validated = $this->validated();
         $viaLatitude = $validated['via_latitude'] ?? null;
         $viaLongitude = $validated['via_longitude'] ?? null;
@@ -84,7 +84,7 @@ class PreviewRouteRequest extends FormRequest
             viaLongitude: $viaLongitude === null ? null : (float) $viaLongitude,
             preferQuiet: ($validated['roads'] ?? 'any') === 'quiet',
             lengthBias: LengthBias::tryFrom($validated['length_bias'] ?? '') ?? LengthBias::Closest,
-            turnDegrees: $validated['turn'] ?? 0,
+            turnDegrees: (int) ($validated['turn'] ?? 0),
         );
     }
 }
