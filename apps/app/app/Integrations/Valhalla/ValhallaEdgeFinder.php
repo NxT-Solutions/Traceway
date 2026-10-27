@@ -10,6 +10,7 @@ use App\Domain\Routing\RoadEdge;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 use App\Domain\Routing\ValhallaCosting;
+use App\Integrations\JsonBody;
 use App\Integrations\Valhalla\Requests\LocateRequest;
 use RuntimeException;
 
@@ -33,7 +34,7 @@ final readonly class ValhallaEdgeFinder implements EdgeFinder
             costingOptions: $costing['costing_options'],
         ));
 
-        throw_if($response->failed(), RuntimeException::class, 'The router did not find the way under the point.');
+        throw_if($response->failed() || ! JsonBody::readable($response), RuntimeException::class, 'The router did not find the way under the point.');
 
         $edge = $response->json('0.edges.0');
 

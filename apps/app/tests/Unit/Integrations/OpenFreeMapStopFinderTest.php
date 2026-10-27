@@ -124,3 +124,10 @@ it('does not look along a line that crosses too many tiles', function (): void {
 it('turns away a tile that is too big', function () use ($westerlo): void {
     tileFinder(fn (): string => str_repeat('x', (4 << 20) + 1))->along(Sport::Road, $westerlo);
 })->throws(RuntimeException::class, 'A map tile was too big.');
+
+it('fails loudly when the tile index comes back as a page', function () use ($westerlo): void {
+    $connector = new OpenFreeMapConnector('https://tiles.test');
+    $connector->withMockClient(new MockClient([TileIndexRequest::class => MockResponse::make('<html><body>Please wait</body></html>', 200, ['Content-Type' => 'text/html'])]));
+
+    new OpenFreeMapStopFinder($connector)->along(Sport::Road, $westerlo);
+})->throws(RuntimeException::class, 'The map tiles did not say where they are.');

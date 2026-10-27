@@ -55,3 +55,11 @@ it('has no name for a point out at sea', function (): void {
 it('fails loudly when the place search is down', function (): void {
     placeNamer(new MockClient([ReverseRequest::class => MockResponse::make(['error' => 'busy'], 503)]))->nameAt(51.1, 4.9);
 })->throws(RuntimeException::class, 'The place search did not answer.');
+
+it('fails loudly when a page comes back instead of an answer, so no place is kept as nameless', function (string $body): void {
+    placeNamer(new MockClient([ReverseRequest::class => MockResponse::make($body, 200, ['Content-Type' => 'text/html'])]))->nameAt(51.1, 4.9);
+})->with([
+    'a page' => '<html><body>Please wait</body></html>',
+    'a bare string' => '"Please wait"',
+    'nothing' => '',
+])->throws(RuntimeException::class, 'The place search did not answer.');

@@ -60,6 +60,30 @@ it('draws a loop from a valhalla trip', function (): void {
         ->and($mock->getRecordedResponses())->toHaveCount(6);
 });
 
+it('leaves out a loop the router answered with a page, and draws one of the others', function (): void {
+    $trip = MockResponse::make([
+        'trip' => [
+            'summary' => ['length' => 19.4],
+            'legs' => [['shape' => Polyline::encode([[3.72, 51.05], [3.8, 51.08], [3.72, 51.05]])]],
+        ],
+    ], 200);
+    $page = MockResponse::make('<html><body>Please wait</body></html>', 200, ['Content-Type' => 'text/html']);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient(new MockClient([$page, $trip, $trip, $trip, $trip, $trip]));
+
+    $route = new ValhallaRoutingEngine($connector)->route(new RouteQuery(
+        sport: Sport::Road,
+        shape: Shape::Loop,
+        distanceMetres: 20_000,
+        surface: Surface::Paved,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+    ));
+
+    expect($route->distanceMetres)->toBe(19400);
+});
+
 it('asks for a loop longer than one request in pieces and joins them', function (): void {
     $mock = new MockClient([
         RouteRequest::class => function (PendingRequest $pendingRequest): MockResponse {

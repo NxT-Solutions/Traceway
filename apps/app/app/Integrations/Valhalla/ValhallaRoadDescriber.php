@@ -15,6 +15,7 @@ use App\Domain\Routing\Distance;
 use App\Domain\Routing\LineSimplifier;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\ValhallaCosting;
+use App\Integrations\JsonBody;
 use App\Integrations\Valhalla\Requests\HeightRequest;
 use App\Integrations\Valhalla\Requests\TraceAttributesRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
@@ -271,7 +272,7 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
             return null;
         }
 
-        $range = $response->json('range_height');
+        $range = JsonBody::get($response, 'range_height');
 
         if (! is_array($range)) {
             return null;
@@ -303,7 +304,7 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
             return null;
         }
 
-        $edges = $response->json('edges');
+        $edges = JsonBody::get($response, 'edges');
 
         if (! is_array($edges)) {
             return null;
@@ -333,7 +334,7 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
             return null;
         }
 
-        $legs = $response->json('trip.legs');
+        $legs = JsonBody::get($response, 'trip.legs');
 
         if (! is_array($legs)) {
             return null;
