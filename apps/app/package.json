@@ -51,7 +51,7 @@
         "driver.js": "^1.10.2",
         "input-otp": "^1.5.0",
         "laravel-vite-plugin": "^3.2.0",
-        "lucide-react": "^1.61.0",
+        "lucide-react": "^1.62.0",
         "maplibre-gl": "^6.16.0",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
