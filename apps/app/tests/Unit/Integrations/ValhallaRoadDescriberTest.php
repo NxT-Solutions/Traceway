@@ -229,7 +229,7 @@ it('says the status when a page came back instead of an error', function (): voi
     $mock = new MockClient([
         TraceRouteRequest::class => MockResponse::make('<html>Bad Gateway</html>', 502, ['Content-Type' => 'text/html']),
         TraceAttributesRequest::class => MockResponse::make('<html>Bad Gateway</html>', 502, ['Content-Type' => 'text/html']),
-        HeightRequest::class => MockResponse::make('', 504),
+        HeightRequest::class => MockResponse::make('"Gateway Timeout"', 504, ['Content-Type' => 'application/json']),
     ]);
     $connector = new ValhallaConnector('https://valhalla.test');
     $connector->withMockClient($mock);

@@ -24,6 +24,7 @@ use Saloon\Config;
 use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Request;
 use Saloon\Http\Response;
+use TypeError;
 
 /**
  * Reads a finished line back from Valhalla: the turns from trace_route, the
@@ -172,13 +173,14 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
     /**
      * The status of a refused request, with Valhalla's own error code when it
      * gave one. A proxy in front of the server answers a busy moment with a
-     * page instead, which has no code to read.
+     * page or a bare string instead, which has no code to read. Saloon keeps
+     * a decoded body as an array, so a string throws a TypeError.
      */
     private function status(Response $response): string
     {
         try {
             $code = $response->json('error_code');
-        } catch (JsonException) {
+        } catch (JsonException|TypeError) {
             $code = null;
         }
 
