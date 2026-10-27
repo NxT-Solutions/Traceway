@@ -46,20 +46,14 @@ arch('the sign-in adapter returns identities. Controllers decide what to do with
 arch('outbound HTTP is a Saloon connector under App\Integrations')
     ->expect('App')
     ->not->toUse(vendorNamespaces('Saloon'))
-    ->ignoring('App\Integrations');
+    ->ignoring(within('App\Integrations'));
 
 arch('logging in with another service is a Socialite handshake in App\Auth\Connections')
     ->expect('App')
     ->not->toUse(vendorNamespaces('Laravel\Socialite', 'SocialiteProviders', 'GuzzleHttp'))
-    ->ignoring([
-        'App\Auth\Connections',
-        'App\Providers',
-    ]);
+    ->ignoring(within('App\Auth\Connections', 'App\Providers'));
 
 arch('Eloquent stays on the models. A query uses the query builder')
     ->expect('App')
     ->not->toUse('Illuminate\Database\Eloquent')
-    ->ignoring([
-        'App\Models',
-        'App\Repositories',
-    ]);
+    ->ignoring(within('App\Models', 'App\Repositories'));

@@ -50,10 +50,7 @@ arch('a handler talks to contracts. Repositories persist, the mailer sends, and 
 
 arch('only the service provider wires a handler. Callers dispatch a command')
     ->expect('App\Handlers')
-    ->toOnlyBeUsedIn([
-        'App\Providers',
-        'App\Handlers',
-    ]);
+    ->toOnlyBeUsedIn(within('App\Providers', 'App\Handlers'));
 
 arch('a read model is a closed projection')
     ->expect('App\Queries')
@@ -93,10 +90,7 @@ arch('the handler map does not change after registration')
 
 arch('callers use the DispatchesCommands contract. The provider builds the concrete bus')
     ->expect('App\Bus')
-    ->toOnlyBeUsedIn([
-        'App\Providers',
-        'App\Bus',
-    ]);
+    ->toOnlyBeUsedIn(within('App\Providers', 'App\Bus'));
 
 arch('an Eloquent repository is one adapter, not a base class')
     ->expect('App\Repositories')
@@ -115,7 +109,4 @@ arch('a repository persists. It does not mail, route, or render')
 
 arch('handlers depend on the repository contract. Only the provider chooses the Eloquent adapter')
     ->expect('App\Repositories')
-    ->toOnlyBeUsedIn([
-        'App\Providers',
-        'App\Repositories',
-    ]);
+    ->toOnlyBeUsedIn(within('App\Providers', 'App\Repositories'));

@@ -97,7 +97,6 @@
             "Composer\\Config::disableProcessTimeout",
             "@rector:check",
             "@lint:check",
-            "@architecture",
             "bun run blade:check",
             "bun run check"
         ],

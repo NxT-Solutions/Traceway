@@ -49,3 +49,15 @@ function vendorNamespaces(string ...$roots): array
 
     return $found;
 }
+
+/**
+ * The given namespaces with a closing backslash, for ignoring() and
+ * toOnlyBeUsedIn(). Both compare raw prefixes, so 'App\Integrations' alone
+ * would also let a class in App\IntegrationsFake through.
+ *
+ * @return list<string>
+ */
+function within(string ...$namespaces): array
+{
+    return array_map(fn (string $namespace): string => $namespace.'\\', $namespaces);
+}
