@@ -52,8 +52,15 @@ const server = createServer((request, response) => {
         return;
     }
 
+    // A read that fails ends the answer, so the page sees a broken file
+    // rather than waiting on one.
+    const stream = createReadStream(file);
+    stream.on('error', (error) => {
+        console.error(`contrast: could not serve ${path}: ${error.message}`);
+        response.destroy(error);
+    });
     response.writeHead(200, { 'Content-Type': types[extname(file)] ?? 'application/octet-stream' });
-    createReadStream(file).pipe(response);
+    stream.pipe(response);
 });
 
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -93,6 +100,45 @@ async function analyze(page, target, attempt = 1) {
     }
 }
 
+/**
+ * Waits until a docs page is what a reader sees: nothing left to load, its
+ * fonts in, and the docs page in the asked theme. The check is synchronous:
+ * Playwright takes a promise from an async one as done at once.
+ */
+async function settle(page, appearance) {
+    const theme = appearance === 'dark' ? 'ink' : 'paper';
+
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    await page
+        .waitForFunction(
+            (expected) => document.fonts.status === 'loaded' && document.documentElement.dataset.docsTheme === expected,
+            theme,
+            { timeout: 15_000 },
+        )
+        .catch(() => {});
+    // Late renders settle.
+    await page.waitForTimeout(900);
+}
+
+/**
+ * The stylesheets a page links to but did not get. Read without them, its
+ * text is the browser's black. Chromium gives a failed one an empty sheet
+ * whose rules cannot be read, not a null one.
+ */
+function missingStyles(page) {
+    return page.evaluate(() =>
+        [...document.querySelectorAll('link[rel="stylesheet"]')]
+            .filter((link) => {
+                try {
+                    return link.sheet === null || link.sheet.cssRules.length === 0;
+                } catch {
+                    return true;
+                }
+            })
+            .map((link) => link.href),
+    );
+}
+
 async function check(entry, appearance) {
     // axe's Playwright wrapper needs a page in a context of its own.
     // Reduced motion, so popovers and dialogs are read open, not mid-fade.
@@ -102,13 +148,31 @@ async function check(entry, appearance) {
     const target = '#storybook-docs';
 
     try {
-        await page.goto(`${base}/iframe.html?id=${entry.id}&viewMode=${mode}&globals=appearance:${appearance}`, {
-            waitUntil: 'load',
-            timeout: 30_000,
-        });
-        await page.waitForSelector(`${target} *`, { timeout: 15_000 }).catch(() => {});
-        // Fonts, the appearance switch and late renders settle.
-        await page.waitForTimeout(900);
+        // The release run once read Foundations/Colors without the app's
+        // stylesheet: its request had failed, and every line came out black
+        // on Storybook's ground. A page without its styles is opened again,
+        // and one that never gets them did not load: it says nothing about
+        // contrast.
+        let missing = [];
+
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+            await page.goto(`${base}/iframe.html?id=${entry.id}&viewMode=${mode}&globals=appearance:${appearance}`, {
+                waitUntil: 'load',
+                timeout: 30_000,
+            });
+            await page.waitForSelector(`${target} *`, { timeout: 15_000 }).catch(() => {});
+            missing = await missingStyles(page);
+
+            if (missing.length === 0) {
+                break;
+            }
+        }
+
+        if (missing.length > 0) {
+            throw new Error(`the stylesheet did not load: ${missing.join(', ')}`);
+        }
+
+        await settle(page, appearance);
 
         const result = await analyze(page, target);
 
