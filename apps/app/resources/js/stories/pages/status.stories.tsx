@@ -467,3 +467,45 @@ export const PicksARange: Story = {
         });
     },
 };
+
+/**
+ * Route drawing was down three and four hours ago. Pointing at a bar writes out its hour and how it went; the arrow
+ * keys step through the hours, and a screen reader hears the same words.
+ */
+export const ReadsEachHour: Story = {
+    render: page(inRange('day')),
+    play: async ({ canvas, step }) => {
+        const routing = canvas.getByRole('slider', {
+            name: 'Route drawing, 24 hours',
+        });
+
+        await step('Point at the hour three hours ago', async () => {
+            const hours = routing.querySelectorAll(':scope > span');
+            const threeHoursAgo = hours[hours.length - 4];
+
+            if (threeHoursAgo === undefined) {
+                throw new Error('The bar is missing.');
+            }
+
+            await userEvent.hover(threeHoursAgo);
+            await expect(canvas.getByText(/ · Down$/)).toBeVisible();
+            await userEvent.unhover(routing);
+        });
+
+        await step('Step back through the hours with the keys', async () => {
+            routing.focus();
+            await userEvent.keyboard(
+                '{ArrowLeft}{ArrowLeft}{ArrowLeft}{ArrowLeft}',
+            );
+            await expect(routing).toHaveAttribute(
+                'aria-valuetext',
+                expect.stringMatching(/ · Down$/),
+            );
+            await userEvent.keyboard('{End}');
+            await expect(routing).toHaveAttribute(
+                'aria-valuetext',
+                expect.stringMatching(/ · Works$/),
+            );
+        });
+    },
+};

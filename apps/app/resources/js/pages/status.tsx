@@ -1,4 +1,5 @@
 import { Head, Link, usePage, usePoll } from '@inertiajs/react';
+import { type KeyboardEvent, useState } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { cn } from '@/lib/utils';
@@ -243,6 +244,49 @@ function problemBars(
         .map((bar) => barLabel(bar.start, unit, hydrated));
 }
 
+/**
+ * When a bar was, in full: "Thu 29 Oct, 10:00 – 11:00", "Thu 29 Oct", or
+ * "23 Oct – 29 Oct". Hours are the reader's own, once the browser has the page.
+ */
+function barTime(start: string, unit: Unit, hydrated: boolean): string {
+    const from = new Date(start);
+    const locale = hydrated ? undefined : utc.locale;
+
+    if (unit === 'hour') {
+        const zone = hydrated ? {} : { timeZone: utc.timeZone };
+        const time = (at: Date) =>
+            at.toLocaleTimeString(locale, {
+                hour: 'numeric',
+                minute: '2-digit',
+                ...zone,
+            });
+        const day = from.toLocaleDateString(locale, {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            ...zone,
+        });
+
+        return `${day}, ${time(from)} – ${time(new Date(from.getTime() + 3_600_000))}${hydrated ? '' : ' UTC'}`;
+    }
+
+    const day = (at: Date, weekday: boolean) =>
+        at.toLocaleDateString(locale, {
+            ...(weekday ? { weekday: 'short' as const } : {}),
+            day: 'numeric',
+            month: 'short',
+            timeZone: 'UTC',
+        });
+
+    return unit === 'day'
+        ? day(from, true)
+        : `${day(from, false)} – ${day(new Date(from.getTime() + 6 * 86_400_000), false)}`;
+}
+
+function barDetail(bar: Bar, unit: Unit, hydrated: boolean): string {
+    return `${barTime(bar.start, unit, hydrated)} · ${bar.state === null ? 'No checks' : stateWord[bar.state]}`;
+}
+
 /** "Down at 10:00", "down on 27 Oct", "down in the week of 13 Oct". */
 function problemLine(word: string, items: string[], unit: Unit): string | null {
     if (items.length === 0) {
@@ -264,6 +308,10 @@ function list(items: string[]): string {
  * The range in bars, oldest left, now right. A phone shows the last 30. The
  * bad hours, days, or weeks are also written out under the bars, so colour is
  * never the only record.
+ *
+ * Pointing at a bar, or tapping it, writes out when it was and how it went
+ * under the bars. The row is one slider: the arrow keys step through the bars,
+ * and a screen reader reads the same words.
  */
 function Bars({
     component,
@@ -288,30 +336,108 @@ function Bars({
         ),
     ].filter((line) => line !== null);
 
+    const [hovered, setHovered] = useState<number | null>(null);
+    const [picked, setPicked] = useState<number | null>(null);
+    const count = component.bars.length;
+    const shown = hovered ?? picked;
+    const shownBar = shown === null ? undefined : component.bars[shown];
+    const current = picked ?? count - 1;
+    const currentBar = component.bars[current];
+
+    // The first key picks the newest bar; the next ones step from there.
+    function step(event: KeyboardEvent<HTMLDivElement>) {
+        const moves: Record<string, number> = {
+            ArrowLeft: -1,
+            ArrowDown: -1,
+            ArrowRight: 1,
+            ArrowUp: 1,
+            Home: -count,
+            End: count,
+        };
+        const move = moves[event.key];
+
+        if (event.key === 'Escape') {
+            setPicked(null);
+
+            return;
+        }
+
+        if (move === undefined) {
+            return;
+        }
+
+        event.preventDefault();
+        setPicked(
+            Math.min(
+                count - 1,
+                Math.max(
+                    0,
+                    current +
+                        (picked === null && Math.abs(move) === 1 ? 0 : move),
+                ),
+            ),
+        );
+    }
+
     return (
         <div className="space-y-1.5">
-            <div aria-hidden="true" className="flex h-8 items-end gap-px">
+            <div
+                role="slider"
+                tabIndex={0}
+                aria-label={`${component.label}, ${ranges[range].label}`}
+                aria-orientation="horizontal"
+                aria-valuemin={0}
+                aria-valuemax={count - 1}
+                aria-valuenow={current}
+                aria-valuetext={
+                    currentBar === undefined
+                        ? undefined
+                        : barDetail(currentBar, unit, hydrated)
+                }
+                onKeyDown={step}
+                onBlur={() => setPicked(null)}
+                onMouseLeave={() => setHovered(null)}
+                className="flex h-8 cursor-pointer gap-px rounded-[3px] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
                 {component.bars.map((bar, index) => (
+                    // The whole height answers the pointer, also over a short bar.
                     <span
                         key={bar.start}
-                        title={`${barLabel(bar.start, unit, hydrated)}: ${bar.state === null ? 'No checks' : stateWord[bar.state]}`}
+                        aria-hidden="true"
+                        onMouseEnter={() => setHovered(index)}
+                        onClick={() => setPicked(index)}
                         className={cn(
-                            'flex-1 rounded-[2px]',
-                            bar.state === null ? 'h-1.5' : 'h-full',
-                            stateColour[bar.state ?? 'unknown'],
-                            index < component.bars.length - PHONE_BARS &&
-                                'hidden sm:block',
+                            'flex h-full flex-1 items-end',
+                            index < count - PHONE_BARS && 'hidden sm:flex',
                         )}
-                    />
+                    >
+                        <span
+                            className={cn(
+                                'w-full rounded-[2px]',
+                                bar.state === null ? 'h-1.5' : 'h-full',
+                                stateColour[bar.state ?? 'unknown'],
+                                index === shown &&
+                                    'outline-2 outline-offset-1 outline-foreground',
+                            )}
+                        />
+                    </span>
                 ))}
             </div>
             <div
                 aria-hidden="true"
-                className="flex justify-between text-xs text-muted-foreground"
+                className="flex min-h-4 justify-between text-xs text-muted-foreground"
             >
-                <span className="sm:hidden">{fromPhone}</span>
-                <span className="hidden sm:inline">{from}</span>
-                <span>{to}</span>
+                {shownBar === undefined ? (
+                    <>
+                        <span className="sm:hidden">{fromPhone}</span>
+                        <span className="hidden sm:inline">{from}</span>
+                        <span>{to}</span>
+                    </>
+                ) : (
+                    <span className="w-full text-center font-medium text-foreground">
+                        {barDetail(shownBar, unit, hydrated)}
+                    </span>
+                )}
             </div>
             <p className="text-sm text-muted-foreground">
                 {problems.length === 0
