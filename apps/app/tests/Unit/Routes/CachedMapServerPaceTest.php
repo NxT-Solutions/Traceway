@@ -7,6 +7,7 @@ use App\Routes\CachedMapServerPace;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\Repository;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Sleep;
 
 beforeEach(function (): void {
     Date::setTestNow('2026-10-29 10:20:00');
@@ -58,3 +59,39 @@ it('sets no limit, and takes no rest, for a map server Traceway runs itself', fu
     $cachedMapServerPace->rest();
     $cachedMapServerPace->admit(500);
 })->throwsNoExceptions();
+
+it('keeps a share and a rest for each server of its own', function (): void {
+    $repository = new Repository(new ArrayStore);
+    $valhalla = new CachedMapServerPace($repository, perMinute: 2);
+    $backup = new CachedMapServerPace($repository, perMinute: 2, server: 'routing-backup');
+
+    $valhalla->admit(2);
+    $valhalla->rest();
+
+    $backup->admit(2);
+
+    expect(fn () => $valhalla->admit(1))->toThrow(MapServerBusy::class, 'Traceway is giving the map server a rest.')
+        ->and(fn () => $backup->admit(1))->toThrow(MapServerBusy::class, 'Traceway asked the map server for enough this minute.');
+});
+
+it('gives turns about a second apart when asked to, for all of Traceway', function (): void {
+    Sleep::fake(syncWithCarbon: true);
+    $repository = new Repository(new ArrayStore);
+
+    new CachedMapServerPace($repository, server: 'routing-backup', oneASecond: true)->admit(1);
+    new CachedMapServerPace($repository, server: 'routing-backup', oneASecond: true)->admit(1);
+
+    Sleep::assertSleptTimes(4);
+    Sleep::fake(value: false);
+});
+
+it('counts the server as busy when no turn comes in time', function (): void {
+    Sleep::fake();
+    $repository = new Repository(new ArrayStore);
+    $cachedMapServerPace = new CachedMapServerPace($repository, server: 'routing-backup', oneASecond: true);
+    $cachedMapServerPace->admit(1);
+
+    expect(fn () => $cachedMapServerPace->admit(1))->toThrow(MapServerBusy::class, 'Traceway waited too long for its turn at the map server.');
+
+    Sleep::fake(value: false);
+});

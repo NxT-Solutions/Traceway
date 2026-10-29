@@ -138,3 +138,12 @@ it('sends none of a batch that does not fit in this minute', function (): void {
         ->toThrow(MapServerBusy::class, 'Traceway asked the map server for enough this minute.');
     $mock->assertNothingSent();
 });
+
+it('rests when a route asked on its own gets no answer, so the backup draws at once', function (): void {
+    [$connector, $mock] = pacedValhalla(60, unreached(), MockResponse::make([], 200));
+
+    sendAll($connector, [new RouteRequest([])]);
+
+    expect(fn () => $connector->send(new RouteRequest([])))->toThrow(MapServerBusy::class);
+    $mock->assertSentCount(1);
+});

@@ -19,8 +19,8 @@ use Saloon\Traits\Plugins\HasTimeout;
 /**
  * Every request, and every request asked again, takes its share of the pace
  * first. When the server turns Traceway away as busy, or answers none of a
- * batch, Traceway rests. One slow or failed request on its own is not the
- * server down for everyone, so it is no reason to rest.
+ * batch of routes, Traceway rests. A lookup or a match sent on its own that
+ * fails is not the server down for everyone, so it is no reason to rest.
  */
 final class ValhallaConnector extends Connector
 {
@@ -89,15 +89,15 @@ final class ValhallaConnector extends Connector
 
         $mapServerPace->admit($left);
 
-        $size = $left;
         $anyAnswered = false;
-        $settle = static function (?Response $response) use ($mapServerPace, $size, &$left, &$anyAnswered): void {
+        $settle = static function (?Response $response) use ($mapServerPace, &$left, &$anyAnswered): void {
             $anyAnswered = $anyAnswered || ($response instanceof Response && self::answered($response));
             $left--;
 
-            // Turned away as busy is a rest at once. A batch of several with
-            // no answer at all is too; one request on its own is not.
-            if ($response?->status() === 429 || ($left === 0 && ! $anyAnswered && $size > 1)) {
+            // Turned away as busy is a rest at once. A batch with no answer at
+            // all is too, so the next request goes to the backup at once
+            // instead of waiting on a server that turned Traceway away.
+            if ($response?->status() === 429 || ($left === 0 && ! $anyAnswered)) {
                 $mapServerPace->rest();
             }
         };

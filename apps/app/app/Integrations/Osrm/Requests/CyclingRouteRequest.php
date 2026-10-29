@@ -15,11 +15,13 @@ final class CyclingRouteRequest extends Request
 
     /**
      * @param  list<array{0: float, 1: float}>  $coordinates
+     * @param  bool  $serverPerProfile  The profile picks the server's path, such as /routed-bike, rather than the route's.
      */
     public function __construct(
         private readonly array $coordinates,
         private readonly string $profile = 'bike',
         private readonly bool $alternatives = false,
+        private readonly bool $serverPerProfile = false,
     ) {}
 
     public function resolveEndpoint(): string
@@ -29,7 +31,9 @@ final class CyclingRouteRequest extends Request
             $this->coordinates,
         ));
 
-        return '/route/v1/'.$this->profile.'/'.$path;
+        return $this->serverPerProfile
+            ? '/routed-'.$this->profile.'/route/v1/driving/'.$path
+            : '/route/v1/'.$this->profile.'/'.$path;
     }
 
     /**
