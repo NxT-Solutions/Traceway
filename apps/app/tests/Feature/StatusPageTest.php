@@ -54,13 +54,16 @@ function allUp(): array
     ];
 }
 
-test('a check saves one answer per part and forgets the oldest days', function (): void {
+test('a check saves one answer per part and forgets checks over a year old', function (): void {
     $this->app->instance(ServiceProbes::class, fakeProbes(allUp()));
-    DB::table('status_checks')->insert(['component' => 'routing', 'state' => 'up', 'latency_ms' => 90, 'checked_at' => now()->subDays(120)]);
+    DB::table('status_checks')->insert(['component' => 'routing', 'state' => 'up', 'latency_ms' => 90, 'checked_at' => now()->subDays(400)]);
+    DB::table('status_checks')->insert(['component' => 'routing', 'state' => 'down', 'latency_ms' => 90, 'checked_at' => now()->subDays(200)]);
 
     $this->artisan('status:check')->expectsOutput('Checked 5 parts of Traceway.')->assertSuccessful();
 
-    expect(DB::table('status_checks')->orderBy('id')->pluck('component')->all())->toBe(['planner', 'routing', 'places', 'tiles', 'garmin_store']);
+    expect(DB::table('status_checks')->orderBy('id')->pluck('state', 'component')->count())->toBe(5)
+        ->and(DB::table('status_checks')->where('checked_at', '<', now()->subDays(366))->count())->toBe(0)
+        ->and(DB::table('status_checks')->where('state', 'down')->count())->toBe(1);
 });
 
 test('anyone can open the status page and see every part', function (): void {
@@ -78,7 +81,8 @@ test('anyone can open the status page and see every part', function (): void {
             ->where('groups.1.label', 'Map services')
             ->where('groups.1.components.0.label', 'Route drawing')
             ->where('groups.1.components.0.uptime', 100)
-            ->has('groups.1.components.0.days', 90)
+            ->where('range', 'day')
+            ->has('groups.1.components.0.bars', 24)
             ->where('groups.2.components.0.state', 'waiting')
             ->where('groups.2.components.0.summary', 'The Garmin app is waiting for Garmin to approve it'));
 });
@@ -238,7 +242,8 @@ test('before the first check the page says there are none', function (): void {
         ->where('groups.1.components.0.summary', 'Not checked yet'));
 });
 
-test('the last day bar is today, with the worst state of today', function (): void {
+test('the page opens on the last 24 hours, an hour to a bar with the worst moment in it', function (): void {
+    $this->travelTo('2026-10-29 10:20:00');
     $this->app->instance(ServiceProbes::class, fakeProbes([...allUp(), 'routing' => ServiceState::Slow]));
     $this->artisan('status:check');
     $this->travel(5)->minutes();
@@ -246,10 +251,51 @@ test('the last day bar is today, with the worst state of today', function (): vo
     $this->artisan('status:check');
 
     $this->get('/status')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('range', 'day')
         ->where('groups.1.components.0.state', 'up')
-        ->where('groups.1.components.0.days.89.date', today()->toDateString())
-        ->where('groups.1.components.0.days.89.state', 'slow')
-        ->where('groups.1.components.0.days.88.state', expected: null));
+        ->has('groups.1.components.0.bars', 24)
+        ->where('groups.1.components.0.bars.23.start', '2026-10-29T10:00:00Z')
+        ->where('groups.1.components.0.bars.23.state', 'slow')
+        ->where('groups.1.components.0.bars.22.start', '2026-10-29T09:00:00Z')
+        ->where('groups.1.components.0.bars.22.state', expected: null)
+        ->where('groups.1.components.0.bars.0.start', '2026-10-28T11:00:00Z'));
+});
+
+test('a range shows its days or weeks, and its own uptime', function (): void {
+    $this->travelTo('2026-10-29 10:20:00');
+    DB::table('status_checks')->insert(['component' => 'routing', 'state' => 'down', 'latency_ms' => 90, 'checked_at' => '2026-09-19 08:00:00']);
+    $this->app->instance(ServiceProbes::class, fakeProbes([...allUp(), 'routing' => ServiceState::Slow]));
+    $this->artisan('status:check');
+
+    $this->get('/status?range=week')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('range', 'week')
+        ->has('groups.1.components.0.bars', 7)
+        ->where('groups.1.components.0.bars.6.start', '2026-10-29T00:00:00Z')
+        ->where('groups.1.components.0.bars.6.state', 'slow')
+        ->where('groups.1.components.0.uptime', 100));
+
+    $this->get('/status?range=quarter')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('range', 'quarter')
+        ->has('groups.1.components.0.bars', 90)
+        ->where('groups.1.components.0.bars.49.start', '2026-09-19T00:00:00Z')
+        ->where('groups.1.components.0.bars.49.state', 'down')
+        ->where('groups.1.components.0.uptime', 50));
+
+    $this->get('/status?range=year')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('range', 'year')
+        ->has('groups.1.components.0.bars', 52)
+        ->where('groups.1.components.0.bars.51.start', '2026-10-23T00:00:00Z')
+        ->where('groups.1.components.0.bars.51.state', 'slow')
+        ->where('groups.1.components.0.bars.46.state', 'down'));
+});
+
+test('an unknown range shows the last 24 hours', function (): void {
+    $this->app->instance(ServiceProbes::class, fakeProbes(allUp()));
+    $this->artisan('status:check');
+
+    $this->get('/status?range=decade')->assertOk()->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('range', 'day')
+        ->has('groups.1.components.0.bars', 24));
 });
 
 test('a notice about something else never hides a broken map service', function (): void {

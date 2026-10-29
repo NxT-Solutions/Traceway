@@ -10,28 +10,29 @@ use App\Domain\Status\ServiceProbes;
 use App\Domain\Status\ServiceState;
 use App\Domain\Status\StatusComponent;
 use App\Domain\Status\StatusGroup;
+use App\Domain\Status\StatusRange;
 use App\Queries\RowReader;
 use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
  * What the status page and the planner's banner show: the last answer of each check, the
- * worst state of each of the last 90 days, and the notices posted by hand.
+ * worst state of each hour, day, or week of the range asked for, and the notices posted
+ * by hand.
  *
- * @phpstan-type Day array{date: string, state: string|null}
- * @phpstan-type Component array{key: string, label: string, state: string|null, summary: string, latency_ms: int|null, uptime: float|null, days: list<Day>}
+ * @phpstan-type Bar array{start: string, state: string|null}
+ * @phpstan-type Component array{key: string, label: string, state: string|null, summary: string, latency_ms: int|null, uptime: float|null, bars: list<Bar>}
  * @phpstan-type Group array{key: string, label: string, components: list<Component>}
  * @phpstan-type Notice array{id: int, title: string, body: string|null, components: list<string>, started_at: string|null, resolved_at: string|null}
- * @phpstan-type Page array{state: string, headline: string, checked_at: string|null, stale: bool, notices: list<Notice>, groups: list<Group>}
+ * @phpstan-type Page array{state: string, headline: string, checked_at: string|null, stale: bool, range: string, notices: list<Notice>, groups: list<Group>}
  */
 final readonly class ServiceStatusQuery
 {
     /** With no check this long, the scheduler has stopped and the page says so. */
     public const int STALE_MINUTES = 15;
-
-    public const int DAYS = 90;
 
     /** A notice stays on the page this long after it is resolved. */
     public const int RESOLVED_DAYS = 7;
@@ -42,14 +43,15 @@ final readonly class ServiceStatusQuery
     ) {}
 
     /**
-     * The status page. It is built again after a new check or a notice, and every five
-     * minutes, so it notices when the checks stop.
+     * The status page over a range. It is built again after a new check or a notice, and
+     * every five minutes, so it notices when the checks stop.
      *
      * @return Page
      */
-    public function page(): array
+    public function page(StatusRange $statusRange = StatusRange::Day): array
     {
         $stamp = json_encode([
+            $statusRange->value,
             DB::table('status_checks')->max('checked_at'),
             DB::table('status_notices')->max('updated_at'),
             DB::table('status_notices')->count(),
@@ -58,7 +60,7 @@ final readonly class ServiceStatusQuery
             $this->components(),
         ], JSON_THROW_ON_ERROR);
 
-        return $this->cacheRepository->remember('status-page:'.md5($stamp), 300, fn (): array => $this->build());
+        return $this->cacheRepository->remember('status-page:'.md5($stamp), 300, fn (): array => $this->build($statusRange));
     }
 
     /**
@@ -148,12 +150,12 @@ final readonly class ServiceStatusQuery
     /**
      * @return Page
      */
-    private function build(): array
+    private function build(StatusRange $statusRange): array
     {
         [$latest, $checkedAt] = $this->latest();
         $stale = $checkedAt instanceof CarbonImmutable && $this->isStale($checkedAt);
-        $counts = $this->counts();
-        $today = today()->toDateTimeImmutable();
+        $first = $statusRange->firstBar(now()->toDateTimeImmutable());
+        $counts = $this->counts($statusRange, $first);
         $groups = [];
         $worst = ServiceState::Up;
         $broken = [];
@@ -178,9 +180,9 @@ final readonly class ServiceStatusQuery
                 'summary' => $state instanceof ServiceState ? $statusComponent->describe($state) : 'Not checked yet',
                 'latency_ms' => $check['latency_ms'] ?? null,
                 'uptime' => Availability::uptime($counts[$component] ?? []),
-                'days' => array_map(
-                    fn (array $day): array => ['date' => $day['date'], 'state' => $day['state']?->value],
-                    Availability::days($counts[$component] ?? [], $today, self::DAYS),
+                'bars' => array_map(
+                    fn (array $bar): array => ['start' => $bar['start']->format('Y-m-d\TH:i:s\Z'), 'state' => $bar['state']?->value],
+                    Availability::bars($counts[$component] ?? [], $first, $statusRange->bars(), $statusRange->hours()),
                 ),
             ];
         }
@@ -207,6 +209,7 @@ final readonly class ServiceStatusQuery
             'headline' => $headline,
             'checked_at' => $checkedAt?->toIso8601String(),
             'stale' => $stale,
+            'range' => $statusRange->value,
             'notices' => $notices,
             'groups' => array_values(array_filter(
                 array_map(fn (StatusGroup $statusGroup): ?array => $groups[$statusGroup->value] ?? null, StatusGroup::cases()),
@@ -248,23 +251,25 @@ final readonly class ServiceStatusQuery
     }
 
     /**
-     * How many checks of each component ended in each state, per day.
+     * How many checks of each component ended in each state, per hour for a range of
+     * hours and per day otherwise, from the first bar on. Each is keyed by its start.
      *
      * @return array<string, array<string, array<string, int>>>
      */
-    private function counts(): array
+    private function counts(StatusRange $statusRange, DateTimeImmutable $first): array
     {
+        $unit = $statusRange->hours() === 1 ? "strftime('%Y-%m-%d %H:00:00', checked_at)" : "date(checked_at) || ' 00:00:00'";
         $rows = DB::table('status_checks')
-            ->where('checked_at', '>=', now()->subDays(self::DAYS - 1)->startOfDay())
-            ->selectRaw('component, date(checked_at) as day, state, count(*) as checks')
-            ->groupBy('component', 'day', 'state')
+            ->where('checked_at', '>=', $first->format('Y-m-d H:i:s'))
+            ->selectRaw('component, '.$unit.' as unit, state, count(*) as checks')
+            ->groupBy('component', 'unit', 'state')
             ->get();
 
         $counts = [];
 
         foreach ($rows as $row) {
             $reader = new RowReader($row);
-            $counts[$reader->string('component')][$reader->string('day')][$reader->string('state')] = $reader->int('checks');
+            $counts[$reader->string('component')][$reader->string('unit')][$reader->string('state')] = $reader->int('checks');
         }
 
         return $counts;
