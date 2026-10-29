@@ -99,7 +99,14 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
 
         if ($again !== []) {
             Config::sleep($this->retryPauseMilliseconds * 1_000);
-            [$retried, $stillFailing] = $this->send($again, concurrency: 2);
+
+            // Asked to rest, Traceway does not ask again, and keeps the parts it has.
+            try {
+                [$retried, $stillFailing] = $this->send($again, concurrency: 2);
+            } catch (MapServerBusy) {
+                [$retried, $stillFailing] = [[], []];
+            }
+
             $responses = $retried + $responses;
             $failures = array_diff_key($failures, $retried) + $stillFailing;
         }

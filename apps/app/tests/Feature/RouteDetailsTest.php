@@ -343,13 +343,46 @@ it('does not let routes that cannot be read hold back the ones that can', functi
         ->and($waiting->refresh()->details)->not->toBeNull();
 });
 
+it('stops at a busy map server, and leaves the routes for the next run', function (): void {
+    $asked = 0;
+    app()->instance(RouteDetailsSource::class, new class($asked) implements RouteDetailsSource
+    {
+        public function __construct(private int &$asked) {}
+
+        public function for(Sport $sport, array $line): RouteDetails
+        {
+            $this->asked++;
+
+            throw new MapServerBusy('Traceway asked the map server for enough this minute.');
+        }
+
+        public function road(Sport $sport, array $line): RouteDetails
+        {
+            return $this->for($sport, $line);
+        }
+
+        public function stops(Sport $sport, array $line): array
+        {
+            return [];
+        }
+    });
+    $routes = SavedRoute::factory()->count(2)->create();
+
+    $this->artisan('routes:details')
+        ->expectsOutputToContain('The map server is busy')
+        ->assertSuccessful();
+
+    expect($asked)->toBe(1)
+        ->and($routes->map(fn (SavedRoute $savedRoute): mixed => $savedRoute->refresh()->details_tried_at)->filter()->all())->toBe([]);
+});
+
 it('reads unread routes on the production scheduler, a few at a time, never twice at once', function (): void {
     $events = collect(resolve(Schedule::class)->events())
         ->filter(fn (Event $event): bool => str_contains((string) $event->command, 'routes:details'));
 
     expect($events)->toHaveCount(1)
         ->and($events->first()?->expression)->toBe('*/10 * * * *')
-        ->and((string) $events->first()?->command)->toContain('--limit=20')
+        ->and((string) $events->first()?->command)->toContain('--limit=5')
         ->and($events->first()?->withoutOverlapping)->toBeTrue();
 });
 

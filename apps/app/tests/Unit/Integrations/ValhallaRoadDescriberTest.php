@@ -15,6 +15,9 @@ use App\Integrations\Valhalla\Requests\TraceAttributesRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Integrations\Valhalla\ValhallaRoadDescriber;
+use App\Routes\CachedMapServerPace;
+use Illuminate\Cache\ArrayStore;
+use Illuminate\Cache\Repository;
 use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
@@ -242,6 +245,23 @@ it('asks once more for what a busy server turned away', function (): void {
     expect($roadDescription->complete)->toBeTrue()
         ->and($roadDescription->profile)->toHaveCount(2);
     $mock->assertSentCount(6);
+});
+
+it('keeps what came back, and does not ask again, when a busy answer sends Traceway to rest', function (): void {
+    $mock = new MockClient([
+        TraceRouteRequest::class => traceRouteResponse(),
+        TraceAttributesRequest::class => MockResponse::make(['edges' => [['surface' => 'paved', 'length' => 0.42]]], 200),
+        HeightRequest::class => MockResponse::make(['error_code' => 429, 'error' => 'Too many requests'], 429),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test', new CachedMapServerPace(new Repository(new ArrayStore)));
+    $connector->withMockClient($mock);
+
+    $roadDescription = new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Road, describedLine());
+
+    expect($roadDescription->complete)->toBeFalse()
+        ->and($roadDescription->cues)->not->toBeEmpty()
+        ->and($roadDescription->profile)->toBe([]);
+    $mock->assertSentCount(3);
 });
 
 it('says why, when nothing came back even the second time', function (): void {

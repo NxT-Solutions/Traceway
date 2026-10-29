@@ -10,6 +10,7 @@ use App\Contracts\Bus\DispatchesCommands;
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\LengthBias;
 use App\Domain\Routing\LineSimplifier;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\Place;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
@@ -118,6 +119,8 @@ final class PlanLoopTool extends Tool
                 $quiet,
                 lengthBias: LengthBias::tryFrom($this->text($validated, 'length')) ?? LengthBias::Closest,
             ), $riderId));
+        } catch (MapServerBusy) {
+            return Response::error('The map server is busy. Try again in a minute.');
         } catch (Throwable) {
             $routes = [];
         }

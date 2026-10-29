@@ -7,8 +7,11 @@ use App\Integrations\Valhalla\Polyline;
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Models\AvoidedStretch;
 use App\Models\User;
+use App\Routes\CachedMapServerPace;
 use App\Routes\TooManyAvoidedStretches;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Exceptions;
 use Saloon\Config;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
@@ -132,6 +135,27 @@ it('says the map is busy when the router does not answer', function (): void {
     $this->actingAs(User::factory()->create())
         ->postJson(route('routes.avoided.store'), ['latitude' => 51.05, 'longitude' => 3.722, 'sport' => 'road'])
         ->assertServiceUnavailable();
+});
+
+it('says the map is busy, and asks and reports nothing, while Traceway rests from the map server', function (): void {
+    Exceptions::fake();
+    $mock = new MockClient([edgeUnder([[3.72, 51.05], [3.724, 51.05]])]);
+    $cachedMapServerPace = new CachedMapServerPace(resolve(Repository::class));
+    $cachedMapServerPace->rest();
+
+    $connector = new ValhallaConnector('https://valhalla.test', $cachedMapServerPace);
+    $connector->withMockClient($mock);
+
+    app()->instance(ValhallaConnector::class, $connector);
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.avoided.store'), ['latitude' => 51.05, 'longitude' => 3.722, 'sport' => 'road'])
+        ->assertServiceUnavailable()
+        ->assertJsonPath('message', 'The map is busy. Try again in a moment.');
+
+    $mock->assertNothingSent();
+    Exceptions::assertNothingReported();
+    expect(AvoidedStretch::query()->count())->toBe(0);
 });
 
 it('stops at the most roads a rider can avoid', function (): void {

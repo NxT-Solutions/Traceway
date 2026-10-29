@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Models\User;
+use App\Routes\CachedMapServerPace;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Exceptions;
 use Saloon\Config;
@@ -129,13 +131,13 @@ it('refuses a point that is not on a road or path', function (): void {
         ->assertJsonPath('message', 'No road or path is close enough to put a point there.');
 });
 
-it('asks the routing engine again after it turns the lookup away', function (): void {
+it('asks the routing engine again after it fails the lookup', function (): void {
     $slept = [];
     Config::sleepUsing(function (int $microseconds) use (&$slept): void {
         $slept[] = $microseconds;
     });
     $mockClient = snapConnector(
-        MockResponse::make(['error' => 'Too many requests'], 429),
+        MockResponse::make(['error' => 'Service unavailable'], 503),
         MockResponse::make([
             [
                 'edges' => [[
@@ -258,6 +260,30 @@ it('reports only the kind of failure, never where the rider is', function (): vo
     Exceptions::assertReported(fn (RuntimeException $runtimeException): bool => ! str_contains($runtimeException->getMessage(), '51.0573'));
     Exceptions::assertReportedCount(1);
     Exceptions::assertNotReported(FatalRequestException::class);
+});
+
+it('says the map is busy, and asks and reports nothing, while Traceway rests from the map server', function (): void {
+    Exceptions::fake();
+    $mock = new MockClient([MockResponse::make([], 200)]);
+    $cachedMapServerPace = new CachedMapServerPace(resolve(Repository::class));
+    $cachedMapServerPace->rest();
+
+    $connector = new ValhallaConnector('https://valhalla.test', $cachedMapServerPace);
+    $connector->withMockClient($mock);
+
+    app()->instance(ValhallaConnector::class, $connector);
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.snap'), [
+            'latitude' => 51.05,
+            'longitude' => 3.72,
+            'sport' => 'road',
+        ])
+        ->assertServiceUnavailable()
+        ->assertJsonPath('message', 'The map is busy. Try again in a moment.');
+
+    $mock->assertNothingSent();
+    Exceptions::assertNothingReported();
 });
 
 it('rejects a snap without a place', function (): void {

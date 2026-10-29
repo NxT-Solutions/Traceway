@@ -156,6 +156,11 @@ return [
         'max_request_metres' => (int) env('VALHALLA_MAX_REQUEST_METRES', 140000),
         // The public server takes at most ten points in one request.
         'max_request_points' => (int) env('VALHALLA_MAX_REQUEST_POINTS', 10),
+        // The requests all of Traceway may send in one minute. The public
+        // server allows about one a second, and stops answering for an hour
+        // when asked for much more. Left unset, it is 60 for the public
+        // server and no limit for a server of Traceway's own.
+        'requests_per_minute' => env('VALHALLA_REQUESTS_PER_MINUTE'),
     ],
 
     // The Garmin app's listing in the Connect IQ store. The status page asks the

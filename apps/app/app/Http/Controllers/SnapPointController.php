@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\ValhallaCosting;
 use App\Http\Requests\SnapPointRequest;
 use App\Integrations\Valhalla\Requests\LocateRequest;
@@ -83,6 +84,8 @@ class SnapPointController extends Controller
 
             $latitude = $response->json('0.edges.0.correlated_lat');
             $longitude = $response->json('0.edges.0.correlated_lon');
+        } catch (MapServerBusy) {
+            return $this->busy();
         } catch (Throwable $throwable) {
             // A timeout or a lost connection. Only the kind of failure: the
             // request holds where the rider is.
