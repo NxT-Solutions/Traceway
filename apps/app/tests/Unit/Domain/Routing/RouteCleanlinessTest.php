@@ -319,7 +319,7 @@ it('picks the clean loop closest to the asked distance', function (): void {
     expect(RouteCleanliness::cleanest([$short, $close], 20_000)?->distanceMetres)->toBe(19_400);
 });
 
-it('offers other forward loops before a same-road turn-back', function (): void {
+it('offers forward loops, and leaves out a same-road turn-back while they came back', function (): void {
     $query = new RouteQuery(
         sport: Sport::Road,
         shape: Shape::Loop,
@@ -353,7 +353,8 @@ it('offers other forward loops before a same-road turn-back', function (): void 
 
     $offered = RouteCleanliness::diverse([$turnBack, $forward, $shorter], 20_000);
 
-    expect(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, $offered))->toBe([19_400, 18_200, 15_100]);
+    // The turn-back is not offered to make up three while clean loops came back.
+    expect(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, $offered))->toBe([19_400, 18_200]);
 });
 
 it('rejects a clean loop that is twice the requested length', function (): void {
@@ -448,7 +449,7 @@ it('ranks a long loop that rides 2 km back down one road last, however small a s
 
     expect(RouteCleanliness::reverseShare($doubled))->toBeLessThan(0.12)
         ->and(RouteCleanliness::cleanest([$turnBack, $loop], 44_000)?->distanceMetres)->toBe(40_000)
-        ->and(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, RouteCleanliness::diverse([$turnBack, $loop], 44_000)))->toBe([40_000, 44_000]);
+        ->and(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, RouteCleanliness::diverse([$turnBack, $loop], 44_000)))->toBe([40_000]);
 });
 
 it('measures the ride home the same however densely the road is drawn', function (): void {
@@ -507,7 +508,8 @@ it('offers the loop near the length that rides back before a clean loop far off 
     $offered = RouteCleanliness::diverse([$farOff, $turnBack], 44_000);
 
     expect(RouteCleanliness::cleanest([$farOff, $turnBack], 44_000)?->distanceMetres)->toBe(44_000)
-        ->and(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, $offered))->toBe([44_000, 64_000]);
+        // 20 km off is more than twice the tolerance, so it does not make up a second loop.
+        ->and(array_map(fn (GeneratedRoute $generatedRoute): int => $generatedRoute->distanceMetres, $offered))->toBe([44_000]);
 });
 
 it('picks the loop with the least road ridden twice when every loop rides back', function (): void {
