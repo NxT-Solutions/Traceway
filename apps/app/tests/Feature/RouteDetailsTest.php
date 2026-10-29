@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\Details\RouteDetails;
 use App\Domain\Routing\Details\RouteDetailsSource;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\Sport;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Fakes\FixedRouteDetails;
@@ -61,6 +64,34 @@ it('says so when the map server does not answer', function (): void {
         ->postJson(route('routes.details'), ['sport' => 'road', 'coordinates' => detailsLine()])
         ->assertStatus(502)
         ->assertJsonPath('message', 'The climb and the turns did not load. The route still works.');
+});
+
+it('reports nothing when the map server is busy', function (): void {
+    Exceptions::fake();
+    app()->instance(RouteDetailsSource::class, new class implements RouteDetailsSource
+    {
+        public function for(Sport $sport, array $line): RouteDetails
+        {
+            throw new MapServerBusy('The router could not describe that line (route unreachable, surface unreachable, height unreachable).');
+        }
+
+        public function road(Sport $sport, array $line): RouteDetails
+        {
+            throw new MapServerBusy('The router could not describe that line (route unreachable, surface unreachable, height unreachable).');
+        }
+
+        public function stops(Sport $sport, array $line): array
+        {
+            return [];
+        }
+    });
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.details'), ['sport' => 'road', 'coordinates' => detailsLine()])
+        ->assertStatus(502)
+        ->assertJsonPath('message', 'The climb and the turns did not load. The route still works.');
+
+    Exceptions::assertNothingReported();
 });
 
 it('refuses a line it cannot read', function (array $payload): void {
@@ -312,13 +343,46 @@ it('does not let routes that cannot be read hold back the ones that can', functi
         ->and($waiting->refresh()->details)->not->toBeNull();
 });
 
+it('stops at a busy map server, and leaves the routes for the next run', function (): void {
+    $asked = 0;
+    app()->instance(RouteDetailsSource::class, new class($asked) implements RouteDetailsSource
+    {
+        public function __construct(private int &$asked) {}
+
+        public function for(Sport $sport, array $line): RouteDetails
+        {
+            $this->asked++;
+
+            throw new MapServerBusy('Traceway asked the map server for enough this minute.');
+        }
+
+        public function road(Sport $sport, array $line): RouteDetails
+        {
+            return $this->for($sport, $line);
+        }
+
+        public function stops(Sport $sport, array $line): array
+        {
+            return [];
+        }
+    });
+    $routes = SavedRoute::factory()->count(2)->create();
+
+    $this->artisan('routes:details')
+        ->expectsOutputToContain('The map server is busy')
+        ->assertSuccessful();
+
+    expect($asked)->toBe(1)
+        ->and($routes->map(fn (SavedRoute $savedRoute): mixed => $savedRoute->refresh()->details_tried_at)->filter()->all())->toBe([]);
+});
+
 it('reads unread routes on the production scheduler, a few at a time, never twice at once', function (): void {
     $events = collect(resolve(Schedule::class)->events())
         ->filter(fn (Event $event): bool => str_contains((string) $event->command, 'routes:details'));
 
     expect($events)->toHaveCount(1)
         ->and($events->first()?->expression)->toBe('*/10 * * * *')
-        ->and((string) $events->first()?->command)->toContain('--limit=20')
+        ->and((string) $events->first()?->command)->toContain('--limit=5')
         ->and($events->first()?->withoutOverlapping)->toBeTrue();
 });
 

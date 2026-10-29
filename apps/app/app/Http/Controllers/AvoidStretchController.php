@@ -8,6 +8,7 @@ use App\Account\RiderId;
 use App\Commands\AvoidStretchCommand;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Domain\Routing\AvoidedStretch;
+use App\Domain\Routing\MapServerBusy;
 use App\Http\Requests\AvoidStretchRequest;
 use App\Http\Responses\AvoidedStretchResponse;
 use App\Models\User;
@@ -74,6 +75,10 @@ class AvoidStretchController extends Controller
             return response()->json([
                 'message' => 'You already avoid '.TooManyAvoidedStretches::MOST.' roads. Remove one you no longer need first.',
             ], HttpResponse::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (MapServerBusy) {
+            return response()->json([
+                'message' => 'The map is busy. Try again in a moment.',
+            ], HttpResponse::HTTP_SERVICE_UNAVAILABLE);
         } catch (Throwable $throwable) {
             // Only the kind of failure: the request holds where the rider is.
             report(new RuntimeException('Avoiding a stretch failed with '.$throwable::class.'.'));

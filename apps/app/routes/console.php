@@ -19,6 +19,7 @@ use App\Contracts\Account\UserRepository;
 use App\Contracts\Bus\DispatchesCommands;
 use App\Domain\Connections\ConnectionTally;
 use App\Domain\Releases\ReleaseFeed;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Status\StatusComponent;
 use App\Integrations\ReleaseNotes\ReleaseNotesDirectory;
 use App\Queries\Routes\UnreadRoutesQuery;
@@ -43,6 +44,11 @@ Artisan::command('routes:details {--limit=100 : How many routes to read in this 
             if ($dispatchesCommands->dispatch(new ReadRouteDetailsCommand($route)) === true) {
                 $filled++;
             }
+        } catch (MapServerBusy) {
+            // The rest wait for a later run, when riders have the map server's share.
+            $this->warn('The map server is busy. The rest wait for the next run.');
+
+            break;
         } catch (Throwable $throwable) {
             $this->warn('Route '.$route->routeId->value.' was not read: '.$throwable->getMessage());
         }
@@ -55,9 +61,10 @@ Artisan::command('routes:details {--limit=100 : How many routes to read in this 
 
 // Production's scheduler reads the rest a few at a time: routes saved
 // before Traceway kept details, and multisport legs a save left for later.
-// A deploy needs nothing run by hand. The map servers are shared, so it
-// goes slowly, and one run never starts while another is still going.
-Schedule::command('routes:details', ['--limit' => 20])
+// A deploy needs nothing run by hand. The map servers are shared, and
+// riders share Traceway's minute of the public one, so it goes slowly, and
+// one run never starts while another is still going.
+Schedule::command('routes:details', ['--limit' => 5])
     ->everyTenMinutes()
     ->withoutOverlapping(30)
     ->runInBackground();

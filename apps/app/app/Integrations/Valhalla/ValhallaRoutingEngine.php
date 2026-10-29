@@ -13,6 +13,7 @@ use App\Domain\Routing\LineFollower;
 use App\Domain\Routing\LineSimplifier;
 use App\Domain\Routing\LoopClosure;
 use App\Domain\Routing\LoopWaypoints;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\RouteCleanliness;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
@@ -23,6 +24,7 @@ use App\Integrations\JsonBody;
 use App\Integrations\Valhalla\Requests\RouteRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
 use RuntimeException;
+use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Response;
 use Throwable;
 
@@ -99,38 +101,43 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             $aims[$index] = $this->aim($firstScale, $route, $aimed);
         }
 
-        // The roads one way may wind more than the roads another, so each
-        // direction is aimed again on its own: its circle grows or shrinks by
-        // how far its loop came out off the length. A direction already close
-        // keeps its loop. This runs when the best loop is not close, or when
-        // there are not yet three loops on the length to choose from.
-        if ($best instanceof GeneratedRoute && (abs($best->distanceMetres - $aimed) > $tolerance / 2 || count(RouteCleanliness::diverse($found, $target, fill: false)) < 3)) {
-            $scales = [];
+        try {
+            // The roads one way may wind more than the roads another, so each
+            // direction is aimed again on its own: its circle grows or shrinks by
+            // how far its loop came out off the length. A direction already close
+            // keeps its loop. This runs when the best loop is not close, or when
+            // there are not yet three loops on the length to choose from.
+            if ($best instanceof GeneratedRoute && (abs($best->distanceMetres - $aimed) > $tolerance / 2 || count(RouteCleanliness::diverse($found, $target, fill: false)) < 3)) {
+                $scales = [];
 
-            foreach ($first as $index => $route) {
-                if (abs($route->distanceMetres - $aimed) > $tolerance / 4) {
-                    $scales[$index] = $aims[$index];
+                foreach ($first as $index => $route) {
+                    if (abs($route->distanceMetres - $aimed) > $tolerance / 4) {
+                        $scales[$index] = $aims[$index];
+                    }
+                }
+
+                foreach ($this->loops($routeQuery, $scales) as $index => $route) {
+                    $found[] = $route;
+                    $aims[$index] = $this->aim($scales[$index] ?? $firstScale, $route, $aimed);
                 }
             }
 
-            foreach ($this->loops($routeQuery, $scales) as $index => $route) {
-                $found[] = $route;
-                $aims[$index] = $this->aim($scales[$index] ?? $firstScale, $route, $aimed);
+            // Still fewer than three loops on the length: the six directions
+            // halfway between are tried too, each on the circle its two
+            // neighbours were aimed at.
+            if ($found !== [] && count(RouteCleanliness::diverse($found, $target, fill: false)) < 3) {
+                $between = [];
+
+                foreach (array_keys(self::BEARINGS) as $index) {
+                    $near = array_values(array_filter([$aims[$index] ?? null, $aims[($index + 1) % count(self::BEARINGS)] ?? null], is_float(...)));
+                    $between[$index] = $near === [] ? $firstScale : array_sum($near) / count($near);
+                }
+
+                $found = array_merge($found, array_values($this->loops($routeQuery, $between, self::BETWEEN_DEGREES)));
             }
-        }
-
-        // Still fewer than three loops on the length: the six directions
-        // halfway between are tried too, each on the circle its two
-        // neighbours were aimed at.
-        if ($found !== [] && count(RouteCleanliness::diverse($found, $target, fill: false)) < 3) {
-            $between = [];
-
-            foreach (array_keys(self::BEARINGS) as $index) {
-                $near = array_values(array_filter([$aims[$index] ?? null, $aims[($index + 1) % count(self::BEARINGS)] ?? null], is_float(...)));
-                $between[$index] = $near === [] ? $firstScale : array_sum($near) / count($near);
-            }
-
-            $found = array_merge($found, array_values($this->loops($routeQuery, $between, self::BETWEEN_DEGREES)));
+        } catch (MapServerBusy) {
+            // A server that stops answering partway is not asked again, and
+            // the loops it already gave are kept.
         }
 
         $diverse = RouteCleanliness::diverse($found, $target);
@@ -270,8 +277,14 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             ];
         }
 
-        // A closing road that does not connect, or that the server did not answer, is skipped.
-        $found = array_values(array_filter($this->routeAll($routeQuery, $plans)));
+        // A closing road that does not connect, or that the server did not
+        // answer, is skipped. When none was answered, the one straight trace
+        // below may still get through.
+        try {
+            $found = array_values(array_filter($this->routeAll($routeQuery, $plans)));
+        } catch (MapServerBusy) {
+            $found = [];
+        }
 
         return LoopClosure::cleanest($ridden, $found, $routeQuery->distanceMetres)
             ?? $this->trace($routeQuery, [$from, $to]);
@@ -289,7 +302,8 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
     /**
      * Asks for every plan at once. A plan longer than one request may cover
      * goes out in pieces, and its pieces are joined back into one route. A
-     * plan with a piece that does not route comes back as null.
+     * plan with a piece that does not route comes back as null. When the
+     * server answers none of them, it is busy or down, not out of roads.
      *
      * @param  list<array{waypoints: list<array{0: float, 1: float}>, heading?: int|null, mustVisit?: bool, viaRadius?: int|null, headings?: list<int|null>}>  $plans
      * @return list<GeneratedRoute|null>
@@ -321,22 +335,30 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
 
         /** @var array<string, array{coordinates: list<array{0: float, 1: float}>, metres: int, heights: list<float>|null}> $lines */
         $lines = [];
+        $answered = false;
 
         if ($requests !== []) {
             $this->valhallaConnector->pool(
                 requests: $requests,
                 concurrency: min(count($requests), 6),
-                responseHandler: function (Response $response, int|string $key) use (&$lines): void {
+                responseHandler: function (Response $response, int|string $key) use (&$lines, &$answered): void {
                     try {
                         $lines[(string) $key] = $this->lineFrom($response);
+                        $answered = true;
                     } catch (RuntimeException) {
                         // A piece that does not route leaves its plan out.
                     }
                 },
-                exceptionHandler: static function (): void {
+                exceptionHandler: static function (mixed $reason) use (&$answered): void {
                     // A piece the server did not answer leaves its plan out.
+                    // Valhalla turning a piece down is an answer too; turning
+                    // it away as busy, or not being reached, is not.
+                    $status = $reason instanceof RequestException ? $reason->getResponse()->status() : null;
+                    $answered = $answered || ($status !== null && $status >= 400 && $status < 500 && $status !== 429);
                 },
             )->send()->wait();
+
+            throw_unless($answered, MapServerBusy::class, 'The map server did not answer.');
         }
 
         $routes = [];

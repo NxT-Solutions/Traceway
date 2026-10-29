@@ -8,6 +8,7 @@ use App\Commands\ReadRouteDetailsCommand;
 use App\Contracts\Routes\SavedRouteRepository;
 use App\Domain\Routing\Details\RouteDetails;
 use App\Domain\Routing\Details\RouteDetailsSource;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\Sport;
 use App\Routes\SavedLeg;
 use Throwable;
@@ -70,6 +71,9 @@ final readonly class ReadRouteDetailsHandler
             );
 
             return $complete;
+        } catch (MapServerBusy $mapServerBusy) {
+            // A busy server says nothing about the route: it is read on a later run.
+            throw $mapServerBusy;
         } catch (Throwable $throwable) {
             $this->savedRouteRepository->noteDetailsTried($route->routeId);
 

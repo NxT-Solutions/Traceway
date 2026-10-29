@@ -8,6 +8,8 @@ use App\Domain\Routing\Distance;
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\FollowPoint;
 use App\Domain\Routing\GeneratedRoute;
+use App\Domain\Routing\LoopClosure;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
@@ -83,6 +85,69 @@ it('leaves out a loop the router answered with a page, and draws one of the othe
     ));
 
     expect($route->distanceMetres)->toBe(19400);
+});
+
+it('says the map server is busy when it answers no loop at all', function (MockResponse $mockResponse): void {
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient(new MockClient([RouteRequest::class => $mockResponse]));
+
+    expect(fn (): array => new ValhallaRoutingEngine($connector)->candidates(twentyKilometreLoop()))
+        ->toThrow(MapServerBusy::class, 'The map server did not answer.');
+})->with([
+    'not reached' => fn (): MockResponse => MockResponse::make()->throw(fn (PendingRequest $pendingRequest): FatalRequestException => new FatalRequestException(new RuntimeException('Connection timed out'), $pendingRequest)),
+    'turned away as busy' => fn (): MockResponse => MockResponse::make(['error_code' => 429, 'error' => 'Too many requests'], 429),
+    'a page from a proxy' => fn (): MockResponse => MockResponse::make('<html>Bad Gateway</html>', 502, ['Content-Type' => 'text/html']),
+    'a page on a 200' => fn (): MockResponse => MockResponse::make('<html><body>Please wait</body></html>', 200, ['Content-Type' => 'text/html']),
+]);
+
+it('finds no loop, and says so, when the server turns every direction down', function (): void {
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient(new MockClient([
+        RouteRequest::class => MockResponse::make(['error_code' => 442, 'error' => 'No path could be found for input'], 400),
+    ]));
+
+    expect(fn (): array => new ValhallaRoutingEngine($connector)->candidates(twentyKilometreLoop()))
+        ->toThrow(RuntimeException::class, 'No loop matched those filters.');
+});
+
+it('keeps the loops it found when the server stops answering partway', function (): void {
+    $trip = MockResponse::make([
+        'trip' => [
+            'summary' => ['length' => 14.0],
+            'legs' => [['shape' => Polyline::encode([[3.72, 51.05], [3.8, 51.08], [3.72, 51.05]])]],
+        ],
+    ], 200);
+    $timeout = MockResponse::make()->throw(fn (PendingRequest $pendingRequest): FatalRequestException => new FatalRequestException(new RuntimeException('Connection timed out'), $pendingRequest));
+    $mock = new MockClient([...array_fill(0, 6, $trip), ...array_fill(0, 12, $timeout)]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    $routes = new ValhallaRoutingEngine($connector)->candidates(twentyKilometreLoop());
+
+    // The directions halfway between are not asked of a server that went quiet.
+    expect($routes)->not->toBeEmpty()
+        ->and($routes[0]->distanceMetres)->toBe(14_000);
+    $mock->assertSentCount(12);
+});
+
+it('closes a loop with a straight trace when every closing road was turned away as busy', function (): void {
+    $ridden = [[3.72, 51.05], [3.75, 51.07], [3.78, 51.06]];
+    $from = [3.78, 51.06];
+    $to = [3.72, 51.05];
+    $busy = MockResponse::make(['error_code' => 429, 'error' => 'Too many requests'], 429);
+    $trace = MockResponse::make([
+        'trip' => [
+            'summary' => ['length' => 4.6],
+            'legs' => [['shape' => Polyline::encode([$from, [3.75, 51.05], $to])]],
+        ],
+    ], 200);
+    $closings = count(LoopClosure::plans($ridden, $from, $to, 20_000));
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient(new MockClient([...array_fill(0, $closings, $busy), $trace]));
+
+    $closing = new ValhallaRoutingEngine($connector)->closeLoop(twentyKilometreLoop(), $ridden, $from, $to);
+
+    expect($closing->distanceMetres)->toBe(4_600);
 });
 
 it('asks for a loop longer than one request in pieces and joins them', function (): void {

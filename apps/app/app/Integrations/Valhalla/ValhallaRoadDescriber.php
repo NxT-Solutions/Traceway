@@ -13,6 +13,7 @@ use App\Domain\Routing\Details\SurfaceShare;
 use App\Domain\Routing\Details\Turn;
 use App\Domain\Routing\Distance;
 use App\Domain\Routing\LineSimplifier;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\ValhallaCosting;
 use App\Integrations\JsonBody;
@@ -98,7 +99,14 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
 
         if ($again !== []) {
             Config::sleep($this->retryPauseMilliseconds * 1_000);
-            [$retried, $stillFailing] = $this->send($again, concurrency: 2);
+
+            // Asked to rest, Traceway does not ask again, and keeps the parts it has.
+            try {
+                [$retried, $stillFailing] = $this->send($again, concurrency: 2);
+            } catch (MapServerBusy) {
+                [$retried, $stillFailing] = [[], []];
+            }
+
             $responses = $retried + $responses;
             $failures = array_diff_key($failures, $retried) + $stillFailing;
         }
@@ -124,7 +132,13 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
             }
         }
 
-        throw_unless($answered, RuntimeException::class, 'The router could not describe that line ('.$this->why($failures).').');
+        if (! $answered) {
+            // Every part turned away as busy, or never reached, is the server
+            // being down for a moment. Anything else is worth a look.
+            $message = 'The router could not describe that line ('.$this->why($failures).').';
+
+            throw array_filter($failures, $this->passing(...)) === $failures ? new MapServerBusy($message) : new RuntimeException($message);
+        }
 
         return new RoadDescription($profile, $this->shares($surfaceMetres), $cues, $complete);
     }

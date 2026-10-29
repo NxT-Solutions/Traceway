@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\MultisportPlanner;
 use App\Http\Requests\PreviewMultisportRequest;
 use App\Http\Responses\MultisportPreview;
@@ -48,7 +49,7 @@ class PreviewMultisportController extends Controller
     )]
     #[Response(
         response: HttpResponse::HTTP_BAD_GATEWAY,
-        description: 'A leg did not come back.',
+        description: 'A leg did not come back, or the map server is busy.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
     public function __invoke(PreviewMultisportRequest $previewMultisportRequest, MultisportPlanner $multisportPlanner, RiderAvoids $riderAvoids): JsonResponse
@@ -59,6 +60,10 @@ class PreviewMultisportController extends Controller
 
         try {
             $plan = $multisportPlanner->plan($riderAvoids->applyToMultisport($previewMultisportRequest->toQuery(), $user->id));
+        } catch (MapServerBusy) {
+            return response()->json([
+                'message' => 'The map server is busy. Try again in a minute.',
+            ], 502);
         } catch (Throwable $throwable) {
             report($throwable);
 

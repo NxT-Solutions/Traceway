@@ -7,6 +7,7 @@ use App\Domain\Routing\Details\RoadDescription;
 use App\Domain\Routing\Details\RoadSurface;
 use App\Domain\Routing\Details\SurfaceShare;
 use App\Domain\Routing\Details\Turn;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\Sport;
 use App\Integrations\Valhalla\Polyline;
 use App\Integrations\Valhalla\Requests\HeightRequest;
@@ -14,6 +15,10 @@ use App\Integrations\Valhalla\Requests\TraceAttributesRequest;
 use App\Integrations\Valhalla\Requests\TraceRouteRequest;
 use App\Integrations\Valhalla\ValhallaConnector;
 use App\Integrations\Valhalla\ValhallaRoadDescriber;
+use App\Routes\CachedMapServerPace;
+use Illuminate\Cache\ArrayStore;
+use Illuminate\Cache\Repository;
+use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
@@ -191,7 +196,36 @@ it('fails when the server answers nothing at all', function (): void {
     $connector->withMockClient($mock);
 
     expect(fn (): RoadDescription => new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Run, describedLine()))
-        ->toThrow(RuntimeException::class, 'The router could not describe that line (route 500, surface 500, height 500).');
+        ->toThrow(MapServerBusy::class, 'The router could not describe that line (route 500, surface 500, height 500).');
+});
+
+it('says the map server is busy when it cannot be reached', function (): void {
+    $timeout = MockResponse::make()->throw(fn (PendingRequest $pendingRequest): FatalRequestException => new FatalRequestException(new RuntimeException('Connection timed out'), $pendingRequest));
+    $mock = new MockClient([
+        TraceRouteRequest::class => $timeout,
+        TraceAttributesRequest::class => $timeout,
+        HeightRequest::class => $timeout,
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    expect(fn (): RoadDescription => new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Run, describedLine()))
+        ->toThrow(MapServerBusy::class, 'The router could not describe that line (route unreachable, surface unreachable, height unreachable).');
+    $mock->assertSentCount(6);
+});
+
+it('fails, and is not busy, when the server turns the line down', function (): void {
+    $mock = new MockClient([
+        TraceRouteRequest::class => MockResponse::make(['error_code' => 171, 'error' => 'No suitable edges near location'], 400),
+        TraceAttributesRequest::class => MockResponse::make(['error_code' => 171, 'error' => 'No suitable edges near location'], 400),
+        HeightRequest::class => MockResponse::make(['error_code' => 154, 'error' => 'Path distance exceeds the max distance limit'], 400),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient($mock);
+
+    expect(fn (): RoadDescription => new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Run, describedLine()))
+        ->toThrow(fn (RuntimeException $runtimeException): bool => ! $runtimeException instanceof MapServerBusy
+            && $runtimeException->getMessage() === 'The router could not describe that line (route 400/171, surface 400/171, height 400/154).');
 });
 
 it('asks once more for what a busy server turned away', function (): void {
@@ -211,6 +245,23 @@ it('asks once more for what a busy server turned away', function (): void {
     expect($roadDescription->complete)->toBeTrue()
         ->and($roadDescription->profile)->toHaveCount(2);
     $mock->assertSentCount(6);
+});
+
+it('keeps what came back, and does not ask again, when a busy answer sends Traceway to rest', function (): void {
+    $mock = new MockClient([
+        TraceRouteRequest::class => traceRouteResponse(),
+        TraceAttributesRequest::class => MockResponse::make(['edges' => [['surface' => 'paved', 'length' => 0.42]]], 200),
+        HeightRequest::class => MockResponse::make(['error_code' => 429, 'error' => 'Too many requests'], 429),
+    ]);
+    $connector = new ValhallaConnector('https://valhalla.test', new CachedMapServerPace(new Repository(new ArrayStore)));
+    $connector->withMockClient($mock);
+
+    $roadDescription = new ValhallaRoadDescriber($connector, retryPauseMilliseconds: 0)->describe(Sport::Road, describedLine());
+
+    expect($roadDescription->complete)->toBeFalse()
+        ->and($roadDescription->cues)->not->toBeEmpty()
+        ->and($roadDescription->profile)->toBe([]);
+    $mock->assertSentCount(3);
 });
 
 it('says why, when nothing came back even the second time', function (): void {

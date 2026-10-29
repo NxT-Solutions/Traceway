@@ -11,6 +11,7 @@ use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\LandLeg;
 use App\Domain\Routing\Layout;
 use App\Domain\Routing\LineSimplifier;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\MultisportPlanner;
 use App\Domain\Routing\MultisportQuery;
 use App\Domain\Routing\MultisportRoute;
@@ -120,6 +121,8 @@ final class PlanMultisportTool extends Tool
                 ), $plannedLegs),
                 $swimKm === null ? null : new SwimLeg([$pin]),
             ), $riderId));
+        } catch (MapServerBusy) {
+            return Response::error('The map server is busy. Try again in a minute.');
         } catch (Throwable) {
             return Response::error('No plan came back from that transition. Try shorter legs, or a transition closer to roads.');
         }

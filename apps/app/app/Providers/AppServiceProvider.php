@@ -200,6 +200,7 @@ use App\Repositories\EloquentDeviceLinkRepository;
 use App\Repositories\EloquentReleaseRepository;
 use App\Repositories\EloquentSavedRouteRepository;
 use App\Repositories\EloquentUserRepository;
+use App\Routes\CachedMapServerPace;
 use App\Routes\CachedPlaceNamer;
 use App\Routes\CachedPlaceSearch;
 use App\Routes\CachedRouteDetails;
@@ -329,12 +330,11 @@ class AppServiceProvider extends ServiceProvider
                 ));
             }
 
-            $url = config('services.valhalla.url');
             $span = config('services.valhalla.max_request_metres');
             $points = config('services.valhalla.max_request_points');
 
             return new ValhallaRoutingEngine(
-                new ValhallaConnector(is_string($url) && $url !== '' ? $url : 'https://valhalla1.openstreetmap.de'),
+                $this->app->make(ValhallaConnector::class),
                 is_int($span) && $span >= 10_000 ? $span : 140_000,
                 is_int($points) && $points >= 2 ? $points : 10,
             );
@@ -366,12 +366,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ReleaseNotesDirectory::class, fn (): ReleaseNotesDirectory => new ReleaseNotesDirectory(resource_path('releases')));
 
         $this->app->bind(function (): RouteDetailsSource {
-            $valhalla = config('services.valhalla.url');
             $tiles = config('services.openfreemap.url');
 
             return new CachedRouteDetails(
                 new RouteDetailer(
-                    new ValhallaRoadDescriber(new ValhallaConnector(is_string($valhalla) && $valhalla !== '' ? $valhalla : 'https://valhalla1.openstreetmap.de')),
+                    new ValhallaRoadDescriber($this->app->make(ValhallaConnector::class)),
                     new OpenFreeMapStopFinder(new OpenFreeMapConnector(is_string($tiles) && $tiles !== '' ? $tiles : 'https://tiles.openfreemap.org')),
                 ),
                 $this->app->make(CacheRepository::class),
@@ -435,10 +434,15 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(function (): ValhallaConnector {
             $url = config('services.valhalla.url');
+            $url = is_string($url) && $url !== '' ? $url : 'https://valhalla1.openstreetmap.de';
 
-            return new ValhallaConnector(
-                is_string($url) && $url !== '' ? $url : 'https://valhalla1.openstreetmap.de',
-            );
+            $perMinute = config('services.valhalla.requests_per_minute');
+            $public = str_ends_with((string) parse_url($url, PHP_URL_HOST), '.openstreetmap.de');
+
+            return new ValhallaConnector($url, new CachedMapServerPace(
+                $this->app->make(CacheRepository::class),
+                is_numeric($perMinute) ? (int) $perMinute : ($public ? 60 : 0),
+            ));
         });
     }
 
