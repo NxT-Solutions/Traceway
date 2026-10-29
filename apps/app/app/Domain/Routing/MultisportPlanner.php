@@ -13,6 +13,12 @@ use RuntimeException;
  */
 final readonly class MultisportPlanner
 {
+    /**
+     * How far round the directions are turned for a second try. The engine
+     * tries six, 60° apart, and then the ones 30° round; 15° are new to it.
+     */
+    private const int RETRY_TURN_DEGREES = 15;
+
     public function __construct(private RoutingEngine $routingEngine) {}
 
     public function plan(MultisportQuery $multisportQuery): MultisportRoute
@@ -39,8 +45,11 @@ final readonly class MultisportPlanner
     }
 
     /**
-     * Of the loops the engine offers, the one that keeps off the roads the
-     * earlier legs came back on.
+     * Of the loops the engine offers, the best by the same rules as any loop,
+     * keeping off the roads the earlier legs rode. The engine picks its loops
+     * without knowing those legs, so when every loop it offers is flawed, by
+     * their roads or by its shape, other directions are tried once before the
+     * leg settles.
      *
      * @param  array{0: float, 1: float}  $transition
      * @param  list<array{0: float, 1: float}>  $ridden
@@ -48,8 +57,19 @@ final readonly class MultisportPlanner
      */
     private function loop(LandLeg $landLeg, array $transition, int $position, array $ridden, array $avoid): PlannedLeg
     {
-        $best = CleanLeg::best($ridden, $this->routingEngine->candidates($this->query($landLeg, Shape::Loop, $transition, $avoid)), $landLeg->distanceMetres)
-            ?? throw new RuntimeException(sprintf('No loop came back for leg %d.', $position + 1));
+        $found = $this->routingEngine->candidates($this->query($landLeg, Shape::Loop, $transition, $avoid));
+        $best = CleanLeg::best($ridden, $found, $landLeg->distanceMetres);
+
+        if ($best instanceof GeneratedRoute && RouteCleanliness::flawed($best, $ridden)) {
+            try {
+                $found = [...$found, ...$this->routingEngine->candidates($this->query($landLeg, Shape::Loop, $transition, $avoid, self::RETRY_TURN_DEGREES))];
+                $best = CleanLeg::best($ridden, $found, $landLeg->distanceMetres);
+            } catch (RuntimeException) {
+                // Nothing more came back, or the server is busy: the leg keeps what it has.
+            }
+        }
+
+        $best ??= throw new RuntimeException(sprintf('No loop came back for leg %d.', $position + 1));
 
         return new PlannedLeg($landLeg->sport, $best->coordinates, $best->distanceMetres, $best->ascentMetres);
     }
@@ -157,7 +177,7 @@ final readonly class MultisportPlanner
      * @param  array{0: float, 1: float}  $start
      * @param  list<AvoidedStretch>  $avoid
      */
-    private function query(LandLeg $landLeg, Shape $shape, array $start, array $avoid): RouteQuery
+    private function query(LandLeg $landLeg, Shape $shape, array $start, array $avoid, int $turnDegrees = 0): RouteQuery
     {
         return new RouteQuery(
             sport: $landLeg->sport,
@@ -169,6 +189,7 @@ final readonly class MultisportPlanner
             startLongitude: $start[0],
             preferQuiet: $landLeg->preferQuiet,
             avoid: AvoidedStretches::forSport($avoid, $landLeg->sport),
+            turnDegrees: $turnDegrees,
         );
     }
 }

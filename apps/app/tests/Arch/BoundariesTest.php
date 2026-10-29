@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\CleanLeg;
+use App\Domain\Routing\LoopShape;
+use App\Domain\Routing\RouteCleanliness;
+
 arch('sport rules and course files stay free of HTTP, Eloquent, Saloon, and the application layers')
     ->expect('App\Domain')
     ->toOnlyUse('App\Domain');
@@ -57,3 +61,11 @@ arch('Eloquent stays on the models. A query uses the query builder')
     ->expect('App')
     ->not->toUse('Illuminate\Database\Eloquent')
     ->ignoring(within('App\Models', 'App\Repositories'));
+
+arch('a line is judged in one place: LoopShape only through RouteCleanliness')
+    ->expect(LoopShape::class)
+    ->toOnlyBeUsedIn(RouteCleanliness::class);
+
+arch('a multisport leg is judged by the rules of any loop')
+    ->expect(CleanLeg::class)
+    ->toUse(RouteCleanliness::class);
