@@ -172,6 +172,11 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
     {
         $plans = [];
 
+        // Two points on a circle beside the pin: out to one, across to the
+        // other, and home. With three, the roads between them crossed back
+        // over each other: around ten Belgian pins, 71% of loops came out a
+        // figure of eight, pinched, or back past the pin halfway round,
+        // against 12% with two.
         foreach ($scales as $index => $scale) {
             $plans[] = ['waypoints' => LoopWaypoints::around(
                 $routeQuery->startLatitude,
@@ -181,7 +186,7 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
                 $routeQuery->viaLatitude,
                 $routeQuery->viaLongitude,
                 $scale,
-                4,
+                3,
                 offsetCenter: true,
             )];
         }

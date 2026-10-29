@@ -840,12 +840,14 @@ final class RouteCleanliness
     }
 
     /**
-     * Each route with its score and its metres of doubled-back road, best
-     * first. Scoring once per route keeps the sort from measuring the same
-     * line again on every comparison.
+     * Each route with its score, best first, and whether it is flawed: it
+     * rides back down a road, or, for a loop, its outline is wrong (see
+     * LoopShape). A flawed loop scores in the tier of loops that ride back.
+     * Scoring once per route keeps the sort from measuring the same line
+     * again on every comparison.
      *
      * @param  list<GeneratedRoute>  $routes
-     * @return list<array{route: GeneratedRoute, score: float, doubles: bool}>
+     * @return list<array{route: GeneratedRoute, score: float, flawed: bool}>
      */
     private static function scored(array $routes, int $targetMetres): array
     {
@@ -859,13 +861,14 @@ final class RouteCleanliness
 
         $scored = array_map(function (GeneratedRoute $generatedRoute) use ($targetMetres, $least, $most): array {
             ['away' => $doubled, 'total' => $total] = self::reversal($generatedRoute->coordinates, self::startOf($generatedRoute));
-            $doubles = $doubled > self::doubledLimit($total);
+            $flawed = $doubled > self::doubledLimit($total)
+                || ($generatedRoute->query->shape === Shape::Loop && LoopShape::misshapen($generatedRoute->coordinates, self::startOf($generatedRoute)));
             $climb = self::climbCost($generatedRoute, $targetMetres, $least, $most);
 
             return [
                 'route' => $generatedRoute,
-                'score' => self::scoreWith($generatedRoute, $targetMetres, $doubled, $doubles, $total) + $climb,
-                'doubles' => $doubles,
+                'score' => self::scoreWith($generatedRoute, $targetMetres, $doubled, $flawed, $total) + $climb,
+                'flawed' => $flawed,
             ];
         }, $routes);
 
@@ -877,9 +880,11 @@ final class RouteCleanliness
     /**
      * Up to three loops that are not the same line, best first. After the
      * best, the clean loops within lengthTolerance() of the length come
-     * first. When there are not enough of them and $fill is on, the next
-     * best fill the rest, so a rider is offered three loops whenever three
-     * different lines were found.
+     * first. When there are not enough of them and $fill is on, clean loops
+     * up to twice the tolerance off the length fill the rest. A flawed loop,
+     * one that rides back down a road or is the wrong shape, or one further
+     * off, is offered only when nothing else came back: a rider sees fewer
+     * loops rather than a bad one.
      *
      * @param  list<GeneratedRoute>  $routes
      * @return list<GeneratedRoute>
@@ -893,13 +898,14 @@ final class RouteCleanliness
         // On the length first, then the rest in their order: a loop near the
         // length that rides back down a road before a clean one far off it.
         foreach ($fill ? ['on length', 'any'] : ['on length'] as $pass) {
-            foreach ($scored as ['route' => $generatedRoute, 'doubles' => $doubles]) {
+            foreach ($scored as ['route' => $generatedRoute, 'flawed' => $flawed]) {
                 if (count($kept) === $limit) {
                     return $kept;
                 }
 
-                $onLength = ! $doubles && abs($generatedRoute->distanceMetres - $targetMetres) <= $tolerance && self::onItsSide($generatedRoute, $targetMetres);
-                if ($kept !== [] && $pass === 'on length' && ! $onLength) {
+                $off = abs($generatedRoute->distanceMetres - $targetMetres);
+                $onLength = ! $flawed && $off <= $tolerance && self::onItsSide($generatedRoute, $targetMetres);
+                if ($kept !== [] && ($flawed || $off > 2 * $tolerance || ($pass === 'on length' && ! $onLength))) {
                     continue;
                 }
 
@@ -926,7 +932,7 @@ final class RouteCleanliness
      * a least. A rider asking for 100 km is shown
      * the 100 km loop with a stretch back down a road before a 143 km one.
      */
-    private static function scoreWith(GeneratedRoute $generatedRoute, int $targetMetres, float $doubled, bool $doubles, float $lineMetres): float
+    private static function scoreWith(GeneratedRoute $generatedRoute, int $targetMetres, float $doubled, bool $flawed, float $lineMetres): float
     {
         $error = self::lengthError($generatedRoute, $targetMetres);
 
@@ -936,9 +942,10 @@ final class RouteCleanliness
             return 3_000 + $error;
         }
 
-        // Among loops that ride back down a road, the least doubled road
-        // wins: each doubled kilometre weighs like being 100% off a short loop.
-        if ($doubles) {
+        // Among loops that ride back down a road or are the wrong shape, the
+        // least doubled road wins: each doubled kilometre weighs like being
+        // 100% off a short loop.
+        if ($flawed) {
             return 1_000 + ($doubled / 1_000) + $error;
         }
 
