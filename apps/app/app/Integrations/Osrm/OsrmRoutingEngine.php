@@ -212,7 +212,7 @@ final readonly class OsrmRoutingEngine implements RoutingEngine
      */
     private function lines(RouteQuery $routeQuery, string $profile, array $waypoints, bool $alternatives): array
     {
-        $response = $this->osrmConnector->send(new CyclingRouteRequest($waypoints, $profile, $alternatives));
+        $response = $this->osrmConnector->send(new CyclingRouteRequest($waypoints, $profile, $alternatives, $this->osrmConnector->serverPerProfile));
 
         throw_if(! $response->successful() || JsonBody::get($response, 'code') !== 'Ok', RuntimeException::class, 'The cycling router did not return a loop.');
 

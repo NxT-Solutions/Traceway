@@ -92,6 +92,7 @@ use App\Domain\Releases\ReleaseFeed;
 use App\Domain\Routing\Details\RouteDetailer;
 use App\Domain\Routing\Details\RouteDetailsSource;
 use App\Domain\Routing\EdgeFinder;
+use App\Domain\Routing\FallbackRoutingEngine;
 use App\Domain\Routing\LineFollower;
 use App\Domain\Routing\PlaceFinder;
 use App\Domain\Routing\PlaceNamer;
@@ -333,11 +334,14 @@ class AppServiceProvider extends ServiceProvider
             $span = config('services.valhalla.max_request_metres');
             $points = config('services.valhalla.max_request_points');
 
-            return new ValhallaRoutingEngine(
+            $valhalla = new ValhallaRoutingEngine(
                 $this->app->make(ValhallaConnector::class),
                 is_int($span) && $span >= 10_000 ? $span : 140_000,
                 is_int($points) && $points >= 2 ? $points : 10,
             );
+            $backup = $this->backupRoutingEngine();
+
+            return $backup instanceof RoutingEngine ? new FallbackRoutingEngine($valhalla, $backup) : $valhalla;
         });
 
         $this->app->bind(fn (): CourseServices => $this->courseServices());
@@ -447,6 +451,45 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
+     * The engine that draws while Valhalla is busy or turns Traceway away:
+     * FOSSGIS's OSRM, one server per profile, on a share of its own. Null
+     * when ROUTER_BACKUP_URL is empty.
+     */
+    private function backupRoutingEngine(): ?RoutingEngine
+    {
+        $url = $this->backupRouterUrl();
+
+        if ($url === null) {
+            return null;
+        }
+
+        $perMinute = config('services.router_backup.requests_per_minute');
+        $public = str_ends_with((string) parse_url($url, PHP_URL_HOST), '.openstreetmap.de');
+
+        return new OsrmRoutingEngine(new OsrmConnector(
+            $url,
+            new CachedMapServerPace(
+                $this->app->make(CacheRepository::class),
+                is_numeric($perMinute) ? (int) $perMinute : ($public ? 60 : 0),
+                server: 'routing-backup',
+                oneASecond: true,
+            ),
+            serverPerProfile: true,
+        ));
+    }
+
+    /**
+     * The backup router, only behind Valhalla: the other engines have none.
+     */
+    private function backupRouterUrl(): ?string
+    {
+        $url = config('services.router_backup.url');
+        $driver = config('services.router');
+
+        return is_string($url) && $url !== '' && ! in_array($driver, ['graphhopper', 'osrm'], strict: true) ? $url : null;
+    }
+
+    /**
      * What the status page checks: Traceway itself, the map servers the planner is set up to
      * use, the apps a rider can send to once they are set up, and the Garmin store listing.
      */
@@ -462,6 +505,17 @@ class AppServiceProvider extends ServiceProvider
         $probes = [
             new PlannerProbe,
             new HttpServiceProbe(StatusComponent::Routing, new StatusConnector($routing[0]), $routing[1]),
+        ];
+
+        $backupRouter = $this->backupRouterUrl();
+
+        if ($backupRouter !== null) {
+            // One cheap lookup on the bike server, which the backup draws most with.
+            $probes[] = new HttpServiceProbe(StatusComponent::RoutingBackup, new StatusConnector($backupRouter), '/routed-bike/nearest/v1/driving/4.3517,50.8503');
+        }
+
+        $probes = [
+            ...$probes,
             new HttpServiceProbe(StatusComponent::Places, new StatusConnector($this->configured('nominatim.url', 'https://nominatim.openstreetmap.org')), '/status'),
             new HttpServiceProbe(StatusComponent::Tiles, new StatusConnector($this->configured('openfreemap.url', 'https://tiles.openfreemap.org')), '/planet'),
         ];

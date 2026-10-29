@@ -194,6 +194,37 @@ test('the planner stops offering Draw only while route drawing is down', functio
     expect($routingDown())->toBeFalse();
 });
 
+test('the planner keeps Draw, and says routes are limited, while the backup draws', function (): void {
+    $user = User::factory()->create();
+    $routingDown = fn (): bool => (bool) $this->actingAs($user)->get('/dashboard')->viewData('page')['props']['routingDown'];
+
+    $this->app->instance(ServiceProbes::class, fakeProbes([...allUp(), 'routing' => ServiceState::Down, 'routing_backup' => ServiceState::Up]));
+    $this->artisan('status:check');
+
+    expect($routingDown())->toBeFalse();
+    $this->actingAs($user)->get('/dashboard')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('serviceNotice.title', 'Route drawing is limited right now.')
+        ->where('serviceNotice.body', 'The map server is not answering, so a backup draws your routes. The climb and the turns may not load.'));
+
+    // With the backup down too, nothing draws, and the planner says so.
+    $this->travel(5)->minutes();
+    $this->app->instance(ServiceProbes::class, fakeProbes([...allUp(), 'routing' => ServiceState::Down, 'routing_backup' => ServiceState::Down]));
+    $this->artisan('status:check');
+
+    expect($routingDown())->toBeTrue();
+    $this->actingAs($user)->get('/dashboard')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('serviceNotice.title', 'Route drawing is down right now.'));
+});
+
+test('a backup that is down alone does not make the status page red', function (): void {
+    $this->app->instance(ServiceProbes::class, fakeProbes([...allUp(), 'routing_backup' => ServiceState::Down]));
+    $this->artisan('status:check');
+
+    $this->get('/status')->assertInertia(fn (Assert $assert): Assert => $assert
+        ->where('headline', 'Everything works')
+        ->where('state', 'up'));
+});
+
 test('the checks run every five minutes', function (): void {
     $this->artisan('schedule:list')->expectsOutputToContain('status:check');
 });

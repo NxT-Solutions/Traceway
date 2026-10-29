@@ -11,6 +11,8 @@ enum StatusComponent: string
 {
     case Planner = 'planner';
     case Routing = 'routing';
+    /** Draws routes, without the climb, while route drawing is down. */
+    case RoutingBackup = 'routing_backup';
     case Places = 'places';
     case Tiles = 'tiles';
     case RideWithGps = 'ride_with_gps';
@@ -22,6 +24,7 @@ enum StatusComponent: string
         return match ($this) {
             self::Planner => 'Planner',
             self::Routing => 'Route drawing',
+            self::RoutingBackup => 'Backup route drawing',
             self::Places => 'Place search',
             self::Tiles => 'Maps',
             self::RideWithGps => 'Ride with GPS',
@@ -34,7 +37,7 @@ enum StatusComponent: string
     {
         return match ($this) {
             self::Planner => StatusGroup::Traceway,
-            self::Routing, self::Places, self::Tiles => StatusGroup::Maps,
+            self::Routing, self::RoutingBackup, self::Places, self::Tiles => StatusGroup::Maps,
             self::RideWithGps, self::Wahoo => StatusGroup::Apps,
             self::GarminStore => StatusGroup::Devices,
         };

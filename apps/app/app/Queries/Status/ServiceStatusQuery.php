@@ -86,6 +86,13 @@ final readonly class ServiceStatusQuery
         foreach ($fresh ? $latest : [] as $component => $check) {
             $statusComponent = StatusComponent::tryFrom($component);
 
+            if ($statusComponent === StatusComponent::Routing && $check['state'] === ServiceState::Down && $this->backupDraws($latest)) {
+                return [
+                    'title' => 'Route drawing is limited right now.',
+                    'body' => 'The map server is not answering, so a backup draws your routes. The climb and the turns may not load.',
+                ];
+            }
+
             if ($statusComponent?->plannerNeeds() === true && in_array($check['state'], [ServiceState::Slow, ServiceState::Down], strict: true)) {
                 return [
                     'title' => $statusComponent->describe($check['state']).'.',
@@ -103,9 +110,9 @@ final readonly class ServiceStatusQuery
 
     /**
      * Whether route drawing is down: an open notice names it, or the latest
-     * check, while fresh, found it down. The planner then stops offering Draw
-     * and Shuffle, which would only fail. Slow is not down: a slow loop still
-     * comes back.
+     * check, while fresh, found it down and the backup not answering either.
+     * The planner then stops offering Draw and Shuffle, which would only
+     * fail. Slow is not down: a slow loop still comes back.
      */
     public function routingDown(): bool
     {
@@ -124,7 +131,18 @@ final readonly class ServiceStatusQuery
             return false;
         }
 
-        return ($latest[StatusComponent::Routing->value]['state'] ?? null) === ServiceState::Down;
+        return ($latest[StatusComponent::Routing->value]['state'] ?? null) === ServiceState::Down && ! $this->backupDraws($latest);
+    }
+
+    /**
+     * Whether the backup router answered its last check, so routes still
+     * draw while route drawing is down.
+     *
+     * @param  array<string, array{state: ServiceState, latency_ms: int}>  $latest
+     */
+    private function backupDraws(array $latest): bool
+    {
+        return in_array($latest[StatusComponent::RoutingBackup->value]['state'] ?? null, [ServiceState::Up, ServiceState::Slow], strict: true);
     }
 
     /**
@@ -145,7 +163,8 @@ final readonly class ServiceStatusQuery
             $check = $stale ? null : ($latest[$component] ?? null);
             $state = $check['state'] ?? null;
 
-            if ($state instanceof ServiceState && $state->worseThan(ServiceState::Waiting)) {
+            // The backup only matters while route drawing is down, and then route drawing says so.
+            if ($state instanceof ServiceState && $state->worseThan(ServiceState::Waiting) && $statusComponent !== StatusComponent::RoutingBackup) {
                 $broken[] = $statusComponent->describe($state);
                 $worst = $state->worseThan($worst) ? $state : $worst;
             }

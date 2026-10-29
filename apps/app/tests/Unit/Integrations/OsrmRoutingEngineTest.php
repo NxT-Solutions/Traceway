@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Routing\AvoidedStretch;
 use App\Domain\Routing\Distance;
 use App\Domain\Routing\ElevationBias;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
@@ -12,8 +13,14 @@ use App\Domain\Routing\Surface;
 use App\Integrations\Osrm\OsrmConnector;
 use App\Integrations\Osrm\OsrmRoutingEngine;
 use App\Integrations\Osrm\Requests\CyclingRouteRequest;
+use App\Routes\CachedMapServerPace;
+use Illuminate\Cache\ArrayStore;
+use Illuminate\Cache\Repository;
+use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
+use Saloon\Http\PendingRequest;
+use Saloon\Http\Response;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -170,3 +177,53 @@ it('says no loop came back when the cycling router answers with a page', functio
         startLongitude: 3.72,
     ));
 })->throws(RuntimeException::class, 'The cycling router did not return a loop.');
+
+it("asks FOSSGIS's own server for the profile when each profile has one", function (): void {
+    $mock = new MockClient([
+        CyclingRouteRequest::class => MockResponse::make([
+            'code' => 'Ok',
+            'routes' => [[
+                'distance' => 5000,
+                'geometry' => ['type' => 'LineString', 'coordinates' => [[3.72, 51.05], [3.73, 51.06]]],
+            ]],
+        ], 200),
+    ]);
+    $connector = new OsrmConnector('https://routing.test', serverPerProfile: true);
+    $connector->withMockClient($mock);
+
+    new OsrmRoutingEngine($connector)->trace(new RouteQuery(
+        sport: Sport::Hike,
+        shape: Shape::PointToPoint,
+        distanceMetres: 5_000,
+        surface: Surface::Dirt,
+        elevation: ElevationBias::Neutral,
+        startLatitude: 51.05,
+        startLongitude: 3.72,
+    ), [[3.72, 51.05], [3.73, 51.06]]);
+
+    expect($mock->getLastPendingRequest()?->getUrl())->toStartWith('https://routing.test/routed-foot/route/v1/driving/3.72,51.05;3.73,51.06');
+});
+
+it('takes its share of the pace, and rests when the server turns it away as busy', function (): void {
+    $asked = 0;
+    $connector = new OsrmConnector('https://routing.test', new CachedMapServerPace(new Repository(new ArrayStore), server: 'routing-backup'), serverPerProfile: true);
+    $connector->withMockClient(new MockClient([MockResponse::make([], 429), MockResponse::make(['code' => 'Ok'], 200)]));
+    $connector->middleware()->onRequest(function () use (&$asked): void {
+        $asked++;
+    });
+
+    expect($connector->send(new CyclingRouteRequest([[3.72, 51.05], [3.73, 51.06]]))->status())->toBe(429)
+        ->and(fn (): Response => $connector->send(new CyclingRouteRequest([[3.72, 51.05], [3.73, 51.06]])))->toThrow(MapServerBusy::class)
+        ->and($asked)->toBe(1);
+});
+
+it('says the backup is busy, and rests, when it does not answer', function (): void {
+    $connector = new OsrmConnector('https://routing.test', new CachedMapServerPace(new Repository(new ArrayStore), server: 'routing-backup'), serverPerProfile: true);
+    $connector->withMockClient(new MockClient([
+        MockResponse::make()->throw(fn (PendingRequest $pendingRequest): FatalRequestException => new FatalRequestException(new RuntimeException('Operation timed out'), $pendingRequest)),
+        MockResponse::make(['code' => 'Ok'], 200),
+    ]));
+
+    expect(fn (): Response => $connector->send(new CyclingRouteRequest([[3.72, 51.05], [3.73, 51.06]])))->toThrow(MapServerBusy::class, 'The backup map server did not answer.')
+        ->and(fn (): Response => $connector->send(new CyclingRouteRequest([[3.72, 51.05], [3.73, 51.06]])))->toThrow(MapServerBusy::class, 'Traceway is giving the map server a rest.');
+});

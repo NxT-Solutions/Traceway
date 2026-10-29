@@ -10,11 +10,23 @@ use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
+use App\Integrations\Osrm\Requests\CyclingRouteRequest;
+use App\Integrations\Valhalla\Requests\RouteRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Sleep;
+use Saloon\Exceptions\Request\FatalRequestException;
+use Saloon\Http\Faking\MockClient;
+use Saloon\Http\Faking\MockResponse;
+use Saloon\Http\PendingRequest;
+use Saloon\Http\Request;
 
 uses(RefreshDatabase::class);
+
+afterEach(function (): void {
+    MockClient::destroyGlobal();
+});
 
 it('previews a loop for a signed in rider', function (): void {
     $this->app->instance(RoutingEngine::class, new class implements RoutingEngine
@@ -314,6 +326,36 @@ it('says the map server is busy, and reports nothing, when it does not answer', 
         ->assertJsonPath('message', 'The map server is busy. Try again in a minute.');
 
     Exceptions::assertNothingReported();
+});
+
+it('draws the loop with the backup router while the map server does not answer', function (): void {
+    Sleep::fake(syncWithCarbon: true);
+    config(['services.router_backup.url' => 'https://backup.test']);
+    MockClient::global([
+        RouteRequest::class => MockResponse::make()->throw(fn (PendingRequest $pendingRequest): FatalRequestException => new FatalRequestException(new RuntimeException('Connection refused'), $pendingRequest)),
+        CyclingRouteRequest::class => MockResponse::make([
+            'code' => 'Ok',
+            'routes' => [[
+                'distance' => 19_600,
+                'geometry' => ['type' => 'LineString', 'coordinates' => [[3.72, 51.05], [3.8, 51.1], [3.85, 51.05], [3.72, 51.05]]],
+            ]],
+        ], 200),
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.preview'), [
+            'sport' => 'road',
+            'surface' => 'paved',
+            'elevation' => 'neutral',
+            'distance_metres' => 20_000,
+            'latitude' => 51.05,
+            'longitude' => 3.72,
+        ])
+        ->assertOk()
+        ->assertJsonPath('distance_metres', 19_600);
+
+    MockClient::getGlobal()?->assertSent(fn (Request $request): bool => $request instanceof CyclingRouteRequest && str_starts_with($request->resolveEndpoint(), '/routed-bike/'));
+    Sleep::fake(value: false);
 });
 
 it('turns away a length kept some other way', function (): void {

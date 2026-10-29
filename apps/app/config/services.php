@@ -163,6 +163,17 @@ return [
         'requests_per_minute' => env('VALHALLA_REQUESTS_PER_MINUTE'),
     ],
 
+    // Draws routes while the Valhalla server is busy or turns Traceway away:
+    // FOSSGIS's OSRM, which keeps one server per profile (/routed-bike,
+    // /routed-foot). Its routes carry no heights, so the climb and the
+    // surfaces wait for Valhalla. Off unless set, so a local Valhalla that
+    // is stopped never sends planning to the public server.
+    'router_backup' => [
+        'url' => env('ROUTER_BACKUP_URL', ''),
+        // Unset, it is 60 for the public server, as for Valhalla.
+        'requests_per_minute' => env('ROUTER_BACKUP_REQUESTS_PER_MINUTE'),
+    ],
+
     // The Garmin app's listing in the Connect IQ store. The status page asks the
     // store whether riders can find it there.
     'connect_iq' => [
