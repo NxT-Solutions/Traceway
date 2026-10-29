@@ -2,11 +2,14 @@ import { Head, Link, usePage, usePoll } from '@inertiajs/react';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { cn } from '@/lib/utils';
-import { dashboard } from '@/routes';
+import { dashboard, status } from '@/routes';
 
 type State = 'up' | 'waiting' | 'slow' | 'down';
 
-type Day = { date: string; state: State | null };
+/** One hour, day, or week, by its start in UTC, with the worst state in it. */
+type Bar = { start: string; state: State | null };
+
+export type Range = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
 type Component = {
     key: string;
@@ -15,7 +18,7 @@ type Component = {
     summary: string;
     latency_ms: number | null;
     uptime: number | null;
-    days: Day[];
+    bars: Bar[];
 };
 
 type Group = { key: string; label: string; components: Component[] };
@@ -34,9 +37,73 @@ export type StatusPage = {
     headline: string;
     checked_at: string | null;
     stale: boolean;
+    range: Range;
     notices: Notice[];
     groups: Group[];
 };
+
+type Unit = 'hour' | 'day' | 'week';
+
+/**
+ * How each range reads. The page opens on the last 24 hours, so an outage
+ * this morning shows as its hours. A phone shows at most the last 30 bars.
+ */
+const ranges: Record<
+    Range,
+    {
+        label: string;
+        last: string;
+        unit: Unit;
+        from: string;
+        fromPhone: string;
+        to: string;
+    }
+> = {
+    day: {
+        label: '24 hours',
+        last: 'the last 24 hours',
+        unit: 'hour',
+        from: '24 hours ago',
+        fromPhone: '24 hours ago',
+        to: 'Now',
+    },
+    week: {
+        label: '7 days',
+        last: 'the last 7 days',
+        unit: 'day',
+        from: '7 days ago',
+        fromPhone: '7 days ago',
+        to: 'Today',
+    },
+    month: {
+        label: '30 days',
+        last: 'the last 30 days',
+        unit: 'day',
+        from: '30 days ago',
+        fromPhone: '30 days ago',
+        to: 'Today',
+    },
+    quarter: {
+        label: '90 days',
+        last: 'the last 90 days',
+        unit: 'day',
+        from: '90 days ago',
+        fromPhone: '30 days ago',
+        to: 'Today',
+    },
+    year: {
+        label: 'Year',
+        last: 'the last year',
+        unit: 'week',
+        from: 'A year ago',
+        fromPhone: '30 weeks ago',
+        to: 'This week',
+    },
+};
+
+const rangeOrder: Range[] = ['day', 'week', 'month', 'quarter', 'year'];
+
+const PHONE_BARS = 30;
 
 const stateWord: Record<State, string> = {
     up: 'Works',
@@ -136,18 +203,55 @@ function Dot({
     );
 }
 
-function dayLabel(date: string): string {
-    return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
-        day: 'numeric',
-        month: 'short',
-        timeZone: 'UTC',
-    });
+/**
+ * A bar's name: its hour in the reader's own time once the browser has the
+ * page (in UTC until then), or the day or week it starts, which are UTC days.
+ */
+function barLabel(start: string, unit: Unit, hydrated: boolean): string {
+    if (unit === 'hour') {
+        return new Date(start).toLocaleTimeString(
+            hydrated ? undefined : utc.locale,
+            {
+                hour: 'numeric',
+                minute: '2-digit',
+                ...(hydrated
+                    ? {}
+                    : {
+                          timeZone: utc.timeZone,
+                          timeZoneName: utc.timeZoneName,
+                      }),
+            },
+        );
+    }
+
+    const day = new Date(start).toLocaleDateString(
+        hydrated ? undefined : utc.locale,
+        { day: 'numeric', month: 'short', timeZone: 'UTC' },
+    );
+
+    return unit === 'week' ? `the week of ${day}` : day;
 }
 
-function problemDays(days: Day[], state: 'down' | 'slow'): string[] {
-    return days
-        .filter((day) => day.state === state)
-        .map((day) => dayLabel(day.date));
+function problemBars(
+    bars: Bar[],
+    state: 'down' | 'slow',
+    unit: Unit,
+    hydrated: boolean,
+): string[] {
+    return bars
+        .filter((bar) => bar.state === state)
+        .map((bar) => barLabel(bar.start, unit, hydrated));
+}
+
+/** "Down at 10:00", "down on 27 Oct", "down in the week of 13 Oct". */
+function problemLine(word: string, items: string[], unit: Unit): string | null {
+    if (items.length === 0) {
+        return null;
+    }
+
+    const at = { hour: 'at', day: 'on', week: 'in' }[unit];
+
+    return `${word} ${at} ${list(items)}.`;
 }
 
 function list(items: string[]): string {
@@ -157,30 +261,45 @@ function list(items: string[]): string {
 }
 
 /**
- * The days in bars, oldest left, today right. A phone shows the last 30. The
- * bad days are also written out under the bars, so colour is never the only
- * record.
+ * The range in bars, oldest left, now right. A phone shows the last 30. The
+ * bad hours, days, or weeks are also written out under the bars, so colour is
+ * never the only record.
  */
-function DayBars({ component }: { component: Component }) {
-    const down = problemDays(component.days, 'down');
-    const slow = problemDays(component.days, 'slow');
+function Bars({
+    component,
+    range,
+    hydrated,
+}: {
+    component: Component;
+    range: Range;
+    hydrated: boolean;
+}) {
+    const { unit, last, from, fromPhone, to } = ranges[range];
     const problems = [
-        down.length > 0 ? `Down on ${list(down)}.` : null,
-        slow.length > 0 ? `Slow on ${list(slow)}.` : null,
+        problemLine(
+            'Down',
+            problemBars(component.bars, 'down', unit, hydrated),
+            unit,
+        ),
+        problemLine(
+            'Slow',
+            problemBars(component.bars, 'slow', unit, hydrated),
+            unit,
+        ),
     ].filter((line) => line !== null);
 
     return (
         <div className="space-y-1.5">
             <div aria-hidden="true" className="flex h-8 items-end gap-px">
-                {component.days.map((day, index) => (
+                {component.bars.map((bar, index) => (
                     <span
-                        key={day.date}
-                        title={`${dayLabel(day.date)}: ${day.state === null ? 'No checks' : stateWord[day.state]}`}
+                        key={bar.start}
+                        title={`${barLabel(bar.start, unit, hydrated)}: ${bar.state === null ? 'No checks' : stateWord[bar.state]}`}
                         className={cn(
                             'flex-1 rounded-[2px]',
-                            day.state === null ? 'h-1.5' : 'h-full',
-                            stateColour[day.state ?? 'unknown'],
-                            index < component.days.length - 30 &&
+                            bar.state === null ? 'h-1.5' : 'h-full',
+                            stateColour[bar.state ?? 'unknown'],
+                            index < component.bars.length - PHONE_BARS &&
                                 'hidden sm:block',
                         )}
                     />
@@ -190,18 +309,49 @@ function DayBars({ component }: { component: Component }) {
                 aria-hidden="true"
                 className="flex justify-between text-xs text-muted-foreground"
             >
-                <span className="sm:hidden">30 days ago</span>
-                <span className="hidden sm:inline">
-                    {component.days.length} days ago
-                </span>
-                <span>Today</span>
+                <span className="sm:hidden">{fromPhone}</span>
+                <span className="hidden sm:inline">{from}</span>
+                <span>{to}</span>
             </div>
             <p className="text-sm text-muted-foreground">
                 {problems.length === 0
-                    ? `No problems in the last ${component.days.length} days.`
+                    ? `No problems in ${last}.`
                     : problems.join(' ')}
             </p>
         </div>
+    );
+}
+
+/**
+ * How far back the bars go. Each choice is a link, so a range can be shared,
+ * and only the bars load again.
+ */
+function RangePicker({ current }: { current: Range }) {
+    return (
+        <nav aria-label="How far back the bars go">
+            <ul className="flex w-full gap-1 rounded-lg border border-border bg-card p-1 sm:w-fit">
+                {rangeOrder.map((range) => (
+                    <li key={range} className="flex-1 sm:flex-none">
+                        <Link
+                            href={status({ query: { range } })}
+                            only={['range', 'groups']}
+                            preserveScroll
+                            aria-current={
+                                range === current ? 'true' : undefined
+                            }
+                            className={cn(
+                                'inline-flex min-h-9 w-full items-center justify-center rounded-md px-2 text-sm font-medium whitespace-nowrap outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:px-3',
+                                range === current
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground',
+                            )}
+                        >
+                            {ranges[range].label}
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </nav>
     );
 }
 
@@ -212,6 +362,8 @@ export default function Status() {
     usePoll(60_000, {
         only: ['state', 'headline', 'checked_at', 'stale', 'notices', 'groups'],
     });
+
+    const range = ranges[page.range] === undefined ? 'day' : page.range;
 
     const open = page.notices.filter((notice) => notice.resolved_at === null);
     const resolved = page.notices.filter(
@@ -290,6 +442,8 @@ export default function Status() {
                         </section>
                     )}
 
+                    <RangePicker current={range} />
+
                     {page.groups.map((group) => (
                         <section
                             key={group.key}
@@ -336,7 +490,11 @@ export default function Status() {
                                                     {component.summary}.
                                                 </p>
                                             )}
-                                        <DayBars component={component} />
+                                        <Bars
+                                            component={component}
+                                            range={range}
+                                            hydrated={hydrated}
+                                        />
                                     </li>
                                 ))}
                             </ul>
@@ -405,8 +563,8 @@ export default function Status() {
                             </li>
                         </ul>
                         <p>
-                            Each bar is one day, with the worst moment of that
-                            day. A short bar is a day with no checks. Traceway
+                            Each bar is one {ranges[range].unit}, with the worst
+                            moment in it. A short bar had no checks. Traceway
                             also runs on{' '}
                             {outsideStatus.map((service, index) => (
                                 <span key={service.href}>

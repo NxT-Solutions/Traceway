@@ -2399,8 +2399,27 @@
                     "Status"
                 ],
                 "summary": "See what works right now",
-                "description": "Public. Whether the planner, the map services, the apps a rider sends to, and the Garmin store listing work, with the last 90 days.",
+                "description": "Public. Whether the planner, the map services, the apps a rider sends to, and the Garmin store listing work, with a bar for each hour, day, or week of the range asked for.",
                 "operationId": "serviceStatus",
+                "parameters": [
+                    {
+                        "name": "range",
+                        "in": "query",
+                        "description": "How far back the bars go: the last 24 hours by the hour (the default), 7, 30, or 90 days by the day, or a year by the week.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "day",
+                            "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "quarter",
+                                "year"
+                            ]
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "The status page."

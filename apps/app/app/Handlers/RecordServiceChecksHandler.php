@@ -11,8 +11,8 @@ use Throwable;
 
 final readonly class RecordServiceChecksHandler
 {
-    /** The status page shows this many days. Older checks are forgotten. */
-    public const int KEEP_DAYS = 90;
+    /** The status page looks back a year at most. Older checks are forgotten. */
+    public const int KEEP_DAYS = 366;
 
     public function __construct(
         private ServiceProbes $serviceProbes,

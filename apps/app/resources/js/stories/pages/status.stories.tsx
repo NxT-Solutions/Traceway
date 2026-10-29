@@ -1,8 +1,8 @@
 import { router } from '@inertiajs/react';
 import type { Decorator, Meta, StoryObj } from '@storybook/react-vite';
 import { useEffect } from 'react';
-import { expect, fn } from 'storybook/test';
-import Status, { type StatusPage } from '@/pages/status';
+import { expect, fn, userEvent } from 'storybook/test';
+import Status, { type Range, type StatusPage } from '@/pages/status';
 import { status } from '@/routes';
 import { InertiaPage, sharedProps } from '../support/inertia-page';
 import { http, inertiaPage } from '../support/server';
@@ -13,7 +13,7 @@ type State = Exclude<StatusPage['state'], 'unknown'>;
 
 type Component = StatusPage['groups'][number]['components'][number];
 
-type Day = Component['days'][number];
+type Bar = Component['bars'][number];
 
 /**
  * The page polls every minute. A story without a mocked server turns down every visit while it shows; one with
@@ -32,11 +32,12 @@ const noVisits: Decorator = (Story, { parameters }) => {
 
 /**
  * The public status page (`/status`, no layout): whether the planner, the map services, the apps a rider sends to,
- * and the Garmin app work, with the last 90 days in bars.
+ * and the Garmin app work, in bars. It opens on the last 24 hours, an hour to a bar; the picker shows 7, 30, or 90
+ * days by the day, or a year by the week.
  *
  * `RecoversOnNextCheck` answers the page's minute poll from a mocked server (Mock Service Worker), as
- * ShowStatusController does for a partial reload: only the props the poll asks for. "Open the planner" opens the
- * planner's story.
+ * ShowStatusController does for a partial reload: only the props the poll asks for. `PicksARange` does the same for
+ * a range picked. "Open the planner" opens the planner's story.
  */
 const meta = {
     title: 'Pages/Status',
@@ -51,21 +52,40 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+const HOUR = 3_600_000;
 const DAY = 86_400_000;
 const now = Date.now();
 const ago = (ms: number) => new Date(now - ms).toISOString();
 
-/** The last 90 days, oldest first. `bad` maps days ago to a state; the rest are `fill`. */
-function days(
+/** Each range's bars, as ServiceStatusQuery sends them: how many, and how long each is. */
+const shape: Record<Range, { bars: number; each: number }> = {
+    day: { bars: 24, each: HOUR },
+    week: { bars: 7, each: DAY },
+    month: { bars: 30, each: DAY },
+    quarter: { bars: 90, each: DAY },
+    year: { bars: 52, each: 7 * DAY },
+};
+
+/** A range's bars, oldest first. `bad` maps bars ago to a state; the rest are `fill`. */
+function bars(
+    range: Range = 'day',
     bad: Record<number, State> = {},
     fill: State | null = 'up',
-): Day[] {
-    return Array.from({ length: 90 }, (_, index) => {
-        const daysAgo = 89 - index;
+): Bar[] {
+    const { bars: count, each } = shape[range];
+    const last =
+        range === 'day'
+            ? Math.floor(now / HOUR) * HOUR
+            : Math.floor(now / DAY) * DAY - (range === 'year' ? 6 * DAY : 0);
+
+    return Array.from({ length: count }, (_, index) => {
+        const barsAgo = count - 1 - index;
 
         return {
-            date: ago(daysAgo * DAY).slice(0, 10),
-            state: bad[daysAgo] ?? fill,
+            start: new Date(last - barsAgo * each)
+                .toISOString()
+                .replace(/\.\d{3}Z$/, 'Z'),
+            state: bad[barsAgo] ?? fill,
         };
     });
 }
@@ -75,6 +95,7 @@ function component(
     label: string,
     latency: number,
     overrides: Partial<Component> = {},
+    range: Range = 'day',
 ): Component {
     return {
         key,
@@ -83,31 +104,52 @@ function component(
         summary: `${label} works`,
         latency_ms: latency,
         uptime: 100,
-        days: days(),
+        bars: bars(range),
         ...overrides,
     };
 }
 
-function groups(overrides: Partial<Record<string, Partial<Component>>> = {}) {
+/** Route drawing went down this morning, or in the range's last bars, and was slow once before. */
+function groups(
+    overrides: Partial<Record<string, Partial<Component>>> = {},
+    range: Range = 'day',
+) {
     return [
         {
             key: 'traceway',
             label: 'Traceway',
             components: [
-                component('planner', 'Planner', 120, overrides.planner),
+                component('planner', 'Planner', 120, overrides.planner, range),
             ],
         },
         {
             key: 'maps',
             label: 'Map services',
             components: [
-                component('routing', 'Route drawing', 840, {
-                    uptime: 99.86,
-                    days: days({ 23: 'down', 41: 'slow' }),
-                    ...overrides.routing,
-                }),
-                component('places', 'Place search', 310, overrides.places),
-                component('tiles', 'Maps', 90, overrides.tiles),
+                component(
+                    'routing',
+                    'Route drawing',
+                    840,
+                    {
+                        uptime: 99.86,
+                        bars: bars(
+                            range,
+                            range === 'day'
+                                ? { 3: 'down', 4: 'down' }
+                                : { 1: 'down', 6: 'slow' },
+                        ),
+                        ...overrides.routing,
+                    },
+                    range,
+                ),
+                component(
+                    'places',
+                    'Place search',
+                    310,
+                    overrides.places,
+                    range,
+                ),
+                component('tiles', 'Maps', 90, overrides.tiles, range),
             ],
         },
         {
@@ -119,8 +161,9 @@ function groups(overrides: Partial<Record<string, Partial<Component>>> = {}) {
                     'Ride with GPS',
                     420,
                     overrides.ride_with_gps,
+                    range,
                 ),
-                component('wahoo', 'Wahoo', 360, overrides.wahoo),
+                component('wahoo', 'Wahoo', 360, overrides.wahoo, range),
             ],
         },
         {
@@ -135,6 +178,7 @@ function groups(overrides: Partial<Record<string, Partial<Component>>> = {}) {
                         summary: 'The Garmin app is in the Connect IQ store',
                         ...overrides.garmin_store,
                     },
+                    range,
                 ),
             ],
         },
@@ -160,6 +204,7 @@ export const AllWorking: Story = {
         headline: 'Everything works',
         checked_at: ago(3 * 60_000),
         stale: false,
+        range: 'day',
         notices: [
             {
                 id: 7,
@@ -181,6 +226,7 @@ export const RouteDrawingSlow: Story = {
         headline: 'Route drawing is slow right now',
         checked_at: ago(2 * 60_000),
         stale: false,
+        range: 'day',
         notices: [
             {
                 id: 8,
@@ -196,7 +242,7 @@ export const RouteDrawingSlow: Story = {
                 state: 'slow',
                 summary: 'Route drawing is slow right now',
                 latency_ms: 6400,
-                days: days({ 0: 'slow', 23: 'down', 41: 'slow' }),
+                bars: bars('day', { 0: 'slow', 3: 'down', 4: 'down' }),
             },
         }),
     }),
@@ -207,6 +253,7 @@ const wahooDown: StatusPage = {
     headline: 'Wahoo is down right now',
     checked_at: ago(60_000),
     stale: false,
+    range: 'day',
     notices: [],
     groups: groups({
         wahoo: {
@@ -214,7 +261,7 @@ const wahooDown: StatusPage = {
             summary: 'Wahoo is down right now',
             latency_ms: null,
             uptime: 99.31,
-            days: days({ 0: 'down' }),
+            bars: bars('day', { 0: 'down' }),
         },
     }),
 };
@@ -253,11 +300,12 @@ export const RecoversOnNextCheck: Story = {
                         headline: 'Everything works',
                         checked_at: new Date().toISOString(),
                         stale: false,
+                        range: 'day',
                         notices: [],
                         groups: groups({
                             wahoo: {
                                 uptime: 99.31,
-                                days: days({ 0: 'down' }, 'up'),
+                                bars: bars('day', { 1: 'down' }),
                             },
                         }),
                     },
@@ -310,6 +358,7 @@ export const NoChecksYet: Story = {
         headline: 'No checks yet',
         checked_at: null,
         stale: false,
+        range: 'day',
         notices: [],
         groups: groups(
             Object.fromEntries(
@@ -328,10 +377,93 @@ export const NoChecksYet: Story = {
                         summary: 'Not checked yet',
                         latency_ms: null,
                         uptime: null,
-                        days: days({}, null),
+                        bars: bars('day', {}, null),
                     },
                 ]),
             ),
         ),
     }),
+};
+
+/** A range's page: everything works now, and route drawing was down in the range. */
+function inRange(range: Range): StatusPage {
+    return {
+        state: 'up',
+        headline: 'Everything works',
+        checked_at: ago(3 * 60_000),
+        stale: false,
+        range,
+        notices: [],
+        groups: groups({}, range),
+    };
+}
+
+/** The last 90 days, a day to a bar: a phone shows the last 30. */
+export const LastNinetyDays: Story = { render: page(inRange('quarter')) };
+
+/** The last year, a week to a bar. */
+export const LastYear: Story = { render: page(inRange('year')) };
+
+/** The ranges the mocked server was asked for. */
+const rangeRequest = fn();
+
+/**
+ * The page opens on the last 24 hours. Picking 7 days asks the server for the range and the bars only, and the bars
+ * turn into days.
+ */
+export const PicksARange: Story = {
+    render: page(inRange('day')),
+    parameters: { mockedServer: true },
+    beforeEach({ msw }) {
+        rangeRequest.mockClear();
+        msw.use(
+            http.get('*', ({ request }) => {
+                if (
+                    request.headers.get('X-Inertia-Partial-Component') !==
+                    'status'
+                ) {
+                    return undefined;
+                }
+
+                const range = (new URL(request.url).searchParams.get('range') ??
+                    'day') as Range;
+                rangeRequest(
+                    range,
+                    request.headers.get('X-Inertia-Partial-Data'),
+                );
+
+                return inertiaPage('status', inRange(range), {
+                    url: status.url({ query: { range } }),
+                    request,
+                });
+            }),
+        );
+    },
+    play: async ({ canvas, step }) => {
+        await step('It opens on the last 24 hours', async () => {
+            await expect(
+                canvas.getByRole('link', { name: '24 hours' }),
+            ).toHaveAttribute('aria-current', 'true');
+        });
+
+        await step('Pick 7 days', async () => {
+            await userEvent.click(canvas.getByRole('link', { name: '7 days' }));
+        });
+
+        await step('The bars are days now', async () => {
+            await expect(
+                await canvas.findByRole('link', {
+                    name: '7 days',
+                    current: true,
+                }),
+            ).toBeVisible();
+            await expect(rangeRequest).toHaveBeenCalledWith(
+                'week',
+                'range,groups',
+            );
+            await expect(
+                canvas.getAllByText('7 days ago').length,
+            ).toBeGreaterThan(0);
+        });
+    },
 };
