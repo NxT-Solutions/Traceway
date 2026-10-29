@@ -5,12 +5,14 @@ declare(strict_types=1);
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\GeneratedRoute;
 use App\Domain\Routing\LengthBias;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\Sport;
 use App\Domain\Routing\Surface;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Exceptions;
 
 uses(RefreshDatabase::class);
 
@@ -272,6 +274,46 @@ it('turns the directions the loops are tried in when the rider shuffles', functi
     $this->actingAs($rider)->postJson(route('routes.preview'), [...$ask, 'turn' => 360])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('turn');
+});
+
+it('says the map server is busy, and reports nothing, when it does not answer', function (): void {
+    Exceptions::fake();
+    $this->app->instance(RoutingEngine::class, new class implements RoutingEngine
+    {
+        public function route(RouteQuery $routeQuery): GeneratedRoute
+        {
+            throw new MapServerBusy('The map server did not answer.');
+        }
+
+        public function candidates(RouteQuery $routeQuery): array
+        {
+            throw new MapServerBusy('The map server did not answer.');
+        }
+
+        public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
+        {
+            throw new MapServerBusy('The map server did not answer.');
+        }
+
+        public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
+        {
+            throw new MapServerBusy('The map server did not answer.');
+        }
+    });
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.preview'), [
+            'sport' => 'road',
+            'surface' => 'paved',
+            'elevation' => 'minimize',
+            'distance_metres' => 20_000,
+            'latitude' => 51.05,
+            'longitude' => 3.72,
+        ])
+        ->assertStatus(502)
+        ->assertJsonPath('message', 'The map server is busy. Try again in a minute.');
+
+    Exceptions::assertNothingReported();
 });
 
 it('turns away a length kept some other way', function (): void {

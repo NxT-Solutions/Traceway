@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Domain\Routing\Details\RouteDetails;
 use App\Domain\Routing\Details\RouteDetailsSource;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\Sport;
 use App\Models\SavedRoute;
 use App\Models\User;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Fakes\FixedRouteDetails;
@@ -61,6 +64,34 @@ it('says so when the map server does not answer', function (): void {
         ->postJson(route('routes.details'), ['sport' => 'road', 'coordinates' => detailsLine()])
         ->assertStatus(502)
         ->assertJsonPath('message', 'The climb and the turns did not load. The route still works.');
+});
+
+it('reports nothing when the map server is busy', function (): void {
+    Exceptions::fake();
+    app()->instance(RouteDetailsSource::class, new class implements RouteDetailsSource
+    {
+        public function for(Sport $sport, array $line): RouteDetails
+        {
+            throw new MapServerBusy('The router could not describe that line (route unreachable, surface unreachable, height unreachable).');
+        }
+
+        public function road(Sport $sport, array $line): RouteDetails
+        {
+            throw new MapServerBusy('The router could not describe that line (route unreachable, surface unreachable, height unreachable).');
+        }
+
+        public function stops(Sport $sport, array $line): array
+        {
+            return [];
+        }
+    });
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('routes.details'), ['sport' => 'road', 'coordinates' => detailsLine()])
+        ->assertStatus(502)
+        ->assertJsonPath('message', 'The climb and the turns did not load. The route still works.');
+
+    Exceptions::assertNothingReported();
 });
 
 it('refuses a line it cannot read', function (array $payload): void {

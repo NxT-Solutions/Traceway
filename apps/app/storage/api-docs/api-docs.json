@@ -108,7 +108,7 @@
                         }
                     },
                     "502": {
-                        "description": "Those points did not join along the roads.",
+                        "description": "Those points did not join along the roads, or the map server is busy.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1314,7 +1314,7 @@
                         }
                     },
                     "502": {
-                        "description": "A leg did not come back.",
+                        "description": "A leg did not come back, or the map server is busy.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1373,7 +1373,7 @@
                         }
                     },
                     "502": {
-                        "description": "No loop came back.",
+                        "description": "No loop came back, or the map server is busy.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1433,7 +1433,7 @@
                         }
                     },
                     "502": {
-                        "description": "The roads did not join up.",
+                        "description": "The roads did not join up, or the map server is busy.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1500,7 +1500,7 @@
                         }
                     },
                     "502": {
-                        "description": "The changed legs did not join along the roads.",
+                        "description": "The changed legs did not join along the roads, or the map server is busy.",
                         "content": {
                             "application/json": {
                                 "schema": {

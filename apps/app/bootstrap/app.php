@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Account\MissingRider;
+use App\Domain\Routing\MapServerBusy;
 use App\Http\Middleware\ForgetDomainCookies;
 use App\Http\Middleware\GuardImpersonation;
 use App\Http\Middleware\GuardSignupForms;
@@ -55,6 +56,9 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         Integration::handles($exceptions);
+
+        // The public map server is down for a moment now and then. The rider is told to try again, and there is nothing to fix.
+        $exceptions->dontReport(MapServerBusy::class);
 
         // A rider who was deleted while an admin page was still open is simply not there any more.
         $exceptions->map(MissingRider::class, fn (MissingRider $missingRider): NotFoundHttpException => new NotFoundHttpException($missingRider->getMessage(), $missingRider));

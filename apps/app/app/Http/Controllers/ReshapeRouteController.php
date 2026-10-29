@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Routing\LegSplitter;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\Reshape;
 use App\Domain\Routing\RouteCleanliness;
 use App\Http\Requests\ReshapeRouteRequest;
@@ -57,7 +58,7 @@ class ReshapeRouteController extends Controller
     )]
     #[Response(
         response: HttpResponse::HTTP_BAD_GATEWAY,
-        description: 'The changed legs did not join along the roads.',
+        description: 'The changed legs did not join along the roads, or the map server is busy.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
     public function __invoke(ReshapeRouteRequest $reshapeRouteRequest, Reshape $reshape, RiderAvoids $riderAvoids): JsonResponse
@@ -78,6 +79,10 @@ class ReshapeRouteController extends Controller
             $reshaped = $reshape->apply($routeQuery, $reshapeRouteRequest->line(), $waypoints, $routeChange, $finish, $loop);
         } catch (InvalidArgumentException $invalidArgumentException) {
             return response()->json(['message' => $invalidArgumentException->getMessage()], HttpResponse::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (MapServerBusy) {
+            return response()->json([
+                'message' => 'The map server is busy. Try again in a minute.',
+            ], HttpResponse::HTTP_BAD_GATEWAY);
         } catch (Throwable $throwable) {
             report($throwable);
 

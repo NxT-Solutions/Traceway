@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\RoutingEngine;
 use App\Http\Requests\PreviewRouteRequest;
 use App\Http\Responses\RoutePreview;
@@ -48,7 +49,7 @@ class PreviewRouteController extends Controller
     )]
     #[Response(
         response: HttpResponse::HTTP_BAD_GATEWAY,
-        description: 'No loop came back.',
+        description: 'No loop came back, or the map server is busy.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
     public function __invoke(PreviewRouteRequest $previewRouteRequest, RoutingEngine $routingEngine, RiderAvoids $riderAvoids): JsonResponse
@@ -59,6 +60,10 @@ class PreviewRouteController extends Controller
 
         try {
             $routes = $routingEngine->candidates($riderAvoids->apply($previewRouteRequest->toQuery(), $user->id));
+        } catch (MapServerBusy) {
+            return response()->json([
+                'message' => 'The map server is busy. Try again in a minute.',
+            ], 502);
         } catch (Throwable $throwable) {
             report($throwable);
 

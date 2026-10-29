@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Courses\ImportedLine;
 use App\Domain\Routing\LineFollower;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\RoutingEngine;
 use App\Http\Requests\RedoImportedRouteRequest;
 use App\Http\Responses\ImportedRoute;
@@ -59,7 +60,7 @@ class RedoImportedRouteController extends Controller
     )]
     #[Response(
         response: HttpResponse::HTTP_BAD_GATEWAY,
-        description: 'The roads did not join up.',
+        description: 'The roads did not join up, or the map server is busy.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
     public function __invoke(RedoImportedRouteRequest $redoImportedRouteRequest): JsonResponse
@@ -76,6 +77,10 @@ class RedoImportedRouteController extends Controller
 
         try {
             $generatedRoute = ImportedLine::ride($this->lineFollower, $this->routingEngine, $redoImportedRouteRequest->toQuery(), $followed, $start);
+        } catch (MapServerBusy) {
+            return response()->json([
+                'message' => 'The map server is busy. Try again in a minute.',
+            ], 502);
         } catch (Throwable $throwable) {
             report($throwable);
 

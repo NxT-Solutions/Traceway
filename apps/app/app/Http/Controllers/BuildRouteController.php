@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Routing\GeneratedRoute;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\RouteCleanliness;
 use App\Domain\Routing\RoutingEngine;
 use App\Http\Requests\BuildRouteRequest;
@@ -50,7 +51,7 @@ class BuildRouteController extends Controller
     )]
     #[Response(
         response: HttpResponse::HTTP_BAD_GATEWAY,
-        description: 'Those points did not join along the roads.',
+        description: 'Those points did not join along the roads, or the map server is busy.',
         content: new JsonContent(ref: '#/components/schemas/Error'),
     )]
     public function __invoke(BuildRouteRequest $buildRouteRequest, RoutingEngine $routingEngine, RiderAvoids $riderAvoids): JsonResponse
@@ -98,6 +99,10 @@ class BuildRouteController extends Controller
             if ($finish && $last !== $start) {
                 $closing = $routingEngine->closeLoop($routeQuery, $ridden, $last, $start);
             }
+        } catch (MapServerBusy) {
+            return response()->json([
+                'message' => 'The map server is busy. Try again in a minute.',
+            ], 502);
         } catch (Throwable $throwable) {
             report($throwable);
 
