@@ -176,7 +176,7 @@ it('says no loop came back when the cycling router answers with a page', functio
         startLatitude: 51.05,
         startLongitude: 3.72,
     ));
-})->throws(RuntimeException::class, 'The cycling router did not return a loop.');
+})->throws(RuntimeException::class, 'No loop matched those filters.');
 
 it("asks FOSSGIS's own server for the profile when each profile has one", function (): void {
     $mock = new MockClient([
@@ -204,7 +204,7 @@ it("asks FOSSGIS's own server for the profile when each profile has one", functi
     expect($mock->getLastPendingRequest()?->getUrl())->toStartWith('https://routing.test/routed-foot/route/v1/driving/3.72,51.05;3.73,51.06');
 });
 
-it('takes its share of the pace, and rests when the server turns it away as busy', function (): void {
+it('takes its share of the pace, and fails only the request the server turns away as busy', function (): void {
     $asked = 0;
     $connector = new OsrmConnector('https://routing.test', new CachedMapServerPace(new Repository(new ArrayStore), server: 'routing-backup'), serverPerProfile: true);
     $connector->withMockClient(new MockClient([MockResponse::make([], 429), MockResponse::make(['code' => 'Ok'], 200)]));
@@ -213,8 +213,8 @@ it('takes its share of the pace, and rests when the server turns it away as busy
     });
 
     expect($connector->send(new CyclingRouteRequest([[3.72, 51.05], [3.73, 51.06]]))->status())->toBe(429)
-        ->and(fn (): Response => $connector->send(new CyclingRouteRequest([[3.72, 51.05], [3.73, 51.06]])))->toThrow(MapServerBusy::class)
-        ->and($asked)->toBe(1);
+        ->and($connector->send(new CyclingRouteRequest([[3.72, 51.05], [3.73, 51.06]]))->status())->toBe(200)
+        ->and($asked)->toBe(2);
 });
 
 it('says the backup is busy, and rests, when it does not answer', function (): void {

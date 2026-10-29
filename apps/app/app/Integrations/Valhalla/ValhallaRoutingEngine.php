@@ -12,6 +12,7 @@ use App\Domain\Routing\GeneratedRoute;
 use App\Domain\Routing\LineFollower;
 use App\Domain\Routing\LineSimplifier;
 use App\Domain\Routing\LoopClosure;
+use App\Domain\Routing\LoopSearch;
 use App\Domain\Routing\LoopWaypoints;
 use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\RouteCleanliness;
@@ -33,14 +34,11 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
     /** The public server matches at most about this much of a line at once. */
     private const int MAX_MATCH_METRES = 150_000;
 
-    /** The directions a loop is first tried in, a sixth of a turn apart. */
-    private const array BEARINGS = [12.0, 72.0, 132.0, 192.0, 252.0, 312.0];
-
-    /** The size of the first circle each loop is tried on. See LoopWaypoints::around(). */
-    private const float FIRST_SCALE = 0.95;
-
-    /** How far round from each of BEARINGS the directions halfway between them are. */
-    private const float BETWEEN_DEGREES = 30.0;
+    /**
+     * Requests sent at once. The public server turns some away as busy after
+     * about a dozen in a few seconds, so a loop's rounds go out a few at a time.
+     */
+    private const int AT_ONCE = 3;
 
     /** A loop's heights come back with its line, one every this many metres, so loops can be ranked by their climb. */
     private const int HEIGHT_METRES = 30;
@@ -87,112 +85,11 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
             return [$this->fetch($routeQuery, $waypoints)];
         }
 
-        $target = $routeQuery->distanceMetres;
-        $tolerance = RouteCleanliness::lengthTolerance($target);
-        // A most or a least aims a little inside it. See RouteCleanliness::aimMetres().
-        $aimed = RouteCleanliness::aimMetres($routeQuery);
-        $firstScale = self::FIRST_SCALE * $aimed / $target;
-        $first = $this->loops($routeQuery, array_fill_keys(array_keys(self::BEARINGS), $firstScale));
-        $found = array_values($first);
-        $best = RouteCleanliness::cleanest($found, $target);
-        $aims = [];
-
-        foreach ($first as $index => $route) {
-            $aims[$index] = $this->aim($firstScale, $route, $aimed);
-        }
-
-        try {
-            // The roads one way may wind more than the roads another, so each
-            // direction is aimed again on its own: its circle grows or shrinks by
-            // how far its loop came out off the length. A direction already close
-            // keeps its loop. This runs when the best loop is not close, or when
-            // there are not yet three loops on the length to choose from.
-            if ($best instanceof GeneratedRoute && (abs($best->distanceMetres - $aimed) > $tolerance / 2 || count(RouteCleanliness::diverse($found, $target, fill: false)) < 3)) {
-                $scales = [];
-
-                foreach ($first as $index => $route) {
-                    if (abs($route->distanceMetres - $aimed) > $tolerance / 4) {
-                        $scales[$index] = $aims[$index];
-                    }
-                }
-
-                foreach ($this->loops($routeQuery, $scales) as $index => $route) {
-                    $found[] = $route;
-                    $aims[$index] = $this->aim($scales[$index] ?? $firstScale, $route, $aimed);
-                }
-            }
-
-            // Still fewer than three loops on the length: the six directions
-            // halfway between are tried too, each on the circle its two
-            // neighbours were aimed at.
-            if ($found !== [] && count(RouteCleanliness::diverse($found, $target, fill: false)) < 3) {
-                $between = [];
-
-                foreach (array_keys(self::BEARINGS) as $index) {
-                    $near = array_values(array_filter([$aims[$index] ?? null, $aims[($index + 1) % count(self::BEARINGS)] ?? null], is_float(...)));
-                    $between[$index] = $near === [] ? $firstScale : array_sum($near) / count($near);
-                }
-
-                $found = array_merge($found, array_values($this->loops($routeQuery, $between, self::BETWEEN_DEGREES)));
-            }
-        } catch (MapServerBusy) {
-            // A server that stops answering partway is not asked again, and
-            // the loops it already gave are kept.
-        }
-
-        $diverse = RouteCleanliness::diverse($found, $target);
-
-        throw_if($diverse === [], RuntimeException::class, 'No loop matched those filters.');
-
-        return $diverse;
-    }
-
-    /**
-     * The circle a direction should be tried on to land on the length, from
-     * the circle it was tried on and how long its loop came out.
-     */
-    private function aim(float $scale, GeneratedRoute $generatedRoute, int $targetMetres): float
-    {
-        if ($generatedRoute->distanceMetres <= 0) {
-            return $scale;
-        }
-
-        return min(1.45, max(0.5, $scale * ($targetMetres / $generatedRoute->distanceMetres)));
-    }
-
-    /**
-     * A loop for each direction given, by its index in BEARINGS turned by
-     * $turn degrees and by the rider's shuffle, each on a circle of its own
-     * scale.
-     *
-     * @param  array<int, float>  $scales
-     * @return array<int, GeneratedRoute>
-     */
-    private function loops(RouteQuery $routeQuery, array $scales, float $turn = 0.0): array
-    {
-        $plans = [];
-
-        // Two points on a circle beside the pin: out to one, across to the
-        // other, and home. With three, the roads between them crossed back
-        // over each other: around ten Belgian pins, 71% of loops came out a
-        // figure of eight, pinched, or back past the pin halfway round,
-        // against 12% with two.
-        foreach ($scales as $index => $scale) {
-            $plans[] = ['waypoints' => LoopWaypoints::around(
-                $routeQuery->startLatitude,
-                $routeQuery->startLongitude,
-                $routeQuery->distanceMetres,
-                fmod((self::BEARINGS[$index] ?? 0.0) + $turn + $routeQuery->turnDegrees, 360.0),
-                $routeQuery->viaLatitude,
-                $routeQuery->viaLongitude,
-                $scale,
-                3,
-                offsetCenter: true,
-            )];
-        }
-
-        // A direction that does not fit, or that the server did not answer, is skipped.
-        return array_filter(array_combine(array_keys($scales), $this->routeAll($routeQuery, $plans)));
+        // The search is the one every engine uses; this engine draws its lines.
+        return LoopSearch::loops($routeQuery, fn (array $waypointLists): array => $this->routeAll(
+            $routeQuery,
+            array_map(fn (array $waypoints): array => ['waypoints' => $waypoints], $waypointLists),
+        ));
     }
 
     /**
@@ -345,7 +242,7 @@ final readonly class ValhallaRoutingEngine implements LineFollower, RoutingEngin
         if ($requests !== []) {
             $this->valhallaConnector->pool(
                 requests: $requests,
-                concurrency: min(count($requests), 6),
+                concurrency: min(count($requests), self::AT_ONCE),
                 responseHandler: function (Response $response, int|string $key) use (&$lines, &$answered): void {
                     try {
                         $lines[(string) $key] = $this->lineFrom($response);

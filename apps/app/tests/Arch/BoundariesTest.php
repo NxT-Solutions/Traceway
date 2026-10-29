@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use App\Domain\Routing\CleanLeg;
+use App\Domain\Routing\LoopSearch;
 use App\Domain\Routing\LoopShape;
 use App\Domain\Routing\RouteCleanliness;
+use App\Integrations\Osrm\OsrmRoutingEngine;
+use App\Integrations\Valhalla\ValhallaRoutingEngine;
 
 arch('sport rules and course files stay free of HTTP, Eloquent, Saloon, and the application layers')
     ->expect('App\Domain')
@@ -69,3 +72,7 @@ arch('a line is judged in one place: LoopShape only through RouteCleanliness')
 arch('a multisport leg is judged by the rules of any loop')
     ->expect(CleanLeg::class)
     ->toUse(RouteCleanliness::class);
+
+arch('every engine searches loops the same way')
+    ->expect([ValhallaRoutingEngine::class, OsrmRoutingEngine::class])
+    ->toUse(LoopSearch::class);

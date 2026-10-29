@@ -247,7 +247,7 @@ it('asks once more for what a busy server turned away', function (): void {
     $mock->assertSentCount(6);
 });
 
-it('keeps what came back, and does not ask again, when a busy answer sends Traceway to rest', function (): void {
+it('keeps what came back when the heights are turned away as busy, even the second time', function (): void {
     $mock = new MockClient([
         TraceRouteRequest::class => traceRouteResponse(),
         TraceAttributesRequest::class => MockResponse::make(['edges' => [['surface' => 'paved', 'length' => 0.42]]], 200),
@@ -261,7 +261,8 @@ it('keeps what came back, and does not ask again, when a busy answer sends Trace
     expect($roadDescription->complete)->toBeFalse()
         ->and($roadDescription->cues)->not->toBeEmpty()
         ->and($roadDescription->profile)->toBe([]);
-    $mock->assertSentCount(3);
+    // The heights are asked once more, a moment later; the rest is kept.
+    $mock->assertSentCount(4);
 });
 
 it('says why, when nothing came back even the second time', function (): void {

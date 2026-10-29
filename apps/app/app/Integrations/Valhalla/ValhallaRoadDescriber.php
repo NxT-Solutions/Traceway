@@ -151,7 +151,7 @@ final readonly class ValhallaRoadDescriber implements RoadDescriber
      * @param  array<string, Request>  $requests
      * @return array{0: array<string, Response>, 1: array<string, string>}
      */
-    private function send(array $requests, int $concurrency = 6): array
+    private function send(array $requests, int $concurrency = 3): array
     {
         $responses = [];
         $failures = [];

@@ -62,13 +62,22 @@ it('rests when a batch gets no answer, and asks nothing more while it rests', fu
     $mock->assertSentCount(3);
 });
 
-it('rests at once when the server turns a request away as busy', function (): void {
+it('keeps asking when only part of a batch is turned away as busy', function (): void {
     [$connector, $mock] = pacedValhalla(60, MockResponse::make([], 200), MockResponse::make([], 429), MockResponse::make([], 200), MockResponse::make([], 200));
 
     sendAll($connector, [new RouteRequest([]), new RouteRequest([]), new RouteRequest([])]);
+    $connector->send(new RouteRequest([]));
+
+    $mock->assertSentCount(4);
+});
+
+it('rests when a whole batch is turned away as busy', function (): void {
+    [$connector, $mock] = pacedValhalla(60, MockResponse::make([], 429), MockResponse::make([], 429), MockResponse::make([], 200));
+
+    sendAll($connector, [new RouteRequest([]), new RouteRequest([])]);
 
     expect(fn () => $connector->send(new RouteRequest([])))->toThrow(MapServerBusy::class);
-    $mock->assertSentCount(3);
+    $mock->assertSentCount(2);
 });
 
 it('keeps asking when the server answers, even with a no', function (): void {
@@ -91,7 +100,7 @@ it('does not rest for one slow or failed request on its own', function (): void 
     $mock->assertSentCount(3);
 });
 
-it('rests, and does not ask again, when the server turns a lookup away as busy', function (): void {
+it('does not ask a lookup again at once when the server turns it away as busy', function (): void {
     Config::sleepUsing(static function (): void {});
     $asked = 0;
     [$connector] = pacedValhalla(60, MockResponse::make([], 429), MockResponse::make([], 200));
@@ -101,7 +110,7 @@ it('rests, and does not ask again, when the server turns a lookup away as busy',
 
     expect($connector->send(new LocateRequest(51.05, 3.72, 'bicycle', []))->status())->toBe(429)
         ->and($asked)->toBe(1)
-        ->and(fn () => $connector->send(new RouteRequest([])))->toThrow(MapServerBusy::class);
+        ->and($connector->send(new RouteRequest([]))->status())->toBe(200);
 });
 
 it('counts a lookup asked again against the share', function (): void {
