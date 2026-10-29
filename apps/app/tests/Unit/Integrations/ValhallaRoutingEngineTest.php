@@ -8,6 +8,7 @@ use App\Domain\Routing\Distance;
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\FollowPoint;
 use App\Domain\Routing\GeneratedRoute;
+use App\Domain\Routing\LoopClosure;
 use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
@@ -117,13 +118,36 @@ it('keeps the loops it found when the server stops answering partway', function 
         ],
     ], 200);
     $timeout = MockResponse::make()->throw(fn (PendingRequest $pendingRequest): FatalRequestException => new FatalRequestException(new RuntimeException('Connection timed out'), $pendingRequest));
+    $mock = new MockClient([...array_fill(0, 6, $trip), ...array_fill(0, 12, $timeout)]);
     $connector = new ValhallaConnector('https://valhalla.test');
-    $connector->withMockClient(new MockClient([...array_fill(0, 6, $trip), ...array_fill(0, 12, $timeout)]));
+    $connector->withMockClient($mock);
 
     $routes = new ValhallaRoutingEngine($connector)->candidates(twentyKilometreLoop());
 
+    // The directions halfway between are not asked of a server that went quiet.
     expect($routes)->not->toBeEmpty()
         ->and($routes[0]->distanceMetres)->toBe(14_000);
+    $mock->assertSentCount(12);
+});
+
+it('closes a loop with a straight trace when every closing road was turned away as busy', function (): void {
+    $ridden = [[3.72, 51.05], [3.75, 51.07], [3.78, 51.06]];
+    $from = [3.78, 51.06];
+    $to = [3.72, 51.05];
+    $busy = MockResponse::make(['error_code' => 429, 'error' => 'Too many requests'], 429);
+    $trace = MockResponse::make([
+        'trip' => [
+            'summary' => ['length' => 4.6],
+            'legs' => [['shape' => Polyline::encode([$from, [3.75, 51.05], $to])]],
+        ],
+    ], 200);
+    $closings = count(LoopClosure::plans($ridden, $from, $to, 20_000));
+    $connector = new ValhallaConnector('https://valhalla.test');
+    $connector->withMockClient(new MockClient([...array_fill(0, $closings, $busy), $trace]));
+
+    $closing = new ValhallaRoutingEngine($connector)->closeLoop(twentyKilometreLoop(), $ridden, $from, $to);
+
+    expect($closing->distanceMetres)->toBe(4_600);
 });
 
 it('asks for a loop longer than one request in pieces and joins them', function (): void {
