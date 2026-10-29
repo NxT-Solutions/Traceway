@@ -9,8 +9,9 @@ use App\Domain\Routing\AvoidedStretch;
 use App\Domain\Routing\GeneratedRoute;
 use App\Domain\Routing\LineDistance;
 use App\Domain\Routing\LoopClosure;
+use App\Domain\Routing\LoopSearch;
 use App\Domain\Routing\LoopWaypoints;
-use App\Domain\Routing\RouteCleanliness;
+use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\RoutingEngine;
 use App\Domain\Routing\Shape;
@@ -58,32 +59,43 @@ final readonly class OsrmRoutingEngine implements RoutingEngine
             return [$this->fetch($routeQuery, $profile, $waypoints)];
         }
 
-        $candidates = [];
+        // The search every engine uses. Two rounds, not three: the public
+        // backup is asked about one request a second.
+        return LoopSearch::loops($routeQuery, fn (array $waypointLists): array => $this->drawEach($routeQuery, $profile, $waypointLists), rounds: 2);
+    }
 
-        foreach ([20.0, 80.0, 140.0, 200.0] as $bearing) {
+    /**
+     * Each list of waypoints drawn in turn, with null where no road fits. It
+     * throws MapServerBusy only when the server answered none of them.
+     *
+     * @param  list<list<array{0: float, 1: float}>>  $waypointLists
+     * @return list<GeneratedRoute|null>
+     */
+    private function drawEach(RouteQuery $routeQuery, string $profile, array $waypointLists): array
+    {
+        $routes = [];
+        $busy = null;
+        $answered = false;
+
+        foreach ($waypointLists as $waypoints) {
             try {
-                $candidates[] = $this->fetch(
-                    $routeQuery,
-                    $profile,
-                    LoopWaypoints::around(
-                        $routeQuery->startLatitude,
-                        $routeQuery->startLongitude,
-                        $routeQuery->distanceMetres,
-                        fmod($bearing + $routeQuery->turnDegrees, 360.0),
-                        $routeQuery->viaLatitude,
-                        $routeQuery->viaLongitude,
-                    ),
-                );
+                $routes[] = $this->fetch($routeQuery, $profile, $waypoints);
+                $answered = true;
+            } catch (MapServerBusy $mapServerBusy) {
+                $routes[] = null;
+                $busy = $mapServerBusy;
             } catch (RuntimeException) {
-                continue;
+                // The server answered: no road fits this way.
+                $routes[] = null;
+                $answered = true;
             }
         }
 
-        $diverse = RouteCleanliness::diverse($candidates, $routeQuery->distanceMetres);
+        if ($answered || ! $busy instanceof MapServerBusy) {
+            return $routes;
+        }
 
-        throw_if($diverse === [], RuntimeException::class, 'The cycling router did not return a loop.');
-
-        return $diverse;
+        throw $busy;
     }
 
     public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute

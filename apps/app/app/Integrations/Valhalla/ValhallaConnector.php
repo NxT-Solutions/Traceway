@@ -18,9 +18,10 @@ use Saloon\Traits\Plugins\HasTimeout;
 
 /**
  * Every request, and every request asked again, takes its share of the pace
- * first. When the server turns Traceway away as busy, or answers none of a
- * batch of routes, Traceway rests. A lookup or a match sent on its own that
- * fails is not the server down for everyone, so it is no reason to rest.
+ * first. When a batch of routes gets no answer at all, Traceway rests. A 429
+ * on part of a batch is the server asking to slow down, not a server down for
+ * everyone: that part fails, the rest of the batch counts, and the requests
+ * go out a few at a time so it is asked less.
  */
 final class ValhallaConnector extends Connector
 {
@@ -46,29 +47,14 @@ final class ValhallaConnector extends Connector
     {
         $this->mapServerPace?->admit(1);
 
-        try {
-            $response = parent::send($request, $mockClient, $handleRetry);
-        } catch (RequestException $requestException) {
-            if ($requestException->getStatus() === 429) {
-                $this->mapServerPace?->rest();
-            }
-
-            throw $requestException;
-        }
-
-        if ($response->status() === 429) {
-            $this->mapServerPace?->rest();
-        }
-
-        return $response;
+        return parent::send($request, $mockClient, $handleRetry);
     }
 
     #[Override]
     public function handleRetry(FatalRequestException|RequestException $exception, Request $request): bool
     {
+        // A request turned away as busy is not asked again at once.
         if ($exception instanceof RequestException && $exception->getStatus() === 429) {
-            $this->mapServerPace?->rest();
-
             return false;
         }
 
@@ -94,10 +80,10 @@ final class ValhallaConnector extends Connector
             $anyAnswered = $anyAnswered || ($response instanceof Response && self::answered($response));
             $left--;
 
-            // Turned away as busy is a rest at once. A batch with no answer at
-            // all is too, so the next request goes to the backup at once
-            // instead of waiting on a server that turned Traceway away.
-            if ($response?->status() === 429 || ($left === 0 && ! $anyAnswered)) {
+            // A batch with no answer at all is a rest, so the next request
+            // goes to the backup at once instead of waiting on a server that
+            // turned Traceway away.
+            if ($left === 0 && ! $anyAnswered) {
                 $mapServerPace->rest();
             }
         };

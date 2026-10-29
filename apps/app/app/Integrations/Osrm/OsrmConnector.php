@@ -8,7 +8,6 @@ use App\Domain\Routing\MapServerBusy;
 use App\Domain\Routing\MapServerPace;
 use Override;
 use Saloon\Exceptions\Request\FatalRequestException;
-use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Connector;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Request;
@@ -17,9 +16,9 @@ use Saloon\Traits\Plugins\AcceptsJson;
 use Saloon\Traits\Plugins\HasTimeout;
 
 /**
- * Every request takes its share of the pace first. A server that turns
- * Traceway away as busy, or does not answer, gets a rest, and the caller
- * hears that it is busy.
+ * Every request takes its share of the pace first. A server that does not
+ * answer gets a rest, and the caller hears that it is busy. A 429 fails only
+ * that request: the pace already keeps to about one a second.
  */
 final class OsrmConnector extends Connector
 {
@@ -57,16 +56,6 @@ final class OsrmConnector extends Connector
             $this->mapServerPace?->rest();
 
             throw new MapServerBusy('The backup map server did not answer.', $fatalRequestException->getCode(), previous: $fatalRequestException);
-        } catch (RequestException $requestException) {
-            if ($requestException->getStatus() === 429) {
-                $this->mapServerPace?->rest();
-            }
-
-            throw $requestException;
-        }
-
-        if ($response->status() === 429) {
-            $this->mapServerPace?->rest();
         }
 
         return $response;
