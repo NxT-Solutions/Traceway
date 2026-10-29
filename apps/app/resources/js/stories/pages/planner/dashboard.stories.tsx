@@ -3,6 +3,7 @@ import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import type { ServiceNoticeProps } from '@/components/service-notice';
 import type { AvoidedRoad } from '@/lib/avoided-roads';
 import { plannerDraftKey, recentPlacesKey } from '@/lib/planner-draft';
+import type { Coordinate } from '@/lib/route-details';
 import Dashboard from '@/pages/dashboard';
 import { rider } from '../../support/fixtures';
 import { InertiaPage, sharedProps } from '../../support/inertia-page';
@@ -15,6 +16,7 @@ import {
     plannerDraftFor,
     routeServices,
     sportSurfaces,
+    stopsAlong,
 } from '../../support/planner-pages';
 import {
     noLoopFromThatPin,
@@ -373,6 +375,67 @@ export const WithRoute: Story = {
 /** The same loops in Ink, with the dark map. */
 export const WithRouteInInk: Story = {
     globals: { appearance: 'dark' },
+};
+
+/**
+ * A café with a water tap outside: two stops at one spot. The map draws them as one pill with both icons, so the
+ * water is not hidden under the café. Choosing the café from the list puts the ring round the whole pill.
+ */
+export const StopsAtOneSpot: Story = {
+    beforeEach: ({ msw }) => {
+        msw.use(
+            http.post('/routes/stops', async ({ request }) => {
+                const body = (await request.json()) as {
+                    coordinates: Coordinate[];
+                };
+                const [cafe, water, toilet] = stopsAlong(body.coordinates);
+
+                return HttpResponse.json({
+                    stops: [
+                        { ...cafe, name: 'Mie Maan' },
+                        {
+                            ...water,
+                            distance_metres: cafe?.distance_metres,
+                            longitude: cafe?.longitude,
+                            latitude: cafe?.latitude,
+                        },
+                        toilet,
+                    ],
+                });
+            }),
+        );
+    },
+    play: async ({ canvasElement, step }) => {
+        const panel = within(await panelOf(canvasElement));
+
+        await step('The café and the water share a spot', async () => {
+            await userEvent.click(
+                await panel.findByText('Stops on the way (3)', {}, answer),
+            );
+            await expect(
+                panel.getByRole('button', { name: /Mie Maan/ }),
+            ).toHaveTextContent('2.8 km');
+            await expect(
+                panel.getByRole('button', { name: /Water/ }),
+            ).toHaveTextContent('2.8 km');
+        });
+
+        // The ring reads the pill the map drew, so this needs the map: two pins in one pill, not one pin over another.
+        await step('The ring goes round a pill of two', async () => {
+            await userEvent.click(
+                panel.getByRole('button', { name: /Mie Maan/ }),
+            );
+            await waitFor(
+                () =>
+                    expect(
+                        canvasElement
+                            .querySelector<HTMLElement>('.tw-chosen')
+                            ?.style.getPropertyValue('--pins'),
+                    ).toBe('2'),
+                { timeout: 15_000 },
+            );
+        });
+    },
 };
 
 /**
