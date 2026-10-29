@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Routing\CleanLeg;
 use App\Domain\Routing\ElevationBias;
 use App\Domain\Routing\GeneratedRoute;
+use App\Domain\Routing\RouteCleanliness;
 use App\Domain\Routing\RouteQuery;
 use App\Domain\Routing\Shape;
 use App\Domain\Routing\Sport;
@@ -135,4 +136,22 @@ it('lets a chain leg come home down the road the first leg left the transition o
 
     expect(CleanLeg::doubledMetres($bike, $generatedRoute))->toBeLessThan(10.0)
         ->and(CleanLeg::doublesBack($bike, $generatedRoute))->toBeFalse();
+});
+
+it('passes over a leg that is the wrong shape for a clean one, by the same rules as any loop', function (): void {
+    // A figure of eight through the transition, about 4 km by 4 km, and a plain 2.5 km square.
+    $eight = legRoute([[4.0, 51.0], [4.0, 51.018], [4.0572, 50.982], [4.0572, 51.018], [4.0, 50.982], [4.0, 51.0]], 10_000);
+    $clean = legRoute([[4.0, 51.0], [4.0357, 51.0], [4.0357, 51.0225], [4.0, 51.0225], [4.0, 51.0]], 9_000);
+
+    expect(RouteCleanliness::flawed($eight))->toBeTrue()
+        ->and(RouteCleanliness::flawed($clean))->toBeFalse()
+        ->and(CleanLeg::best([], [$eight, $clean], 10_000))->toBe($clean);
+});
+
+it('counts riding back down a road an earlier leg rode as a flaw', function (): void {
+    $ridden = [[4.0, 51.0], [4.02, 51.0], [4.02, 51.02], [4.0, 51.0]];
+    $back = legRoute([[4.0, 51.0], [4.02, 51.02], [4.02, 51.0], [4.0, 51.0]], 10_000);
+
+    expect(RouteCleanliness::flawed($back))->toBeFalse()
+        ->and(RouteCleanliness::flawed($back, $ridden))->toBeTrue();
 });

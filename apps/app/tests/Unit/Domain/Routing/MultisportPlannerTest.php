@@ -265,3 +265,43 @@ it('detours a chained leg that would run straight back over the leg before it', 
         ->and($plan->legs[1]->coordinates[0])->toBe([4.88, 51.10])
         ->and(array_last($plan->legs[1]->coordinates))->toBe([4.84, 51.12]);
 });
+
+it('tries other directions when every loop offered for a leg is the wrong shape', function (): void {
+    $routingEngine = new class implements RoutingEngine
+    {
+        /** @var list<int> */
+        public array $turns = [];
+
+        public function route(RouteQuery $routeQuery): GeneratedRoute
+        {
+            throw new LogicException('The planner does not ask for a single route.');
+        }
+
+        public function candidates(RouteQuery $routeQuery): array
+        {
+            $this->turns[] = $routeQuery->turnDegrees;
+
+            // A figure of eight through the transition at first; a plain square once turned.
+            return $routeQuery->turnDegrees === 0
+                ? [new GeneratedRoute($routeQuery, [[4.0, 51.0], [4.0, 51.018], [4.0572, 50.982], [4.0572, 51.018], [4.0, 50.982], [4.0, 51.0]], 10_000, 0)]
+                : [new GeneratedRoute($routeQuery, [[4.0, 51.0], [4.0357, 51.0], [4.0357, 51.0225], [4.0, 51.0225], [4.0, 51.0]], 9_000, 0)];
+        }
+
+        public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute
+        {
+            throw new LogicException('Loops do not trace.');
+        }
+
+        public function closeLoop(RouteQuery $routeQuery, array $ridden, array $from, array $to): GeneratedRoute
+        {
+            throw new LogicException('The planner does not close loops.');
+        }
+    };
+
+    $plan = new MultisportPlanner($routingEngine)->plan(new MultisportQuery(Layout::Loops, 51.0, 4.0, [
+        new LandLeg(Sport::Run, 10_000, Surface::Paved, ElevationBias::Neutral),
+    ]));
+
+    expect($routingEngine->turns)->toBe([0, 15])
+        ->and($plan->legs[0]->distanceMetres)->toBe(9_000);
+});

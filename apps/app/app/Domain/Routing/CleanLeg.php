@@ -5,52 +5,22 @@ declare(strict_types=1);
 namespace App\Domain\Routing;
 
 /**
- * Picks the leg that does not turn around on a road already used, by this
- * leg or by the legs before it. It is held to the same limit as a loop: 1 km
- * past its start street, or 12% of a short leg. Among clean legs, the one
- * nearest the length wins.
+ * A multisport leg is judged by RouteCleanliness, like every loop, so a rule
+ * made there holds for legs too. The one thing a leg adds is the legs before
+ * it: riding back down their roads is doubling back as well.
  */
 final class CleanLeg
 {
     /**
+     * The best of the legs offered: clean before flawed, then nearest the
+     * length, as RouteCleanliness ranks a loop.
+     *
      * @param  list<array{0: float, 1: float}>  $ridden  The legs already planned, joined.
      * @param  list<GeneratedRoute>  $routes
      */
     public static function best(array $ridden, array $routes, int $targetMetres): ?GeneratedRoute
     {
-        $best = null;
-        $bestScore = INF;
-
-        foreach ($routes as $route) {
-            $score = self::score($ridden, $route, $targetMetres);
-
-            if ($score < $bestScore) {
-                $best = $route;
-                $bestScore = $score;
-            }
-        }
-
-        return $best;
-    }
-
-    /**
-     * Doubling back costs far more than being off the length. A leg that
-     * turns around loses to any clean leg, however far off its length.
-     * When every leg turns around, the least doubled road wins. Among clean
-     * legs the doubled metres cost what they cost a loop.
-     *
-     * @param  list<array{0: float, 1: float}>  $ridden
-     */
-    public static function score(array $ridden, GeneratedRoute $generatedRoute, int $targetMetres): float
-    {
-        $doubled = self::doubledMetres($ridden, $generatedRoute);
-        $error = abs($generatedRoute->distanceMetres - $targetMetres) / max(1, $targetMetres);
-
-        if (self::over($doubled, $generatedRoute)) {
-            return 1_000 + ($doubled / 1_000) + $error;
-        }
-
-        return RouteCleanliness::doubledCost($doubled, Distance::along($generatedRoute->coordinates)) + $error;
+        return RouteCleanliness::cleanest($routes, $targetMetres, $ridden);
     }
 
     /**

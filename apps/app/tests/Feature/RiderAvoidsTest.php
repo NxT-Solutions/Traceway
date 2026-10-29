@@ -41,7 +41,8 @@ function avoidingEngine(): object
             $this->asked[] = $routeQuery;
             $start = [$routeQuery->startLongitude, $routeQuery->startLatitude];
 
-            return [new GeneratedRoute($routeQuery, [$start, [3.715, 51.05], [3.73, 51.05], $start], $routeQuery->distanceMetres, 10)];
+            // Out east along Bosweg, then north and home: a real loop, not the wrong shape.
+            return [new GeneratedRoute($routeQuery, [$start, [$start[0] + 0.01, $start[1]], [$start[0] + 0.005, $start[1] + 0.012], $start], $routeQuery->distanceMetres, 10)];
         }
 
         public function trace(RouteQuery $routeQuery, array $waypoints): GeneratedRoute

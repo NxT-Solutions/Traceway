@@ -817,11 +817,17 @@ final class RouteCleanliness
     }
 
     /**
+     * Every loop, leg, and engine's line is judged here, so a rule made once
+     * holds for all of them. $before is the line ridden before this one, such
+     * as the earlier legs of a multisport plan: riding back down its roads is
+     * doubling back too.
+     *
      * @param  list<GeneratedRoute>  $routes
+     * @param  list<array{0: float, 1: float}>  $before
      */
-    public static function cleanest(array $routes, int $targetMetres): ?GeneratedRoute
+    public static function cleanest(array $routes, int $targetMetres, array $before = []): ?GeneratedRoute
     {
-        $ranked = self::ranked($routes, $targetMetres);
+        $ranked = self::ranked($routes, $targetMetres, $before);
 
         return $ranked[0] ?? null;
     }
@@ -832,11 +838,32 @@ final class RouteCleanliness
      * off the requested length.
      *
      * @param  list<GeneratedRoute>  $routes
+     * @param  list<array{0: float, 1: float}>  $before
      * @return list<GeneratedRoute>
      */
-    public static function ranked(array $routes, int $targetMetres): array
+    public static function ranked(array $routes, int $targetMetres, array $before = []): array
     {
-        return array_column(self::scored($routes, $targetMetres), 'route');
+        return array_column(self::scored($routes, $targetMetres, $before), 'route');
+    }
+
+    /**
+     * Whether a line is flawed: it rides back down a road, its own or one in
+     * $before, or, as a loop, it is the wrong shape (see LoopShape). A flawed
+     * line is offered only when nothing clean came back.
+     *
+     * @param  list<array{0: float, 1: float}>  $before
+     */
+    public static function flawed(GeneratedRoute $generatedRoute, array $before = []): bool
+    {
+        ['away' => $doubled, 'total' => $total] = self::reversal($generatedRoute->coordinates, self::startOf($generatedRoute), $before);
+
+        return self::isFlawed($generatedRoute, $doubled, $total);
+    }
+
+    private static function isFlawed(GeneratedRoute $generatedRoute, float $doubled, float $total): bool
+    {
+        return $doubled > self::doubledLimit($total)
+            || ($generatedRoute->query->shape === Shape::Loop && LoopShape::misshapen($generatedRoute->coordinates, self::startOf($generatedRoute)));
     }
 
     /**
@@ -847,9 +874,10 @@ final class RouteCleanliness
      * again on every comparison.
      *
      * @param  list<GeneratedRoute>  $routes
+     * @param  list<array{0: float, 1: float}>  $before
      * @return list<array{route: GeneratedRoute, score: float, flawed: bool}>
      */
-    private static function scored(array $routes, int $targetMetres): array
+    private static function scored(array $routes, int $targetMetres, array $before = []): array
     {
         // The flattest and the hilliest are measured among the loops near the
         // length, so a loop far off it cannot set the bar for the rest.
@@ -859,10 +887,9 @@ final class RouteCleanliness
         $least = $ascents === [] ? 0 : min($ascents);
         $most = $ascents === [] ? 0 : max($ascents);
 
-        $scored = array_map(function (GeneratedRoute $generatedRoute) use ($targetMetres, $least, $most): array {
-            ['away' => $doubled, 'total' => $total] = self::reversal($generatedRoute->coordinates, self::startOf($generatedRoute));
-            $flawed = $doubled > self::doubledLimit($total)
-                || ($generatedRoute->query->shape === Shape::Loop && LoopShape::misshapen($generatedRoute->coordinates, self::startOf($generatedRoute)));
+        $scored = array_map(function (GeneratedRoute $generatedRoute) use ($targetMetres, $least, $most, $before): array {
+            ['away' => $doubled, 'total' => $total] = self::reversal($generatedRoute->coordinates, self::startOf($generatedRoute), $before);
+            $flawed = self::isFlawed($generatedRoute, $doubled, $total);
             $climb = self::climbCost($generatedRoute, $targetMetres, $least, $most);
 
             return [
@@ -887,11 +914,12 @@ final class RouteCleanliness
      * loops rather than a bad one.
      *
      * @param  list<GeneratedRoute>  $routes
+     * @param  list<array{0: float, 1: float}>  $before
      * @return list<GeneratedRoute>
      */
-    public static function diverse(array $routes, int $targetMetres, int $limit = 3, bool $fill = true): array
+    public static function diverse(array $routes, int $targetMetres, int $limit = 3, bool $fill = true, array $before = []): array
     {
-        $scored = self::scored($routes, $targetMetres);
+        $scored = self::scored($routes, $targetMetres, $before);
         $tolerance = self::lengthTolerance($targetMetres);
         $kept = [];
 
