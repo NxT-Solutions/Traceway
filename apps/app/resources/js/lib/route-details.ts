@@ -407,21 +407,67 @@ export function routeGpx(
 
 const detailSources = ['route-steepness', 'route-stops', 'route-hover'];
 
-function stopIcon(kind: StopKind): ImageData {
-    const size = 44;
+const stopKinds = Object.keys(stopColours) as StopKind[];
+
+// A pin is 44 pixels at twice the density. Pins side by side in one pill sit
+// this far apart, so each keeps its white edge.
+const stopSize = 44;
+const stopStep = 38;
+
+/**
+ * Every set of kinds that can share one spot, in the same order as the
+ * pill draws them: one kind alone is a round pin.
+ */
+function stopKindSets(): StopKind[][] {
+    return Array.from({ length: 2 ** stopKinds.length - 1 }, (_, index) =>
+        stopKinds.filter((_, bit) => ((index + 1) >> bit) & 1),
+    );
+}
+
+/**
+ * One white pill with a pin for each kind of stop at one spot. A single
+ * kind is a round pin.
+ */
+function stopIcon(kinds: StopKind[]): ImageData {
+    const size = stopSize;
+    const width = size + (kinds.length - 1) * stopStep;
     const canvas = document.createElement('canvas');
-    canvas.width = size;
+    canvas.width = width;
     canvas.height = size;
     const context = canvas.getContext('2d');
 
     if (context === null) {
-        return new ImageData(size, size);
+        return new ImageData(width, size);
     }
 
     context.fillStyle = '#ffffff';
     context.beginPath();
-    context.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+    context.arc(size / 2, size / 2, size / 2 - 1, Math.PI / 2, Math.PI * 1.5);
+    context.arc(
+        width - size / 2,
+        size / 2,
+        size / 2 - 1,
+        -Math.PI / 2,
+        Math.PI / 2,
+    );
+    context.closePath();
     context.fill();
+
+    kinds.forEach((kind, index) => {
+        context.save();
+        context.translate(index * stopStep, 0);
+        drawStop(context, kind);
+        context.restore();
+    });
+
+    return context.getImageData(0, 0, width, size);
+}
+
+/**
+ * The coloured disc and white symbol of one kind of stop.
+ */
+function drawStop(context: CanvasRenderingContext2D, kind: StopKind): void {
+    const size = stopSize;
     context.fillStyle = stopColours[kind];
     context.beginPath();
     context.arc(size / 2, size / 2, size / 2 - 5, 0, Math.PI * 2);
@@ -449,8 +495,6 @@ function stopIcon(kind: StopKind): ImageData {
         context.textBaseline = 'middle';
         context.fillText('WC', size / 2, size / 2 + 1);
     }
-
-    return context.getImageData(0, 0, size, size);
 }
 
 /**
@@ -489,16 +533,30 @@ export function addDetailLayers(map: MapLibreMap): void {
         );
     }
 
-    for (const kind of Object.keys(stopColours) as StopKind[]) {
-        if (!map.hasImage(`stop-${kind}`)) {
-            map.addImage(`stop-${kind}`, stopIcon(kind), { pixelRatio: 2 });
+    for (const kinds of stopKindSets()) {
+        const id = `stops-${kinds.join('-')}`;
+
+        if (!map.hasImage(id)) {
+            map.addImage(id, stopIcon(kinds), { pixelRatio: 2 });
         }
     }
 
+    // Stops within a pin's width of each other on screen join into one pill
+    // with a pin for each kind. A café with a tap outside is one pill, not a
+    // café hiding the water. Zoomed out, stops a few hundred metres apart
+    // join too, and the pill sits between them; they part as the map zooms
+    // in. Two stops of one kind show one pin.
     if (map.getSource('route-stops') === undefined) {
         map.addSource('route-stops', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] },
+            cluster: true,
+            clusterRadius: 22,
+            maxzoom: 24,
+            clusterMaxZoom: 23,
+            clusterProperties: Object.fromEntries(
+                stopKinds.map((kind) => [kind, ['max', ['get', kind]]]),
+            ),
         });
     }
 
@@ -508,7 +566,18 @@ export function addDetailLayers(map: MapLibreMap): void {
             type: 'symbol',
             source: 'route-stops',
             layout: {
-                'icon-image': ['concat', 'stop-', ['get', 'kind']],
+                'icon-image': [
+                    'concat',
+                    'stops',
+                    ...stopKinds.map(
+                        (kind): ExpressionSpecification => [
+                            'case',
+                            ['==', ['get', kind], 1],
+                            `-${kind}`,
+                            '',
+                        ],
+                    ),
+                ],
                 'icon-allow-overlap': true,
                 'icon-size': [
                     'interpolate',
@@ -631,11 +700,18 @@ export function syncDetailLayers(
         );
     }
 
+    const stops = details?.stops ?? [];
+    shownStops.set(map, stops);
+
+    // Each stop says which kinds it holds, as a pill of joined stops does, so
+    // one icon expression draws both.
     (map.getSource('route-stops') as GeoJSONSource).setData({
         type: 'FeatureCollection',
-        features: (details?.stops ?? []).map((stop) => ({
+        features: stops.map((stop) => ({
             type: 'Feature' as const,
-            properties: { kind: stop.kind, name: stop.name ?? '' },
+            properties: Object.fromEntries(
+                stopKinds.map((kind) => [kind, kind === stop.kind ? 1 : 0]),
+            ),
             geometry: {
                 type: 'Point' as const,
                 coordinates: [stop.longitude, stop.latitude],
@@ -673,7 +749,10 @@ export function syncHoverPoint(
     });
 }
 
+const shownStops = new WeakMap<MapLibreMap, Stop[]>();
 const chosenMarkers = new WeakMap<MapLibreMap, Marker>();
+const chosenPoints = new WeakMap<MapLibreMap, Coordinate>();
+const fittedMaps = new WeakSet<MapLibreMap>();
 
 /**
  * Marks the stop or turn the rider chose with a ring that pulses around it.
@@ -686,12 +765,21 @@ export function markChosen(map: MapLibreMap, point: Coordinate | null): void {
     if (point === null) {
         marker?.remove();
         chosenMarkers.delete(map);
+        chosenPoints.delete(map);
 
         return;
     }
 
+    chosenPoints.set(map, point);
+
+    if (!fittedMaps.has(map)) {
+        fittedMaps.add(map);
+        map.on('idle', () => fitChosen(map));
+    }
+
     if (marker !== undefined) {
         marker.setLngLat(point);
+        fitChosen(map);
 
         return;
     }
@@ -703,4 +791,66 @@ export function markChosen(map: MapLibreMap, point: Coordinate | null): void {
         map,
         new MapLibreMarker({ element }).setLngLat(point).addTo(map),
     );
+    fitChosen(map);
+}
+
+/**
+ * Fits the ring to what the chosen stop is drawn as. Stops that share a
+ * spot are one pill, so the ring goes round the whole pill, not through it.
+ * A turn keeps a round ring on its own spot.
+ */
+function fitChosen(map: MapLibreMap): void {
+    const marker = chosenMarkers.get(map);
+    const point = chosenPoints.get(map);
+
+    if (marker === undefined || point === undefined) {
+        return;
+    }
+
+    const isStop = (shownStops.get(map) ?? []).some(
+        (stop) => stop.longitude === point[0] && stop.latitude === point[1],
+    );
+    const at = map.project(point);
+    const reach = 24;
+    let drawnAt: Coordinate = point;
+    let pins = 1;
+    let nearest = reach;
+
+    const drawn =
+        isStop && map.getLayer('route-stops') !== undefined
+            ? map.queryRenderedFeatures(
+                  [
+                      [at.x - reach, at.y - reach],
+                      [at.x + reach, at.y + reach],
+                  ],
+                  { layers: ['route-stops'] },
+              )
+            : [];
+
+    for (const feature of drawn) {
+        const [longitude, latitude] =
+            feature.geometry.type === 'Point'
+                ? feature.geometry.coordinates
+                : [];
+
+        if (longitude === undefined || latitude === undefined) {
+            continue;
+        }
+
+        const spot = map.project([longitude, latitude]);
+        const distance = Math.hypot(spot.x - at.x, spot.y - at.y);
+
+        if (distance <= nearest) {
+            nearest = distance;
+            drawnAt = [longitude, latitude];
+            pins = Math.max(
+                1,
+                stopKinds.filter((kind) => feature.properties[kind] === 1)
+                    .length,
+            );
+        }
+    }
+
+    marker.setLngLat(drawnAt);
+    marker.getElement().style.setProperty('--pins', String(pins));
 }
