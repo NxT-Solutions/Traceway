@@ -36,7 +36,9 @@ it('writes a course file a head unit can open', function (): void {
 
 it('keeps a long accented name whole in the sixteen-byte name field', function (): void {
     $bytes = FitCourse::encode('Zürich Ir 2 Run', Sport::Run, [[3.72, 51.05], [3.74, 51.06]]);
-    $start = strpos($bytes, 'Z');
+    // The file holds the time it was made, and any of its bytes can be a 'Z',
+    // so the field is found by the name itself, not by its first letter.
+    $start = strpos($bytes, 'Zürich');
 
     expect($start)->toBeInt();
 
