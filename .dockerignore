@@ -12,6 +12,7 @@ apps/web/nginx-csp.conf
 apps/app/.env
 apps/app/public/hot
 apps/app/public/build
+apps/app/bootstrap/cache/*.php
 apps/app/storybook-static
 apps/app/storybook-coverage
 apps/app/design-system
