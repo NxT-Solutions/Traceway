@@ -5,6 +5,10 @@ FROM php:8.5-fpm-alpine AS base
 ENV BUN_INSTALL=/usr/local/bun
 ENV PATH="${BUN_INSTALL}/bin:${PATH}"
 
+# The PHP image is rebuilt when PHP or Alpine releases, not when an Alpine
+# package gets a security fix, such as libcurl's. Take those at every build.
+RUN apk upgrade --no-cache
+
 RUN apk add --no-cache \
     bash \
     curl \
@@ -17,7 +21,7 @@ RUN apk add --no-cache \
     su-exec \
     unzip
 
-RUN curl -fsSL https://bun.sh/install | bash -s bun-v1.4.3 \
+RUN curl -fsSL https://bun.sh/install | bash -s bun-v1.4.4 \
     && ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
 
 ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/download/2.12.0/install-php-extensions /usr/local/bin/
